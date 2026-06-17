@@ -1,0 +1,24 @@
+{
+  "name": "garage-link-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev:garage-link": "pnpm --filter @apps/garage-link dev",
+    "dev:l-link": "pnpm --filter @apps/l-link dev",
+    "build": "pnpm -r --filter './apps/*' build",
+    "build:garage-link": "pnpm --filter @apps/garage-link build",
+    "build:l-link": "pnpm --filter @apps/l-link build",
+    "lint": "pnpm -r --filter './apps/*' lint",
+    "typecheck": "pnpm -r --filter './apps/*' typecheck",
+    "test:security": "pnpm --filter @apps/garage-link test:security",
+    "test:garage-link": "pnpm --filter @apps/garage-link test",
+    "test:billing:garage-link": "pnpm --filter @apps/garage-link test:billing",
+    "test:e2e:garage-link": "pnpm --filter @apps/garage-link test:e2e:billing",
+    "verify:garage-link": "pnpm lint && pnpm typecheck && pnpm build && pnpm test:billing:garage-link && pnpm test:e2e:garage-link",
+    "garage-link:lint": "npm --prefix apps/garage-link run lint",
+    "garage-link:typecheck": "npm --prefix apps/garage-link run typecheck",
+    "garage-link:build": "npm --prefix apps/garage-link run build"
+  },
+  "devDependencies": {}
+}

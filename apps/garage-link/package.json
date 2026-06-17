@@ -1,0 +1,41 @@
+{
+  "name": "@apps/garage-link",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:security",
+    "test:security": "playwright test -c playwright.security.config.ts",
+    "test:billing": "playwright test -c playwright.security.config.ts tests/security/garage-billing.test.ts",
+    "test:e2e:billing": "node scripts/run-billing-e2e.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "dependencies": {
+    "@garage-link/auth": "workspace:*",
+    "@garage-link/billing": "workspace:*",
+    "@garage-link/config": "workspace:*",
+    "@garage-link/database": "workspace:*",
+    "@garage-link/ui": "workspace:*",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.106.2",
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
