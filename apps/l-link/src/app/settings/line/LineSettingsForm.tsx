@@ -18,6 +18,11 @@ function configuredText(configured: boolean) {
   return configured ? "設定済み" : "未設定";
 }
 
+function formatSavedAt(value: string | null | undefined) {
+  if (!value) return null;
+  return new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
 export function LineSettingsForm({ initialState, saveAction }: LineSettingsFormProps) {
   const [state, formAction, pending] = useActionState(saveAction, initialState);
   const fields = state.fields;
@@ -32,10 +37,12 @@ export function LineSettingsForm({ initialState, saveAction }: LineSettingsFormP
     fields.webhookUrl,
   ].join(":");
 
+  const savedAt = formatSavedAt(state.updatedAt);
+
   return (
     <div className="space-y-4">
       {state.message ? (
-        <p
+        <div
           aria-live="polite"
           className={`rounded-xl border px-4 py-3 text-sm font-bold ${
             state.status === "success"
@@ -43,22 +50,33 @@ export function LineSettingsForm({ initialState, saveAction }: LineSettingsFormP
               : "border-red-200 bg-red-50 text-red-700"
           }`}
         >
-          {state.message}
-        </p>
+          <p>{state.message}</p>
+          {state.status === "success" && savedAt ? (
+            <p className="mt-1 text-xs font-normal opacity-80">最終保存: {savedAt}</p>
+          ) : null}
+        </div>
       ) : null}
 
-      <div className="grid gap-3 rounded-xl bg-slate-50 p-4 md:grid-cols-3">
+      <div className="grid gap-3 rounded-xl bg-slate-50 p-4 md:grid-cols-4">
         <div>
           <p className="text-xs font-bold text-slate-500">Channel secret</p>
-          <p className="mt-1 text-sm font-black text-slate-900">{configuredText(state.secrets.channelSecretConfigured)}</p>
+          <p className={`mt-1 text-sm font-black ${state.secrets.channelSecretConfigured ? "text-green-700" : "text-slate-400"}`}>
+            {configuredText(state.secrets.channelSecretConfigured)}
+          </p>
         </div>
         <div>
           <p className="text-xs font-bold text-slate-500">Channel access token</p>
-          <p className="mt-1 text-sm font-black text-slate-900">{configuredText(state.secrets.channelAccessTokenConfigured)}</p>
+          <p className={`mt-1 text-sm font-black ${state.secrets.channelAccessTokenConfigured ? "text-green-700" : "text-slate-400"}`}>
+            {configuredText(state.secrets.channelAccessTokenConfigured)}
+          </p>
         </div>
         <div>
           <p className="text-xs font-bold text-slate-500">保存状態</p>
           <p className="mt-1 text-sm font-black text-slate-900">{state.connectionStatus || "not_configured"}</p>
+        </div>
+        <div>
+          <p className="text-xs font-bold text-slate-500">最終保存</p>
+          <p className="mt-1 text-sm font-black text-slate-900">{savedAt ?? "未保存"}</p>
         </div>
       </div>
 
@@ -128,8 +146,11 @@ export function LineSettingsForm({ initialState, saveAction }: LineSettingsFormP
           />
         </label>
         <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-          <button disabled={pending} className="rounded-xl bg-green-600 px-5 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300">
-            {pending ? "保存中" : "保存する"}
+          <button
+            disabled={pending}
+            className="rounded-xl bg-green-600 px-5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
+            {pending ? "保存中..." : "保存する"}
           </button>
           <p className="text-xs font-bold text-slate-500">Secret / Token は保存後も本文を表示しません。</p>
         </div>

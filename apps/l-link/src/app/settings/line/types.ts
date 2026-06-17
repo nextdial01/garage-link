@@ -20,5 +20,6 @@ export type LineSettingsState = {
   connectionStatus: string;
   isConnected: boolean;
   verifiedAt: string | null;
+  updatedAt: string | null;
   lastConnectionError: string | null;
 };

@@ -87,11 +87,13 @@ export async function POST(request: Request) {
 
   const verified = await findVerifiedAccount({ companyId: demoCompanyId, rawBody, signature });
   if (!verified) {
+    console.error('[webhook] invalid_signature: demoCompanyId_set=%s signature_present=%s', Boolean(demoCompanyId), Boolean(signature));
     return Response.json({ ok: false, error: 'invalid_signature' }, { status: 403 });
   }
 
   if (!supabase) {
-    return Response.json({ ok: true, skipped: 'database_not_configured' });
+    console.error('[webhook] database_not_configured: SUPABASE_SERVICE_ROLE_KEY or L_LINK_SUPABASE_SERVICE_ROLE_KEY is not set');
+    return Response.json({ ok: false, error: 'database_not_configured' }, { status: 503 });
   }
 
   let payload: LineWebhookBody;
@@ -103,7 +105,8 @@ export async function POST(request: Request) {
 
   const account = verified.account ?? (await getLineAccount(demoCompanyId ?? '', payload.destination));
   if (!account) {
-    return Response.json({ ok: true, skipped: 'line_account_not_found' });
+    console.error('[webhook] line_account_not_found: destination=%s demoCompanyId_set=%s secret_source=%s', payload.destination, Boolean(demoCompanyId), verified.channelSecretSource);
+    return Response.json({ ok: false, error: 'line_account_not_found' }, { status: 503 });
   }
   const companyId = account.company_id;
 
@@ -147,17 +150,35 @@ export async function POST(request: Request) {
       continue;
     }
 
+    if (webhookInsertError) {
+      console.error('[webhook] ll_line_webhook_events insert failed: code=%s msg=%s event_type=%s', webhookInsertError.code, webhookInsertError.message?.slice(0, 120), event.type);
+    }
+
     if (lineUserId && (event.type === 'follow' || event.type === 'message' || event.type === 'unfollow' || event.type === 'postback')) {
-      const friend = await upsertLineFriend({
-        supabase,
-        companyId,
-        lineAccountId: account.id,
-        lineUserId,
-        channelAccessToken,
-        eventType: event.type,
-        messageText: event.message?.type === 'text' ? event.message.text ?? null : null,
-        receivedAt,
-      });
+      let friend: { id: string } | null = null;
+      try {
+        friend = await upsertLineFriend({
+          supabase,
+          companyId,
+          lineAccountId: account.id,
+          lineUserId,
+          channelAccessToken,
+          eventType: event.type,
+          messageText: event.message?.type === 'text' ? event.message.text ?? null : null,
+          receivedAt,
+        });
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message.slice(0, 120) : String(err).slice(0, 120);
+        console.error('[webhook] upsertLineFriend failed: event_type=%s err=%s', event.type, errMsg);
+
+        if (webhookRow?.id) {
+          await supabase
+            .from('ll_line_webhook_events')
+            .update({ status: 'error', error_code: `upsert_friend_failed: ${errMsg}` })
+            .eq('id', webhookRow.id);
+        }
+        continue;
+      }
 
       if (webhookRow?.id) {
         await supabase.from('ll_line_webhook_events').update({ line_friend_id: friend.id }).eq('id', webhookRow.id);
@@ -165,7 +186,7 @@ export async function POST(request: Request) {
 
       if (event.type === 'message') {
         // Ignore 23505 unique_violation: duplicate webhook_event_id means already logged
-        await supabase.from('ll_message_logs').insert({
+        const { error: msgLogError } = await supabase.from('ll_message_logs').insert({
           company_id: companyId,
           line_account_id: account.id,
           line_friend_id: friend.id,
@@ -177,6 +198,10 @@ export async function POST(request: Request) {
           received_at: receivedAt,
           status: 'received',
         });
+
+        if (msgLogError && msgLogError.code !== '23505') {
+          console.error('[webhook] ll_message_logs insert failed: code=%s msg=%s', msgLogError.code, msgLogError.message?.slice(0, 120));
+        }
       }
     }
 

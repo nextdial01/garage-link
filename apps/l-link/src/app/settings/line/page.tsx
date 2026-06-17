@@ -15,7 +15,7 @@ function appUrl() {
 }
 
 const lineAccountSelect =
-  "id, company_id, account_name, channel_id, basic_id, line_bot_user_id, webhook_url, is_connected, connection_status, verified_at, last_connection_error, channel_secret_last4, channel_access_token_last4";
+  "id, company_id, account_name, channel_id, basic_id, line_bot_user_id, webhook_url, is_connected, connection_status, verified_at, updated_at, last_connection_error, channel_secret_last4, channel_access_token_last4";
 
 type LineAccountForSettings = {
   id: string;
@@ -28,6 +28,7 @@ type LineAccountForSettings = {
   is_connected: boolean | null;
   connection_status: string | null;
   verified_at: string | null;
+  updated_at: string | null;
   last_connection_error: string | null;
   channel_secret_last4: string | null;
   channel_access_token_last4: string | null;
@@ -61,6 +62,7 @@ function stateFromAccount(
     connectionStatus: account?.connection_status ?? "not_configured",
     isConnected: Boolean(account?.is_connected),
     verifiedAt: account?.verified_at ?? null,
+    updatedAt: account?.updated_at ?? null,
     lastConnectionError: account?.last_connection_error ?? null,
   };
 }
@@ -247,7 +249,12 @@ async function saveLineSettings(prevState: LineSettingsState, formData: FormData
 
   revalidatePath("/settings/line");
 
-  return stateFromAccount(savedAccount, fields.webhookUrl, "success", "保存しました");
+  const savedSecrets = Boolean(channelSecret || channelAccessToken);
+  const successMessage = savedSecrets
+    ? "LINE接続設定を保存しました（Secret / Token は暗号化して保存されました）"
+    : "LINE接続設定を保存しました";
+
+  return stateFromAccount(savedAccount, fields.webhookUrl, "success", successMessage);
 }
 
 async function verifyLineConnection(formData: FormData) {
