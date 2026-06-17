@@ -21,20 +21,6 @@ create table if not exists public.stores (
   updated_at timestamptz not null default now()
 );
 
-alter table public.stores add column if not exists name text;
-alter table public.stores add column if not exists business_type text;
-alter table public.stores add column if not exists industry text;
-alter table public.stores add column if not exists postal_code text;
-alter table public.stores add column if not exists prefecture text;
-alter table public.stores add column if not exists address text;
-alter table public.stores add column if not exists phone text;
-alter table public.stores add column if not exists email text;
-alter table public.stores add column if not exists contact_name text;
-alter table public.stores add column if not exists status text not null default 'active';
-alter table public.stores add column if not exists plan_code text;
-alter table public.stores add column if not exists created_at timestamptz not null default now();
-alter table public.stores add column if not exists updated_at timestamptz not null default now();
-
 create table if not exists public.store_members (
   id uuid primary key default gen_random_uuid(),
   store_id uuid not null references public.stores(id) on delete cascade,
@@ -46,23 +32,6 @@ create table if not exists public.store_members (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
-alter table public.store_members add column if not exists store_id uuid references public.stores(id) on delete cascade;
-alter table public.store_members add column if not exists user_id uuid references auth.users(id) on delete cascade;
-alter table public.store_members add column if not exists role text not null default 'owner';
-alter table public.store_members add column if not exists display_name text;
-alter table public.store_members add column if not exists email text;
-alter table public.store_members add column if not exists status text not null default 'active';
-alter table public.store_members add column if not exists created_at timestamptz not null default now();
-alter table public.store_members add column if not exists updated_at timestamptz not null default now();
-
-alter table public.store_members drop constraint if exists store_members_store_user_unique;
-alter table public.store_members drop constraint if exists store_members_store_id_user_id_key;
-alter table public.store_members add constraint store_members_store_user_unique unique (store_id, user_id);
-
-create index if not exists idx_ll_stores_status on public.stores(status);
-create index if not exists idx_ll_store_members_user_id on public.store_members(user_id);
-create index if not exists idx_ll_store_members_store_id on public.store_members(store_id);
 
 create table if not exists public.ll_line_accounts (
   id uuid primary key default gen_random_uuid(),
@@ -390,49 +359,79 @@ create table if not exists public.ll_permissions (
   created_at timestamptz not null default now()
 );
 
-create index if not exists ll_line_accounts_company_idx on public.ll_line_accounts(company_id);
-create index if not exists ll_line_friends_company_account_idx on public.ll_line_friends(company_id, line_account_id);
-create index if not exists ll_friend_profiles_company_friend_idx on public.ll_friend_profiles(company_id, line_friend_id);
-create index if not exists ll_friend_notes_company_friend_idx on public.ll_friend_notes(company_id, line_friend_id);
-create index if not exists ll_friend_tags_company_friend_idx on public.ll_friend_tags(company_id, line_friend_id);
-create index if not exists ll_webhook_events_company_account_idx on public.ll_line_webhook_events(company_id, line_account_id);
-create index if not exists ll_message_logs_company_friend_idx on public.ll_message_logs(company_id, line_friend_id);
-create index if not exists ll_forms_company_status_idx on public.ll_forms(company_id, status);
-create index if not exists ll_form_questions_company_form_idx on public.ll_form_questions(company_id, form_id);
-create index if not exists ll_form_answers_company_form_idx on public.ll_form_answers(company_id, form_id);
-create index if not exists ll_form_answers_company_friend_idx on public.ll_form_answers(company_id, line_friend_id);
-create index if not exists ll_form_answer_items_company_answer_idx on public.ll_form_answer_items(company_id, form_answer_id);
-create index if not exists ll_rich_menus_company_status_idx on public.ll_rich_menus(company_id, status);
-create index if not exists ll_rich_menu_areas_company_menu_idx on public.ll_rich_menu_areas(company_id, rich_menu_id);
-create index if not exists ll_segments_company_status_idx on public.ll_segments(company_id, status);
-create index if not exists ll_segment_conditions_company_segment_idx on public.ll_segment_conditions(company_id, segment_id);
-create index if not exists ll_broadcasts_company_status_idx on public.ll_broadcasts(company_id, status);
-create index if not exists ll_broadcast_targets_company_broadcast_idx on public.ll_broadcast_targets(company_id, broadcast_id);
-create index if not exists ll_staff_roles_company_user_idx on public.ll_staff_roles(company_id, user_id);
-create index if not exists ll_permissions_company_role_idx on public.ll_permissions(company_id, role);
+-- ================================================================
+-- ALTER TABLE ADD COLUMN IF NOT EXISTS
+-- 既存DBに対して不足カラムを補う。CREATE TABLE より必ず後、
+-- CREATE INDEX より必ず前に実行する。
+-- ================================================================
 
+-- stores
+alter table public.stores add column if not exists name text;
+alter table public.stores add column if not exists business_type text;
+alter table public.stores add column if not exists industry text;
+alter table public.stores add column if not exists postal_code text;
+alter table public.stores add column if not exists prefecture text;
+alter table public.stores add column if not exists address text;
+alter table public.stores add column if not exists phone text;
+alter table public.stores add column if not exists email text;
+alter table public.stores add column if not exists contact_name text;
+alter table public.stores add column if not exists status text not null default 'active';
+alter table public.stores add column if not exists plan_code text;
+alter table public.stores add column if not exists created_at timestamptz not null default now();
+alter table public.stores add column if not exists updated_at timestamptz not null default now();
+
+-- store_members
+alter table public.store_members add column if not exists store_id uuid references public.stores(id) on delete cascade;
+alter table public.store_members add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.store_members add column if not exists role text not null default 'owner';
+alter table public.store_members add column if not exists display_name text;
+alter table public.store_members add column if not exists email text;
+alter table public.store_members add column if not exists status text not null default 'active';
+alter table public.store_members add column if not exists created_at timestamptz not null default now();
+alter table public.store_members add column if not exists updated_at timestamptz not null default now();
+
+-- ll_line_accounts
 alter table public.ll_line_accounts add column if not exists verified_at timestamptz;
 alter table public.ll_line_accounts add column if not exists connection_status text not null default 'not_verified';
 alter table public.ll_line_accounts add column if not exists last_connection_error text;
+
+-- ll_line_webhook_events
 alter table public.ll_line_webhook_events add column if not exists line_friend_id uuid references public.ll_line_friends(id) on delete set null;
 alter table public.ll_line_webhook_events add column if not exists source_user_hash text;
 alter table public.ll_line_webhook_events add column if not exists raw_event_hash text;
+alter table public.ll_line_webhook_events add column if not exists event_id text;
+alter table public.ll_line_webhook_events add column if not exists status text not null default 'received';
+
+-- ll_line_friends
+alter table public.ll_line_friends add column if not exists friend_status text not null default 'active';
+alter table public.ll_line_friends add column if not exists last_message_at timestamptz;
+alter table public.ll_line_friends add column if not exists last_interaction_at timestamptz;
 alter table public.ll_line_friends add column if not exists profile_fetch_error text;
 alter table public.ll_line_friends add column if not exists last_message_text text;
-alter table public.ll_message_logs add column if not exists webhook_event_id text;
-create index if not exists ll_message_logs_company_created_idx on public.ll_message_logs(company_id, created_at desc);
-create index if not exists ll_message_logs_webhook_event_idx on public.ll_message_logs(company_id, webhook_event_id);
+
+-- ll_friend_notes
 alter table public.ll_friend_notes add column if not exists deleted_at timestamptz;
+
+-- ll_forms
 alter table public.ll_forms add column if not exists description text;
 alter table public.ll_forms add column if not exists is_public boolean not null default false;
 alter table public.ll_forms add column if not exists auto_tag_ids uuid[] not null default '{}'::uuid[];
+alter table public.ll_forms add column if not exists status text not null default 'draft';
+
+-- ll_form_questions
 alter table public.ll_form_questions add column if not exists options text[] not null default '{}'::text[];
 alter table public.ll_form_questions add column if not exists profile_mapping text;
 alter table public.ll_form_questions add column if not exists auto_tag_id uuid references public.ll_tags(id) on delete set null;
 alter table public.ll_form_questions add column if not exists choice_tag_map jsonb not null default '{}'::jsonb;
+
+-- ll_form_answers
 alter table public.ll_form_answers add column if not exists line_user_id text;
 alter table public.ll_form_answers add column if not exists source text;
+
+-- ll_form_answer_items
 alter table public.ll_form_answer_items add column if not exists answer_values text[] not null default '{}'::text[];
+
+-- ll_rich_menus
 alter table public.ll_rich_menus add column if not exists line_account_id uuid references public.ll_line_accounts(id) on delete set null;
 alter table public.ll_rich_menus add column if not exists name text;
 alter table public.ll_rich_menus add column if not exists description text;
@@ -444,18 +443,27 @@ alter table public.ll_rich_menus add column if not exists is_default boolean not
 alter table public.ll_rich_menus add column if not exists target_memo text;
 alter table public.ll_rich_menus add column if not exists line_rich_menu_id text;
 alter table public.ll_rich_menus add column if not exists published_at timestamptz;
+alter table public.ll_rich_menus add column if not exists status text not null default 'draft';
+
+-- ll_rich_menu_areas
 alter table public.ll_rich_menu_areas add column if not exists x integer not null default 0;
 alter table public.ll_rich_menu_areas add column if not exists y integer not null default 0;
 alter table public.ll_rich_menu_areas add column if not exists width integer not null default 0;
 alter table public.ll_rich_menu_areas add column if not exists height integer not null default 0;
 alter table public.ll_rich_menu_areas add column if not exists sort_order integer not null default 0;
 alter table public.ll_rich_menu_areas add column if not exists updated_at timestamptz not null default now();
+
+-- ll_segments  ← status は index より前に必須
 alter table public.ll_segments add column if not exists description text;
 alter table public.ll_segments add column if not exists status text not null default 'active';
+
+-- ll_segment_conditions
 alter table public.ll_segment_conditions add column if not exists field text;
 alter table public.ll_segment_conditions add column if not exists value_json jsonb not null default '{}'::jsonb;
 alter table public.ll_segment_conditions add column if not exists sort_order integer not null default 0;
 alter table public.ll_segment_conditions add column if not exists updated_at timestamptz not null default now();
+
+-- ll_broadcasts
 alter table public.ll_broadcasts add column if not exists line_account_id uuid references public.ll_line_accounts(id) on delete set null;
 alter table public.ll_broadcasts add column if not exists name text;
 alter table public.ll_broadcasts add column if not exists message_text text;
@@ -463,10 +471,25 @@ alter table public.ll_broadcasts add column if not exists target_type text not n
 alter table public.ll_broadcasts add column if not exists target_tag_ids uuid[] not null default '{}'::uuid[];
 alter table public.ll_broadcasts add column if not exists target_segment_id uuid references public.ll_segments(id) on delete set null;
 alter table public.ll_broadcasts add column if not exists target_count integer not null default 0;
+alter table public.ll_broadcasts add column if not exists status text not null default 'draft';
+
+-- ll_broadcast_targets
 alter table public.ll_broadcast_targets add column if not exists line_friend_id uuid references public.ll_line_friends(id) on delete set null;
 alter table public.ll_broadcast_targets add column if not exists line_user_id text;
 alter table public.ll_broadcast_targets add column if not exists status text not null default 'preview';
 alter table public.ll_broadcast_targets add column if not exists updated_at timestamptz not null default now();
+
+-- ll_message_logs
+alter table public.ll_message_logs add column if not exists status text not null default 'received';
+alter table public.ll_message_logs add column if not exists webhook_event_id text;
+
+-- ================================================================
+-- UNIQUE CONSTRAINTS (drop + re-add for idempotency)
+-- ================================================================
+
+alter table public.store_members drop constraint if exists store_members_store_user_unique;
+alter table public.store_members drop constraint if exists store_members_store_id_user_id_key;
+alter table public.store_members add constraint store_members_store_user_unique unique (store_id, user_id);
 
 alter table public.ll_line_friends drop constraint if exists ll_line_friends_company_account_user_unique;
 alter table public.ll_line_friends add constraint ll_line_friends_company_account_user_unique unique (company_id, line_account_id, line_user_id);
@@ -490,6 +513,52 @@ alter table public.ll_permissions add constraint ll_permissions_company_role_cod
 alter table public.ll_staff_roles drop constraint if exists ll_staff_roles_company_user_key;
 alter table public.ll_staff_roles drop constraint if exists ll_staff_roles_company_id_user_id_key;
 alter table public.ll_staff_roles add constraint ll_staff_roles_company_user_key unique (company_id, user_id);
+
+-- ================================================================
+-- CREATE INDEX
+-- すべての ALTER TABLE ADD COLUMN の後に実行する。
+-- ================================================================
+
+create index if not exists idx_ll_stores_status on public.stores(status);
+create index if not exists idx_ll_store_members_user_id on public.store_members(user_id);
+create index if not exists idx_ll_store_members_store_id on public.store_members(store_id);
+
+create index if not exists ll_line_accounts_company_idx on public.ll_line_accounts(company_id);
+create index if not exists ll_line_friends_company_account_idx on public.ll_line_friends(company_id, line_account_id);
+create index if not exists ll_friend_profiles_company_friend_idx on public.ll_friend_profiles(company_id, line_friend_id);
+create index if not exists ll_friend_notes_company_friend_idx on public.ll_friend_notes(company_id, line_friend_id);
+create index if not exists ll_friend_tags_company_friend_idx on public.ll_friend_tags(company_id, line_friend_id);
+create index if not exists ll_webhook_events_company_account_idx on public.ll_line_webhook_events(company_id, line_account_id);
+create index if not exists ll_message_logs_company_friend_idx on public.ll_message_logs(company_id, line_friend_id);
+create index if not exists ll_forms_company_status_idx on public.ll_forms(company_id, status);
+create index if not exists ll_form_questions_company_form_idx on public.ll_form_questions(company_id, form_id);
+create index if not exists ll_form_answers_company_form_idx on public.ll_form_answers(company_id, form_id);
+create index if not exists ll_form_answers_company_friend_idx on public.ll_form_answers(company_id, line_friend_id);
+create index if not exists ll_form_answer_items_company_answer_idx on public.ll_form_answer_items(company_id, form_answer_id);
+create index if not exists ll_rich_menus_company_status_idx on public.ll_rich_menus(company_id, status);
+create index if not exists ll_rich_menu_areas_company_menu_idx on public.ll_rich_menu_areas(company_id, rich_menu_id);
+create index if not exists ll_segments_company_status_idx on public.ll_segments(company_id, status);
+create index if not exists ll_segment_conditions_company_segment_idx on public.ll_segment_conditions(company_id, segment_id);
+create index if not exists ll_broadcasts_company_status_idx on public.ll_broadcasts(company_id, status);
+create index if not exists ll_broadcast_targets_company_broadcast_idx on public.ll_broadcast_targets(company_id, broadcast_id);
+create index if not exists ll_staff_roles_company_user_idx on public.ll_staff_roles(company_id, user_id);
+create index if not exists ll_permissions_company_role_idx on public.ll_permissions(company_id, role);
+create index if not exists ll_message_logs_company_created_idx on public.ll_message_logs(company_id, created_at desc);
+create index if not exists ll_message_logs_webhook_event_idx on public.ll_message_logs(company_id, webhook_event_id);
+
+-- Webhook event idempotency
+create unique index if not exists ll_line_webhook_events_company_event_id_uniq
+  on public.ll_line_webhook_events(company_id, event_id)
+  where event_id is not null;
+
+-- Message log idempotency
+create unique index if not exists ll_message_logs_company_webhook_event_id_uniq
+  on public.ll_message_logs(company_id, webhook_event_id)
+  where webhook_event_id is not null;
+
+-- ================================================================
+-- UPDATED_AT TRIGGER
+-- ================================================================
 
 create or replace function public.ll_set_updated_at()
 returns trigger
@@ -535,6 +604,10 @@ begin
   end loop;
 end $$;
 
+-- ================================================================
+-- ROW LEVEL SECURITY
+-- ================================================================
+
 alter table public.stores enable row level security;
 alter table public.store_members enable row level security;
 alter table public.ll_line_accounts enable row level security;
@@ -565,6 +638,10 @@ alter table public.ll_delivery_counts enable row level security;
 alter table public.ll_click_events enable row level security;
 alter table public.ll_staff_roles enable row level security;
 alter table public.ll_permissions enable row level security;
+
+-- ================================================================
+-- HELPER FUNCTIONS
+-- ================================================================
 
 create or replace function public.ll_current_user_company_ids()
 returns setof uuid
@@ -694,6 +771,10 @@ begin
 end;
 $$;
 
+-- ================================================================
+-- RLS POLICIES (ll_* tables bulk)
+-- ================================================================
+
 do $$
 declare
   table_name text;
@@ -754,6 +835,7 @@ begin
   end loop;
 end $$;
 
+-- stores policies
 drop policy if exists ll_stores_select_member on public.stores;
 drop policy if exists ll_stores_insert_authenticated on public.stores;
 drop policy if exists ll_stores_update_admin on public.stores;
@@ -802,32 +884,7 @@ create policy ll_store_members_delete_owner
   for delete
   using (public.ll_has_company_role(store_id, array['owner']));
 
--- 初期設定のserver actionはservice roleで stores / store_members / ll_staff_roles を作成します。
--- service role keyはサーバー側のみで使用し、ブラウザには出しません。
-grant select, insert, update on table public.stores to service_role;
-grant select, insert, update on table public.store_members to service_role;
-grant select, insert, update on table public.ll_line_accounts to service_role;
-grant select, insert, update on table public.ll_line_webhook_events to service_role;
-grant select, insert, update on table public.ll_line_friends to service_role;
-grant select, insert, update on table public.ll_friend_profiles to service_role;
-grant select, insert, update, delete on table public.ll_friend_notes to service_role;
-grant select, insert, update on table public.ll_message_logs to service_role;
-grant select, insert, update, delete on table public.ll_tags to service_role;
-grant select, insert, update, delete on table public.ll_friend_tags to service_role;
-grant select, insert, update, delete on table public.ll_forms to service_role;
-grant select, insert, update, delete on table public.ll_form_questions to service_role;
-grant select, insert, update, delete on table public.ll_form_answers to service_role;
-grant select, insert, update, delete on table public.ll_form_answer_items to service_role;
-grant select, insert, update, delete on table public.ll_rich_menus to service_role;
-grant select, insert, update, delete on table public.ll_rich_menu_areas to service_role;
-grant select, insert, update, delete on table public.ll_segments to service_role;
-grant select, insert, update, delete on table public.ll_segment_conditions to service_role;
-grant select, insert, update, delete on table public.ll_broadcasts to service_role;
-grant select, insert, update, delete on table public.ll_broadcast_targets to service_role;
-grant select, insert, update on table public.ll_staff_roles to service_role;
-grant select, insert, update on table public.ll_permissions to service_role;
-grant usage, select on all sequences in schema public to service_role;
-
+-- ll_line_accounts policies
 drop policy if exists ll_line_accounts_select_company on public.ll_line_accounts;
 drop policy if exists ll_line_accounts_insert_admin on public.ll_line_accounts;
 drop policy if exists ll_line_accounts_update_admin on public.ll_line_accounts;
@@ -854,6 +911,7 @@ create policy ll_line_accounts_delete_owner
   for delete
   using (public.ll_has_company_role(company_id, array['owner']));
 
+-- ll_staff_roles policies
 drop policy if exists ll_staff_roles_select_company on public.ll_staff_roles;
 drop policy if exists ll_staff_roles_insert_admin on public.ll_staff_roles;
 drop policy if exists ll_staff_roles_update_admin on public.ll_staff_roles;
@@ -880,17 +938,7 @@ create policy ll_staff_roles_delete_owner
   for delete
   using (public.ll_has_company_role(company_id, array['owner']));
 
--- Webhook event idempotency: partial unique index prevents duplicate processing of the same LINE event
--- event_id is NULL for LINE's verification ping (events: []), so we use WHERE event_id IS NOT NULL
-create unique index if not exists ll_line_webhook_events_company_event_id_uniq
-  on public.ll_line_webhook_events(company_id, event_id)
-  where event_id is not null;
-
--- Message log idempotency: partial unique index prevents duplicate inbound log per webhook event
-create unique index if not exists ll_message_logs_company_webhook_event_id_uniq
-  on public.ll_message_logs(company_id, webhook_event_id)
-  where webhook_event_id is not null;
-
+-- ll_permissions policies
 drop policy if exists ll_permissions_select_company on public.ll_permissions;
 drop policy if exists ll_permissions_insert_admin on public.ll_permissions;
 drop policy if exists ll_permissions_update_admin on public.ll_permissions;
@@ -916,3 +964,33 @@ create policy ll_permissions_delete_owner
   on public.ll_permissions
   for delete
   using (public.ll_has_company_role(company_id, array['owner']));
+
+-- ================================================================
+-- GRANTS
+-- 初期設定のserver actionはservice roleで stores / store_members / ll_staff_roles を作成します。
+-- service role keyはサーバー側のみで使用し、ブラウザには出しません。
+-- ================================================================
+
+grant select, insert, update on table public.stores to service_role;
+grant select, insert, update on table public.store_members to service_role;
+grant select, insert, update on table public.ll_line_accounts to service_role;
+grant select, insert, update on table public.ll_line_webhook_events to service_role;
+grant select, insert, update on table public.ll_line_friends to service_role;
+grant select, insert, update on table public.ll_friend_profiles to service_role;
+grant select, insert, update, delete on table public.ll_friend_notes to service_role;
+grant select, insert, update on table public.ll_message_logs to service_role;
+grant select, insert, update, delete on table public.ll_tags to service_role;
+grant select, insert, update, delete on table public.ll_friend_tags to service_role;
+grant select, insert, update, delete on table public.ll_forms to service_role;
+grant select, insert, update, delete on table public.ll_form_questions to service_role;
+grant select, insert, update, delete on table public.ll_form_answers to service_role;
+grant select, insert, update, delete on table public.ll_form_answer_items to service_role;
+grant select, insert, update, delete on table public.ll_rich_menus to service_role;
+grant select, insert, update, delete on table public.ll_rich_menu_areas to service_role;
+grant select, insert, update, delete on table public.ll_segments to service_role;
+grant select, insert, update, delete on table public.ll_segment_conditions to service_role;
+grant select, insert, update, delete on table public.ll_broadcasts to service_role;
+grant select, insert, update, delete on table public.ll_broadcast_targets to service_role;
+grant select, insert, update on table public.ll_staff_roles to service_role;
+grant select, insert, update on table public.ll_permissions to service_role;
+grant usage, select on all sequences in schema public to service_role;
