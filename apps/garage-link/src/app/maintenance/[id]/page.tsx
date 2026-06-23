@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import JobPartsPanel from '@/components/parts/JobPartsPanel';
 import SoftDeleteButton from '@/components/SoftDeleteButton';
+import { logAudit } from '@/lib/audit/logAudit';
 import { createClient } from '@/lib/supabase/client';
 
 type StoreMemberRow = { store_id: string; role: string | null };
@@ -303,6 +304,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function MaintenanceDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const maintenanceId = params.id;
   const [storeId, setStoreId] = useState('');
   const [role, setRole] = useState('');
@@ -312,8 +314,12 @@ export default function MaintenanceDetailPage() {
   const [form, setForm] = useState<MaintenanceFormState>(emptyForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
   const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const saveErrorRef = useRef<HTMLDivElement>(null);
+  const previousStatusRef = useRef<string>('');
 
   useEffect(() => {
     async function loadDetail() {
@@ -347,6 +353,7 @@ export default function MaintenanceDetailPage() {
 
         setJob(jobData);
         setForm(mapJobToForm(jobData));
+        previousStatusRef.current = jobData.status ?? '';
 
         const [customerResult, vehicleResult] = await Promise.all([
           jobData.customer_id
@@ -379,27 +386,111 @@ export default function MaintenanceDetailPage() {
     void loadDetail();
   }, [maintenanceId]);
 
+  useEffect(() => {
+    if (saveError && saveErrorRef.current) {
+      saveErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [saveError]);
+
+  async function revertStockForCancelledJob(supabase: ReturnType<typeof createClient>): Promise<{ revertedCount: number; errors: string[] }> {
+    const { data: adjustedParts, error: fetchError } = await supabase
+      .from('maintenance_job_parts')
+      .select('id, part_id, quantity, name')
+      .eq('job_id', maintenanceId)
+      .eq('store_id', storeId);
+    if (fetchError) throw new Error(fetchError.message);
+
+    let revertedCount = 0;
+    const errors: string[] = [];
+    for (const part of adjustedParts ?? []) {
+      const row = part as { id: string; part_id: string | null; quantity: number; name: string | null };
+      if (!row.part_id) continue;
+      const adjustResult = await supabase.rpc('adjust_repair_part_stock', {
+        p_part_id: row.part_id,
+        p_store_id: storeId,
+        p_delta: row.quantity,
+      });
+      if (adjustResult.error) {
+        errors.push(`${row.name ?? row.id}: ${adjustResult.error.message}`);
+        continue;
+      }
+      const data = adjustResult.data as { ok: boolean; error?: string } | null;
+      if (!data?.ok) {
+        errors.push(`${row.name ?? row.id}: ${data?.error ?? '在庫返却に失敗'}`);
+        continue;
+      }
+      await supabase
+        .from('maintenance_job_parts')
+        .update({ stock_adjusted: false, stock_adjusted_at: null })
+        .eq('id', row.id)
+        .eq('store_id', storeId);
+      await logAudit({
+        supabase,
+        storeId,
+        action: 'update',
+        targetType: 'repair_part',
+        targetId: row.part_id,
+        targetLabel: row.name ?? null,
+        metadata: { reason: 'maintenance_job_cancelled', job_id: maintenanceId, delta: row.quantity },
+      });
+      revertedCount += 1;
+    }
+    return { revertedCount, errors };
+  }
+
   function updateField(name: keyof MaintenanceFormState, value: string) {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
   async function handleSave() {
     if (!storeId) {
-      setErrorMessage('所属店舗を取得できていません。');
+      setSaveError('所属店舗を取得できていません。');
+      return;
+    }
+    if (!job?.customer_id) {
+      setSaveError('顧客が紐づいていません。顧客を選択した状態で再作成してください。');
+      return;
+    }
+    if (!job?.vehicle_id) {
+      setSaveError('対象車両が紐づいていません。車両を選択した状態で再作成してください。');
       return;
     }
 
     try {
       setIsSaving(true);
       setMessage('');
-      setErrorMessage('');
+      setSaveError('');
       const supabase = createClient();
+      const previousStatus = previousStatusRef.current;
+
+      let cancelledPatch: { cancelled_at?: string; cancelled_by_user_name?: string | null } = {};
+      if (form.status === 'cancelled' && previousStatus !== 'cancelled') {
+        const { revertedCount, errors } = await revertStockForCancelledJob(supabase);
+        if (errors.length > 0) {
+          throw new Error(`在庫返却に失敗した部品があります: ${errors.join(' / ')}`);
+        }
+        cancelledPatch = {
+          cancelled_at: new Date().toISOString(),
+          cancelled_by_user_name: form.assigned_user_name || null,
+        };
+        await logAudit({
+          supabase,
+          storeId,
+          action: 'update',
+          targetType: 'maintenance_job',
+          targetId: maintenanceId,
+          targetLabel: form.job_no,
+          metadata: { event: 'cancelled', reverted_part_count: revertedCount },
+        });
+      }
+
       const { error } = await supabase
         .from<MaintenanceJobRow>('maintenance_jobs')
         .update({
           job_no: form.job_no,
           job_type: form.job_type,
           status: form.status,
+          ...cancelledPatch,
           priority: form.priority,
           reception_date: form.reception_date || null,
           reception_route: toNullableText(form.reception_route),
@@ -443,11 +534,67 @@ export default function MaintenanceDetailPage() {
         .eq('store_id', storeId);
 
       if (error) throw new Error(error.message);
-      setMessage('保存しました。');
+
+      await logAudit({
+        supabase,
+        storeId,
+        action: 'update',
+        targetType: 'maintenance_job',
+        targetId: maintenanceId,
+        targetLabel: form.job_no,
+        beforeData: { status: previousStatus },
+        afterData: { status: form.status },
+      });
+
+      sessionStorage.setItem('flash_maintenance', '整備案件を保存しました。');
+      router.push('/maintenance');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
+      setSaveError(error instanceof Error ? error.message : '保存に失敗しました。');
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleComplete() {
+    if (!storeId || !job) return;
+    if (!confirm('この整備案件を完了にしますか？\n完了日時と完了担当者が記録されます。')) return;
+
+    try {
+      setIsCompleting(true);
+      setSaveError('');
+      const supabase = createClient();
+      const completedAt = new Date().toISOString();
+      const completedBy = form.assigned_user_name || null;
+
+      const { error } = await supabase
+        .from('maintenance_jobs')
+        .update({
+          status: 'completed',
+          completed_at: completedAt,
+          completed_by_user_name: completedBy,
+          actual_finish_date: form.actual_finish_date || new Date().toISOString().slice(0, 10),
+        })
+        .eq('id', maintenanceId)
+        .eq('store_id', storeId);
+      if (error) throw new Error(error.message);
+
+      await logAudit({
+        supabase,
+        storeId,
+        action: 'update',
+        targetType: 'maintenance_job',
+        targetId: maintenanceId,
+        targetLabel: form.job_no,
+        beforeData: { status: previousStatusRef.current },
+        afterData: { status: 'completed', completed_at: completedAt, completed_by_user_name: completedBy },
+        metadata: { event: 'completed' },
+      });
+
+      sessionStorage.setItem('flash_maintenance', '整備案件を完了にしました。');
+      router.push('/maintenance');
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : '完了処理に失敗しました。');
+      setIsCompleting(false);
     }
   }
 
@@ -458,6 +605,30 @@ export default function MaintenanceDetailPage() {
       description="登録済みの整備・車検案件を確認・編集します"
       actionButton={
         <div className="flex flex-wrap gap-3">
+          {job && job.status !== 'completed' && job.status !== 'cancelled' && (
+            <>
+              <Link
+                href={`/quotes/new?jobId=${maintenanceId}`}
+                className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-100"
+              >
+                見積書を作成
+              </Link>
+              <Link
+                href={`/invoices/new?jobId=${maintenanceId}`}
+                className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-100"
+              >
+                請求書を作成
+              </Link>
+              <button
+                type="button"
+                onClick={() => void handleComplete()}
+                disabled={isCompleting || isSaving}
+                className="rounded-xl bg-green-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isCompleting ? '完了処理中...' : '作業完了'}
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={() => void handleSave()}
@@ -482,6 +653,11 @@ export default function MaintenanceDetailPage() {
     >
       {message && <p className="mb-5 rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{message}</p>}
       {errorMessage && <p className="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>}
+      {saveError && (
+        <div ref={saveErrorRef} className="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">
+          {saveError}
+        </div>
+      )}
 
       {isLoading ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">読み込み中...</section>

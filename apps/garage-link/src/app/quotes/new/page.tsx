@@ -53,6 +53,7 @@ type VehicleOption = {
 
 type QuoteFormState = {
   deal_id: string;
+  maintenance_job_id: string;
   customer_id: string;
   vehicle_id: string;
   quote_no: string;
@@ -85,6 +86,7 @@ type QuoteFormState = {
 type QuoteInsert = {
   store_id: string;
   deal_id: string | null;
+  maintenance_job_id: string | null;
   customer_id: string | null;
   vehicle_id: string | null;
   quote_no: string;
@@ -183,6 +185,7 @@ const amountItems: AmountItem[] = [
 
 const initialFormState: QuoteFormState = {
   deal_id: '',
+  maintenance_job_id: '',
   customer_id: '',
   vehicle_id: '',
   quote_no: '',
@@ -488,6 +491,96 @@ export default function NewQuotePage() {
         setDeals(dealResult.data ?? []);
         setCustomers(customerResult.data ?? []);
         setVehicles(vehicleResult.data ?? []);
+
+        const initialJobId = typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('jobId')
+          : null;
+        if (initialJobId) {
+          const [{ data: jobRow, error: jobError }, { data: jobParts, error: jobPartsError }] = await Promise.all([
+            supabase
+              .from('maintenance_jobs')
+              .select('id, customer_id, vehicle_id, job_no, job_type, request_detail, work_items, work_memo, customer_message, labor_amount')
+              .eq('id', initialJobId)
+              .eq('store_id', member.store_id)
+              .single(),
+            supabase
+              .from('maintenance_job_parts')
+              .select('id, part_id, part_no, name, quantity, unit_price, cost_price, tax_rate, work_memo')
+              .eq('job_id', initialJobId)
+              .eq('store_id', member.store_id)
+              .order('created_at', { ascending: true }),
+          ]);
+          if (jobError) throw new Error(jobError.message);
+          if (jobPartsError) throw new Error(jobPartsError.message);
+
+          const jr = jobRow as {
+            id: string;
+            customer_id: string | null;
+            vehicle_id: string | null;
+            job_no: string | null;
+            job_type: string | null;
+            request_detail: string | null;
+            work_items: string[] | null;
+            work_memo: string | null;
+            customer_message: string | null;
+            labor_amount: number | null;
+          };
+          const customer = (customerResult.data ?? []).find((c) => c.id === jr.customer_id) ?? null;
+          const vehicle = (vehicleResult.data ?? []).find((v) => v.id === jr.vehicle_id) ?? null;
+
+          setFormState((current) => ({
+            ...current,
+            maintenance_job_id: jr.id,
+            customer_id: jr.customer_id ?? '',
+            vehicle_id: jr.vehicle_id ?? '',
+            title: jr.job_no ? `整備見積 ${jr.job_no}` : current.title,
+            customer_name: customer?.name ?? current.customer_name,
+            customer_phone: customer?.phone ?? current.customer_phone,
+            customer_email: customer?.email ?? current.customer_email,
+            customer_address: customer?.address ?? current.customer_address,
+            vehicle_label: vehicle ? [vehicle.management_no, vehicle.maker, vehicle.model_name].filter(Boolean).join(' / ') : current.vehicle_label,
+            vehicle_maker: vehicle?.maker ?? current.vehicle_maker,
+            vehicle_model_name: vehicle?.model_name ?? current.vehicle_model_name,
+            vehicle_year: vehicle?.model_year ? String(vehicle.model_year) : current.vehicle_year,
+            vehicle_mileage_km: vehicle?.mileage_km ? String(vehicle.mileage_km) : current.vehicle_mileage_km,
+            vehicle_vin: vehicle?.vin ?? current.vehicle_vin,
+            customer_note: [jr.request_detail, jr.customer_message].filter(Boolean).join('\n') || current.customer_note,
+            internal_memo: jr.work_memo ?? current.internal_memo,
+          }));
+
+          const partRows = (jobParts ?? []) as Array<{
+            id: string; part_id: string | null; part_no: string | null; name: string;
+            quantity: number; unit_price: number; cost_price: number | null; tax_rate: number;
+          }>;
+          if (partRows.length > 0) {
+            setPartLineItems(partRows.map((p) => ({
+              localId: `${Date.now()}-${p.id}`,
+              part_id: p.part_id,
+              part_no: p.part_no ?? '',
+              name: p.name,
+              quantity: String(p.quantity),
+              unit_price: String(p.unit_price),
+              cost_price: p.cost_price !== null ? String(p.cost_price) : '',
+              tax_rate: String(p.tax_rate ?? 0.1),
+            })));
+          }
+
+          if (jr.labor_amount && jr.labor_amount > 0) {
+            setPartLineItems((prev) => [
+              ...prev,
+              {
+                localId: `${Date.now()}-labor`,
+                part_id: null,
+                part_no: '',
+                name: '工賃',
+                quantity: '1',
+                unit_price: String(jr.labor_amount),
+                cost_price: '',
+                tax_rate: '0.1',
+              },
+            ]);
+          }
+        }
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : '選択肢の取得に失敗しました。');
       } finally {
@@ -622,6 +715,7 @@ export default function NewQuotePage() {
       const quotePayload: QuoteInsert = {
         store_id: storeId,
         deal_id: toNullableText(formState.deal_id),
+        maintenance_job_id: toNullableText(formState.maintenance_job_id),
         customer_id: toNullableText(formState.customer_id),
         vehicle_id: toNullableText(formState.vehicle_id),
         quote_no: formState.quote_no.trim(),

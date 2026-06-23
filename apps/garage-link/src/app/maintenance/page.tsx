@@ -68,6 +68,12 @@ export default function MaintenancePage() {
   const [vehicles, setVehicles] = useState<Record<string, string>>({});
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [flashMessage] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const msg = sessionStorage.getItem('flash_maintenance') ?? '';
+    if (msg) sessionStorage.removeItem('flash_maintenance');
+    return msg;
+  });
 
   useEffect(() => {
     async function loadJobs() {
@@ -131,6 +137,7 @@ export default function MaintenancePage() {
           <h3 className="text-base font-bold">整備・車検スケジュール</h3>
           <p className="mt-1 text-sm text-slate-500">整備・車検の予定を一覧で確認できます。{jobs.length}件</p>
         </div>
+        {flashMessage && <p className="m-5 rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{flashMessage}</p>}
         {errorMessage && <p className="m-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>}
         {isLoading ? (
           <p className="p-5 text-sm text-slate-500">読み込み中...</p>

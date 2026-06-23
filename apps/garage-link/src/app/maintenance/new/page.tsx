@@ -160,6 +160,8 @@ export default function NewMaintenancePage() {
       setIsSaving(true);
       if (!storeId) throw new Error('所属店舗を取得できていません。');
       if (!form.job_no.trim()) throw new Error('受付番号を入力してください。');
+      if (!form.customer_id) throw new Error('顧客を選択してください。');
+      if (!form.vehicle_id) throw new Error('対象車両を選択してください。');
 
       const supabase = createClient();
       const { error } = await supabase.from('maintenance_jobs').insert({
@@ -210,6 +212,7 @@ export default function NewMaintenancePage() {
       });
 
       if (error) throw new Error(error.message);
+      sessionStorage.setItem('flash_maintenance', '整備案件を登録しました。');
       router.push('/maintenance');
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : '保存に失敗しました。');

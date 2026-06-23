@@ -84,6 +84,7 @@ type InvoiceInsert = {
   store_id: string;
   deal_id: string | null;
   quote_id: string | null;
+  maintenance_job_id: string | null;
   customer_id: string | null;
   vehicle_id: string | null;
   invoice_no: string;
@@ -260,6 +261,7 @@ export default function NewInvoicePage() {
   const [vehicleVin, setVehicleVin] = useState('');
   const [dealId, setDealId] = useState('');
   const [quoteId, setQuoteId] = useState('');
+  const [maintenanceJobId, setMaintenanceJobId] = useState('');
   const [amounts, setAmounts] = useState<Record<AmountKey, string>>(emptyAmounts);
   const [memo, setMemo] = useState('');
   const [internalMemo, setInternalMemo] = useState('');
@@ -350,6 +352,88 @@ export default function NewInvoicePage() {
             if (quoteHeader.vehicle_vin) setVehicleVin(quoteHeader.vehicle_vin);
             if (quoteHeader.deal_id) setDealId(quoteHeader.deal_id);
           }
+        }
+
+        const initialJobId = typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('jobId')
+          : null;
+        if (initialJobId && !initialQuoteId) {
+          setMaintenanceJobId(initialJobId);
+          const [{ data: jobRow, error: jobError }, { data: jobParts, error: jobPartsError }] = await Promise.all([
+            supabase
+              .from('maintenance_jobs')
+              .select('id, customer_id, vehicle_id, job_no, request_detail, work_memo, customer_message, labor_amount')
+              .eq('id', initialJobId)
+              .eq('store_id', member.store_id)
+              .single(),
+            supabase
+              .from('maintenance_job_parts')
+              .select('id, part_id, part_no, name, quantity, unit_price, cost_price, tax_rate, work_memo')
+              .eq('job_id', initialJobId)
+              .eq('store_id', member.store_id)
+              .order('created_at', { ascending: true }),
+          ]);
+          if (jobError) throw new Error(jobError.message);
+          if (jobPartsError) throw new Error(jobPartsError.message);
+
+          const jr = jobRow as {
+            id: string; customer_id: string | null; vehicle_id: string | null;
+            job_no: string | null; request_detail: string | null;
+            work_memo: string | null; customer_message: string | null;
+            labor_amount: number | null;
+          };
+          if (jr.customer_id) setCustomerId(jr.customer_id);
+          if (jr.vehicle_id) setVehicleId(jr.vehicle_id);
+          if (jr.job_no) setTitle(`整備請求 ${jr.job_no}`);
+          if (jr.request_detail || jr.customer_message) {
+            setMemo([jr.request_detail, jr.customer_message].filter(Boolean).join('\n'));
+          }
+          if (jr.work_memo) setInternalMemo(jr.work_memo);
+
+          const customer = (customerResult.data ?? []).find((c) => c.id === jr.customer_id) ?? null;
+          const vehicle = (vehicleResult.data ?? []).find((v) => v.id === jr.vehicle_id) ?? null;
+          if (customer) {
+            setCustomerName(customer.name ?? '');
+            setCustomerPhone(customer.phone ?? '');
+            setCustomerEmail(customer.email ?? '');
+            setCustomerAddress(customer.address ?? '');
+          }
+          if (vehicle) {
+            setVehicleLabel([vehicle.management_no, vehicle.maker, vehicle.model_name].filter(Boolean).join(' / '));
+            setVehicleMaker(vehicle.maker ?? '');
+            setVehicleModelName(vehicle.model_name ?? '');
+            if (vehicle.model_year) setVehicleYear(String(vehicle.model_year));
+            if (vehicle.mileage_km) setVehicleMileageKm(String(vehicle.mileage_km));
+            setVehicleVin(vehicle.vin ?? '');
+          }
+
+          const partRows = (jobParts ?? []) as Array<{
+            id: string; part_id: string | null; part_no: string | null; name: string;
+            quantity: number; unit_price: number; cost_price: number | null; tax_rate: number;
+          }>;
+          const newItems: PartLineItem[] = partRows.map((p) => ({
+            localId: `${Date.now()}-${p.id}`,
+            part_id: p.part_id,
+            part_no: p.part_no ?? '',
+            name: p.name,
+            quantity: String(p.quantity),
+            unit_price: String(p.unit_price),
+            cost_price: p.cost_price !== null ? String(p.cost_price) : '',
+            tax_rate: String(p.tax_rate ?? 0.1),
+          }));
+          if (jr.labor_amount && jr.labor_amount > 0) {
+            newItems.push({
+              localId: `${Date.now()}-labor`,
+              part_id: null,
+              part_no: '',
+              name: '工賃',
+              quantity: '1',
+              unit_price: String(jr.labor_amount),
+              cost_price: '',
+              tax_rate: '0.1',
+            });
+          }
+          if (newItems.length > 0) setPartLineItems(newItems);
         }
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : '選択肢の取得に失敗しました。');
@@ -502,6 +586,7 @@ export default function NewInvoicePage() {
         store_id: storeId,
         deal_id: toNullableText(dealId),
         quote_id: toNullableText(quoteId),
+        maintenance_job_id: toNullableText(maintenanceJobId),
         customer_id: toNullableText(customerId),
         vehicle_id: toNullableText(vehicleId),
         invoice_no: finalInvoiceNo,
