@@ -52,6 +52,12 @@ export default function PartsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [flashMessage] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const msg = sessionStorage.getItem('flash_parts') ?? '';
+    if (msg) sessionStorage.removeItem('flash_parts');
+    return msg;
+  });
 
   useEffect(() => {
     async function loadParts() {
@@ -173,6 +179,10 @@ export default function PartsPage() {
             </select>
           </div>
         </div>
+
+        {flashMessage && (
+          <p className="m-5 rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{flashMessage}</p>
+        )}
 
         {errorMessage && (
           <p className="m-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>

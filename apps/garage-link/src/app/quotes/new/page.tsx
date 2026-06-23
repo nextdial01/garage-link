@@ -718,7 +718,8 @@ export default function NewQuotePage() {
         if (partItemError) throw new Error(partItemError.message);
       }
 
-      router.push(`/quotes/${quote.id}`);
+      sessionStorage.setItem('flash_quotes', '見積書を保存しました。');
+      router.push('/quotes');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '見積書の保存に失敗しました。');
       setIsSaving(false);

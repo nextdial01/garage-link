@@ -84,6 +84,12 @@ export default function QuotesPage() {
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [flashMessage] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const msg = sessionStorage.getItem('flash_quotes') ?? '';
+    if (msg) sessionStorage.removeItem('flash_quotes');
+    return msg;
+  });
 
   useEffect(() => {
     async function loadQuotes() {
@@ -173,6 +179,12 @@ export default function QuotesPage() {
             作成済みの見積書を一覧で確認できます
           </p>
         </div>
+
+        {flashMessage && (
+          <p className="m-5 rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
+            {flashMessage}
+          </p>
+        )}
 
         {errorMessage && (
           <p className="m-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">

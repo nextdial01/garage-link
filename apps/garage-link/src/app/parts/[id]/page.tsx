@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import SoftDeleteButton from '@/components/SoftDeleteButton';
@@ -86,6 +86,7 @@ function getStatusClass(status: string) {
 
 export default function PartDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [part, setPart] = useState<RepairPartRow | null>(null);
   const [form, setForm] = useState<PartForm>(emptyForm);
   const [storeId, setStoreId] = useState('');
@@ -93,7 +94,6 @@ export default function PartDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     async function loadPart() {
@@ -134,7 +134,6 @@ export default function PartDetailPage() {
 
   function update(key: keyof PartForm, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
-    setSuccessMessage('');
   }
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
@@ -146,7 +145,6 @@ export default function PartDetailPage() {
     try {
       setIsSaving(true);
       setErrorMessage('');
-      setSuccessMessage('');
 
       const supabase = createClient();
       const { error } = await supabase
@@ -189,7 +187,8 @@ export default function PartDetailPage() {
         memo: form.memo.trim() || null,
       };
       setPart(updated);
-      setSuccessMessage('保存しました。');
+      sessionStorage.setItem('flash_parts', '部品情報を更新しました。');
+      router.push('/parts');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
     } finally {
@@ -233,10 +232,6 @@ export default function PartDetailPage() {
           {errorMessage && (
             <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>
           )}
-          {successMessage && (
-            <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{successMessage}</p>
-          )}
-
           <form onSubmit={handleSave} className="space-y-5">
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="mb-4 text-base font-bold text-slate-950">基本情報</h2>

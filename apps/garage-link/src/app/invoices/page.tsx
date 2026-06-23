@@ -86,6 +86,12 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [flashMessage] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    const msg = sessionStorage.getItem('flash_invoices') ?? '';
+    if (msg) sessionStorage.removeItem('flash_invoices');
+    return msg;
+  });
 
   useEffect(() => {
     async function loadInvoices() {
@@ -172,6 +178,12 @@ export default function InvoicesPage() {
             発行済みの請求書を一覧で確認できます
           </p>
         </div>
+
+        {flashMessage && (
+          <p className="m-5 rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
+            {flashMessage}
+          </p>
+        )}
 
         {errorMessage && (
           <p className="m-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">

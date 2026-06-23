@@ -570,7 +570,8 @@ export default function EditQuotePage() {
         afterData: { total_amount: summary.totalAmount, status, item_count: itemPayloads.length + partItemPayloads.length },
       });
 
-      router.push(`/quotes/${id}`);
+      sessionStorage.setItem('flash_quotes', '見積書を更新しました。');
+      router.push('/quotes');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '見積書の更新に失敗しました。');
       setIsSaving(false);

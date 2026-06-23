@@ -63,6 +63,23 @@ type QuoteItemRow = {
   amount: number | null;
 };
 
+type QuoteHeaderRow = {
+  customer_id: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_email: string | null;
+  customer_address: string | null;
+  customer_honorific: string | null;
+  vehicle_id: string | null;
+  vehicle_label: string | null;
+  vehicle_maker: string | null;
+  vehicle_model_name: string | null;
+  vehicle_year: number | null;
+  vehicle_mileage_km: number | null;
+  vehicle_vin: string | null;
+  deal_id: string | null;
+};
+
 type InvoiceInsert = {
   store_id: string;
   deal_id: string | null;
@@ -306,6 +323,31 @@ export default function NewInvoicePage() {
         if (initialQuoteId) {
           setQuoteId(initialQuoteId);
           await importQuoteItems(initialQuoteId, member.store_id);
+
+          // Auto-populate customer/vehicle from the quote header
+          const { data: quoteHeader } = await supabase
+            .from<QuoteHeaderRow>('quotes')
+            .select('customer_id, customer_name, customer_phone, customer_email, customer_address, customer_honorific, vehicle_id, vehicle_label, vehicle_maker, vehicle_model_name, vehicle_year, vehicle_mileage_km, vehicle_vin, deal_id')
+            .eq('id', initialQuoteId)
+            .eq('store_id', member.store_id)
+            .single();
+
+          if (quoteHeader) {
+            if (quoteHeader.customer_id) setCustomerId(quoteHeader.customer_id);
+            if (quoteHeader.customer_name) setCustomerName(quoteHeader.customer_name);
+            if (quoteHeader.customer_phone) setCustomerPhone(quoteHeader.customer_phone);
+            if (quoteHeader.customer_email) setCustomerEmail(quoteHeader.customer_email);
+            if (quoteHeader.customer_address) setCustomerAddress(quoteHeader.customer_address);
+            if (quoteHeader.customer_honorific) setCustomerHonorific(quoteHeader.customer_honorific);
+            if (quoteHeader.vehicle_id) setVehicleId(quoteHeader.vehicle_id);
+            if (quoteHeader.vehicle_label) setVehicleLabel(quoteHeader.vehicle_label);
+            if (quoteHeader.vehicle_maker) setVehicleMaker(quoteHeader.vehicle_maker);
+            if (quoteHeader.vehicle_model_name) setVehicleModelName(quoteHeader.vehicle_model_name);
+            if (quoteHeader.vehicle_year !== null) setVehicleYear(String(quoteHeader.vehicle_year));
+            if (quoteHeader.vehicle_mileage_km !== null) setVehicleMileageKm(String(quoteHeader.vehicle_mileage_km));
+            if (quoteHeader.vehicle_vin) setVehicleVin(quoteHeader.vehicle_vin);
+            if (quoteHeader.deal_id) setDealId(quoteHeader.deal_id);
+          }
         }
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : '選択肢の取得に失敗しました。');
@@ -546,7 +588,8 @@ export default function NewInvoicePage() {
         if (partItemError) throw new Error(partItemError.message);
       }
 
-      router.push(`/invoices/${invoice.id}`);
+      sessionStorage.setItem('flash_invoices', '請求書を保存しました。');
+      router.push('/invoices');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '請求書の保存に失敗しました。');
       setIsSaving(false);

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
@@ -87,13 +87,13 @@ function getPaymentStatusClass(status: string | null) {
 
 export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [invoice, setInvoice] = useState<InvoiceRow | null>(null);
   const [storeId, setStoreId] = useState('');
   const [role, setRole] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   const [editStatus, setEditStatus] = useState('');
   const [editIssueStatus, setEditIssueStatus] = useState('');
@@ -149,7 +149,6 @@ export default function InvoiceDetailPage() {
     try {
       setIsSaving(true);
       setErrorMessage('');
-      setSuccessMessage('');
 
       const paidAmount = editPaidAmount.trim() ? parseFloat(editPaidAmount) : 0;
       const totalAmount = invoice?.total_amount ?? 0;
@@ -185,7 +184,8 @@ export default function InvoiceDetailPage() {
             }
           : prev,
       );
-      setSuccessMessage('保存しました。');
+      sessionStorage.setItem('flash_invoices', '請求書を更新しました。');
+      router.push('/invoices');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
     } finally {
@@ -247,10 +247,6 @@ export default function InvoiceDetailPage() {
           {errorMessage && (
             <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>
           )}
-          {successMessage && (
-            <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{successMessage}</p>
-          )}
-
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-base font-bold text-slate-950">請求先・対象車両</h2>
             <dl className="grid gap-4 text-sm md:grid-cols-2">
