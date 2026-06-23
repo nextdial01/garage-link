@@ -60,6 +60,8 @@ export default function VehiclesPage() {
   const [vehicles, setVehicles] = useState<VehicleRow[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
     async function loadVehicles() {
@@ -120,6 +122,24 @@ export default function VehiclesPage() {
     ];
   }, [vehicles]);
 
+  const filteredVehicles = useMemo(() => {
+    let result = vehicles;
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      result = result.filter(
+        (v) =>
+          (v.maker ?? '').toLowerCase().includes(q) ||
+          (v.model_name ?? '').toLowerCase().includes(q) ||
+          (v.management_no ?? '').toLowerCase().includes(q) ||
+          (v.location_name ?? '').toLowerCase().includes(q),
+      );
+    }
+    if (statusFilter) {
+      result = result.filter((v) => v.status === statusFilter);
+    }
+    return result;
+  }, [vehicles, searchQuery, statusFilter]);
+
   return (
     <AppShell
       activeLabel="車両管理"
@@ -151,7 +171,9 @@ export default function VehiclesPage() {
           <div>
             <h3 className="text-base font-bold">車両一覧</h3>
             <p className="mt-1 text-sm text-slate-500">
-              登録済みの車両を一覧で確認できます。{vehicles.length}件
+              {searchQuery || statusFilter
+                ? `${filteredVehicles.length}件 / 全${vehicles.length}件`
+                : `全${vehicles.length}件`}
             </p>
           </div>
 
@@ -159,15 +181,21 @@ export default function VehiclesPage() {
             <input
               type="text"
               placeholder="車種・メーカーで検索"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100 sm:w-64"
             />
 
-            <select className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
-              <option>全ステータス</option>
-              <option>展示中</option>
-              <option>商談中</option>
-              <option>整備中</option>
-              <option>売約済み</option>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+            >
+              <option value="">全ステータス</option>
+              <option value="展示中">展示中</option>
+              <option value="商談中">商談中</option>
+              <option value="整備中">整備中</option>
+              <option value="売約済み">売約済み</option>
             </select>
           </div>
         </div>
@@ -183,6 +211,10 @@ export default function VehiclesPage() {
         ) : vehicles.length === 0 && !errorMessage ? (
           <p className="p-5 text-sm font-semibold text-slate-500">
             まだ車両が登録されていません
+          </p>
+        ) : filteredVehicles.length === 0 ? (
+          <p className="p-5 text-sm font-semibold text-slate-500">
+            条件に一致する車両がありません
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -202,7 +234,7 @@ export default function VehiclesPage() {
               </thead>
 
               <tbody className="divide-y divide-slate-100">
-                {vehicles.map((vehicle) => {
+                {filteredVehicles.map((vehicle) => {
                   const status = vehicle.status ?? '未設定';
                   const price = vehicle.total_price ?? vehicle.base_price;
 

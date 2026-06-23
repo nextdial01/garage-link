@@ -360,8 +360,6 @@ export default function SettingsImportExportPage() {
       const storeId = member.store_id;
       const tables = emptyTables();
 
-      // TODO: settings_export_logs テーブルを作成し、exported_by / exported_at / exported_tables / imported_by / imported_at / imported_tables / target_store_id を記録する。
-
       const settingsResult = await supabase
         .from<ExportRow>('line_settings')
         .select(safeLineSettingsColumns)

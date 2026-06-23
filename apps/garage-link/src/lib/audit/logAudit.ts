@@ -54,7 +54,8 @@ type AuditTargetType =
   | 'line_message'
   | 'settings'
   | 'store_member'
-  | 'uploaded_file';
+  | 'uploaded_file'
+  | 'repair_part';
 
 type AuditLogInsert = {
   store_id: string | null;

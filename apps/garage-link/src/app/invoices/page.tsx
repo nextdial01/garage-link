@@ -227,7 +227,13 @@ export default function InvoicesPage() {
                     <td className="px-5 py-4">{displayValue(invoice.assigned_user_name)}</td>
                     <td className="px-5 py-4">
                       <div className="flex flex-wrap gap-2">
-                        {invoice.deal_id ? (
+                        <Link
+                          href={`/invoices/${invoice.id}`}
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                        >
+                          詳細
+                        </Link>
+                        {invoice.deal_id && (
                           <>
                             <Link
                               href={`/deals/${invoice.deal_id}/invoices/preview?invoiceId=${invoice.id}`}
@@ -242,8 +248,6 @@ export default function InvoicesPage() {
                               商談
                             </Link>
                           </>
-                        ) : (
-                          <span className="text-xs text-slate-400">-</span>
                         )}
                       </div>
                     </td>

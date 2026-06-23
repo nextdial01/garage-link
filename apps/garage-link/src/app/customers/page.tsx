@@ -63,6 +63,7 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     async function loadCustomers() {
@@ -129,6 +130,18 @@ export default function CustomersPage() {
     ];
   }, [customers]);
 
+  const filteredCustomers = useMemo(() => {
+    if (!searchQuery.trim()) return customers;
+    const q = searchQuery.trim().toLowerCase();
+    return customers.filter(
+      (c) =>
+        (c.name ?? '').toLowerCase().includes(q) ||
+        (c.phone ?? '').includes(q) ||
+        (c.mobile_phone ?? '').includes(q) ||
+        (c.email ?? '').toLowerCase().includes(q),
+    );
+  }, [customers, searchQuery]);
+
   return (
     <AppShell
       activeLabel="顧客管理"
@@ -160,14 +173,18 @@ export default function CustomersPage() {
           <div>
             <h3 className="text-base font-bold">顧客一覧</h3>
             <p className="mt-1 text-sm text-slate-500">
-              登録済みの顧客を一覧で確認できます。{customers.length}件
+              {searchQuery
+                ? `${filteredCustomers.length}件 / 全${customers.length}件`
+                : `全${customers.length}件`}
             </p>
           </div>
 
           <input
             type="text"
-            placeholder="顧客名で検索"
-            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100 md:w-64"
+            placeholder="顧客名・電話・メールで検索"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100 md:w-72"
           />
         </div>
 
@@ -182,6 +199,10 @@ export default function CustomersPage() {
         ) : customers.length === 0 && !errorMessage ? (
           <p className="p-5 text-sm font-semibold text-slate-500">
             まだ顧客が登録されていません
+          </p>
+        ) : filteredCustomers.length === 0 ? (
+          <p className="p-5 text-sm font-semibold text-slate-500">
+            条件に一致する顧客がありません
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -201,7 +222,7 @@ export default function CustomersPage() {
               </thead>
 
               <tbody className="divide-y divide-slate-100">
-                {customers.map((customer) => {
+                {filteredCustomers.map((customer) => {
                   const status = customer.customer_status ?? '未設定';
 
                   return (
