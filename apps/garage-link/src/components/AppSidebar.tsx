@@ -30,7 +30,8 @@ const vehicleMainItems: MenuItem[] = [
   { label: '部品管理', href: '/parts' },
   { label: '顧客管理', href: '/customers' },
   { label: '商談管理', href: '/deals' },
-  { label: '見積・請求', href: '/quotes' },
+  { label: '見積書', href: '/quotes' },
+  { label: '請求書', href: '/invoices' },
   { label: '棚卸し', href: '/inventory-counts' },
   { label: '分析', href: '/analytics' },
 ];
@@ -142,7 +143,7 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
       return vehicleMainItems.filter((item) => ['ダッシュボード', '顧客管理', '商談管理', '分析'].includes(item.label));
     }
     if (role === 'viewer') {
-      return vehicleMainItems.filter((item) => ['ダッシュボード', '車両一覧', '顧客管理', '商談管理', '整備・車検', '部品管理', '棚卸し', '分析'].includes(item.label));
+      return vehicleMainItems.filter((item) => ['ダッシュボード', '車両一覧', '顧客管理', '商談管理', '整備・車検', '部品管理', '見積書', '請求書', '棚卸し', '分析'].includes(item.label));
     }
     return vehicleMainItems;
   })();

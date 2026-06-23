@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import PartPickerModal, { type PickedPart } from '@/components/parts/PartPickerModal';
 import { DOCUMENT_LIMIT_MESSAGE, assertDocumentLimitAvailable } from '@/lib/billing/garageSubscription';
 import { createClient } from '@/lib/supabase/client';
 
@@ -132,6 +133,19 @@ type QuoteItemInsert = {
   tax_rate: number;
   tax_amount: number;
   amount: number;
+  part_id?: string | null;
+  cost_price?: number | null;
+};
+
+type PartLineItem = {
+  localId: string;
+  part_id: string | null;
+  part_no: string;
+  name: string;
+  quantity: string;
+  unit_price: string;
+  cost_price: string;
+  tax_rate: string;
 };
 
 type AmountKey =
@@ -224,6 +238,13 @@ const initialAmounts: Record<AmountKey, string> = {
   discount: '',
   trade_in: '',
 };
+
+function createDocumentNo(prefix: string) {
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10).replaceAll('-', '');
+  const time = now.toTimeString().slice(0, 8).replaceAll(':', '');
+  return `${prefix}-${date}-${time}`;
+}
 
 function toNullableText(value: string) {
   return value.trim() === '' ? null : value.trim();
@@ -360,7 +381,10 @@ function PreviewItem({
 
 export default function NewQuotePage() {
   const router = useRouter();
-  const [formState, setFormState] = useState<QuoteFormState>(initialFormState);
+  const [formState, setFormState] = useState<QuoteFormState>(() => ({
+    ...initialFormState,
+    quote_no: createDocumentNo('Q'),
+  }));
   const [amounts, setAmounts] = useState<Record<AmountKey, string>>(initialAmounts);
   const [storeId, setStoreId] = useState('');
   const [deals, setDeals] = useState<DealOption[]>([]);
@@ -369,6 +393,8 @@ export default function NewQuotePage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [partLineItems, setPartLineItems] = useState<PartLineItem[]>([]);
+  const [showPartPicker, setShowPartPicker] = useState(false);
 
   const selectedCustomer = useMemo(() => {
     return customers.find((customer) => customer.id === formState.customer_id);
@@ -378,10 +404,19 @@ export default function NewQuotePage() {
     return vehicles.find((vehicle) => vehicle.id === formState.vehicle_id);
   }, [formState.vehicle_id, vehicles]);
 
+  const partsSubtotal = useMemo(() => {
+    return partLineItems.reduce((sum, item) => {
+      const qty = parseInt(item.quantity, 10) || 1;
+      const price = parseFloat(item.unit_price) || 0;
+      return sum + qty * price;
+    }, 0);
+  }, [partLineItems]);
+
   const summary = useMemo(() => {
-    const subtotalAmount = amountItems
+    const fixedSubtotal = amountItems
       .filter((item) => !item.negative)
       .reduce((total, item) => total + toNumber(amounts[item.key]), 0);
+    const subtotalAmount = fixedSubtotal + partsSubtotal;
     const discountAmount = toNumber(amounts.discount);
     const tradeInAmount = toNumber(amounts.trade_in);
     const taxAmount = 0;
@@ -395,7 +430,7 @@ export default function NewQuotePage() {
       tradeInAmount,
       totalAmount,
     };
-  }, [amounts]);
+  }, [amounts, partsSubtotal]);
 
   useEffect(() => {
     async function loadOptions() {
@@ -546,6 +581,39 @@ export default function NewQuotePage() {
     }));
   }
 
+  function addPartFromPicker(picked: PickedPart) {
+    setShowPartPicker(false);
+    setPartLineItems((prev) => [
+      ...prev,
+      {
+        localId: `${Date.now()}-${Math.random()}`,
+        part_id: picked.id,
+        part_no: picked.part_no ?? '',
+        name: picked.name,
+        quantity: '1',
+        unit_price: String(picked.unit_price ?? ''),
+        cost_price: String(picked.cost_price ?? ''),
+        tax_rate: '0.1',
+      },
+    ]);
+  }
+
+  function addManualPartItem() {
+    setShowPartPicker(false);
+    setPartLineItems((prev) => [
+      ...prev,
+      { localId: `${Date.now()}-${Math.random()}`, part_id: null, part_no: '', name: '', quantity: '1', unit_price: '', cost_price: '', tax_rate: '0.1' },
+    ]);
+  }
+
+  function updatePartItem(localId: string, field: keyof PartLineItem, value: string) {
+    setPartLineItems((prev) => prev.map((item) => item.localId === localId ? { ...item, [field]: value } : item));
+  }
+
+  function removePartItem(localId: string) {
+    setPartLineItems((prev) => prev.filter((item) => item.localId !== localId));
+  }
+
   async function saveQuote(status: string) {
     setErrorMessage('');
     setIsSaving(true);
@@ -640,7 +708,35 @@ export default function NewQuotePage() {
         }
       }
 
-      router.push('/quotes');
+      const partItemPayloads: QuoteItemInsert[] = partLineItems
+        .filter((item) => item.name.trim())
+        .map((item, index) => {
+          const qty = parseInt(item.quantity, 10) || 1;
+          const price = parseFloat(item.unit_price) || 0;
+          return {
+            store_id: storeId,
+            quote_id: quote.id,
+            item_order: itemPayloads.length + index + 1,
+            item_type: 'part',
+            name: item.name.trim(),
+            quantity: qty,
+            unit_price: price,
+            tax_rate: parseFloat(item.tax_rate) || 0.1,
+            tax_amount: 0,
+            amount: qty * price,
+            part_id: item.part_id ?? null,
+            cost_price: item.cost_price.trim() ? Math.round(parseFloat(item.cost_price)) : null,
+          };
+        });
+
+      if (partItemPayloads.length > 0) {
+        const { error: partItemError } = await supabase
+          .from<QuoteItemInsert>('quote_items')
+          .insert(partItemPayloads);
+        if (partItemError) throw new Error(partItemError.message);
+      }
+
+      router.push(`/quotes/${quote.id}`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '見積書の保存に失敗しました。');
       setIsSaving(false);
@@ -667,10 +763,6 @@ export default function NewQuotePage() {
       }
     >
       <form onSubmit={handleSubmit} className="mx-auto max-w-7xl space-y-8">
-        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
-          通常は商談詳細から作成してください。
-        </p>
-
         {errorMessage && (
           <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
             <p>{errorMessage}</p>
@@ -1129,6 +1221,93 @@ export default function NewQuotePage() {
           </div>
         </section>
 
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
+            <div>
+              <h3 className="text-lg font-bold text-slate-950">部品・作業明細</h3>
+              <p className="mt-1 text-sm leading-6 text-slate-500">部品マスタから選択するか、手動で明細を追加します。</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowPartPicker(true)}
+              className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
+            >
+              + 部品を追加
+            </button>
+          </div>
+          {partLineItems.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead className="bg-slate-50 text-xs font-bold text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 text-left">部品名</th>
+                    <th className="px-4 py-3 text-right">数量</th>
+                    <th className="px-4 py-3 text-right">単価（円）</th>
+                    <th className="px-4 py-3 text-right">小計</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {partLineItems.map((item) => {
+                    const qty = parseInt(item.quantity, 10) || 1;
+                    const price = parseFloat(item.unit_price) || 0;
+                    return (
+                      <tr key={item.localId}>
+                        <td className="px-4 py-3">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => updatePartItem(item.localId, 'name', e.target.value)}
+                            placeholder="部品名"
+                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updatePartItem(item.localId, 'quantity', e.target.value)}
+                            className="w-20 rounded-lg border border-slate-300 px-3 py-2 text-right text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input
+                            type="number"
+                            value={item.unit_price}
+                            onChange={(e) => updatePartItem(item.localId, 'unit_price', e.target.value)}
+                            className="w-28 rounded-lg border border-slate-300 px-3 py-2 text-right text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-slate-950">
+                          {(qty * price).toLocaleString('ja-JP')}円
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => removePartItem(item.localId)}
+                            className="rounded-lg px-2 py-1 text-xs text-red-500 transition hover:bg-red-50"
+                          >
+                            削除
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {partsSubtotal > 0 && (
+                <div className="flex justify-end px-5 py-3">
+                  <p className="text-sm font-bold text-slate-700">
+                    部品小計: <span className="font-bold text-slate-950">{formatPrice(partsSubtotal)}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="px-5 py-6 text-sm text-slate-400">まだ部品・作業明細がありません</p>
+          )}
+        </section>
+
         <section className="rounded-2xl border border-blue-100 bg-white shadow-sm">
           <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
             <h3 className="text-lg font-bold text-slate-950">金額サマリー</h3>
@@ -1193,9 +1372,18 @@ export default function NewQuotePage() {
         </div>
 
         <p className="text-xs text-slate-500">
-          ※ 現在はSupabase保存に対応しています。PDF出力は次の工程で対応します。
+          ※ 見積書を保存後、詳細画面からPDFを発行できます。
         </p>
       </form>
+
+      {showPartPicker && (
+        <PartPickerModal
+          storeId={storeId}
+          onSelect={addPartFromPicker}
+          onAddManual={addManualPartItem}
+          onClose={() => setShowPartPicker(false)}
+        />
+      )}
     </AppShell>
   );
 }

@@ -202,9 +202,9 @@ export default function InvoiceDetailPage() {
       description="請求書の確認・入金状態・ステータスを管理します"
       actionButton={
         <div className="flex gap-2">
-          {invoice?.deal_id && (
+          {invoice && (
             <Link
-              href={`/deals/${invoice.deal_id}/invoices/preview?invoiceId=${invoice.id}`}
+              href={invoice.deal_id ? `/deals/${invoice.deal_id}/invoices/preview?invoiceId=${invoice.id}` : `/invoices/${invoice.id}/preview`}
               className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-100"
             >
               PDF発行

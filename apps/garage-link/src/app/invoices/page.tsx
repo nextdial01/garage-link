@@ -233,21 +233,19 @@ export default function InvoicesPage() {
                         >
                           詳細
                         </Link>
+                        <Link
+                          href={invoice.deal_id ? `/deals/${invoice.deal_id}/invoices/preview?invoiceId=${invoice.id}` : `/invoices/${invoice.id}/preview`}
+                          className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
+                        >
+                          PDF
+                        </Link>
                         {invoice.deal_id && (
-                          <>
-                            <Link
-                              href={`/deals/${invoice.deal_id}/invoices/preview?invoiceId=${invoice.id}`}
-                              className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100"
-                            >
-                              PDF
-                            </Link>
-                            <Link
-                              href={`/deals/${invoice.deal_id}`}
-                              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-blue-50"
-                            >
-                              商談
-                            </Link>
-                          </>
+                          <Link
+                            href={`/deals/${invoice.deal_id}`}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-blue-50"
+                          >
+                            商談
+                          </Link>
                         )}
                       </div>
                     </td>
