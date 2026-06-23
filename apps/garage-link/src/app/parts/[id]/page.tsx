@@ -18,6 +18,11 @@ type RepairPartRow = {
   stock: number;
   unit_price: number | null;
   low_stock_threshold: number;
+  reorder_point: number | null;
+  min_stock: number | null;
+  last_purchase_date: string | null;
+  last_purchase_price: number | null;
+  location_shelf: string | null;
   status: string;
   supplier_name: string | null;
   memo: string | null;
@@ -30,6 +35,11 @@ type PartForm = {
   stock: string;
   unit_price: string;
   low_stock_threshold: string;
+  reorder_point: string;
+  min_stock: string;
+  last_purchase_date: string;
+  last_purchase_price: string;
+  location_shelf: string;
   status: string;
   supplier_name: string;
   memo: string;
@@ -40,7 +50,9 @@ const inputClass =
 
 const emptyForm: PartForm = {
   part_no: '', name: '', category: '', stock: '0', unit_price: '',
-  low_stock_threshold: '5', status: '在庫あり', supplier_name: '', memo: '',
+  low_stock_threshold: '5', reorder_point: '0', min_stock: '0',
+  last_purchase_date: '', last_purchase_price: '', location_shelf: '',
+  status: '在庫あり', supplier_name: '', memo: '',
 };
 
 function toPartForm(row: RepairPartRow): PartForm {
@@ -51,6 +63,11 @@ function toPartForm(row: RepairPartRow): PartForm {
     stock: String(row.stock),
     unit_price: row.unit_price !== null ? String(row.unit_price) : '',
     low_stock_threshold: String(row.low_stock_threshold),
+    reorder_point: row.reorder_point !== null ? String(row.reorder_point) : '0',
+    min_stock: row.min_stock !== null ? String(row.min_stock) : '0',
+    last_purchase_date: row.last_purchase_date ?? '',
+    last_purchase_price: row.last_purchase_price !== null ? String(row.last_purchase_price) : '',
+    location_shelf: row.location_shelf ?? '',
     status: row.status,
     supplier_name: row.supplier_name ?? '',
     memo: row.memo ?? '',
@@ -98,7 +115,7 @@ export default function PartDetailPage() {
 
         const { data, error } = await supabase
           .from<RepairPartRow>('repair_parts')
-          .select('id, store_id, part_no, name, category, stock, unit_price, low_stock_threshold, status, supplier_name, memo')
+          .select('id, store_id, part_no, name, category, stock, unit_price, low_stock_threshold, reorder_point, min_stock, last_purchase_date, last_purchase_price, location_shelf, status, supplier_name, memo')
           .eq('id', id)
           .eq('store_id', member.store_id)
           .single();
@@ -141,6 +158,11 @@ export default function PartDetailPage() {
           stock: parseInt(form.stock, 10) || 0,
           unit_price: form.unit_price.trim() ? parseFloat(form.unit_price) : null,
           low_stock_threshold: parseInt(form.low_stock_threshold, 10) || 5,
+          reorder_point: parseInt(form.reorder_point, 10) || 0,
+          min_stock: parseInt(form.min_stock, 10) || 0,
+          last_purchase_date: form.last_purchase_date || null,
+          last_purchase_price: form.last_purchase_price.trim() ? parseFloat(form.last_purchase_price) : null,
+          location_shelf: form.location_shelf.trim() || null,
           status: form.status,
           supplier_name: form.supplier_name.trim() || null,
           memo: form.memo.trim() || null,
@@ -157,6 +179,11 @@ export default function PartDetailPage() {
         stock: parseInt(form.stock, 10) || 0,
         unit_price: form.unit_price.trim() ? parseFloat(form.unit_price) : null,
         low_stock_threshold: parseInt(form.low_stock_threshold, 10) || 5,
+        reorder_point: parseInt(form.reorder_point, 10) || 0,
+        min_stock: parseInt(form.min_stock, 10) || 0,
+        last_purchase_date: form.last_purchase_date || null,
+        last_purchase_price: form.last_purchase_price.trim() ? parseFloat(form.last_purchase_price) : null,
+        location_shelf: form.location_shelf.trim() || null,
         status: form.status,
         supplier_name: form.supplier_name.trim() || null,
         memo: form.memo.trim() || null,
@@ -249,6 +276,18 @@ export default function PartDetailPage() {
                   <input type="number" min="0" step="1" className={inputClass} value={form.low_stock_threshold} onChange={(e) => update('low_stock_threshold', e.target.value)} disabled={!canEdit} />
                 </label>
                 <label className="block">
+                  <span className="mb-1 block text-sm font-bold text-slate-700">発注点</span>
+                  <input type="number" min="0" step="1" className={inputClass} value={form.reorder_point} onChange={(e) => update('reorder_point', e.target.value)} disabled={!canEdit} />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-bold text-slate-700">最低在庫数</span>
+                  <input type="number" min="0" step="1" className={inputClass} value={form.min_stock} onChange={(e) => update('min_stock', e.target.value)} disabled={!canEdit} />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-bold text-slate-700">棚番・保管場所</span>
+                  <input type="text" className={inputClass} value={form.location_shelf} onChange={(e) => update('location_shelf', e.target.value)} disabled={!canEdit} placeholder="例: A-3棚" />
+                </label>
+                <label className="block">
                   <span className="mb-1 block text-sm font-bold text-slate-700">ステータス</span>
                   <select className={inputClass} value={form.status} onChange={(e) => update('status', e.target.value)} disabled={!canEdit}>
                     <option value="在庫あり">在庫あり</option>
@@ -256,6 +295,20 @@ export default function PartDetailPage() {
                     <option value="発注待ち">発注待ち</option>
                     <option value="廃番">廃番</option>
                   </select>
+                </label>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 text-base font-bold text-slate-950">仕入情報</h2>
+              <div className="grid gap-4 md:grid-cols-3">
+                <label className="block">
+                  <span className="mb-1 block text-sm font-bold text-slate-700">最終仕入日</span>
+                  <input type="date" className={inputClass} value={form.last_purchase_date} onChange={(e) => update('last_purchase_date', e.target.value)} disabled={!canEdit} />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-bold text-slate-700">最終仕入単価（円）</span>
+                  <input type="number" min="0" step="1" className={inputClass} value={form.last_purchase_price} onChange={(e) => update('last_purchase_price', e.target.value)} disabled={!canEdit} />
                 </label>
               </div>
             </section>

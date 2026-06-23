@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import JobPartsPanel from '@/components/parts/JobPartsPanel';
 import SoftDeleteButton from '@/components/SoftDeleteButton';
 import { createClient } from '@/lib/supabase/client';
 
-type StoreMemberRow = { store_id: string };
+type StoreMemberRow = { store_id: string; role: string | null };
 
 type MaintenanceJobRow = {
   id: string;
@@ -304,6 +305,7 @@ export default function MaintenanceDetailPage() {
   const params = useParams<{ id: string }>();
   const maintenanceId = params.id;
   const [storeId, setStoreId] = useState('');
+  const [role, setRole] = useState('');
   const [job, setJob] = useState<MaintenanceJobRow | null>(null);
   const [customer, setCustomer] = useState<CustomerRow | null>(null);
   const [vehicle, setVehicle] = useState<VehicleRow | null>(null);
@@ -324,11 +326,12 @@ export default function MaintenanceDetailPage() {
 
         const { data: member, error: memberError } = await supabase
           .from<StoreMemberRow>('store_members')
-          .select('store_id')
+          .select('store_id, role')
           .eq('user_id', userData.user.id)
           .single();
         if (memberError || !member?.store_id) throw new Error('所属店舗を取得できませんでした。');
         setStoreId(member.store_id);
+        setRole(member.role ?? '');
 
         const { data: jobData, error: jobError } = await supabase
           .from<MaintenanceJobRow>('maintenance_jobs')
@@ -591,6 +594,15 @@ export default function MaintenanceDetailPage() {
             <Field label="注意事項" wide><textarea className={`${inputClass} min-h-28`} value={form.caution_note} onChange={(event) => updateField('caution_note', event.target.value)} /></Field>
             <Field label="顧客向けメッセージ" wide><textarea className={`${inputClass} min-h-28`} value={form.customer_message} onChange={(event) => updateField('customer_message', event.target.value)} /></Field>
           </Section>
+
+          {storeId && maintenanceId && (
+            <JobPartsPanel
+              jobId={maintenanceId}
+              storeId={storeId}
+              canEdit={!role || role === 'owner' || role === 'admin' || role === 'implementer' || role === 'staff'}
+              onTotalChange={(total) => updateField('parts_amount', String(total))}
+            />
+          )}
         </div>
       )}
     </AppShell>

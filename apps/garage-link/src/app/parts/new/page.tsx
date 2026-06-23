@@ -18,6 +18,11 @@ type RepairPartInsert = {
   stock: number;
   unit_price: number | null;
   low_stock_threshold: number;
+  reorder_point: number;
+  min_stock: number;
+  last_purchase_date: string | null;
+  last_purchase_price: number | null;
+  location_shelf: string | null;
   status: string;
   supplier_name: string | null;
   memo: string | null;
@@ -38,6 +43,11 @@ export default function NewPartPage() {
     stock: '0',
     unit_price: '',
     low_stock_threshold: '5',
+    reorder_point: '0',
+    min_stock: '0',
+    last_purchase_date: '',
+    last_purchase_price: '',
+    location_shelf: '',
     status: '在庫あり',
     supplier_name: '',
     memo: '',
@@ -81,6 +91,11 @@ export default function NewPartPage() {
         stock: parseInt(form.stock, 10) || 0,
         unit_price: form.unit_price.trim() ? parseFloat(form.unit_price) : null,
         low_stock_threshold: parseInt(form.low_stock_threshold, 10) || 5,
+        reorder_point: parseInt(form.reorder_point, 10) || 0,
+        min_stock: parseInt(form.min_stock, 10) || 0,
+        last_purchase_date: form.last_purchase_date || null,
+        last_purchase_price: form.last_purchase_price.trim() ? parseFloat(form.last_purchase_price) : null,
+        location_shelf: form.location_shelf.trim() || null,
         status: form.status,
         supplier_name: form.supplier_name.trim() || null,
         memo: form.memo.trim() || null,
@@ -154,6 +169,18 @@ export default function NewPartPage() {
                 <input type="number" min="0" step="1" className={inputClass} value={form.low_stock_threshold} onChange={(e) => update('low_stock_threshold', e.target.value)} placeholder="5" />
               </label>
               <label className="block">
+                <span className="mb-1 block text-sm font-bold text-slate-700">発注点</span>
+                <input type="number" min="0" step="1" className={inputClass} value={form.reorder_point} onChange={(e) => update('reorder_point', e.target.value)} placeholder="0" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-bold text-slate-700">最低在庫数</span>
+                <input type="number" min="0" step="1" className={inputClass} value={form.min_stock} onChange={(e) => update('min_stock', e.target.value)} placeholder="0" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-bold text-slate-700">棚番・保管場所</span>
+                <input type="text" className={inputClass} value={form.location_shelf} onChange={(e) => update('location_shelf', e.target.value)} placeholder="例: A-3棚" />
+              </label>
+              <label className="block">
                 <span className="mb-1 block text-sm font-bold text-slate-700">ステータス</span>
                 <select className={inputClass} value={form.status} onChange={(e) => update('status', e.target.value)}>
                   <option value="在庫あり">在庫あり</option>
@@ -161,6 +188,20 @@ export default function NewPartPage() {
                   <option value="発注待ち">発注待ち</option>
                   <option value="廃番">廃番</option>
                 </select>
+              </label>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-base font-bold text-slate-950">仕入情報</h2>
+            <div className="grid gap-4 md:grid-cols-3">
+              <label className="block">
+                <span className="mb-1 block text-sm font-bold text-slate-700">最終仕入日</span>
+                <input type="date" className={inputClass} value={form.last_purchase_date} onChange={(e) => update('last_purchase_date', e.target.value)} />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-bold text-slate-700">最終仕入単価（円）</span>
+                <input type="number" min="0" step="1" className={inputClass} value={form.last_purchase_price} onChange={(e) => update('last_purchase_price', e.target.value)} placeholder="0" />
               </label>
             </div>
           </section>

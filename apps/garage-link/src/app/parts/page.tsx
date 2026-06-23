@@ -17,8 +17,11 @@ type RepairPartRow = {
   stock: number;
   unit_price: number | null;
   low_stock_threshold: number;
+  reorder_point: number | null;
   status: string;
   supplier_name: string | null;
+  location_shelf: string | null;
+  updated_at: string | null;
   deleted_at?: string | null;
   is_archived?: boolean | null;
 };
@@ -72,9 +75,9 @@ export default function PartsPage() {
 
         const { data, error } = await supabase
           .from<RepairPartRow>('repair_parts')
-          .select('id, part_no, name, category, stock, unit_price, low_stock_threshold, status, supplier_name, deleted_at, is_archived')
+          .select('id, part_no, name, category, stock, unit_price, low_stock_threshold, reorder_point, status, supplier_name, location_shelf, updated_at, deleted_at, is_archived')
           .eq('store_id', member.store_id)
-          .order('created_at', { ascending: false });
+          .order('name', { ascending: true });
         if (error) throw new Error(error.message);
 
         setParts((data ?? []).filter((p) => !p.deleted_at && p.is_archived !== true));
@@ -183,43 +186,74 @@ export default function PartsPage() {
           <p className="p-5 text-sm font-semibold text-slate-500">条件に一致する部品がありません</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
+            <table className="w-full min-w-[1100px] text-left text-sm">
               <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-5 py-4">部品名</th>
                   <th className="px-5 py-4">部品番号</th>
-                  <th className="px-5 py-4">カテゴリ</th>
                   <th className="px-5 py-4 text-right">在庫数</th>
+                  <th className="px-5 py-4 text-right">発注点</th>
                   <th className="px-5 py-4 text-right">単価</th>
                   <th className="px-5 py-4">ステータス</th>
                   <th className="px-5 py-4">仕入先</th>
+                  <th className="px-5 py-4">保管場所</th>
+                  <th className="px-5 py-4">更新日</th>
                   <th className="px-5 py-4">詳細</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredParts.map((part) => (
-                  <tr key={part.id} className="hover:bg-blue-50/50">
-                    <td className="px-5 py-4 font-semibold text-slate-950">{part.name}</td>
-                    <td className="px-5 py-4 text-slate-500">{part.part_no ?? '-'}</td>
-                    <td className="px-5 py-4">{part.category ?? '-'}</td>
-                    <td className="px-5 py-4 text-right font-bold">{part.stock.toLocaleString('ja-JP')}</td>
-                    <td className="px-5 py-4 text-right">{formatPrice(part.unit_price)}</td>
-                    <td className="px-5 py-4">
-                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${getStatusClass(part.status)}`}>
-                        {part.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">{part.supplier_name ?? '-'}</td>
-                    <td className="px-5 py-4">
-                      <Link
-                        href={`/parts/${part.id}`}
-                        className="inline-flex rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
-                      >
-                        詳細
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                {filteredParts.map((part) => {
+                  const isLowOrOut = part.status === '在庫少' || part.status === '発注待ち' || part.stock <= 0;
+                  return (
+                    <tr
+                      key={part.id}
+                      className={`hover:bg-blue-50/50 ${isLowOrOut ? 'bg-red-50/30' : ''}`}
+                    >
+                      <td className="px-5 py-4">
+                        <span className="flex items-center gap-2">
+                          {part.status === '発注待ち' || part.stock <= 0 ? (
+                            <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-red-500" />
+                          ) : part.status === '在庫少' ? (
+                            <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-yellow-400" />
+                          ) : (
+                            <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-green-500" />
+                          )}
+                          <span className="font-semibold text-slate-950">{part.name}</span>
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-slate-500">{part.part_no ?? '-'}</td>
+                      <td className="px-5 py-4 text-right">
+                        <span className={`font-bold ${part.stock <= 0 ? 'text-red-600' : part.status === '在庫少' ? 'text-yellow-600' : 'text-slate-950'}`}>
+                          {part.stock.toLocaleString('ja-JP')}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 text-right text-slate-500">
+                        {part.reorder_point !== null && part.reorder_point !== undefined && part.reorder_point > 0
+                          ? part.reorder_point.toLocaleString('ja-JP')
+                          : '-'}
+                      </td>
+                      <td className="px-5 py-4 text-right">{formatPrice(part.unit_price)}</td>
+                      <td className="px-5 py-4">
+                        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${getStatusClass(part.status)}`}>
+                          {part.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">{part.supplier_name ?? '-'}</td>
+                      <td className="px-5 py-4 text-slate-500">{part.location_shelf ?? '-'}</td>
+                      <td className="px-5 py-4 text-xs text-slate-400">
+                        {part.updated_at ? part.updated_at.slice(0, 10) : '-'}
+                      </td>
+                      <td className="px-5 py-4">
+                        <Link
+                          href={`/parts/${part.id}`}
+                          className="inline-flex rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                        >
+                          詳細
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

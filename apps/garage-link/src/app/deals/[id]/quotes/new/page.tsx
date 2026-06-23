@@ -14,6 +14,7 @@ import {
   VehicleCandidate,
   VehicleReplacementSection,
 } from '@/components/deals/DealFlowParts';
+import PartPickerModal, { type PickedPart } from '@/components/parts/PartPickerModal';
 import { logAudit } from '@/lib/audit/logAudit';
 import { DOCUMENT_LIMIT_MESSAGE, assertDocumentLimitAvailable } from '@/lib/billing/garageSubscription';
 import { createClient } from '@/lib/supabase/client';
@@ -117,6 +118,19 @@ type QuoteItemInsert = {
   tax_rate: number;
   tax_amount: number;
   amount: number;
+  part_id?: string | null;
+  cost_price?: number | null;
+};
+
+type PartLineItem = {
+  localId: string;
+  part_id: string | null;
+  part_no: string;
+  name: string;
+  quantity: string;
+  unit_price: string;
+  cost_price: string;
+  tax_rate: string;
 };
 
 type AmountKey =
@@ -231,6 +245,8 @@ export default function DealQuoteNewPage() {
     createPaymentItem(),
   ]);
   const [tradeIn, setTradeIn] = useState<TradeInState>(emptyTradeIn);
+  const [partLineItems, setPartLineItems] = useState<PartLineItem[]>([]);
+  const [showPartPicker, setShowPartPicker] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -310,10 +326,20 @@ export default function DealQuoteNewPage() {
     void loadDeal();
   }, [dealId]);
 
+  const partsSubtotal = useMemo(
+    () =>
+      partLineItems.reduce(
+        (sum, item) => sum + (parseInt(item.quantity, 10) || 1) * (parseFloat(item.unit_price) || 0),
+        0,
+      ),
+    [partLineItems],
+  );
+
   const summary = useMemo(() => {
-    const subtotalAmount = amountItems
+    const fixedSubtotal = amountItems
       .filter((item) => !item.negative)
       .reduce((total, item) => total + toNumber(amounts[item.key]), 0);
+    const subtotalAmount = fixedSubtotal + partsSubtotal;
     const discountAmount = toNumber(amounts.discount);
     const tradeInAmount = toNumber(amounts.trade_in) + toNumber(tradeIn.tradeInAmount);
     const taxAmount = 0;
@@ -324,7 +350,42 @@ export default function DealQuoteNewPage() {
       taxAmount,
       totalAmount: subtotalAmount + taxAmount - discountAmount - tradeInAmount,
     };
-  }, [amounts, tradeIn.tradeInAmount]);
+  }, [amounts, tradeIn.tradeInAmount, partsSubtotal]);
+
+  function addPartFromPicker(picked: PickedPart) {
+    setShowPartPicker(false);
+    setPartLineItems((prev) => [
+      ...prev,
+      {
+        localId: crypto.randomUUID(),
+        part_id: picked.id,
+        part_no: picked.part_no ?? '',
+        name: picked.name,
+        quantity: '1',
+        unit_price: picked.unit_price !== null ? String(picked.unit_price) : '',
+        cost_price: picked.cost_price !== null ? String(picked.cost_price) : '',
+        tax_rate: '0.1',
+      },
+    ]);
+  }
+
+  function addManualPartItem() {
+    setShowPartPicker(false);
+    setPartLineItems((prev) => [
+      ...prev,
+      { localId: crypto.randomUUID(), part_id: null, part_no: '', name: '', quantity: '1', unit_price: '', cost_price: '', tax_rate: '0.1' },
+    ]);
+  }
+
+  function updatePartItem(localId: string, field: keyof PartLineItem, value: string) {
+    setPartLineItems((prev) =>
+      prev.map((item) => (item.localId === localId ? { ...item, [field]: value } : item)),
+    );
+  }
+
+  function removePartItem(localId: string) {
+    setPartLineItems((prev) => prev.filter((item) => item.localId !== localId));
+  }
 
   function selectReplacementVehicle(nextVehicle: VehicleCandidate) {
     setVehicle({
@@ -456,6 +517,35 @@ export default function DealQuoteNewPage() {
         if (itemError) {
           throw new Error(itemError.message);
         }
+      }
+
+      const partItemPayloads: QuoteItemInsert[] = partLineItems
+        .filter((item) => item.name.trim())
+        .map((item, index) => {
+          const qty = parseInt(item.quantity, 10) || 1;
+          const price = parseFloat(item.unit_price) || 0;
+          const amount = qty * price;
+          return {
+            store_id: deal.store_id,
+            quote_id: quote.id,
+            item_order: itemPayloads.length + index + 1,
+            item_type: 'part',
+            name: item.name.trim(),
+            quantity: qty,
+            unit_price: price,
+            tax_rate: parseFloat(item.tax_rate) || 0.1,
+            tax_amount: 0,
+            amount,
+            part_id: item.part_id ?? null,
+            cost_price: item.cost_price.trim() ? Math.round(parseFloat(item.cost_price)) : null,
+          };
+        });
+
+      if (partItemPayloads.length > 0) {
+        const { error: partItemError } = await supabase
+          .from<QuoteItemInsert>('quote_items')
+          .insert(partItemPayloads);
+        if (partItemError) throw new Error(partItemError.message);
       }
 
       if (issueStatus === 'issued') {
@@ -657,6 +747,116 @@ export default function DealQuoteNewPage() {
                 ))}
               </div>
             </section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-950">部品・作業明細</h3>
+                  {partsSubtotal > 0 && (
+                    <p className="mt-1 text-sm text-slate-500">
+                      部品小計: <span className="font-bold text-slate-950">{formatPrice(partsSubtotal)}</span>
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPartPicker(true)}
+                    className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 transition hover:bg-blue-100"
+                  >
+                    部品マスタから追加
+                  </button>
+                  <button
+                    type="button"
+                    onClick={addManualPartItem}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    手動で行追加
+                  </button>
+                </div>
+              </div>
+              {partLineItems.length === 0 ? (
+                <p className="px-5 py-4 text-sm text-slate-400">
+                  部品・作業明細はまだ追加されていません
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[700px] text-sm">
+                    <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+                      <tr>
+                        <th className="px-4 py-3 text-left">部品名</th>
+                        <th className="px-4 py-3 text-right">数量</th>
+                        <th className="px-4 py-3 text-right">単価</th>
+                        <th className="px-4 py-3 text-right">小計</th>
+                        <th className="px-4 py-3"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {partLineItems.map((item) => {
+                        const qty = parseInt(item.quantity, 10) || 1;
+                        const price = parseFloat(item.unit_price) || 0;
+                        return (
+                          <tr key={item.localId}>
+                            <td className="px-4 py-2">
+                              <input
+                                type="text"
+                                value={item.name}
+                                onChange={(e) => updatePartItem(item.localId, 'name', e.target.value)}
+                                placeholder="部品名"
+                                className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                              />
+                              {item.part_no && (
+                                <p className="mt-0.5 text-xs text-slate-400">{item.part_no}</p>
+                              )}
+                            </td>
+                            <td className="px-4 py-2">
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => updatePartItem(item.localId, 'quantity', e.target.value)}
+                                className="w-20 rounded-lg border border-slate-300 px-3 py-1.5 text-right text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input
+                                type="number"
+                                min="0"
+                                value={item.unit_price}
+                                onChange={(e) => updatePartItem(item.localId, 'unit_price', e.target.value)}
+                                placeholder="0"
+                                className="w-28 rounded-lg border border-slate-300 px-3 py-1.5 text-right text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                              />
+                            </td>
+                            <td className="px-4 py-2 text-right font-bold">
+                              {formatPrice(qty * price)}
+                            </td>
+                            <td className="px-4 py-2">
+                              <button
+                                type="button"
+                                onClick={() => removePartItem(item.localId)}
+                                className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600 transition hover:bg-red-100"
+                              >
+                                削除
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            {showPartPicker && deal && (
+              <PartPickerModal
+                storeId={deal.store_id}
+                onSelect={addPartFromPicker}
+                onAddManual={addManualPartItem}
+                onClose={() => setShowPartPicker(false)}
+              />
+            )}
 
             <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="grid gap-5 px-5 py-6 sm:px-6 lg:grid-cols-2">
