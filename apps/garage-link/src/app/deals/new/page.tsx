@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChangeEvent, FormEvent, Suspense, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
 
@@ -761,6 +761,8 @@ function NewDealPageContent() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const saveErrorRef = useRef<HTMLDivElement>(null);
 
   const selectedCustomer = useMemo(() => {
     return customers.find((customer) => customer.id === formState.customer_id);
@@ -949,7 +951,7 @@ function NewDealPageContent() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setErrorMessage('');
+    setSaveError('');
     setIsSaving(true);
 
     try {
@@ -996,7 +998,7 @@ function NewDealPageContent() {
 
       router.push('/deals');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '商談登録に失敗しました。');
+      setSaveError(error instanceof Error ? error.message : '商談登録に失敗しました。');
       setIsSaving(false);
     }
   }
@@ -1012,6 +1014,12 @@ function NewDealPageContent() {
 
     return '';
   }, [customers.length, isLoadingOptions, vehicles.length]);
+
+  useEffect(() => {
+    if (saveError && saveErrorRef.current) {
+      saveErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [saveError]);
 
   return (
     <AppShell
@@ -1057,7 +1065,13 @@ function NewDealPageContent() {
           />
         ))}
 
-        <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
+        <div ref={saveErrorRef} className="space-y-3">
+          {saveError && (
+            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">
+              {saveError}
+            </div>
+          )}
+          <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
           <Link
             href="/deals"
             className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
@@ -1071,6 +1085,7 @@ function NewDealPageContent() {
           >
             {isSaving ? '登録中...' : '商談を登録する'}
           </button>
+          </div>
         </div>
 
         <p className="text-xs text-slate-500">

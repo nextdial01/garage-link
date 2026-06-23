@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChangeEvent, FormEvent, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { VEHICLE_LIMIT_MESSAGE, assertVehicleLimitAvailable } from '@/lib/billing/garageSubscription';
 import { createClient } from '@/lib/supabase/client';
@@ -296,8 +296,15 @@ function FieldControl({
 export default function NewVehiclePage() {
   const router = useRouter();
   const [formState, setFormState] = useState<VehicleFormState>(initialFormState);
-  const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const saveErrorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (saveError && saveErrorRef.current) {
+      saveErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [saveError]);
 
   function updateField(name: keyof VehicleFormState, value: string) {
     setFormState((current) => ({
@@ -329,7 +336,7 @@ export default function NewVehiclePage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setErrorMessage('');
+    setSaveError('');
     setIsSaving(true);
 
     try {
@@ -368,7 +375,7 @@ export default function NewVehiclePage() {
 
       router.push('/vehicles');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '車両登録に失敗しました。');
+      setSaveError(error instanceof Error ? error.message : '車両登録に失敗しました。');
       setIsSaving(false);
     }
   }
@@ -388,17 +395,6 @@ export default function NewVehiclePage() {
       }
     >
       <form onSubmit={handleSubmit} className="mx-auto max-w-7xl space-y-8">
-        {errorMessage && (
-          <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-            <p>{errorMessage}</p>
-            {errorMessage === VEHICLE_LIMIT_MESSAGE && (
-              <Link href="/settings/billing" className="mt-3 inline-flex rounded-lg bg-white px-3 py-2 text-xs font-bold text-red-700 ring-1 ring-red-200 transition hover:bg-red-100">
-                プラン変更を申し込む
-              </Link>
-            )}
-          </div>
-        )}
-
         {vehicleSections.map((section) => (
           <section
             key={section.title}
@@ -450,7 +446,18 @@ export default function NewVehiclePage() {
           </section>
         ))}
 
-        <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
+        <div ref={saveErrorRef} className="space-y-3">
+          {saveError && (
+            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">
+              <p>{saveError}</p>
+              {saveError === VEHICLE_LIMIT_MESSAGE && (
+                <Link href="/settings/billing" className="mt-3 inline-flex rounded-lg bg-white px-3 py-2 text-xs font-bold text-red-700 ring-1 ring-red-200 transition hover:bg-red-100">
+                  プラン変更を申し込む
+                </Link>
+              )}
+            </div>
+          )}
+          <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
           <Link
             href="/vehicles"
             className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
@@ -465,6 +472,7 @@ export default function NewVehiclePage() {
           >
             {isSaving ? '登録中...' : '車両を登録する'}
           </button>
+          </div>
         </div>
       </form>
     </AppShell>

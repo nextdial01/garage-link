@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import PartLineItemsEditor, { type PartLineItem } from '@/components/parts/PartLineItemsEditor';
 import PartPickerModal, { type PickedPart } from '@/components/parts/PartPickerModal';
@@ -383,6 +383,8 @@ export default function NewQuotePage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const saveErrorRef = useRef<HTMLDivElement>(null);
   const [partLineItems, setPartLineItems] = useState<PartLineItem[]>([]);
   const [showPartPicker, setShowPartPicker] = useState(false);
 
@@ -496,6 +498,12 @@ export default function NewQuotePage() {
     void loadOptions();
   }, []);
 
+  useEffect(() => {
+    if (saveError && saveErrorRef.current) {
+      saveErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [saveError]);
+
   function updateField(name: keyof QuoteFormState, value: string) {
     setFormState((current) => {
       if (name === 'deal_id') {
@@ -597,7 +605,7 @@ export default function NewQuotePage() {
   }
 
   async function saveQuote(status: string) {
-    setErrorMessage('');
+    setSaveError('');
     setIsSaving(true);
 
     try {
@@ -721,7 +729,7 @@ export default function NewQuotePage() {
       sessionStorage.setItem('flash_quotes', '見積書を保存しました。');
       router.push('/quotes');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '見積書の保存に失敗しました。');
+      setSaveError(error instanceof Error ? error.message : '見積書の保存に失敗しました。');
       setIsSaving(false);
     }
   }
@@ -1260,7 +1268,13 @@ export default function NewQuotePage() {
           </div>
         </section>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
+        <div ref={saveErrorRef} className="space-y-3">
+          {saveError && (
+            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">
+              {saveError}
+            </div>
+          )}
+          <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
           <Link
             href="/quotes"
             className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
@@ -1282,6 +1296,7 @@ export default function NewQuotePage() {
           >
             {isSaving ? '保存中...' : '見積書を作成する'}
           </button>
+          </div>
         </div>
 
         <p className="text-xs text-slate-500">

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import SoftDeleteButton from '@/components/SoftDeleteButton';
 import { createClient } from '@/lib/supabase/client';
@@ -94,6 +94,8 @@ export default function PartDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const saveErrorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function loadPart() {
@@ -132,6 +134,12 @@ export default function PartDetailPage() {
     void loadPart();
   }, [id]);
 
+  useEffect(() => {
+    if (saveError && saveErrorRef.current) {
+      saveErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [saveError]);
+
   function update(key: keyof PartForm, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -139,12 +147,12 @@ export default function PartDetailPage() {
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!form.name.trim()) {
-      setErrorMessage('部品名は必須です。');
+      setSaveError('部品名は必須です。');
       return;
     }
     try {
+      setSaveError('');
       setIsSaving(true);
-      setErrorMessage('');
 
       const supabase = createClient();
       const { error } = await supabase
@@ -190,7 +198,7 @@ export default function PartDetailPage() {
       sessionStorage.setItem('flash_parts', '部品情報を更新しました。');
       router.push('/parts');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
+      setSaveError(error instanceof Error ? error.message : '保存に失敗しました。');
     } finally {
       setIsSaving(false);
     }
@@ -324,7 +332,13 @@ export default function PartDetailPage() {
                   redirectHref="/parts"
                   label="部品を削除"
                 />
-                <div className="flex gap-3">
+                <div ref={saveErrorRef} className="space-y-3">
+                  {saveError && (
+                    <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">
+                      {saveError}
+                    </div>
+                  )}
+                  <div className="flex gap-3">
                   <Link href="/parts" className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50">
                     キャンセル
                   </Link>
@@ -335,6 +349,7 @@ export default function PartDetailPage() {
                   >
                     {isSaving ? '保存中...' : '保存する'}
                   </button>
+                  </div>
                 </div>
               </div>
             )}

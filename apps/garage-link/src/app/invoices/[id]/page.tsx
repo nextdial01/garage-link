@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
 
@@ -94,6 +94,8 @@ export default function InvoiceDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const saveErrorRef = useRef<HTMLDivElement>(null);
 
   const [editStatus, setEditStatus] = useState('');
   const [editIssueStatus, setEditIssueStatus] = useState('');
@@ -144,11 +146,17 @@ export default function InvoiceDetailPage() {
     void loadInvoice();
   }, [id]);
 
+  useEffect(() => {
+    if (saveError && saveErrorRef.current) {
+      saveErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [saveError]);
+
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
+      setSaveError('');
       setIsSaving(true);
-      setErrorMessage('');
 
       const paidAmount = editPaidAmount.trim() ? parseFloat(editPaidAmount) : 0;
       const totalAmount = invoice?.total_amount ?? 0;
@@ -187,7 +195,7 @@ export default function InvoiceDetailPage() {
       sessionStorage.setItem('flash_invoices', '請求書を更新しました。');
       router.push('/invoices');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
+      setSaveError(error instanceof Error ? error.message : '保存に失敗しました。');
     } finally {
       setIsSaving(false);
     }
@@ -352,14 +360,21 @@ export default function InvoiceDetailPage() {
             </section>
 
             {canEdit && (
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                >
-                  {isSaving ? '保存中...' : '保存する'}
-                </button>
+              <div ref={saveErrorRef} className="space-y-3">
+                {saveError && (
+                  <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">
+                    {saveError}
+                  </div>
+                )}
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    {isSaving ? '保存中...' : '保存する'}
+                  </button>
+                </div>
               </div>
             )}
           </form>

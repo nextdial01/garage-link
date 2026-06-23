@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
@@ -101,6 +101,8 @@ export default function NewMaintenancePage() {
   const [form, setForm] = useState(initialForm);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const saveErrorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function loadOptions() {
@@ -133,6 +135,12 @@ export default function NewMaintenancePage() {
     void loadOptions();
   }, []);
 
+  useEffect(() => {
+    if (saveError && saveErrorRef.current) {
+      saveErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [saveError]);
+
   const selectedCustomer = useMemo(
     () => customers.find((customer) => customer.id === form.customer_id) ?? null,
     [customers, form.customer_id]
@@ -148,8 +156,8 @@ export default function NewMaintenancePage() {
 
   async function handleSave() {
     try {
+      setSaveError('');
       setIsSaving(true);
-      setErrorMessage('');
       if (!storeId) throw new Error('所属店舗を取得できていません。');
       if (!form.job_no.trim()) throw new Error('受付番号を入力してください。');
 
@@ -204,7 +212,7 @@ export default function NewMaintenancePage() {
       if (error) throw new Error(error.message);
       router.push('/maintenance');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
+      setSaveError(error instanceof Error ? error.message : '保存に失敗しました。');
     } finally {
       setIsSaving(false);
     }
@@ -297,11 +305,18 @@ export default function NewMaintenancePage() {
           </div>
         </section>
 
-        <div className="flex justify-end gap-3 border-t border-slate-200 pt-6">
+        <div ref={saveErrorRef} className="space-y-3">
+          {saveError && (
+            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">
+              {saveError}
+            </div>
+          )}
+          <div className="flex justify-end gap-3 border-t border-slate-200 pt-6">
           <Link href="/maintenance" className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700">キャンセル</Link>
           <button type="button" onClick={() => void handleSave()} disabled={isSaving} className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60">
             {isSaving ? '保存中...' : '整備・車検を登録する'}
           </button>
+          </div>
         </div>
       </div>
     </AppShell>

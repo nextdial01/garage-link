@@ -232,11 +232,13 @@ export default function EditQuotePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [saveError, setSaveError] = useState('');
   const [blockReason, setBlockReason] = useState<string | null>(null);
   const [linkedInvoiceId, setLinkedInvoiceId] = useState<string | null>(null);
   const [isIssuedQuote, setIsIssuedQuote] = useState(false);
 
   const beforeRef = useRef({ total_amount: 0, status: '', item_count: 0 });
+  const saveErrorRef = useRef<HTMLDivElement>(null);
 
   const selectedCustomer = useMemo(() => customers.find((c) => c.id === formState.customer_id), [customers, formState.customer_id]);
   const selectedVehicle = useMemo(() => vehicles.find((v) => v.id === formState.vehicle_id), [vehicles, formState.vehicle_id]);
@@ -407,6 +409,12 @@ export default function EditQuotePage() {
     void load();
   }, [id]);
 
+  useEffect(() => {
+    if (saveError && saveErrorRef.current) {
+      saveErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [saveError]);
+
   function updateField(name: keyof QuoteFormState, value: string) {
     setFormState((current) => {
       if (name === 'deal_id') {
@@ -463,7 +471,7 @@ export default function EditQuotePage() {
   }
 
   async function updateQuote(status: string) {
-    setErrorMessage('');
+    setSaveError('');
     setIsSaving(true);
     try {
       if (!storeId) throw new Error('所属店舗が見つかりません。');
@@ -573,7 +581,7 @@ export default function EditQuotePage() {
       sessionStorage.setItem('flash_quotes', '見積書を更新しました。');
       router.push('/quotes');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '見積書の更新に失敗しました。');
+      setSaveError(error instanceof Error ? error.message : '見積書の更新に失敗しました。');
       setIsSaving(false);
     }
   }
@@ -886,7 +894,13 @@ export default function EditQuotePage() {
           </div>
         </section>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
+        <div ref={saveErrorRef} className="space-y-3">
+          {saveError && (
+            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">
+              {saveError}
+            </div>
+          )}
+          <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
           <Link href={`/quotes/${id}`} className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50">
             キャンセル
           </Link>
@@ -896,6 +910,7 @@ export default function EditQuotePage() {
           <button type="submit" disabled={isSaving} className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
             {isSaving ? '保存中...' : '見積書を更新する'}
           </button>
+          </div>
         </div>
       </form>
 

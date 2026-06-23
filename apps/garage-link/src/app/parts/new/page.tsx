@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
 
@@ -34,7 +34,14 @@ const inputClass =
 export default function NewPartPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const saveErrorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (saveError && saveErrorRef.current) {
+      saveErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [saveError]);
 
   const [form, setForm] = useState({
     part_no: '',
@@ -60,13 +67,13 @@ export default function NewPartPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!form.name.trim()) {
-      setErrorMessage('部品名は必須です。');
+      setSaveError('部品名は必須です。');
       return;
     }
 
     try {
+      setSaveError('');
       setIsSubmitting(true);
-      setErrorMessage('');
 
       const supabase = createClient();
       const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -106,7 +113,7 @@ export default function NewPartPage() {
 
       router.push('/parts');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '部品の登録に失敗しました。');
+      setSaveError(error instanceof Error ? error.message : '部品の登録に失敗しました。');
     } finally {
       setIsSubmitting(false);
     }
@@ -127,9 +134,6 @@ export default function NewPartPage() {
       }
     >
       <div className="mx-auto max-w-3xl">
-        {errorMessage && (
-          <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>
-        )}
         <form onSubmit={handleSubmit} className="space-y-6">
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-base font-bold text-slate-950">基本情報</h2>
@@ -216,7 +220,13 @@ export default function NewPartPage() {
             />
           </section>
 
-          <div className="flex justify-end gap-3">
+          <div ref={saveErrorRef} className="space-y-3">
+            {saveError && (
+              <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">
+                {saveError}
+              </div>
+            )}
+            <div className="flex justify-end gap-3">
             <Link
               href="/parts"
               className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
@@ -230,6 +240,7 @@ export default function NewPartPage() {
             >
               {isSubmitting ? '登録中...' : '登録する'}
             </button>
+            </div>
           </div>
         </form>
       </div>

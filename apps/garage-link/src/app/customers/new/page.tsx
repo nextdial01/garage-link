@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChangeEvent, FormEvent, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
 
@@ -566,8 +566,15 @@ function StandardSection({
 export default function NewCustomerPage() {
   const router = useRouter();
   const [formState, setFormState] = useState<CustomerFormState>(initialFormState);
-  const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const saveErrorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (saveError && saveErrorRef.current) {
+      saveErrorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [saveError]);
 
   function updateField(name: keyof CustomerFormState, value: string) {
     setFormState((current) => ({
@@ -599,7 +606,7 @@ export default function NewCustomerPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setErrorMessage('');
+    setSaveError('');
     setIsSaving(true);
 
     try {
@@ -646,7 +653,7 @@ export default function NewCustomerPage() {
 
       router.push('/customers');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '顧客登録に失敗しました。');
+      setSaveError(error instanceof Error ? error.message : '顧客登録に失敗しました。');
       setIsSaving(false);
     }
   }
@@ -666,12 +673,6 @@ export default function NewCustomerPage() {
       }
     >
       <form onSubmit={handleSubmit} className="mx-auto max-w-7xl space-y-8">
-        {errorMessage && (
-          <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-            {errorMessage}
-          </p>
-        )}
-
         <BasicInfoSection formState={formState} updateField={updateField} />
 
         {formSections.map((section) => (
@@ -683,7 +684,13 @@ export default function NewCustomerPage() {
           />
         ))}
 
-        <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
+        <div ref={saveErrorRef} className="space-y-3">
+          {saveError && (
+            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 ring-1 ring-inset ring-red-600/20">
+              {saveError}
+            </div>
+          )}
+          <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:justify-end">
           <Link
             href="/customers"
             className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
@@ -697,6 +704,7 @@ export default function NewCustomerPage() {
           >
             {isSaving ? '登録中...' : '顧客を登録する'}
           </button>
+          </div>
         </div>
 
         <p className="text-xs text-slate-500">
