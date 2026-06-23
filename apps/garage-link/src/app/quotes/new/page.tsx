@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import PartLineItemsEditor, { type PartLineItem } from '@/components/parts/PartLineItemsEditor';
 import PartPickerModal, { type PickedPart } from '@/components/parts/PartPickerModal';
 import { DOCUMENT_LIMIT_MESSAGE, assertDocumentLimitAvailable } from '@/lib/billing/garageSubscription';
 import { createClient } from '@/lib/supabase/client';
@@ -135,17 +136,6 @@ type QuoteItemInsert = {
   amount: number;
   part_id?: string | null;
   cost_price?: number | null;
-};
-
-type PartLineItem = {
-  localId: string;
-  part_id: string | null;
-  part_no: string;
-  name: string;
-  quantity: string;
-  unit_price: string;
-  cost_price: string;
-  tax_rate: string;
 };
 
 type AmountKey =
@@ -604,14 +594,6 @@ export default function NewQuotePage() {
       ...prev,
       { localId: `${Date.now()}-${Math.random()}`, part_id: null, part_no: '', name: '', quantity: '1', unit_price: '', cost_price: '', tax_rate: '0.1' },
     ]);
-  }
-
-  function updatePartItem(localId: string, field: keyof PartLineItem, value: string) {
-    setPartLineItems((prev) => prev.map((item) => item.localId === localId ? { ...item, [field]: value } : item));
-  }
-
-  function removePartItem(localId: string) {
-    setPartLineItems((prev) => prev.filter((item) => item.localId !== localId));
   }
 
   async function saveQuote(status: string) {
@@ -1235,77 +1217,7 @@ export default function NewQuotePage() {
               + 部品を追加
             </button>
           </div>
-          {partLineItems.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead className="bg-slate-50 text-xs font-bold text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3 text-left">部品名</th>
-                    <th className="px-4 py-3 text-right">数量</th>
-                    <th className="px-4 py-3 text-right">単価（円）</th>
-                    <th className="px-4 py-3 text-right">小計</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {partLineItems.map((item) => {
-                    const qty = parseInt(item.quantity, 10) || 1;
-                    const price = parseFloat(item.unit_price) || 0;
-                    return (
-                      <tr key={item.localId}>
-                        <td className="px-4 py-3">
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => updatePartItem(item.localId, 'name', e.target.value)}
-                            placeholder="部品名"
-                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => updatePartItem(item.localId, 'quantity', e.target.value)}
-                            className="w-20 rounded-lg border border-slate-300 px-3 py-2 text-right text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            value={item.unit_price}
-                            onChange={(e) => updatePartItem(item.localId, 'unit_price', e.target.value)}
-                            className="w-28 rounded-lg border border-slate-300 px-3 py-2 text-right text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-right font-bold text-slate-950">
-                          {(qty * price).toLocaleString('ja-JP')}円
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            type="button"
-                            onClick={() => removePartItem(item.localId)}
-                            className="rounded-lg px-2 py-1 text-xs text-red-500 transition hover:bg-red-50"
-                          >
-                            削除
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {partsSubtotal > 0 && (
-                <div className="flex justify-end px-5 py-3">
-                  <p className="text-sm font-bold text-slate-700">
-                    部品小計: <span className="font-bold text-slate-950">{formatPrice(partsSubtotal)}</span>
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="px-5 py-6 text-sm text-slate-400">まだ部品・作業明細がありません</p>
-          )}
+          <PartLineItemsEditor items={partLineItems} onChange={setPartLineItems} />
         </section>
 
         <section className="rounded-2xl border border-blue-100 bg-white shadow-sm">

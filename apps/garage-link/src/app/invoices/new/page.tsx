@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import PartLineItemsEditor, { type PartLineItem } from '@/components/parts/PartLineItemsEditor';
 import PartPickerModal, { type PickedPart } from '@/components/parts/PartPickerModal';
 import { DOCUMENT_LIMIT_MESSAGE, assertDocumentLimitAvailable } from '@/lib/billing/garageSubscription';
 import { createClient } from '@/lib/supabase/client';
@@ -113,17 +114,6 @@ type InvoiceItemInsert = {
   amount: number;
   part_id?: string | null;
   cost_price?: number | null;
-};
-
-type PartLineItem = {
-  localId: string;
-  part_id: string | null;
-  part_no: string;
-  name: string;
-  quantity: string;
-  unit_price: string;
-  cost_price: string;
-  tax_rate: string;
 };
 
 type AmountKey =
@@ -275,6 +265,11 @@ export default function NewInvoicePage() {
 
         setStoreId(member.store_id);
 
+        const initialQuoteId =
+          typeof window !== 'undefined'
+            ? new URLSearchParams(window.location.search).get('quoteId')
+            : null;
+
         const [customerResult, vehicleResult, dealResult, quoteResult] = await Promise.all([
           supabase
             .from<CustomerOption>('customers')
@@ -307,6 +302,11 @@ export default function NewInvoicePage() {
         setVehicles(vehicleResult.data ?? []);
         setDeals(dealResult.data ?? []);
         setQuotes(quoteResult.data ?? []);
+
+        if (initialQuoteId) {
+          setQuoteId(initialQuoteId);
+          await importQuoteItems(initialQuoteId, member.store_id);
+        }
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : '選択肢の取得に失敗しました。');
       } finally {
@@ -314,6 +314,7 @@ export default function NewInvoicePage() {
       }
     }
     void loadOptions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function applyCustomer(id: string) {
@@ -346,15 +347,16 @@ export default function NewInvoicePage() {
     }
   }
 
-  async function importQuoteItems(selectedQuoteId: string) {
-    if (!selectedQuoteId || !storeId) return;
+  async function importQuoteItems(selectedQuoteId: string, overrideStoreId?: string) {
+    const effectiveStoreId = overrideStoreId ?? storeId;
+    if (!selectedQuoteId || !effectiveStoreId) return;
     try {
       const supabase = createClient();
       const { data: items } = await supabase
         .from<QuoteItemRow>('quote_items')
         .select('id, item_type, name, quantity, unit_price, tax_rate, tax_amount, amount')
         .eq('quote_id', selectedQuoteId)
-        .eq('store_id', storeId)
+        .eq('store_id', effectiveStoreId)
         .order('item_order', { ascending: true });
 
       if (!items || items.length === 0) return;
@@ -431,14 +433,6 @@ export default function NewInvoicePage() {
       ...prev,
       { localId: `${Date.now()}-${Math.random()}`, part_id: null, part_no: '', name: '', quantity: '1', unit_price: '', cost_price: '', tax_rate: '0.1' },
     ]);
-  }
-
-  function updatePartItem(localId: string, field: keyof PartLineItem, value: string) {
-    setPartLineItems((prev) => prev.map((item) => item.localId === localId ? { ...item, [field]: value } : item));
-  }
-
-  function removePartItem(localId: string) {
-    setPartLineItems((prev) => prev.filter((item) => item.localId !== localId));
   }
 
   async function saveInvoice(issueStatus: 'draft' | 'issued') {
@@ -781,55 +775,7 @@ export default function NewInvoicePage() {
               + 部品を追加
             </button>
           </div>
-          {partLineItems.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead className="bg-slate-50 text-xs font-bold text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3 text-left">部品名</th>
-                    <th className="px-4 py-3 text-right">数量</th>
-                    <th className="px-4 py-3 text-right">単価（円）</th>
-                    <th className="px-4 py-3 text-right">小計</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {partLineItems.map((item) => {
-                    const qty = parseInt(item.quantity, 10) || 1;
-                    const price = parseFloat(item.unit_price) || 0;
-                    return (
-                      <tr key={item.localId}>
-                        <td className="px-4 py-3">
-                          <input type="text" value={item.name} onChange={(e) => updatePartItem(item.localId, 'name', e.target.value)} placeholder="部品名" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100" />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input type="number" value={item.quantity} onChange={(e) => updatePartItem(item.localId, 'quantity', e.target.value)} className="w-20 rounded-lg border border-slate-300 px-3 py-2 text-right text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100" />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input type="number" value={item.unit_price} onChange={(e) => updatePartItem(item.localId, 'unit_price', e.target.value)} className="w-28 rounded-lg border border-slate-300 px-3 py-2 text-right text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100" />
-                        </td>
-                        <td className="px-4 py-3 text-right font-bold text-slate-950">
-                          {(qty * price).toLocaleString('ja-JP')}円
-                        </td>
-                        <td className="px-4 py-3">
-                          <button type="button" onClick={() => removePartItem(item.localId)} className="rounded-lg px-2 py-1 text-xs text-red-500 transition hover:bg-red-50">削除</button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {partsSubtotal > 0 && (
-                <div className="flex justify-end px-5 py-3">
-                  <p className="text-sm font-bold text-slate-700">
-                    部品小計: <span className="font-bold text-slate-950">{formatPrice(partsSubtotal)}</span>
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="px-5 py-6 text-sm text-slate-400">まだ部品・作業明細がありません</p>
-          )}
+          <PartLineItemsEditor items={partLineItems} onChange={setPartLineItems} />
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">

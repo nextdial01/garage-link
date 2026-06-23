@@ -8,6 +8,8 @@ import { createClient } from '@/lib/supabase/client';
 
 type StoreMemberRow = { store_id: string; role: string | null };
 
+type LinkedInvoiceRow = { id: string };
+
 type QuoteRow = {
   id: string;
   store_id: string;
@@ -86,6 +88,8 @@ export default function QuoteDetailPage() {
   const [quoteItems, setQuoteItems] = useState<QuoteItemRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [role, setRole] = useState<string | null>(null);
+  const [linkedInvoiceId, setLinkedInvoiceId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadQuote() {
@@ -103,23 +107,33 @@ export default function QuoteDetailPage() {
           .single();
         if (memberError || !member?.store_id) throw new Error('所属店舗が見つかりません。');
 
-        const { data, error } = await supabase
-          .from<QuoteRow>('quotes')
-          .select('id, store_id, deal_id, customer_id, vehicle_id, quote_no, title, status, issue_status, issue_date, expiry_date, assigned_user_name, customer_name, customer_phone, customer_email, customer_address, vehicle_label, subtotal_amount, tax_amount, discount_amount, trade_in_amount, total_amount, customer_note, created_at')
-          .eq('id', id)
-          .eq('store_id', member.store_id)
-          .single();
-        if (error || !data) throw new Error(error?.message ?? '見積書が見つかりません。');
+        setRole(member.role);
 
-        setQuote(data);
+        const [quoteResult, invoiceCheckResult, itemResult] = await Promise.all([
+          supabase
+            .from<QuoteRow>('quotes')
+            .select('id, store_id, deal_id, customer_id, vehicle_id, quote_no, title, status, issue_status, issue_date, expiry_date, assigned_user_name, customer_name, customer_phone, customer_email, customer_address, vehicle_label, subtotal_amount, tax_amount, discount_amount, trade_in_amount, total_amount, customer_note, created_at')
+            .eq('id', id)
+            .eq('store_id', member.store_id)
+            .single(),
+          supabase
+            .from<LinkedInvoiceRow>('invoices')
+            .select('id')
+            .eq('quote_id', id)
+            .eq('store_id', member.store_id),
+          supabase
+            .from<QuoteItemRow>('quote_items')
+            .select('id, item_order, item_type, name, quantity, unit_price, amount')
+            .eq('quote_id', id)
+            .eq('store_id', member.store_id)
+            .order('item_order', { ascending: true }),
+        ]);
 
-        const { data: items } = await supabase
-          .from<QuoteItemRow>('quote_items')
-          .select('id, item_order, item_type, name, quantity, unit_price, amount')
-          .eq('quote_id', id)
-          .eq('store_id', member.store_id)
-          .order('item_order', { ascending: true });
-        setQuoteItems(items ?? []);
+        if (quoteResult.error || !quoteResult.data) throw new Error(quoteResult.error?.message ?? '見積書が見つかりません。');
+
+        setQuote(quoteResult.data);
+        setLinkedInvoiceId(invoiceCheckResult.data?.[0]?.id ?? null);
+        setQuoteItems(itemResult.data ?? []);
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : '見積書の取得に失敗しました。');
       } finally {
@@ -139,7 +153,32 @@ export default function QuoteDetailPage() {
       title={isLoading ? '見積書詳細' : (quote?.quote_no ? `見積書 ${quote.quote_no}` : '見積書詳細')}
       description="見積書の内容を確認します"
       actionButton={
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {quote && role !== 'viewer' && quote.issue_status !== 'cancelled' && !linkedInvoiceId && (
+            <Link
+              href={`/quotes/${id}/edit`}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              編集
+            </Link>
+          )}
+          {quote && (role === 'owner' || role === 'admin') && quote.issue_status !== 'cancelled' && (
+            linkedInvoiceId ? (
+              <Link
+                href={`/invoices/${linkedInvoiceId}`}
+                className="rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-sm font-bold text-green-700 shadow-sm transition hover:bg-green-100"
+              >
+                請求書を見る
+              </Link>
+            ) : (
+              <Link
+                href={`/invoices/new?quoteId=${id}`}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+              >
+                請求書を作成する
+              </Link>
+            )
+          )}
           {quote && (
             <Link
               href={previewHref}
@@ -180,6 +219,11 @@ export default function QuoteDetailPage() {
             {quote.status && (
               <span className={`inline-flex rounded-full px-4 py-1.5 text-sm font-bold ring-1 ring-inset ${getStatusClass(quote.status)}`}>
                 {quote.status}
+              </span>
+            )}
+            {linkedInvoiceId && (
+              <span className="inline-flex rounded-full bg-green-50 px-4 py-1.5 text-sm font-bold text-green-700 ring-1 ring-inset ring-green-600/20">
+                請求書作成済み
               </span>
             )}
           </div>
