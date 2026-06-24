@@ -1,6 +1,7 @@
 import { canReadFile, getStorageAuthContext } from '@/lib/storage/auth';
 import { logStorageAudit, logStorageSecurityEvent } from '@/lib/storage/audit';
 import { isPathInStoreScope } from '@/lib/storage/paths';
+import { logServerError } from '@/lib/observability/logServerError';
 
 type UploadedFileRow = {
   id: string;
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
       severity: 'high',
       details: { reason: 'role_not_allowed' },
     });
-    return Response.json({ ok: false, error: 'ファイル閲覧権限がありません。' }, { status: 403 });
+    return Response.json({ ok: false, error: 'ファイル閲覧権限がありません。', code: 'forbidden_role' }, { status: 403 });
   }
 
   const body = (await request.json().catch(() => null)) as { fileId?: string; path?: string } | null;
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
   const requestedPath = typeof body?.path === 'string' ? body.path : null;
 
   if (!fileId && !requestedPath) {
-    return Response.json({ ok: false, error: 'ファイル指定がありません。' }, { status: 400 });
+    return Response.json({ ok: false, error: 'ファイル指定がありません。', code: 'invalid_request' }, { status: 400 });
   }
 
   let query = context.service
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
       severity: 'medium',
       details: { reason: 'not_found_or_not_in_store' },
     });
-    return Response.json({ ok: false, error: 'ファイルが見つかりません。' }, { status: 404 });
+    return Response.json({ ok: false, error: 'ファイルが見つかりません。', code: 'not_found' }, { status: 404 });
   }
 
   const row = data as UploadedFileRow;
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
       severity: 'critical',
       details: { reason: 'path_scope_mismatch' },
     });
-    return Response.json({ ok: false, error: 'ファイルにアクセスできません。' }, { status: 403 });
+    return Response.json({ ok: false, error: 'ファイルにアクセスできません。', code: 'cross_tenant_blocked' }, { status: 403 });
   }
 
   const { data: signed, error: signedError } = await context.service.storage
@@ -93,7 +94,13 @@ export async function POST(request: Request) {
     .createSignedUrl(row.path, 5 * 60);
 
   if (signedError || !signed?.signedUrl) {
-    return Response.json({ ok: false, error: '署名URLの発行に失敗しました。' }, { status: 500 });
+    logServerError('signed_url_failed', {
+      route: '/api/storage/signed-url',
+      method: 'POST',
+      tenantId: context.member.tenantId,
+      storeId: context.member.storeId,
+    }, signedError);
+    return Response.json({ ok: false, error: '署名URLの発行に失敗しました。', code: 'signed_url_failed' }, { status: 500 });
   }
 
   await logStorageAudit({

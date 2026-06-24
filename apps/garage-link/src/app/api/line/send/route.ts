@@ -82,8 +82,12 @@ type LineMessageLogInsert = {
   created_by: string | null;
 };
 
-function errorResponse(message: string, status = 400) {
-  return Response.json({ ok: false, error: message }, { status });
+function errorResponse(message: string, status = 400, code = 'line_send_error') {
+  // 5xxは原因追跡のためサーバーログに残す（本文・宛先・Secretは出さない）。
+  if (status >= 500) {
+    console.error('[garage-link:error]', JSON.stringify({ service: 'garage-link', code, route: '/api/line/send', status }));
+  }
+  return Response.json({ ok: false, error: message, code }, { status });
 }
 
 function clientIp(request: Request) {

@@ -217,8 +217,9 @@ export async function GET() {
       settings: safeSettings(settings),
     });
   } catch (error) {
+    console.error('[garage-link:error]', JSON.stringify({ service: 'garage-link', code: 'line_settings_read_failed', route: '/api/line/settings', method: 'GET' }));
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : 'LINE設定の取得に失敗しました。' },
+      { ok: false, error: error instanceof Error ? error.message : 'LINE設定の取得に失敗しました。', code: 'line_settings_read_failed' },
       { status: 500 }
     );
   }
@@ -292,6 +293,8 @@ export async function PATCH(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'LINE設定の保存に失敗しました。';
     const status = message.includes('APP_ENCRYPTION_KEY') ? 500 : 400;
-    return NextResponse.json({ ok: false, error: message }, { status });
+    const code = message.includes('APP_ENCRYPTION_KEY') ? 'encryption_key_missing' : 'line_settings_save_failed';
+    console.error('[garage-link:error]', JSON.stringify({ service: 'garage-link', code, route: '/api/line/settings', method: 'PATCH' }));
+    return NextResponse.json({ ok: false, error: message, code }, { status });
   }
 }

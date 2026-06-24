@@ -8,6 +8,7 @@ import {
 } from '@/lib/storage/paths';
 import { validateUploadFile, type UploadPurpose } from '@/lib/storage/validateFile';
 import { enforceSecurityRateLimit } from '@/lib/security/rateLimit';
+import { apiError, logServerError } from '@/lib/observability/logServerError';
 
 const allowedRelatedTypes = new Set(['vehicle']);
 
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
       severity: 'high',
       details: { reason: 'role_not_allowed' },
     });
-    return Response.json({ ok: false, error: 'アップロード権限がありません。' }, { status: 403 });
+    return Response.json({ ok: false, error: 'アップロード権限がありません。', code: 'forbidden_role' }, { status: 403 });
   }
 
   try {
@@ -167,7 +168,13 @@ export async function POST(request: Request) {
       });
 
     if (uploadError) {
-      throw new Error('ファイルの保存に失敗しました。private bucketを確認してください。');
+      return apiError({
+        code: 'storage_upload_failed',
+        message: 'ファイルの保存に失敗しました。private bucketを確認してください。',
+        status: 500,
+        context: { route: '/api/storage/upload', method: 'POST', tenantId: context.member.tenantId, storeId: context.member.storeId },
+        error: uploadError,
+      });
     }
 
     const { data: inserted, error: insertError } = await context.service
@@ -192,7 +199,13 @@ export async function POST(request: Request) {
 
     if (insertError || !inserted) {
       await context.service.storage.from(privateStorageBucket).remove([generated.path]);
-      throw new Error('ファイルメタデータの保存に失敗しました。');
+      return apiError({
+        code: 'db_insert_failed',
+        message: 'ファイルメタデータの保存に失敗しました。',
+        status: 500,
+        context: { route: '/api/storage/upload', method: 'POST', tenantId: context.member.tenantId, storeId: context.member.storeId },
+        error: insertError,
+      });
     }
 
     const row = inserted as UploadedFileRow;
@@ -240,6 +253,12 @@ export async function POST(request: Request) {
       severity: 'medium',
       details: { reason: 'upload_failed' },
     });
-    return Response.json({ ok: false, error: error instanceof Error ? error.message : 'アップロードに失敗しました。' }, { status: 500 });
+    logServerError('upload_failed', {
+      route: '/api/storage/upload',
+      method: 'POST',
+      tenantId: context.member.tenantId,
+      storeId: context.member.storeId,
+    }, error);
+    return Response.json({ ok: false, error: error instanceof Error ? error.message : 'アップロードに失敗しました。', code: 'upload_failed' }, { status: 500 });
   }
 }

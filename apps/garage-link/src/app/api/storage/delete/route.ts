@@ -1,6 +1,7 @@
 import { canDeleteFile, getStorageAuthContext } from '@/lib/storage/auth';
 import { logStorageAudit, logStorageSecurityEvent } from '@/lib/storage/audit';
 import { isPathInStoreScope } from '@/lib/storage/paths';
+import { logServerError } from '@/lib/observability/logServerError';
 
 type UploadedFileRow = {
   id: string;
@@ -31,13 +32,13 @@ export async function POST(request: Request) {
       severity: 'high',
       details: { reason: 'role_not_allowed' },
     });
-    return Response.json({ ok: false, error: 'ファイル削除権限がありません。' }, { status: 403 });
+    return Response.json({ ok: false, error: 'ファイル削除権限がありません。', code: 'forbidden_role' }, { status: 403 });
   }
 
   const body = (await request.json().catch(() => null)) as { fileId?: string } | null;
   const fileId = typeof body?.fileId === 'string' ? body.fileId : null;
   if (!fileId) {
-    return Response.json({ ok: false, error: 'ファイル指定がありません。' }, { status: 400 });
+    return Response.json({ ok: false, error: 'ファイル指定がありません。', code: 'invalid_request' }, { status: 400 });
   }
 
   const { data, error } = await context.service
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (error || !data) {
-    return Response.json({ ok: false, error: 'ファイルが見つかりません。' }, { status: 404 });
+    return Response.json({ ok: false, error: 'ファイルが見つかりません。', code: 'not_found' }, { status: 404 });
   }
 
   const row = data as UploadedFileRow;
@@ -66,7 +67,7 @@ export async function POST(request: Request) {
       severity: 'critical',
       details: { reason: 'delete_path_scope_mismatch' },
     });
-    return Response.json({ ok: false, error: 'ファイルを削除できません。' }, { status: 403 });
+    return Response.json({ ok: false, error: 'ファイルを削除できません。', code: 'cross_tenant_blocked' }, { status: 403 });
   }
 
   const deletedAt = new Date().toISOString();
@@ -77,7 +78,13 @@ export async function POST(request: Request) {
     .eq('store_id', context.member.storeId);
 
   if (updateError) {
-    return Response.json({ ok: false, error: 'ファイル削除記録の保存に失敗しました。' }, { status: 500 });
+    logServerError('db_update_failed', {
+      route: '/api/storage/delete',
+      method: 'POST',
+      tenantId: context.member.tenantId,
+      storeId: context.member.storeId,
+    }, updateError);
+    return Response.json({ ok: false, error: 'ファイル削除記録の保存に失敗しました。', code: 'db_update_failed' }, { status: 500 });
   }
 
   await context.service.storage.from(row.bucket).remove([row.path]);

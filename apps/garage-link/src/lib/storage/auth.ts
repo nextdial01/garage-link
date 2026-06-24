@@ -51,7 +51,7 @@ export async function getStorageAuthContext(request: Request) {
   if (userError || !userData.user?.id) {
     return {
       ok: false as const,
-      response: Response.json({ ok: false, error: 'ログイン情報を取得できませんでした。' }, { status: 401 }),
+      response: Response.json({ ok: false, error: 'ログイン情報を取得できませんでした。', code: 'unauthorized' }, { status: 401 }),
     };
   }
 
@@ -64,15 +64,16 @@ export async function getStorageAuthContext(request: Request) {
   if (memberError || !member?.store_id || !member.stores?.tenant_id) {
     return {
       ok: false as const,
-      response: Response.json({ ok: false, error: '所属店舗またはtenant情報を取得できませんでした。' }, { status: 403 }),
+      response: Response.json({ ok: false, error: '所属店舗またはtenant情報を取得できませんでした。', code: 'forbidden_no_membership' }, { status: 403 }),
     };
   }
 
   const service = serviceSupabase();
   if (!service) {
+    console.error('[garage-link:error]', JSON.stringify({ service: 'garage-link', code: 'storage_config_missing', route: 'storage/auth' }));
     return {
       ok: false as const,
-      response: Response.json({ ok: false, error: 'サーバー側Storage設定が未設定です。' }, { status: 500 }),
+      response: Response.json({ ok: false, error: 'サーバー側Storage設定が未設定です。', code: 'storage_config_missing' }, { status: 500 }),
     };
   }
 

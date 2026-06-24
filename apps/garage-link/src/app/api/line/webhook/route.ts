@@ -249,7 +249,7 @@ export async function POST(request: Request) {
     });
 
     return Response.json(
-      { ok: false, error: 'LINE webhook secret is not configured' },
+      { ok: false, error: 'LINE webhook secret is not configured', code: 'webhook_secret_missing' },
       { status: 500 }
     );
   }
@@ -266,7 +266,7 @@ export async function POST(request: Request) {
     });
 
     return Response.json(
-      { ok: false, error: 'Invalid signature' },
+      { ok: false, error: 'Invalid signature', code: 'webhook_signature_invalid' },
       { status: 403 }
     );
   }
