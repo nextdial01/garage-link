@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import JobPartsPanel from '@/components/parts/JobPartsPanel';
 import SoftDeleteButton from '@/components/SoftDeleteButton';
@@ -439,8 +439,18 @@ export default function MaintenanceDetailPage() {
   }
 
   function updateField(name: keyof MaintenanceFormState, value: string) {
-    setForm((current) => ({ ...current, [name]: value }));
+    setForm((current) => (current[name] === value ? current : { ...current, [name]: value }));
   }
+
+  // JobPartsPanel に渡すコールバックは安定参照にする。
+  // 毎レンダーで新規アローを渡すと子の useEffect が再実行され、
+  // 「読み込み中…」が点滅して画面がブレる原因になるため。
+  const handlePartsTotalChange = useCallback((total: number) => {
+    setForm((current) => {
+      const next = String(total);
+      return current.parts_amount === next ? current : { ...current, parts_amount: next };
+    });
+  }, []);
 
   async function handleSave() {
     if (!storeId) {
@@ -776,7 +786,7 @@ export default function MaintenanceDetailPage() {
               jobId={maintenanceId}
               storeId={storeId}
               canEdit={!role || role === 'owner' || role === 'admin' || role === 'implementer' || role === 'staff'}
-              onTotalChange={(total) => updateField('parts_amount', String(total))}
+              onTotalChange={handlePartsTotalChange}
             />
           )}
         </div>

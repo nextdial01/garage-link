@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import PartPickerModal, { type PickedPart } from './PartPickerModal';
 
@@ -71,15 +71,20 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
 
   const partsTotal = parts.reduce((sum, p) => sum + p.subtotal_amount, 0);
 
-  const notifyTotal = useCallback(
-    (rows: JobPartRow[]) => {
-      const total = rows.reduce((sum, p) => sum + p.subtotal_amount, 0);
-      onTotalChange?.(total);
-    },
-    [onTotalChange],
-  );
+  // onTotalChange を ref で逃がして、親の毎レンダーごとの新規アロー関数で
+  // useEffect が再実行されないようにする。
+  const onTotalChangeRef = useRef(onTotalChange);
+  useEffect(() => {
+    onTotalChangeRef.current = onTotalChange;
+  }, [onTotalChange]);
+
+  const notifyTotal = useCallback((rows: JobPartRow[]) => {
+    const total = rows.reduce((sum, p) => sum + p.subtotal_amount, 0);
+    onTotalChangeRef.current?.(total);
+  }, []);
 
   useEffect(() => {
+    let cancelled = false;
     async function loadParts() {
       setIsLoading(true);
       try {
@@ -92,17 +97,21 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
           .eq('job_id', jobId)
           .eq('store_id', storeId)
           .order('created_at', { ascending: true });
+        if (cancelled) return;
         if (error) throw error;
         const rows = data ?? [];
         setParts(rows);
         notifyTotal(rows);
       } catch {
-        setErrorMessage('使用部品の読み込みに失敗しました。');
+        if (!cancelled) setErrorMessage('使用部品の読み込みに失敗しました。');
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
     void loadParts();
+    return () => {
+      cancelled = true;
+    };
   }, [jobId, storeId, notifyTotal]);
 
   function openEditRow(part: JobPartRow) {
