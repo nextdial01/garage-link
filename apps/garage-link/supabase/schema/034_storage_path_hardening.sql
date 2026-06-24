@@ -11,7 +11,9 @@ add constraint uploaded_files_path_no_traversal_check check (
   and length(path) between 1 and 1024
   and position('..' in path) = 0
   and position('\\' in path) = 0
-  and position(E'\0' in path) = 0
+  -- NUL文字(0x00)はPostgreSQLのtext型に格納できず、E'\0'リテラルを含むSQLは
+  -- "invalid byte sequence for encoding UTF8: 0x00" で実行不能になるため、DB側では検査しない。
+  -- NULの混入はアプリ層 isSafeStoragePath（'\0'を拒否）で防止する。
   and position('//' in path) = 0
   and path not like '/%'
   and path like 'tenants/%/stores/%/%'
