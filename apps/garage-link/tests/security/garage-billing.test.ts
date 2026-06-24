@@ -134,11 +134,13 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(source).toContain('この申込は既に契約へ反映済みです。');
   });
 
-  test('設定画面の主要文言はL-Link連携・申し込む表記に統一されている', async () => {
+  test('設定画面の主要文言は外部連携・申し込む表記に統一されている', async () => {
     const billingPage = await readFile('src/app/settings/billing/page.tsx', 'utf8');
     const lLinkPage = await readFile('src/app/settings/l-link/page.tsx', 'utf8');
 
-    expect(billingPage).toContain('L-Link連携');
+    // ユーザー向けUIにはサービス名「L-Link」を出さず「外部連携」表記に統一する。
+    expect(billingPage).toContain('外部連携');
+    expect(billingPage).not.toContain('L-Link連携');
     expect(billingPage).toContain('申し込む');
     expect(billingPage).toContain('標準スタッフ数 / 追加スタッフ数');
     expect(billingPage).toContain('標準店舗数 / 追加店舗数');

@@ -41,7 +41,7 @@ const settingCards = [
   {
     title: '設定エクスポート / インポート',
     href: '/settings/import-export',
-    description: '店舗設定や業務設定を別環境へ移行します。L-Link本体設定はL-Link側で管理します。',
+    description: '店舗設定や業務設定を別環境へ移行します。',
   },
   {
     title: 'セキュリティ設定',
@@ -54,9 +54,9 @@ const settingCards = [
     description: '現在の契約プラン、追加オプション、プラン変更申込を管理します。',
   },
   {
-    title: 'L-Link連携',
-    href: '/settings/l-link',
-    description: 'GARAGE LINKプランごとのL-Link連携可否と、L-Linkアプリへの導線を確認します。',
+    title: '車検案内設定',
+    href: '/settings/customer-follow-up/inspection-reminders',
+    description: '車検満了日をもとにした案内対象の判定ルール（案内タイミング・除外条件）を設定します。',
   },
   {
     title: '監査ログ',
@@ -121,7 +121,7 @@ export default function SettingsPage() {
     if (card.href === '/settings/members') return canManageMembers(role);
     if (card.href === '/settings/import-export') return canImportExportSettings(role);
     if (card.href === '/settings/company' || card.href === '/settings/documents') return canManageSettings(role);
-    if (card.href === '/settings/store' || card.href === '/settings/security' || card.href === '/settings/billing' || card.href === '/settings/l-link') return role === 'owner' || role === 'admin';
+    if (card.href === '/settings/store' || card.href === '/settings/security' || card.href === '/settings/billing' || card.href === '/settings/customer-follow-up/inspection-reminders') return role === 'owner' || role === 'admin';
     if (
       card.href === '/settings/audit-logs' ||
       card.href === '/settings/trash' ||
@@ -160,7 +160,7 @@ export default function SettingsPage() {
           <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
             <h3 className="text-lg font-bold text-slate-950">設定メニュー</h3>
             <p className="mt-1 text-sm text-slate-500">
-              LINE配信・シナリオ・リッチメニューなどの本体機能は、別SaaSのL-Link側で管理します。
+              車両販売・整備・車検に関する業務設定を管理します。
             </p>
           </div>
 

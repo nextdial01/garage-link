@@ -30,6 +30,7 @@ const vehicleMainItems: MenuItem[] = [
   { label: '部品管理', href: '/parts' },
   { label: '顧客管理', href: '/customers' },
   { label: '商談管理', href: '/deals' },
+  { label: '車検案内対象履歴', href: '/customer-follow-up/inspection-reminders' },
   { label: '見積書', href: '/quotes' },
   { label: '請求書', href: '/invoices' },
   { label: '棚卸し', href: '/inventory-counts' },
@@ -39,8 +40,8 @@ const vehicleMainItems: MenuItem[] = [
 const vehicleSettingItems: MenuItem[] = [
   { label: '会社情報・帳票設定', href: '/settings/company' },
   { label: 'メンバー・権限設定', href: '/settings/members' },
+  { label: '車検案内設定', href: '/settings/customer-follow-up/inspection-reminders' },
   { label: 'プラン・契約', href: '/settings/billing' },
-  { label: 'L-Link連携', href: '/settings/l-link' },
   { label: '環境変数チェック', href: '/settings/env-check' },
   { label: 'セキュリティチェック', href: '/settings/security-check' },
   { label: '監査ログ', href: '/settings/audit-logs' },
@@ -132,13 +133,6 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
   const [role, setRole] = useState('');
   const lineCategory = isLineCategory(pathname);
   const mainItems = (() => {
-    if (lineCategory) {
-      return [
-        { label: 'L-Link連携', href: '/settings/l-link' },
-        { label: '車両管理へ戻る', href: '/dashboard' },
-      ];
-    }
-
     if (role === 'implementer') {
       return vehicleMainItems.filter((item) => ['ダッシュボード', '顧客管理', '商談管理', '分析'].includes(item.label));
     }
@@ -172,11 +166,8 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
       return true;
     });
   })();
-  const categoryTitle = lineCategory ? 'L-Link連携' : '車両管理';
+  const categoryTitle = '車両管理';
   const roleRingClass = lineCategory ? 'ring-green-400/30' : 'ring-blue-400/30';
-  const modeLinkClass = lineCategory
-    ? 'border-green-400/30 bg-green-500/15 text-green-100'
-    : 'border-blue-400/30 bg-blue-500/15 text-blue-100';
 
   useEffect(() => {
     async function loadRole() {
@@ -212,9 +203,6 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
       <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
         <div className="rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-white/70">
           <BrandLogo className="mx-auto h-10 w-48 max-w-full" priority />
-        </div>
-        <div className={`mt-4 rounded-xl border px-3 py-2 text-sm font-black ${modeLinkClass}`}>
-          {lineCategory ? 'L-Link移行導線' : '車両管理モード'}
         </div>
         {role && (
           <span className={`mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-slate-200 ring-1 ${roleRingClass}`}>

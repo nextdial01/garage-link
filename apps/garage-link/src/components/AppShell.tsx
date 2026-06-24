@@ -1,8 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import AppSidebar from './AppSidebar';
-import ManagementSwitcher from './ManagementSwitcher';
 
 interface AppShellProps {
   activeLabel: string;
@@ -19,15 +17,10 @@ export default function AppShell({
   children,
   actionButton,
 }: AppShellProps) {
-  const pathname = usePathname();
-  const isLineCategory = pathname === '/line' || pathname.startsWith('/line/');
-  const shellBackground = isLineCategory ? 'bg-[#F3FBF6]' : 'bg-[#F6F8FC]';
-  const categoryLabel = isLineCategory ? 'L-Link移行導線' : '車両管理';
-  const categoryPillClass = isLineCategory
-    ? 'bg-green-50 text-green-700 ring-green-100'
-    : 'bg-blue-50 text-blue-700 ring-blue-100';
-  const headerBorderClass = isLineCategory ? 'border-green-100' : 'border-blue-100';
-  const accentText = isLineCategory ? 'text-green-700' : 'text-blue-700';
+  const shellBackground = 'bg-[#F6F8FC]';
+  const categoryLabel = '車両管理';
+  const headerBorderClass = 'border-blue-100';
+  const accentText = 'text-blue-700';
 
   return (
     <main className={`flex min-h-screen flex-col text-slate-950 md:flex-row ${shellBackground}`}>
@@ -38,8 +31,7 @@ export default function AppShell({
           <div className="mx-auto flex max-w-[1440px] flex-col gap-4">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex flex-wrap items-center gap-3">
-                <ManagementSwitcher />
-                <span className={`rounded-full px-3 py-1.5 text-xs font-bold ring-1 ${categoryPillClass}`}>
+                <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 ring-1 ring-blue-100">
                   {categoryLabel}
                 </span>
               </div>

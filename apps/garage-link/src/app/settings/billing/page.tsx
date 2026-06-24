@@ -234,7 +234,7 @@ export default function BillingSettingsPage() {
               ['標準ストレージ / 追加ストレージ', `${formatStorage(subscription?.storage_limit_mb ?? currentPlan.storageLimitMb)} / ${subscription?.extra_storage_gb ?? 0}GB`],
               ['ストレージ使用量', '集計準備中'],
               ['見積・請求', currentPlan.quoteInvoiceLimit === null ? '無制限' : `月${currentPlan.quoteInvoiceLimit}件`],
-              ['L-Link連携', subscription?.l_link_integration_enabled ? '可' : '不可'],
+              ['外部連携', subscription?.l_link_integration_enabled ? '可' : '不可'],
             ].map(([label, value]) => (
               <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="text-sm font-bold text-slate-500">{label}</p>
@@ -267,7 +267,7 @@ export default function BillingSettingsPage() {
                     ['ストレージ', (code: GaragePlanCode) => formatStorage(GARAGE_PLANS[code].storageLimitMb)],
                     ['ストレージ追加', (code: GaragePlanCode) => GARAGE_PLANS[code].extraStoragePricePer10Gb ? `${formatGarageYen(GARAGE_PLANS[code].extraStoragePricePer10Gb)}/月・10GB` : '不可'],
                     ['見積・請求', (code: GaragePlanCode) => GARAGE_PLANS[code].quoteInvoiceLimit === null ? '無制限' : `月${GARAGE_PLANS[code].quoteInvoiceLimit}件`],
-                    ['L-Link連携', (code: GaragePlanCode) => GARAGE_PLANS[code].lLinkIntegrationEnabled ? '可' : '不可'],
+                    ['外部連携', (code: GaragePlanCode) => GARAGE_PLANS[code].lLinkIntegrationEnabled ? '可' : '不可'],
                     ['チャットサポート', () => '無料'],
                     ['個別サポート', (code: GaragePlanCode) => `${formatGarageYen(GARAGE_PLANS[code].individualSupportHourlyPrice)}/時`],
                   ].map(([label, formatter]) => (
