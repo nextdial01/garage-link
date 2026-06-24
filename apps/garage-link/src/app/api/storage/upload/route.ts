@@ -1,8 +1,15 @@
 import { canUploadFile, getStorageAuthContext } from '@/lib/storage/auth';
 import { logStorageAudit, logStorageSecurityEvent } from '@/lib/storage/audit';
-import { buildStoragePath, privateStorageBucket } from '@/lib/storage/paths';
+import {
+  buildStoragePath,
+  isPathInStoreScope,
+  isValidUuid,
+  privateStorageBucket,
+} from '@/lib/storage/paths';
 import { validateUploadFile, type UploadPurpose } from '@/lib/storage/validateFile';
 import { enforceSecurityRateLimit } from '@/lib/security/rateLimit';
+
+const allowedRelatedTypes = new Set(['vehicle']);
 
 type UploadedFileRow = {
   id: string;
@@ -74,6 +81,29 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, error: 'アップロード用途が正しくありません。' }, { status: 400 });
     }
 
+    const safeRelatedType =
+      relatedType && allowedRelatedTypes.has(relatedType) ? relatedType : null;
+    const safeRelatedId = isValidUuid(relatedId) ? relatedId : null;
+
+    if ((relatedType && !safeRelatedType) || (relatedId && !safeRelatedId)) {
+      await logStorageSecurityEvent({
+        context: {
+          supabase: context.supabase,
+          tenantId: context.member.tenantId,
+          userId: context.user.id,
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+        },
+        eventType: 'file_upload_rejected',
+        severity: 'high',
+        details: { reason: 'invalid_related_reference' },
+      });
+      return Response.json(
+        { ok: false, error: '関連リソース指定が正しくありません。' },
+        { status: 400 }
+      );
+    }
+
     const validation = validateUploadFile({ file, purpose });
     if (!validation.ok) {
       await logStorageSecurityEvent({
@@ -100,9 +130,34 @@ export async function POST(request: Request) {
       storeId: context.member.storeId,
       purpose,
       originalFileName: file.name,
-      relatedType,
-      relatedId,
+      relatedType: safeRelatedType,
+      relatedId: safeRelatedId,
     });
+
+    if (
+      !isPathInStoreScope({
+        path: generated.path,
+        tenantId: context.member.tenantId,
+        storeId: context.member.storeId,
+      })
+    ) {
+      await logStorageSecurityEvent({
+        context: {
+          supabase: context.supabase,
+          tenantId: context.member.tenantId,
+          userId: context.user.id,
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+        },
+        eventType: 'cross_tenant_file_access_blocked',
+        severity: 'critical',
+        details: { reason: 'generated_path_scope_mismatch' },
+      });
+      return Response.json(
+        { ok: false, error: 'アップロードpathが安全条件を満たしません。' },
+        { status: 400 }
+      );
+    }
 
     const { error: uploadError } = await context.service.storage
       .from(privateStorageBucket)
@@ -128,8 +183,8 @@ export async function POST(request: Request) {
         size_bytes: validation.sizeBytes,
         file_type: validation.rule.fileType,
         purpose,
-        related_type: relatedType,
-        related_id: relatedId,
+        related_type: safeRelatedType,
+        related_id: safeRelatedId,
         uploaded_by: context.user.id,
       })
       .select('id, bucket, path, purpose, file_type, mime_type, size_bytes')
