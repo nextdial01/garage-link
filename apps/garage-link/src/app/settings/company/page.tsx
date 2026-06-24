@@ -520,7 +520,7 @@ export default function CompanySettingsPage() {
                 <ImagePreview label="角印画像プレビュー" path={formState.seal_image_path} publicUrl={sealUrl} />
               </div>
               <p className="mt-4 text-xs text-slate-500">
-                ※ Supabase Storage bucket「garage-private」をprivateで作成してください。画像URLは必要時に短時間の署名URLとして発行します。
+                ※ Supabase Storage bucket「company-assets」をprivateで作成してください。画像URLは必要時に短時間の署名URLとして発行します。
               </p>
             </FormSection>
 

@@ -46,7 +46,7 @@ create table if not exists public.uploaded_files (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid references public.tenants(id) on delete set null,
   store_id uuid not null references public.stores(id) on delete cascade,
-  bucket text not null default 'garage-private',
+  bucket text not null default 'company-assets',
   path text not null,
   original_filename text,
   safe_filename text not null,
@@ -62,7 +62,7 @@ create table if not exists public.uploaded_files (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique(bucket, path),
-  constraint uploaded_files_bucket_check check (bucket in ('garage-private', 'garage-public-assets')),
+  constraint uploaded_files_bucket_check check (bucket in ('company-assets', 'garage-public-assets')),
   constraint uploaded_files_file_type_check check (file_type in ('image', 'csv', 'pdf')),
   constraint uploaded_files_purpose_check check (
     purpose in (
@@ -121,10 +121,10 @@ with check (store_id in (select public.current_user_store_ids()));
 
 grant select, insert, update on public.uploaded_files to authenticated;
 
--- Storage bucketはSupabase管理画面またはstaging適用時にprivateで作成してください。
--- 推奨:
--- garage-private: private
+-- Storage bucket:
+-- company-assets: private（GARAGE LINK本番の既存private bucket。新規作成不要）
 -- garage-public-assets: publicでもよいが、顧客情報・業務ファイルは置かない
+-- ※ l-link-images はL-LINK用のpublic bucket。GARAGE LINKからは使用・変更しない。
 
 -- 確認用:
 -- select * from public.uploaded_files order by created_at desc;

@@ -1,7 +1,8 @@
 import crypto from 'node:crypto';
 import { extensionFromFileName, type UploadPurpose } from '@/lib/storage/validateFileCore';
 
-export const privateStorageBucket = 'garage-private';
+// 本番の既存private bucket名に合わせる（L-LINKの l-link-images とは別）。
+export const privateStorageBucket = 'company-assets';
 export const publicAssetsBucket = 'garage-public-assets';
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

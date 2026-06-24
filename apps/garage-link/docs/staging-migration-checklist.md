@@ -29,7 +29,7 @@
 - 同名店舗がある場合でも、`022` のbackfillが店舗名JOINを使っていないことを確認する
 - `line_settings` に既存の `channel_secret` / `channel_access_token` がある場合、暗号化移行前に件数だけ確認する
 - `line_webhook_events` / `line_message_logs` に本文・raw payloadが残る件数を確認する
-- `garage-private` Storage bucketをprivate bucketとして作成する
+- `company-assets` private Storage bucketが存在することを確認する（本番既存。なければprivateで作成）
 
 ## backfill確認
 

@@ -28,7 +28,7 @@ test.describe('Storage upload security', () => {
     );
     expect(result.path).not.toContain('customer-name');
     expect(result.safeFilename).toMatch(/^[0-9a-f-]+\.png$/);
-    expect(privateStorageBucket).toBe('garage-private');
+    expect(privateStorageBucket).toBe('company-assets');
   });
 
   test('tenant/store配下以外のpathを拒否できる', () => {

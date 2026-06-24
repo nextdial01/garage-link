@@ -148,19 +148,19 @@ LINE Developers設定:
 
 ## 11. Supabase Storage bucket設定
 
-Supabase Storageで以下のbucketを作成します。
+Supabase Storageで以下のbucketを使用します。
 
-- `garage-private`
+- `company-assets`（本番の既存private bucket。新規作成不要）
 - `garage-public-assets`
 
 推奨設定:
 
-- `garage-private`: private
+- `company-assets`: private
 - `garage-public-assets`: publicでも可。ただし顧客情報・業務ファイル・CSV・車両画像・帳票画像は置かない
 
-GARAGE LINKの業務ファイルは原則 `garage-private` に保存します。
+GARAGE LINKの業務ファイルは原則 `company-assets` に保存します。
 画像や帳票ロゴの表示は `/api/storage/signed-url` で短時間のsigned URLを発行します。
-古い `company-assets` bucketを使っている環境では、stagingで移行方針を確認してから本番に反映してください。
+※ `l-link-images` はL-LINK専用のpublic bucketのため、GARAGE LINKからは使用・変更しません。
 
 ## 12. 本番確認URL
 
