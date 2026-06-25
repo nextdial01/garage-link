@@ -46,6 +46,30 @@ test.describe('車検案内: タイミング検証ロジック', () => {
   });
 });
 
+test.describe('車検案内: 設定APIのフォールバック安全性', () => {
+  test('GETはDB取得エラーを握り潰さず throw する（テーブル不在で既定値を返さない）', async () => {
+    const source = await readFile(
+      'src/app/api/customer-follow-up/inspection-reminders/settings/route.ts',
+      'utf8'
+    );
+    // error を必ず確認して throw → catch で500応答。
+    expect(source).toContain('if (settingsError) throw');
+    expect(source).toContain('if (timingError) throw');
+    expect(source).toContain("code: 'inspection_settings_read_failed'");
+  });
+
+  test('設定画面はDBエラー時に明示メッセージを出し操作を止める', async () => {
+    const source = await readFile(
+      'src/app/settings/customer-follow-up/inspection-reminders/page.tsx',
+      'utf8'
+    );
+    expect(source).toContain('設定の取得に失敗しました。データベース設定を確認してください。');
+    expect(source).toContain('loadFailed');
+    expect(source).toContain('disabled={isSaving || loadFailed}');
+    expect(source).toContain('disabled={isRunning || loadFailed}');
+  });
+});
+
 test.describe('車検案内: migration(035)の不変条件', () => {
   test('テーブル・冪等性・状態・RLSが定義されている', async () => {
     const sql = await readFile('supabase/schema/035_inspection_reminders.sql', 'utf8');

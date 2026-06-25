@@ -51,17 +51,21 @@ export async function GET() {
   if (!ctx.ok) return ctx.response;
 
   try {
-    const { data: settingsRow } = await ctx.service
+    // テーブル不在・RLSエラー・接続エラーは握り潰さない（error を必ず確認して throw）。
+    // レコードが無い「正常な未設定」ケースのみ、初期表示用のデフォルトにフォールバックする。
+    const { data: settingsRow, error: settingsError } = await ctx.service
       .from('inspection_reminder_settings')
       .select('enabled, exclude_sold, exclude_scrapped, exclude_reserved_or_in_service, require_customer_link')
       .eq('store_id', ctx.storeId)
       .maybeSingle();
+    if (settingsError) throw new Error(settingsError.message);
 
-    const { data: timingRows } = await ctx.service
+    const { data: timingRows, error: timingError } = await ctx.service
       .from('inspection_reminder_timings')
       .select('offset_days, enabled')
       .eq('store_id', ctx.storeId)
       .order('offset_days', { ascending: true });
+    if (timingError) throw new Error(timingError.message);
 
     const settings: ReminderSettings = {
       enabled: settingsRow?.enabled ?? false,

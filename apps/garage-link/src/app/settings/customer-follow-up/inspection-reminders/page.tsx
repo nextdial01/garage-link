@@ -55,6 +55,7 @@ export default function InspectionReminderSettingsPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const canManage = role === 'owner' || role === 'admin';
 
@@ -72,11 +73,15 @@ export default function InspectionReminderSettingsPage() {
         const data = (await response.json()) as { ok: boolean; settings?: ReminderSettings; error?: string };
         if (response.ok && data.ok && data.settings) {
           setSettings(data.settings);
+          setLoadFailed(false);
         } else if (response.status !== 403) {
-          setErrorMessage(data.error ?? '設定の取得に失敗しました。');
+          // テーブル不在・RLS・接続エラー等の異常。設定済みに見せず、明示エラー＋操作不可にする。
+          setLoadFailed(true);
+          setErrorMessage('設定の取得に失敗しました。データベース設定を確認してください。');
         }
       } catch {
-        setErrorMessage('設定の取得に失敗しました。');
+        setLoadFailed(true);
+        setErrorMessage('設定の取得に失敗しました。データベース設定を確認してください。');
       } finally {
         setIsLoading(false);
       }
@@ -235,10 +240,10 @@ export default function InspectionReminderSettingsPage() {
           </section>
 
           <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <button type="button" onClick={handleRunNow} disabled={isRunning} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60">
+            <button type="button" onClick={handleRunNow} disabled={isRunning || loadFailed} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60">
               {isRunning ? '判定中...' : '今すぐ案内対象を判定'}
             </button>
-            <button type="button" onClick={handleSave} disabled={isSaving} className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:bg-slate-300">
+            <button type="button" onClick={handleSave} disabled={isSaving || loadFailed} className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:bg-slate-300">
               {isSaving ? '保存中...' : '保存する'}
             </button>
           </div>

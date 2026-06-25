@@ -7,6 +7,11 @@ import { logServerError } from '@/lib/observability/logServerError';
 // - cron / バッチ実行: Authorization: Bearer ${CRON_SECRET} を付けると全店舗を処理。
 // - 手動実行: ログイン中の owner/admin が自店舗のみ処理（他社データは跨がない）。
 // 生成は冪等（同一条件は二重作成されない）。LINE送信・外部連携は行わない。
+//
+// TODO(L-LINK連携): 将来 L-LINK へ配信候補/下書き作成要求を送る際は、送信直前に
+// イベントの inspection_expiry_date と対象車両の現在の inspection_expiry_date を再照合し、
+// 不一致（満了日が訂正された旧満了日向けの pending 等）は送信せず status='skipped' にする。
+// 今回は実通信を実装せず、既存 pending の自動 skip も行わない（設計メモのみ）。
 export const dynamic = 'force-dynamic';
 
 type StoreMemberRow = { store_id: string; role: string | null };
