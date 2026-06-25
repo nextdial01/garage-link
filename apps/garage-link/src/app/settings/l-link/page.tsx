@@ -145,7 +145,26 @@ export default function LLinkIntegrationPage() {
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 LINE配信、シナリオ配信、回答フォーム、リッチメニュー、Webhook設定などのLINE本体機能はL-Link側で管理します。
                 GARAGE LINK側では連携可否と契約状態だけを確認します。
+                <span className="mt-1 block font-bold text-slate-700">GARAGE LINKからLINEへ直接送信することはありません。</span>
               </p>
+
+              <div className="mt-4 rounded-xl border border-green-100 bg-white p-4">
+                <p className="text-sm font-bold text-slate-700">GARAGE LINKからL-Linkへ連携する対象</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-slate-600">
+                  <li>車検案内候補</li>
+                  <li>点検案内候補</li>
+                  <li>買い替え提案候補</li>
+                  <li>商談フォロー候補</li>
+                  <li>顧客セグメント条件</li>
+                  <li>テンプレート候補</li>
+                </ul>
+                <p className="mt-3 text-xs leading-5 text-slate-500">
+                  ※ GARAGE LINKがL-Linkへ渡すのは「配信候補」または「配信下書きの作成要求」までです。
+                  実際のLINE送信・友だち管理・Webhook処理はL-Link側で行います。
+                  なお、データ連携APIは順次提供予定の機能を含みます（提供状況はL-Link側の案内に従ってください）。
+                </p>
+              </div>
+
               <div className="mt-4 flex flex-wrap gap-3">
                 <a
                   href={lLinkAppUrl}

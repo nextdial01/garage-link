@@ -110,7 +110,7 @@ const importTargets: { key: ImportTargetKey; label: string; childTables?: (keyof
 const csvExportTargets: { key: CsvTargetKey; label: string; endpoint: string; description: string }[] = [
   { key: 'customers', label: '顧客情報', endpoint: '/api/customers/export', description: '氏名、連絡先、対応状況などを出力します。' },
   { key: 'vehicles', label: '車両情報', endpoint: '/api/vehicles/export', description: '管理番号、車両情報、価格、ステータスなどを出力します。' },
-  { key: 'line_friends', label: 'LINE友だち', endpoint: '/api/line/friends/export', description: 'LINE userIdを含まない最小項目だけを出力します。' },
+  // LINE友だちのエクスポートは L-LINK 側へ移管したため、GARAGE LINK の導線からは外しています。
 ];
 
 const csvImportTargets: { key: CsvImportTargetKey; label: string; endpoint: string }[] = [
@@ -918,7 +918,7 @@ export default function SettingsImportExportPage() {
 
           <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
             CSV本文、顧客名、電話番号、住所、メールアドレス、LINE userId、フォーム回答全文はログに保存しません。
-            line_friendsはLINE userIdを含まない最小項目のみ出力します。
+            LINE友だちのエクスポートはL-LINK側で行います。
           </div>
 
           <div className="mt-6 grid gap-5 xl:grid-cols-2">

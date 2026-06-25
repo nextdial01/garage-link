@@ -377,8 +377,8 @@ export default function QuotePreviewPage() {
           <button type="button" onClick={() => window.print()} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">
             印刷
           </button>
-          <Link href={`/deals/${dealId}/line/new`} className="rounded-xl bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700">
-            LINEで案内
+          <Link href="/settings/l-link" className="rounded-xl bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700">
+            L-LINKで案内
           </Link>
         </div>
       </div>

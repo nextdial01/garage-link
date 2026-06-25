@@ -26,6 +26,7 @@ import {
   sendLineTextMessage,
 } from '@/lib/line/sendMessage';
 import { sha256Hex } from '@/lib/security/hash';
+import { isLineDeliveryDisabled, lineMovedApiResponse } from '@/lib/line/lineDisabled';
 
 type DeliveryAction = 'test' | 'confirm' | 'send';
 
@@ -219,6 +220,12 @@ async function logDeliverySecurityEvent({
 }
 
 export async function POST(request: Request) {
+  // LINE直接送信は L-LINK へ移行済み。実送信・テスト送信・配信前確認のいずれも実行しない。
+  // 以降の配信ロジックは将来移行のため残置（到達しない）。
+  if (isLineDeliveryDisabled()) {
+    return lineMovedApiResponse('/api/line/send');
+  }
+
   let requestBody: SendRequestBody;
 
   try {

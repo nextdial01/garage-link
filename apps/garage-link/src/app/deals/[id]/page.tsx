@@ -617,10 +617,10 @@ export default function DealDetailPage() {
             {isSavingDeal ? '保存中...' : '保存する'}
           </button>
           <Link
-            href={`/deals/${dealId}/line/new`}
+            href="/settings/l-link"
             className="rounded-xl bg-green-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-green-700"
           >
-            LINE案内を作成
+            L-LINKで案内
           </Link>
           <SoftDeleteButton
             tableName="deals"
@@ -932,10 +932,10 @@ export default function DealDetailPage() {
                   請求書を作成
                 </Link>
                 <Link
-                  href={`/deals/${dealId}/line/new`}
+                  href="/settings/l-link"
                   className="inline-flex items-center justify-center rounded-xl bg-green-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-green-700"
                 >
-                  LINE案内を作成
+                  L-LINKで案内
                 </Link>
                 <button
                   type="button"
@@ -955,10 +955,10 @@ export default function DealDetailPage() {
                   下取り車両を登録
                 </button>
                 <Link
-                  href={`/deals/${dealId}/line/new`}
+                  href="/settings/l-link"
                   className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
                 >
-                  LINEで案内
+                  L-LINKで案内
                 </Link>
                 <Link
                   href="/deals"
