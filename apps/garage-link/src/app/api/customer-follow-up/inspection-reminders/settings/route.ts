@@ -1,4 +1,3 @@
-import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logServerError } from '@/lib/observability/logServerError';
@@ -10,13 +9,13 @@ import {
 } from '@/lib/inspection-reminders/shared';
 
 type StoreMemberRow = { store_id: string; role: string | null };
-
-function serviceSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-  if (!url || !key) return null;
-  return createServiceClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-}
+type SettingsRow = {
+  enabled: boolean | null;
+  exclude_sold: boolean | null;
+  exclude_scrapped: boolean | null;
+  exclude_reserved_or_in_service: boolean | null;
+  require_customer_link: boolean | null;
+};
 
 function canManage(role: string | null) {
   return role === 'owner' || role === 'admin';
@@ -39,11 +38,9 @@ async function getContext() {
   if (!canManage(member.role)) {
     return { ok: false as const, response: NextResponse.json({ ok: false, error: '権限がありません。', code: 'forbidden_role' }, { status: 403 }) };
   }
-  const service = serviceSupabase();
-  if (!service) {
-    return { ok: false as const, response: NextResponse.json({ ok: false, error: 'サーバー設定が未設定です。', code: 'config_missing' }, { status: 500 }) };
-  }
-  return { ok: true as const, service, storeId: member.store_id, userId: userData.user.id };
+  // service_role はこのプロジェクトで権限を絞られており inspection_* テーブルにアクセスできないため、
+  // 認証ユーザーのセッション（RLS: 所属店舗のみ・変更は owner/admin のみ）でアクセスする。
+  return { ok: true as const, supabase, storeId: member.store_id, userId: userData.user.id };
 }
 
 export async function GET() {
@@ -53,15 +50,15 @@ export async function GET() {
   try {
     // テーブル不在・RLSエラー・接続エラーは握り潰さない（error を必ず確認して throw）。
     // レコードが無い「正常な未設定」ケースのみ、初期表示用のデフォルトにフォールバックする。
-    const { data: settingsRow, error: settingsError } = await ctx.service
-      .from('inspection_reminder_settings')
+    const { data: settingsRow, error: settingsError } = await ctx.supabase
+      .from<SettingsRow>('inspection_reminder_settings')
       .select('enabled, exclude_sold, exclude_scrapped, exclude_reserved_or_in_service, require_customer_link')
       .eq('store_id', ctx.storeId)
       .maybeSingle();
     if (settingsError) throw new Error(settingsError.message);
 
-    const { data: timingRows, error: timingError } = await ctx.service
-      .from('inspection_reminder_timings')
+    const { data: timingRows, error: timingError } = await ctx.supabase
+      .from<ReminderTiming>('inspection_reminder_timings')
       .select('offset_days, enabled')
       .eq('store_id', ctx.storeId)
       .order('offset_days', { ascending: true });
@@ -100,7 +97,7 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const { error: upsertError } = await ctx.service
+    const { error: upsertError } = await ctx.supabase
       .from('inspection_reminder_settings')
       .upsert(
         {
@@ -117,7 +114,7 @@ export async function PUT(request: Request) {
     if (upsertError) throw new Error('settings upsert failed');
 
     // タイミングは全置換で同期（重複・削除・追加・編集をまとめて反映）。
-    const { error: deleteError } = await ctx.service
+    const { error: deleteError } = await ctx.supabase
       .from('inspection_reminder_timings')
       .delete()
       .eq('store_id', ctx.storeId);
@@ -129,7 +126,7 @@ export async function PUT(request: Request) {
         offset_days: timing.offset_days,
         enabled: Boolean(timing.enabled),
       }));
-      const { error: insertError } = await ctx.service.from('inspection_reminder_timings').insert(rows);
+      const { error: insertError } = await ctx.supabase.from('inspection_reminder_timings').insert(rows);
       if (insertError) throw new Error('timings insert failed');
     }
 

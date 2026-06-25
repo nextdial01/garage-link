@@ -19,6 +19,7 @@ declare module '@supabase/ssr' {
   type QueryResponse<T> = {
     data: T | null;
     error: AuthError | null;
+    count?: number | null;
   };
 
   type QueryBuilder<TRecord extends object> =
@@ -30,13 +31,21 @@ declare module '@supabase/ssr' {
     ): QueryBuilder<TRecord>;
     update<TValues extends object>(values: TValues): QueryBuilder<TRecord>;
     delete(): QueryBuilder<TRecord>;
-    select(columns?: string): QueryBuilder<TRecord>;
+    select(
+      columns?: string,
+      options?: { count?: 'exact' | 'planned' | 'estimated'; head?: boolean }
+    ): QueryBuilder<TRecord>;
     eq(column: string, value: unknown): QueryBuilder<TRecord>;
+    gte(column: string, value: unknown): QueryBuilder<TRecord>;
+    lte(column: string, value: unknown): QueryBuilder<TRecord>;
+    or(filters: string): QueryBuilder<TRecord>;
     order(
       column: string,
       options?: { ascending?: boolean }
     ): QueryBuilder<TRecord>;
+    range(from: number, to: number): QueryBuilder<TRecord>;
     single(): Promise<QueryResponse<TRecord>>;
+    maybeSingle(): Promise<QueryResponse<TRecord>>;
   };
 
   type SupabaseClient = {

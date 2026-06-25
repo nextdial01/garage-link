@@ -1,4 +1,3 @@
-import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logServerError } from '@/lib/observability/logServerError';
@@ -8,13 +7,6 @@ export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 20;
 type StoreMemberRow = { store_id: string; role: string | null };
-
-function serviceSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-  if (!url || !key) return null;
-  return createServiceClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-}
 
 export async function GET(request: Request) {
   const supabase = await createClient();
@@ -30,10 +22,6 @@ export async function GET(request: Request) {
   if (memberError || !member?.store_id) {
     return NextResponse.json({ ok: false, error: '所属店舗を取得できませんでした。', code: 'forbidden_no_membership' }, { status: 403 });
   }
-  const service = serviceSupabase();
-  if (!service) {
-    return NextResponse.json({ ok: false, error: 'サーバー設定が未設定です。', code: 'config_missing' }, { status: 500 });
-  }
 
   const url = new URL(request.url);
   const status = url.searchParams.get('status') ?? '';
@@ -43,8 +31,9 @@ export async function GET(request: Request) {
   const page = Math.max(0, Number(url.searchParams.get('page') ?? '0') || 0);
 
   try {
-    // RLS非依存に service role で取得するが、必ず member.store_id にスコープする（他社データを跨がない）。
-    let query = service
+    // 認証ユーザーのセッション（RLS: 所属店舗のみ参照可）で取得。
+    // RLSに加え member.store_id で明示スコープし、他店舗・他社データを跨がない。
+    let query = supabase
       .from('inspection_reminder_events')
       .select(
         'id, store_id, customer_id, vehicle_id, inspection_expiry_date, reminder_offset_days, status, customer_name, vehicle_name, maker, model_name, registration_no, assigned_user_name, external_reference_id, error_detail, created_at, stores(name)',
