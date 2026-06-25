@@ -22,7 +22,24 @@ type VehicleRow = {
   location_name: string | null;
   deleted_at?: string | null;
   is_archived?: boolean | null;
+  purchase_price?: number | null;
+  purchase_date?: string | null;
+  listing_price?: number | null;
+  created_at?: string | null;
 };
+
+const LONG_STAY_DEFAULT = 90;
+function daysInStock(v: VehicleRow): number | null {
+  const base = v.purchase_date ?? (v.created_at ? v.created_at.slice(0, 10) : null);
+  if (!base) return null;
+  const ms = Date.now() - new Date(`${base}T00:00:00`).getTime();
+  return Math.max(0, Math.floor(ms / 86400000));
+}
+function expectedProfit(v: VehicleRow): number | null {
+  const list = v.listing_price ?? v.total_price ?? null;
+  if (list === null || v.purchase_price === null || v.purchase_price === undefined) return null;
+  return list - v.purchase_price;
+}
 
 function getStatusClass(status: string) {
   switch (status) {
@@ -62,6 +79,8 @@ export default function VehiclesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [longStayOnly, setLongStayOnly] = useState(false);
+  const [longStayThreshold, setLongStayThreshold] = useState(LONG_STAY_DEFAULT);
 
   useEffect(() => {
     async function loadVehicles() {
@@ -89,7 +108,7 @@ export default function VehiclesPage() {
         const { data, error } = await supabase
           .from<VehicleRow>('vehicles')
           .select(
-            'id, management_no, maker, model_name, model_year, mileage_km, total_price, base_price, status, location_name, deleted_at, is_archived'
+            'id, management_no, maker, model_name, model_year, mileage_km, total_price, base_price, status, location_name, deleted_at, is_archived, purchase_price, purchase_date, listing_price, created_at'
           )
           .eq('store_id', member.store_id)
           .order('created_at', { ascending: false });
@@ -99,6 +118,14 @@ export default function VehiclesPage() {
         }
 
         setVehicles((data ?? []).filter((vehicle) => !vehicle.deleted_at && vehicle.is_archived !== true));
+
+        // 長期滞留閾値（自店舗のみ。RLSで店舗越境なし）
+        const { data: storeRow } = await supabase
+          .from<{ long_stay_threshold_days: number | null }>('stores')
+          .select('long_stay_threshold_days')
+          .eq('id', member.store_id)
+          .single();
+        setLongStayThreshold(storeRow?.long_stay_threshold_days ?? LONG_STAY_DEFAULT);
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : '車両一覧の取得に失敗しました。');
       } finally {
@@ -137,8 +164,14 @@ export default function VehiclesPage() {
     if (statusFilter) {
       result = result.filter((v) => v.status === statusFilter);
     }
+    if (longStayOnly) {
+      result = result.filter((v) => {
+        const d = daysInStock(v);
+        return d !== null && d > longStayThreshold;
+      });
+    }
     return result;
-  }, [vehicles, searchQuery, statusFilter]);
+  }, [vehicles, searchQuery, statusFilter, longStayOnly, longStayThreshold]);
 
   return (
     <AppShell
@@ -197,6 +230,11 @@ export default function VehiclesPage() {
               <option value="整備中">整備中</option>
               <option value="売約済み">売約済み</option>
             </select>
+
+            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-700">
+              <input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={longStayOnly} onChange={(e) => setLongStayOnly(e.target.checked)} />
+              長期滞留のみ（{longStayThreshold}日超）
+            </label>
           </div>
         </div>
 
@@ -227,6 +265,10 @@ export default function VehiclesPage() {
                   <th className="px-5 py-4">年式</th>
                   <th className="px-5 py-4">走行距離</th>
                   <th className="px-5 py-4">販売価格</th>
+                  <th className="px-5 py-4 text-right">仕入価格</th>
+                  <th className="px-5 py-4 text-right">希望売価</th>
+                  <th className="px-5 py-4 text-right">見込み粗利</th>
+                  <th className="px-5 py-4 text-right">在庫日数</th>
                   <th className="px-5 py-4">ステータス</th>
                   <th className="px-5 py-4">保管場所</th>
                   <th className="px-5 py-4">詳細</th>
@@ -237,9 +279,12 @@ export default function VehiclesPage() {
                 {filteredVehicles.map((vehicle) => {
                   const status = vehicle.status ?? '未設定';
                   const price = vehicle.total_price ?? vehicle.base_price;
+                  const days = daysInStock(vehicle);
+                  const isLongStay = days !== null && days > longStayThreshold;
+                  const profit = expectedProfit(vehicle);
 
                   return (
-                    <tr key={vehicle.id} className="hover:bg-blue-50/50">
+                    <tr key={vehicle.id} className={`hover:bg-blue-50/50 ${isLongStay ? 'bg-amber-50/60' : ''}`}>
                       <td className="px-5 py-4 font-semibold">
                         {vehicle.management_no ?? '-'}
                       </td>
@@ -256,6 +301,10 @@ export default function VehiclesPage() {
                       <td className="px-5 py-4 font-bold">
                         {formatPrice(price)}
                       </td>
+                      <td className="px-5 py-4 text-right">{vehicle.purchase_price != null ? formatPrice(vehicle.purchase_price) : '-'}</td>
+                      <td className="px-5 py-4 text-right">{vehicle.listing_price != null ? formatPrice(vehicle.listing_price) : '-'}</td>
+                      <td className={`px-5 py-4 text-right font-bold ${profit != null && profit < 0 ? 'text-red-700' : 'text-slate-700'}`}>{profit != null ? formatPrice(profit) : '-'}</td>
+                      <td className={`px-5 py-4 text-right ${isLongStay ? 'font-bold text-amber-700' : ''}`}>{days !== null ? `${days}日` : '-'}</td>
                       <td className="px-5 py-4">
                         <span
                           className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${getStatusClass(

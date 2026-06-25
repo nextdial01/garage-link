@@ -31,6 +31,7 @@ const vehicleMainItems: MenuItem[] = [
   { label: '顧客管理', href: '/customers' },
   { label: '商談管理', href: '/deals' },
   { label: '車検案内対象履歴', href: '/customer-follow-up/inspection-reminders' },
+  { label: '配信候補一覧', href: '/customer-follow-up/delivery-candidates' },
   { label: '見積書', href: '/quotes' },
   { label: '請求書', href: '/invoices' },
   { label: '棚卸し', href: '/inventory-counts' },

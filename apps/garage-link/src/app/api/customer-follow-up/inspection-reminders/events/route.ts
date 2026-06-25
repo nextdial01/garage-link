@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logServerError } from '@/lib/observability/logServerError';
 import { REMINDER_STATUSES } from '@/lib/inspection-reminders/shared';
+import { CANDIDATE_EVENT_TYPES } from '@/lib/line-link/deliveryCandidates';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,7 @@ export async function GET(request: Request) {
   const from = url.searchParams.get('from') ?? '';
   const to = url.searchParams.get('to') ?? '';
   const keyword = (url.searchParams.get('keyword') ?? '').replace(/[,%]/g, ' ').trim();
+  const eventType = url.searchParams.get('event_type') ?? '';
   const page = Math.max(0, Number(url.searchParams.get('page') ?? '0') || 0);
 
   try {
@@ -36,7 +38,7 @@ export async function GET(request: Request) {
     let query = supabase
       .from('inspection_reminder_events')
       .select(
-        'id, store_id, customer_id, vehicle_id, inspection_expiry_date, reminder_offset_days, status, customer_name, vehicle_name, maker, model_name, registration_no, assigned_user_name, external_reference_id, error_detail, created_at, stores(name)',
+        'id, store_id, customer_id, vehicle_id, event_type, inspection_expiry_date, reminder_offset_days, status, customer_name, vehicle_name, maker, model_name, registration_no, assigned_user_name, external_reference_id, error_detail, created_at, stores(name)',
         { count: 'exact' }
       )
       .eq('store_id', member.store_id)
@@ -44,6 +46,9 @@ export async function GET(request: Request) {
 
     if (status && (REMINDER_STATUSES as readonly string[]).includes(status)) {
       query = query.eq('status', status);
+    }
+    if (eventType && (CANDIDATE_EVENT_TYPES as readonly string[]).includes(eventType)) {
+      query = query.eq('event_type', eventType);
     }
     if (from) query = query.gte('created_at', `${from}T00:00:00`);
     if (to) query = query.lte('created_at', `${to}T23:59:59`);

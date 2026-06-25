@@ -152,9 +152,22 @@ function SummaryList({ title, items, emptyLabel }: { title: string; items: Recor
   );
 }
 
+type InventoryMetrics = {
+  inventory_total_cost: number;
+  expected_gross_profit: number;
+  long_stay_count: number;
+  avg_days_in_stock: number;
+  in_stock_count: number;
+  sold_this_month_count: number;
+  realized_gross_profit_this_month: number;
+  long_stay_threshold_days: number;
+};
+
 export default function DashboardPage() {
   const [summary, setSummary] = useState<VehicleDashboardSummary>(emptySummary);
   const [isLoading, setIsLoading] = useState(true);
+  const [metrics, setMetrics] = useState<InventoryMetrics | null>(null);
+  const [metricsError, setMetricsError] = useState('');
 
   useEffect(() => {
     async function loadSummary() {
@@ -201,6 +214,10 @@ export default function DashboardPage() {
           maintenanceJobs: maintenanceJobs.data ?? [],
           inventoryCounts: inventoryCounts.data ?? [],
         });
+        // 在庫指標（041 RPC・サーバ側集計・店舗スコープ）
+        const metricsResult = await supabase.rpc('inventory_dashboard_metrics', { p_store_id: member.store_id });
+        if (metricsResult.error) setMetricsError('在庫指標の取得に失敗しました。');
+        else setMetrics((metricsResult.data as unknown) as InventoryMetrics);
       } finally {
         setIsLoading(false);
       }
@@ -257,6 +274,27 @@ export default function DashboardPage() {
           <KpiCard label="商談中" value={`${activeDeals}`} detail="進行中商談" accent="bg-indigo-500" />
           <KpiCard label="成約数" value={`${wonDeals}`} detail="成約ステータス" accent="bg-emerald-500" />
         </div>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-base font-black text-slate-950">在庫利益・回転</h3>
+            <p className="text-xs text-slate-500">長期滞留閾値: {metrics?.long_stay_threshold_days ?? 90}日（店舗設定）</p>
+          </div>
+          {metricsError ? (
+            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{metricsError}</p>
+          ) : !metrics ? (
+            <p className="text-sm text-slate-500">読み込み中...</p>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+              <KpiCard label="在庫総額" value={formatCurrency(metrics.inventory_total_cost)} detail="仕入価格合計" accent="bg-blue-600" />
+              <KpiCard label="見込み粗利" value={formatCurrency(metrics.expected_gross_profit)} detail="希望売価-仕入" accent="bg-emerald-500" />
+              <KpiCard label="長期滞留台数" value={`${metrics.long_stay_count}`} detail="閾値超え在庫" accent="bg-amber-500" />
+              <KpiCard label="平均在庫日数" value={`${metrics.avg_days_in_stock}日`} detail="現在の在庫" accent="bg-indigo-500" />
+              <KpiCard label="当月販売台数" value={`${metrics.sold_this_month_count}`} detail="今月の販売実績" accent="bg-sky-500" />
+              <KpiCard label="当月実現粗利" value={formatCurrency(metrics.realized_gross_profit_this_month)} detail="販売価格-仕入" accent="bg-green-500" />
+            </div>
+          )}
+        </section>
 
         <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
           <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">

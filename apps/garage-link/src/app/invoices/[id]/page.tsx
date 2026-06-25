@@ -45,6 +45,10 @@ type InvoiceRow = {
   memo: string | null;
   internal_memo: string | null;
   created_at: string | null;
+  maintenance_job_id: string | null;
+  parts_stock_adjusted: boolean | null;
+  parts_stock_committed: Record<string, number> | null;
+  parts_stock_adjusted_at: string | null;
 };
 
 const inputClass =
@@ -103,6 +107,10 @@ export default function InvoiceDetailPage() {
   const [editPaymentDueDate, setEditPaymentDueDate] = useState('');
   const [editAssignedUser, setEditAssignedUser] = useState('');
   const [editInternalMemo, setEditInternalMemo] = useState('');
+  const [stockBusy, setStockBusy] = useState<'idle' | 'confirming' | 'cancelling'>('idle');
+  const [stockMessage, setStockMessage] = useState('');
+  const [stockError, setStockError] = useState('');
+  const [itemPartQty, setItemPartQty] = useState<Record<string, number>>({});
 
   useEffect(() => {
     async function loadInvoice() {
@@ -137,6 +145,18 @@ export default function InvoiceDetailPage() {
         setEditPaymentDueDate(data.payment_due_date ?? '');
         setEditAssignedUser(data.assigned_user_name ?? '');
         setEditInternalMemo(data.internal_memo ?? '');
+
+        // 部品明細を取得して part_id ごとに集計（在庫確定UIの差分判定用）
+        const { data: items } = await supabase
+          .from<{ part_id: string | null; quantity: number | null }>('invoice_items')
+          .select('part_id, quantity')
+          .eq('invoice_id', id)
+          .eq('store_id', member.store_id);
+        const agg: Record<string, number> = {};
+        for (const it of items ?? []) {
+          if (it.part_id) agg[it.part_id] = (agg[it.part_id] ?? 0) + Math.max(0, Math.floor(Number(it.quantity ?? 0)));
+        }
+        setItemPartQty(agg);
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : '請求書の取得に失敗しました。');
       } finally {
@@ -202,6 +222,70 @@ export default function InvoiceDetailPage() {
   }
 
   const canEdit = role === 'owner' || role === 'admin' || role === 'implementer' || role === 'staff';
+  const canManageStock = role === 'owner' || role === 'admin';
+
+  async function reloadInvoice() {
+    const supabase = createClient();
+    const { data } = await supabase.from<InvoiceRow>('invoices').select('*').eq('id', id).eq('store_id', storeId).single();
+    if (data) setInvoice(data);
+  }
+
+  async function handleConfirmStock() {
+    if (stockBusy !== 'idle' || !invoice) return;
+    if (!window.confirm('この請求書を確定し、対象部品の在庫を減算します。よろしいですか？')) return;
+    setStockBusy('confirming');
+    setStockError(''); setStockMessage('');
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc('confirm_invoice_part_stock', { p_invoice_id: id, p_store_id: storeId });
+      if (error) throw new Error(error.message);
+      const res = data as { ok: boolean; error?: string; part_name?: string; required?: number; current_stock?: number; skipped?: boolean; reason?: string };
+      if (!res.ok) {
+        if (res.error === '在庫不足です' && res.part_name) {
+          throw new Error(`在庫不足です: 「${res.part_name}」必要数${res.required}・現在在庫${res.current_stock}`);
+        }
+        throw new Error(res.error ?? '請求確定に失敗しました。');
+      }
+      setStockMessage(res.skipped ? '整備案件に紐付くため、在庫は整備案件側で管理されます。' : '請求を確定し、在庫を減算しました。');
+      await reloadInvoice();
+    } catch (e) {
+      setStockError(e instanceof Error ? e.message : '請求確定に失敗しました。');
+    } finally {
+      setStockBusy('idle');
+    }
+  }
+
+  async function handleCancelStock() {
+    if (stockBusy !== 'idle' || !invoice) return;
+    if (!window.confirm('この請求の確定を解除し、減算済み在庫を復元します。よろしいですか？')) return;
+    setStockBusy('cancelling');
+    setStockError(''); setStockMessage('');
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc('cancel_invoice_part_stock', { p_invoice_id: id, p_store_id: storeId });
+      if (error) throw new Error(error.message);
+      const res = data as { ok: boolean; error?: string; skipped?: boolean };
+      if (!res.ok) throw new Error(res.error ?? '取消に失敗しました。');
+      setStockMessage(res.skipped ? '在庫は調整されていません（変更なし）。' : '請求確定を解除し、在庫を復元しました。');
+      await reloadInvoice();
+    } catch (e) {
+      setStockError(e instanceof Error ? e.message : '取消に失敗しました。');
+    } finally {
+      setStockBusy('idle');
+    }
+  }
+
+  function stockState() {
+    if (!invoice) return null;
+    if (invoice.maintenance_job_id) return 'maintenance_linked' as const;
+    const committed = invoice.parts_stock_committed ?? {};
+    const committedKeys = Object.keys(committed).sort();
+    const currentKeys = Object.keys(itemPartQty).sort();
+    const isSame = committedKeys.length === currentKeys.length
+      && committedKeys.every((k, i) => k === currentKeys[i] && committed[k] === itemPartQty[k]);
+    if (invoice.parts_stock_adjusted) return isSame ? ('confirmed_synced' as const) : ('confirmed_drifted' as const);
+    return 'unconfirmed' as const;
+  }
 
   return (
     <AppShell
@@ -255,6 +339,66 @@ export default function InvoiceDetailPage() {
           {errorMessage && (
             <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>
           )}
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-base font-bold text-slate-950">部品在庫の確定状態</h2>
+              {(() => {
+                const s = stockState();
+                if (s === 'maintenance_linked') return <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">整備案件に紐付き</span>;
+                if (s === 'confirmed_synced') return <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">確定済み（明細と一致）</span>;
+                if (s === 'confirmed_drifted') return <span className="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">確定済み（明細変更あり・要再確定）</span>;
+                return <span className="inline-flex rounded-full bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">未確定（下書き）</span>;
+              })()}
+            </div>
+
+            {stockMessage && <p className="mb-3 rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{stockMessage}</p>}
+            {stockError && <p className="mb-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{stockError}</p>}
+
+            {invoice.maintenance_job_id ? (
+              <div className="space-y-2 text-sm text-slate-700">
+                <p>この請求書は <span className="font-semibold">整備案件に紐付いています</span>。部品在庫は整備案件側（部品使用の確定）で管理されます。</p>
+                <p className="text-xs text-slate-500">請求書からの単品販売としての在庫減算は行いません。整備案件詳細から部品使用を確定してください。</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-700">
+                  単品販売部品（{Object.keys(itemPartQty).length}件）の在庫は、下記の「請求を確定」を押したときに減算されます。
+                  下書き保存・編集中は在庫を動かしません。
+                </p>
+                {stockState() === 'confirmed_drifted' && (
+                  <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+                    明細が確定時点から変更されています。再確定で差分のみを反映します（在庫不足はブロックします）。
+                  </p>
+                )}
+                {canManageStock ? (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleConfirmStock}
+                      disabled={stockBusy !== 'idle' || Object.keys(itemPartQty).length === 0}
+                      className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:bg-slate-300"
+                    >
+                      {stockBusy === 'confirming' ? '確定中...' : (invoice.parts_stock_adjusted ? '再確定（差分反映）' : '請求を確定')}
+                    </button>
+                    {invoice.parts_stock_adjusted && (
+                      <button
+                        type="button"
+                        onClick={handleCancelStock}
+                        disabled={stockBusy !== 'idle'}
+                        className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60"
+                      >
+                        {stockBusy === 'cancelling' ? '取消中...' : '確定を解除（在庫復元）'}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">在庫確定は管理者・オーナーのみ操作可能です。</p>
+                )}
+              </div>
+            )}
+          </section>
+
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-base font-bold text-slate-950">請求先・対象車両</h2>
             <dl className="grid gap-4 text-sm md:grid-cols-2">
