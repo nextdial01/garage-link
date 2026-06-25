@@ -104,9 +104,20 @@ declare module '@supabase/ssr' {
     };
   };
 
+  type LockFunc = <R>(name: string, acquireTimeout: number, fn: () => Promise<R>) => Promise<R>;
+  type BrowserClientOptions = {
+    auth?: {
+      lock?: LockFunc;
+      storageKey?: string;
+      autoRefreshToken?: boolean;
+      persistSession?: boolean;
+    };
+  };
+
   export function createBrowserClient(
     supabaseUrl: string,
-    supabaseKey: string
+    supabaseKey: string,
+    options?: BrowserClientOptions
   ): SupabaseClient;
 
   export function createServerClient(
