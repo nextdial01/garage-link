@@ -9,10 +9,171 @@ import {
   DEFAULT_TIMINGS,
   MAX_OFFSET_DAYS,
   MIN_OFFSET_DAYS,
+  REMINDER_STATUS_LABELS,
   validateTimings,
+  type EligibilitySummary,
   type ReminderSettings,
   type ReminderTiming,
 } from '@/lib/inspection-reminders/shared';
+
+function CountRow({ label, value, sub }: { label: string; value: number; sub?: boolean }) {
+  return (
+    <div className={`flex items-center justify-between py-1.5 ${sub ? 'pl-4 text-slate-600' : 'text-slate-800'}`}>
+      <span className="text-sm">{sub ? `└ ${label}` : label}</span>
+      <span className={`text-sm font-bold tabular-nums ${value > 0 && sub ? 'text-amber-700' : ''}`}>
+        {value.toLocaleString()} 台
+      </span>
+    </div>
+  );
+}
+
+function EligibilitySection({
+  eligibility,
+  loading,
+  error,
+  onRefresh,
+}: {
+  eligibility: EligibilitySummary | null;
+  loading: boolean;
+  error: string;
+  onRefresh: () => void;
+}) {
+  const statusOrder: Array<{ key: string; label: string }> = [
+    { key: 'pending',    label: REMINDER_STATUS_LABELS.pending },
+    { key: 'processing', label: REMINDER_STATUS_LABELS.processing },
+    { key: 'completed',  label: REMINDER_STATUS_LABELS.completed },
+    { key: 'skipped',    label: REMINDER_STATUS_LABELS.skipped },
+    { key: 'failed',     label: REMINDER_STATUS_LABELS.failed },
+  ];
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <div>
+          <h3 className="text-base font-bold text-slate-950">対象車両の診断</h3>
+          <p className="mt-0.5 text-xs text-slate-500">
+            候補イベントは「車検満了日 − 今日（JST） = 有効なタイミング日数」に完全一致した日のみ生成されます。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+        >
+          {loading ? '更新中...' : '更新'}
+        </button>
+      </div>
+
+      <div className="px-5 py-4">
+        {loading && !eligibility && (
+          <p className="py-4 text-center text-sm text-slate-400">読み込み中...</p>
+        )}
+        {!loading && error && (
+          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+        )}
+        {eligibility && (
+          <div className="space-y-5">
+            {/* Context */}
+            <div className="rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-600 space-y-1">
+              <div className="flex items-center gap-2">
+                <span>車検案内:</span>
+                <span className={`font-bold ${eligibility.cfg_enabled ? 'text-green-700' : 'text-slate-500'}`}>
+                  {eligibility.cfg_enabled ? '有効' : '無効（判定・候補生成は行われません）'}
+                </span>
+              </div>
+              <p>判定基準日（JST）: <span className="font-bold">{eligibility.today}</span></p>
+              <p>
+                有効タイミング:{' '}
+                {eligibility.enabled_offsets.length > 0
+                  ? eligibility.enabled_offsets.map((d) => `${d}日前`).join('・')
+                  : '未設定（タイミングを有効にしてください）'}
+              </p>
+              <p className="text-slate-400">候補イベントは「車検満了日 − 今日 = タイミング日数」に完全一致した日にのみ生成されます。</p>
+            </div>
+
+            {/* Vehicle counts */}
+            <div>
+              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-400">車両</p>
+              <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                <div className="px-3">
+                  <CountRow label="管理中の車両（削除・アーカイブ除く）" value={eligibility.vehicles.total} />
+                </div>
+                <div className="px-3">
+                  <CountRow label="車検満了日が未入力（常に対象外）" value={eligibility.vehicles.no_expiry_date} />
+                </div>
+                <div className="px-3">
+                  <CountRow
+                    label={`通知ウィンドウ内（今後${eligibility.enabled_offsets.length > 0 ? Math.max(...eligibility.enabled_offsets) : '-'}日以内に満了）`}
+                    value={eligibility.vehicles.in_window}
+                  />
+                  {eligibility.vehicles.in_window > 0 && (
+                    <>
+                      <CountRow label="売約済みにより除外（現在の設定）" value={eligibility.vehicles.excluded_sold} sub />
+                      <CountRow label="廃車により除外（現在の設定）" value={eligibility.vehicles.excluded_scrapped} sub />
+                      <CountRow label="入庫済み・予約済みにより除外（現在の設定）" value={eligibility.vehicles.excluded_reserved} sub />
+                      <CountRow label="顧客紐付けなしにより除外" value={eligibility.vehicles.no_customer_link} sub />
+                    </>
+                  )}
+                </div>
+                <div className="px-3 py-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-800">本日の除外条件を満たす台数</span>
+                    <span className="text-sm font-bold tabular-nums text-slate-800">
+                      {eligibility.vehicles.match_vehicle_conditions_today.toLocaleString()} 台
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    車両条件のみ。既存イベントとの重複は含む。車検案内が有効でも無効でも表示されます。
+                  </p>
+                </div>
+                <div className="px-3 py-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-800">本日新規生成可能なイベント数</span>
+                    <span className={`text-sm font-bold tabular-nums ${eligibility.vehicles.new_events_creatable_today > 0 ? 'text-blue-700' : 'text-slate-400'}`}>
+                      {eligibility.vehicles.new_events_creatable_today.toLocaleString()} 件
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    条件一致かつ既存イベントなし。{eligibility.cfg_enabled ? '車検案内が有効のため、今日の判定で実際に生成されます。' : '車検案内が無効のため、現在は生成されません。'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Event counts */}
+            <div>
+              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-400">案内イベント（累計）</p>
+              {statusOrder.every(({ key }) => !eligibility.events_by_status[key]) ? (
+                <p className="rounded-lg border border-slate-200 px-4 py-4 text-center text-sm text-slate-400">
+                  イベントはまだありません。
+                </p>
+              ) : (
+                <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                  {statusOrder.map(({ key, label }) => {
+                    const count = eligibility.events_by_status[key] ?? 0;
+                    if (count === 0) return null;
+                    return (
+                      <div key={key} className="flex items-center justify-between px-3 py-1.5">
+                        <span className="text-sm text-slate-700">{label}</span>
+                        <span className="text-sm font-bold tabular-nums text-slate-800">
+                          {count.toLocaleString()} 件
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {!loading && !error && !eligibility && (
+          <p className="py-4 text-center text-sm text-slate-400">「更新」を押すと診断を表示します。</p>
+        )}
+      </div>
+    </section>
+  );
+}
 
 const emptySettings: ReminderSettings = {
   enabled: false,
@@ -56,8 +217,29 @@ export default function InspectionReminderSettingsPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [loadFailed, setLoadFailed] = useState(false);
+  const [eligibility, setEligibility] = useState<EligibilitySummary | null>(null);
+  const [eligibilityLoading, setEligibilityLoading] = useState(false);
+  const [eligibilityError, setEligibilityError] = useState('');
 
   const canManage = role === 'owner' || role === 'admin';
+
+  async function loadEligibility() {
+    setEligibilityLoading(true);
+    setEligibilityError('');
+    try {
+      const response = await fetch('/api/customer-follow-up/inspection-reminders/eligibility', { cache: 'no-store' });
+      const data = (await response.json()) as { ok: boolean; summary?: EligibilitySummary; error?: string };
+      if (response.ok && data.ok && data.summary) {
+        setEligibility(data.summary);
+      } else {
+        setEligibilityError(data.error ?? '対象診断の取得に失敗しました。');
+      }
+    } catch {
+      setEligibilityError('対象診断の取得に失敗しました。');
+    } finally {
+      setEligibilityLoading(false);
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -65,9 +247,11 @@ export default function InspectionReminderSettingsPage() {
       try {
         const supabase = createClient();
         const { data: userData } = await supabase.auth.getUser();
+        let memberRole: string | null = null;
         if (userData.user?.id) {
           const { data: member } = await supabase.from<{ role: string | null }>('store_members').select('role').eq('user_id', userData.user.id).single();
-          setRole(member?.role ?? '');
+          memberRole = member?.role ?? null;
+          setRole(memberRole ?? '');
         }
         const response = await fetch('/api/customer-follow-up/inspection-reminders/settings', { cache: 'no-store' });
         const data = (await response.json()) as { ok: boolean; settings?: ReminderSettings; error?: string };
@@ -78,6 +262,9 @@ export default function InspectionReminderSettingsPage() {
           // テーブル不在・RLS・接続エラー等の異常。設定済みに見せず、明示エラー＋操作不可にする。
           setLoadFailed(true);
           setErrorMessage('設定の取得に失敗しました。データベース設定を確認してください。');
+        }
+        if (memberRole === 'owner' || memberRole === 'admin') {
+          void loadEligibility();
         }
       } catch {
         setLoadFailed(true);
@@ -238,6 +425,13 @@ export default function InspectionReminderSettingsPage() {
               <p className="px-1 pb-2 text-xs text-slate-400">削除済み車両・車検満了日が未入力の車両は常に対象外です。</p>
             </div>
           </section>
+
+          <EligibilitySection
+            eligibility={eligibility}
+            loading={eligibilityLoading}
+            error={eligibilityError}
+            onRefresh={() => void loadEligibility()}
+          />
 
           <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
             <button type="button" onClick={handleRunNow} disabled={isRunning || loadFailed} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60">

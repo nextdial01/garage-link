@@ -43,6 +43,28 @@ export function isValidOffsetDays(value: unknown): value is number {
 }
 
 // タイミング配列を検証し、正規化（昇順・重複排除）した結果かエラーメッセージを返す。
+export type EligibilityVehicleCounts = {
+  total: number;
+  no_expiry_date: number;
+  in_window: number;
+  /** Vehicles satisfying all exclusion conditions today. Does NOT subtract existing events. */
+  match_vehicle_conditions_today: number;
+  /** Subset of match_vehicle_conditions_today with no idempotency-key collision. Actual new inserts if cron ran today. */
+  new_events_creatable_today: number;
+  excluded_sold: number;
+  excluded_scrapped: number;
+  excluded_reserved: number;
+  no_customer_link: number;
+};
+
+export type EligibilitySummary = {
+  today: string;
+  cfg_enabled: boolean;
+  enabled_offsets: number[];
+  vehicles: EligibilityVehicleCounts;
+  events_by_status: Record<string, number>;
+};
+
 export function validateTimings(
   timings: ReminderTiming[]
 ): { ok: true; timings: ReminderTiming[] } | { ok: false; error: string } {
