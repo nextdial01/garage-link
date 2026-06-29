@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -50,3 +50,7 @@ next-env.d.ts
 !apps/**/.env.local.example
 .claude/
 test-results/
+
+.webui_secret_key
+apps/garage-link/_*.sql
+apps/garage-link/_*.mjs
