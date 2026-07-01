@@ -67,3 +67,81 @@ test.describe('Phase 4 UI/API: 配信候補', () => {
     expect(src).toContain("url.searchParams.get('event_type')");
   });
 });
+
+test.describe('Phase 4 ジョブ配線: generate_followup_candidate_events の呼び出し', () => {
+  test('ジョブルートが車検案内とフォロー候補の両方のRPCを呼ぶ', async () => {
+    const src = await readFile('src/app/api/jobs/inspection-reminders/route.ts', 'utf8');
+    expect(src).toContain("'generate_inspection_reminder_events'");
+    expect(src).toContain("'generate_followup_candidate_events'");
+  });
+
+  test('GET/POSTともに共通ヘルパー経由でstore_idスコープを渡す', async () => {
+    const src = await readFile('src/app/api/jobs/inspection-reminders/route.ts', 'utf8');
+    expect(src).toContain('runGenerationJobs(service, null)');
+    expect(src).toContain('runGenerationJobs(service, member.store_id)');
+  });
+
+  test('片方のRPCが失敗しても、もう一方の結果を握り潰さない（部分成功を許容）', async () => {
+    const src = await readFile('src/app/api/jobs/inspection-reminders/route.ts', 'utf8');
+    // 2つのRPC呼び出しはそれぞれ独立してerrorチェックされ、どちらかのthrowで
+    // もう一方の結果が失われることはない（try/catchでまとめて握り潰さない設計）。
+    expect(src).toContain('if (inspectionError) {');
+    expect(src).toContain('if (followupError) {');
+    expect(src).toContain('errors: string[]');
+    // 両方失敗した場合のみ500として扱う（片方成功なら ok:true で返す）。
+    expect(src).toContain('errors.length === 2');
+  });
+
+  test('レスポンスに種別ごとの内訳（breakdown）を含む', async () => {
+    const src = await readFile('src/app/api/jobs/inspection-reminders/route.ts', 'utf8');
+    expect(src).toContain('inspection_reminder: number; followup_candidates: number');
+    expect(src).toContain('breakdown,');
+  });
+});
+
+test.describe('Phase 4: eligibility集計を車検案内(inspection_reminder)のみに限定', () => {
+  test('event_counts CTEが event_type=inspection_reminder で絞り込まれている', async () => {
+    const sql = await readFile(
+      'supabase/migrations/20260702000000_inspection_reminder_eligibility_scope_event_type.sql',
+      'utf8'
+    );
+    const ctePos = sql.indexOf('event_counts as (');
+    expect(ctePos).toBeGreaterThanOrEqual(0);
+    const cteEnd = sql.indexOf('group by e.status', ctePos);
+    expect(cteEnd).toBeGreaterThan(ctePos);
+    const cte = sql.slice(ctePos, cteEnd);
+    expect(cte).toContain("e.event_type = 'inspection_reminder'");
+    expect(cte).toContain('e.store_id = p_store_id');
+  });
+
+  test('認可チェック・PII非公開・SECURITY DEFINER等の不変条件は維持されている', async () => {
+    const sql = await readFile(
+      'supabase/migrations/20260702000000_inspection_reminder_eligibility_scope_event_type.sql',
+      'utf8'
+    );
+    expect(sql).toContain('security definer');
+    expect(sql).toContain('stable');
+    expect(sql).toContain('set search_path = public, pg_temp');
+    expect(sql).toContain('auth.uid()');
+    expect(sql).toContain("sm.role     in ('owner', 'admin')");
+    expect(sql).toContain('revoke all on function public.get_inspection_reminder_eligibility_summary(uuid) from public');
+    expect(sql).toContain('grant execute on function public.get_inspection_reminder_eligibility_summary(uuid) to authenticated');
+    const piiFields = ['customer_name', 'vehicle_name', 'registration_no', 'phone', 'email', 'line_user_id', 'vin'];
+    for (const field of piiFields) {
+      expect(sql).not.toContain(field);
+    }
+  });
+});
+
+test.describe('Phase 4 UI: 車検案内履歴ページは車検案内以外の種別を混在表示しない', () => {
+  test('履歴ページは events API へ event_type=inspection_reminder を明示的に渡す', async () => {
+    const src = await readFile('src/app/customer-follow-up/inspection-reminders/page.tsx', 'utf8');
+    expect(src).toContain("params.set('event_type', 'inspection_reminder')");
+  });
+
+  test('配信候補一覧ページは種別を固定せず、ユーザーの絞り込み状態をそのまま渡す', async () => {
+    const src = await readFile('src/app/customer-follow-up/delivery-candidates/page.tsx', 'utf8');
+    expect(src).not.toContain("params.set('event_type', 'inspection_reminder')");
+    expect(src).toContain("if (typeFilter) params.set('event_type', typeFilter)");
+  });
+});

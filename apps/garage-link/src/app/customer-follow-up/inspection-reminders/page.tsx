@@ -81,6 +81,8 @@ export default function InspectionReminderHistoryPage() {
       }
 
       const params = new URLSearchParams();
+      // このページは車検案内専用。他種別（点検案内・納車後フォロー等）は /customer-follow-up/delivery-candidates で確認する。
+      params.set('event_type', 'inspection_reminder');
       if (statusFilter) params.set('status', statusFilter);
       if (fromDate) params.set('from', fromDate);
       if (toDate) params.set('to', toDate);

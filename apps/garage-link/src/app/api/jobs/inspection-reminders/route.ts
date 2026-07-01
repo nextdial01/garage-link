@@ -3,9 +3,12 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logServerError } from '@/lib/observability/logServerError';
 
-// 車検案内イベント生成ジョブ。
+// 顧客フォローイベント生成ジョブ。
 // - cron / バッチ実行: Authorization: Bearer ${CRON_SECRET} を付けると全店舗を処理。
 // - 手動実行: ログイン中の owner/admin が自店舗のみ処理（他社データは跨がない）。
+// 車検案内（generate_inspection_reminder_events）に加え、点検案内・納車後フォロー（30/90/180日）・
+// 口コミ依頼・長期未接触の配信候補（generate_followup_candidate_events）も同じジョブで生成する。
+// どちらも inspection_reminder_settings.enabled を店舗単位のマスタスイッチとして共有する。
 // 生成は冪等（同一条件は二重作成されない）。LINE送信・外部連携は行わない。
 //
 // TODO(L-LINK連携): 将来 L-LINK へ配信候補/下書き作成要求を送る際は、送信直前に
@@ -15,6 +18,7 @@ import { logServerError } from '@/lib/observability/logServerError';
 export const dynamic = 'force-dynamic';
 
 type StoreMemberRow = { store_id: string; role: string | null };
+type JobBreakdown = { inspection_reminder: number; followup_candidates: number };
 
 function serviceSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
@@ -31,6 +35,38 @@ function isCronRequest(request: Request) {
   return header === `Bearer ${secret}`;
 }
 
+// 両方の生成RPCを実行し、件数の内訳を返す。片方が失敗しても他方の結果は失わない
+// （それぞれ独立したトランザクションのため、部分成功を握り潰さず呼び出し元へ伝える）。
+async function runGenerationJobs(
+  service: NonNullable<ReturnType<typeof serviceSupabase>>,
+  storeId: string | null
+): Promise<{ breakdown: JobBreakdown; errors: string[] }> {
+  const errors: string[] = [];
+  const breakdown: JobBreakdown = { inspection_reminder: 0, followup_candidates: 0 };
+
+  const { data: inspectionData, error: inspectionError } = await service.rpc(
+    'generate_inspection_reminder_events',
+    { p_store_id: storeId }
+  );
+  if (inspectionError) {
+    errors.push(inspectionError.message);
+  } else {
+    breakdown.inspection_reminder = inspectionData ?? 0;
+  }
+
+  const { data: followupData, error: followupError } = await service.rpc(
+    'generate_followup_candidate_events',
+    { p_store_id: storeId }
+  );
+  if (followupError) {
+    errors.push(followupError.message);
+  } else {
+    breakdown.followup_candidates = followupData ?? 0;
+  }
+
+  return { breakdown, errors };
+}
+
 // Vercel Cron は GET で叩く（CRON_SECRET設定時は Authorization: Bearer を自動付与）。全店舗を処理。
 export async function GET(request: Request) {
   const service = serviceSupabase();
@@ -41,9 +77,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: '認証が必要です。', code: 'unauthorized' }, { status: 401 });
   }
   try {
-    const { data, error } = await service.rpc('generate_inspection_reminder_events', { p_store_id: null });
-    if (error) throw new Error(error.message);
-    return NextResponse.json({ ok: true, scope: 'all_stores', created: data ?? 0 });
+    const { breakdown, errors } = await runGenerationJobs(service, null);
+    if (errors.length > 0) {
+      // 一部のRPCが未適用（例: 040未適用でfunction不在）でも、成功した分の生成結果は握り潰さない。
+      logServerError('inspection_job_partial_failure', { route: '/api/jobs/inspection-reminders', method: 'GET', details: { scope: 'all_stores', errors } }, new Error(errors.join(' / ')));
+      if (breakdown.inspection_reminder === 0 && breakdown.followup_candidates === 0 && errors.length === 2) {
+        return NextResponse.json({ ok: false, error: 'ジョブ実行に失敗しました。', code: 'inspection_job_failed' }, { status: 500 });
+      }
+    }
+    const created = breakdown.inspection_reminder + breakdown.followup_candidates;
+    return NextResponse.json({ ok: true, scope: 'all_stores', created, breakdown, partial_errors: errors.length > 0 });
   } catch (error) {
     logServerError('inspection_job_failed', { route: '/api/jobs/inspection-reminders', method: 'GET', details: { scope: 'all_stores' } }, error);
     return NextResponse.json({ ok: false, error: 'ジョブ実行に失敗しました。', code: 'inspection_job_failed' }, { status: 500 });
@@ -78,11 +121,17 @@ export async function POST(request: Request) {
 
   try {
     // 自分の store_id のみを渡す（クライアント指定の店舗は受け付けない）。
-    const { data, error } = await service.rpc('generate_inspection_reminder_events', { p_store_id: member.store_id });
-    if (error) throw new Error(error.message);
-    return NextResponse.json({ ok: true, scope: 'own_store', created: data ?? 0 });
+    const { breakdown, errors } = await runGenerationJobs(service, member.store_id);
+    if (errors.length > 0) {
+      logServerError('inspection_job_partial_failure', { route: '/api/jobs/inspection-reminders', method: 'POST', storeId: member.store_id, details: { errors } }, new Error(errors.join(' / ')));
+      if (breakdown.inspection_reminder === 0 && breakdown.followup_candidates === 0 && errors.length === 2) {
+        return NextResponse.json({ ok: false, error: '実行に失敗しました。', code: 'inspection_job_failed' }, { status: 500 });
+      }
+    }
+    const created = breakdown.inspection_reminder + breakdown.followup_candidates;
+    return NextResponse.json({ ok: true, scope: 'own_store', created, breakdown, partial_errors: errors.length > 0 });
   } catch (error) {
     logServerError('inspection_job_failed', { route: '/api/jobs/inspection-reminders', method: 'POST', storeId: member.store_id }, error);
-    return NextResponse.json({ ok: false, error: 'ジョブ実行に失敗しました。', code: 'inspection_job_failed' }, { status: 500 });
+    return NextResponse.json({ ok: false, error: '実行に失敗しました。', code: 'inspection_job_failed' }, { status: 500 });
   }
 }

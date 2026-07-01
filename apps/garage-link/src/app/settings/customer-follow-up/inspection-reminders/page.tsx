@@ -333,9 +333,20 @@ export default function InspectionReminderSettingsPage() {
     setIsRunning(true);
     try {
       const response = await fetch('/api/jobs/inspection-reminders', { method: 'POST' });
-      const data = (await response.json()) as { ok: boolean; created?: number; error?: string };
+      const data = (await response.json()) as {
+        ok: boolean;
+        created?: number;
+        breakdown?: { inspection_reminder: number; followup_candidates: number };
+        partial_errors?: boolean;
+        error?: string;
+      };
       if (!response.ok || !data.ok) throw new Error(data.error ?? '実行に失敗しました。');
-      setSuccessMessage(`案内対象の判定を実行しました。新規イベント: ${data.created ?? 0} 件`);
+      const breakdown = data.breakdown;
+      const detail = breakdown
+        ? `（車検案内 ${breakdown.inspection_reminder} 件 / その他フォロー ${breakdown.followup_candidates} 件）`
+        : '';
+      const warning = data.partial_errors ? ' ※一部の生成処理でエラーが発生しました。管理者にご確認ください。' : '';
+      setSuccessMessage(`案内対象の判定を実行しました。新規イベント: ${data.created ?? 0} 件${detail}${warning}`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '実行に失敗しました。');
     } finally {
@@ -370,7 +381,7 @@ export default function InspectionReminderSettingsPage() {
             <div className="px-5 py-4">
               <ToggleRow
                 label="車検案内を有効にする"
-                description="有効にすると、毎日の判定で対象車両の案内イベントを作成します。実際の送信は行いません。"
+                description="有効にすると、毎日の判定で車検案内に加え、点検案内・納車後フォロー（30/90/180日）・口コミ依頼・長期未接触の配信候補も作成します。実際の送信は行わず、L-LINK側へ候補を渡すところまでです。"
                 checked={settings.enabled}
                 onChange={(value) => setSettings((c) => ({ ...c, enabled: value }))}
               />
@@ -435,7 +446,7 @@ export default function InspectionReminderSettingsPage() {
 
           <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
             <button type="button" onClick={handleRunNow} disabled={isRunning || loadFailed} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60">
-              {isRunning ? '判定中...' : '今すぐ案内対象を判定'}
+              {isRunning ? '判定中...' : '今すぐ案内対象・フォロー候補を判定'}
             </button>
             <button type="button" onClick={handleSave} disabled={isSaving || loadFailed} className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:bg-slate-300">
               {isSaving ? '保存中...' : '保存する'}
