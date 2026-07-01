@@ -132,6 +132,147 @@ test.describe('車検案内: migration(035)の不変条件', () => {
   });
 });
 
+test.describe('車検案内: 失効した pending イベントの無効化（stale event invalidation）', () => {
+  // generate_inspection_reminder_events の本文だけを取り出すヘルパー。
+  // テーブルDDLのCHECK制約（status in (...)）等、関数外の文字列を誤検出しないようにする。
+  function extractGenerateFunctionBody(sql: string) {
+    const start = sql.indexOf('create or replace function public.generate_inspection_reminder_events');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const end = sql.indexOf('grant execute on function public.generate_inspection_reminder_events', start);
+    expect(end).toBeGreaterThan(start);
+    return sql.slice(start, end);
+  }
+
+  test('満了日が一致しない pending イベントは 状態=skipped・error_detail 付きで無効化される', async () => {
+    const sql = await readFile('supabase/schema/035_inspection_reminders.sql', 'utf8');
+    const fnBody = extractGenerateFunctionBody(sql);
+
+    // 0a: 車両は存在するが現況が一致しない場合の UPDATE。
+    expect(fnBody).toContain("set status = 'skipped',");
+    expect(fnBody).toContain('error_detail = case');
+    expect(fnBody).toContain("else 'stale: vehicle expiry date changed'");
+    expect(fnBody).toContain('from public.vehicles v');
+    expect(fnBody).toContain('where v.id = e.vehicle_id');
+    expect(fnBody).toContain('v.inspection_expiry_date <> e.inspection_expiry_date');
+    // 対象は inspection_reminder タイプの pending 行のみ。
+    expect(fnBody).toContain("and e.event_type = 'inspection_reminder'");
+    expect(fnBody).toContain("and e.status = 'pending'");
+  });
+
+  test('満了日が一致する pending イベントは無効化条件に一致せず、pending のまま残る（catch-all 節が存在しない）', async () => {
+    const sql = await readFile('supabase/schema/035_inspection_reminders.sql', 'utf8');
+    const fnBody = extractGenerateFunctionBody(sql);
+
+    const zeroAStart = fnBody.indexOf('-- 0a.');
+    const zeroBStart = fnBody.indexOf('-- 0b.');
+    expect(zeroAStart).toBeGreaterThanOrEqual(0);
+    expect(zeroBStart).toBeGreaterThan(zeroAStart);
+    const zeroABlock = fnBody.slice(zeroAStart, zeroBStart);
+
+    // 無効化条件は「削除済み / アーカイブ済み / 満了日null / 満了日不一致」の4つのみ。
+    expect(zeroABlock).toContain('v.deleted_at is not null');
+    expect(zeroABlock).toContain('coalesce(v.is_archived, false)');
+    expect(zeroABlock).toContain('v.inspection_expiry_date is null');
+    expect(zeroABlock).toContain('v.inspection_expiry_date <> e.inspection_expiry_date');
+
+    // catch-all（true 等の無条件節）が無いことを確認: or で結ばれる条件はちょうど3回（=4条件）。
+    const orConnectors = zeroABlock.match(/\n\s+or /g) ?? [];
+    expect(orConnectors.length).toBe(3);
+
+    // 上記4条件すべてに合致しない車両（=満了日が現況と一致する車両）は
+    // このWHERE句にヒットしないため、当該pendingイベントはこの関数呼び出しでは変更されない。
+  });
+
+  test('completed / processing / failed / skipped の行、他 event_type の行は変更されない', async () => {
+    const sql = await readFile('supabase/schema/035_inspection_reminders.sql', 'utf8');
+    const fnBody = extractGenerateFunctionBody(sql);
+
+    // この関数が書き込む status は 'skipped' のみ（0a・0bの2箇所）。
+    const skippedSetCount = (fnBody.match(/status = 'skipped'/g) ?? []).length;
+    expect(skippedSetCount).toBe(2);
+    expect(fnBody).not.toContain("status = 'completed'");
+    expect(fnBody).not.toContain("status = 'processing'");
+    expect(fnBody).not.toContain("status = 'failed'");
+
+    // 2つのUPDATEは両方とも status='pending' の行のみを対象にしている
+    // （'processing'/'completed'/'failed'/既にskipped済みの行はWHERE句で除外される）。
+    const pendingFilterCount = (fnBody.match(/e\.status = 'pending'/g) ?? []).length;
+    expect(pendingFilterCount).toBe(2);
+
+    // 両方とも event_type='inspection_reminder' に限定（他種別の配信候補には影響しない）。
+    const eventTypeFilterCount = (fnBody.match(/e\.event_type = 'inspection_reminder'/g) ?? []).length;
+    expect(eventTypeFilterCount).toBe(2);
+  });
+
+  test('削除済み・アーカイブ済み・満了日null・参照消失（vehicle_id が null）の車両は pending の車検案内イベントのみ無効化する', async () => {
+    const sql = await readFile('supabase/schema/035_inspection_reminders.sql', 'utf8');
+    const fnBody = extractGenerateFunctionBody(sql);
+
+    // 0a: 車両行は存在するが 削除済み/アーカイブ済み/満了日null。
+    expect(fnBody).toContain("when v.deleted_at is not null then 'stale: vehicle deleted or missing'");
+    expect(fnBody).toContain("when coalesce(v.is_archived, false) then 'stale: vehicle archived'");
+    expect(fnBody).toContain("when v.inspection_expiry_date is null then 'stale: vehicle expiry date cleared'");
+
+    // 0b: 車両行自体が消失（on delete set null で vehicle_id が null になったケース）。
+    expect(fnBody).toContain('-- 0b.');
+    expect(fnBody).toContain('and e.vehicle_id is null');
+    expect(fnBody).toContain("error_detail = 'stale: vehicle deleted or missing'");
+
+    // 両方とも店舗スコープ（p_store_id）と event_type='inspection_reminder' に限定。
+    const storeScopeCount = (fnBody.match(/\(p_store_id is null or e\.store_id = p_store_id\)/g) ?? []).length;
+    expect(storeScopeCount).toBe(2);
+  });
+
+  test('新規イベント生成・冪等キー重複防止ロジックは無効化処理の追加後も変更されておらず、無効化は生成より前に実行される', async () => {
+    const sql = await readFile('supabase/schema/035_inspection_reminders.sql', 'utf8');
+    const fnBody = extractGenerateFunctionBody(sql);
+
+    // 冪等性キーの形式・重複防止・オフセット判定は既存のまま。
+    expect(fnBody).toContain(
+      "store_id::text || ':' || vehicle_id::text || ':' || inspection_expiry_date::text || ':' || offset_days::text"
+    );
+    expect(fnBody).toContain('on conflict (idempotency_key) do nothing');
+    expect(fnBody).toContain('(v.inspection_expiry_date - v_today) = t.offset_days');
+
+    // 実行順序: 無効化(0a/0b) → 対象抽出(eligible) → INSERT → GET DIAGNOSTICS。
+    // 無効化を生成の直前・同一関数呼び出し内で行うことでアトミック性を保つ。
+    const zeroAIdx = fnBody.indexOf('-- 0a.');
+    const zeroBIdx = fnBody.indexOf('-- 0b.');
+    const eligibleIdx = fnBody.indexOf('with eligible as (');
+    const insertIdx = fnBody.indexOf('insert into public.inspection_reminder_events (');
+    const diagnosticsIdx = fnBody.indexOf('get diagnostics v_count = row_count;');
+
+    expect(zeroAIdx).toBeGreaterThanOrEqual(0);
+    expect(zeroBIdx).toBeGreaterThan(zeroAIdx);
+    expect(eligibleIdx).toBeGreaterThan(zeroBIdx);
+    expect(insertIdx).toBeGreaterThan(eligibleIdx);
+    expect(diagnosticsIdx).toBeGreaterThan(insertIdx);
+
+    // GET DIAGNOSTICS が INSERT の直後に位置する（=戻り値は新規生成件数のみを表し、
+    // 無効化で更新された件数を含まない）ことを、両UPDATE文がINSERTより前にあることから保証する。
+  });
+
+  test('新migration（20260628）のファンクション定義が schema/035 の定義と完全一致する（デプロイ差分なし）', async () => {
+    const schemaSql = await readFile('supabase/schema/035_inspection_reminders.sql', 'utf8');
+    const migrationSql = await readFile(
+      'supabase/migrations/20260628000000_inspection_reminder_stale_event_invalidation.sql',
+      'utf8'
+    );
+
+    const extract = (sql: string) => {
+      const start = sql.indexOf('create or replace function public.generate_inspection_reminder_events');
+      const end = sql.indexOf('grant execute on function public.generate_inspection_reminder_events', start);
+      return sql.slice(start, end).trim();
+    };
+
+    expect(extract(migrationSql)).toBe(extract(schemaSql));
+    // migration側にも grant 文が保持されていること（authenticated が実行権限を失わない）。
+    expect(migrationSql).toContain(
+      'grant execute on function public.generate_inspection_reminder_events(uuid, date) to authenticated;'
+    );
+  });
+});
+
 test.describe('車検案内: 対象診断API（eligibility）', () => {
   test('未認証・非owner/admin は 401/403 を返す設計になっている', async () => {
     const source = await readFile(

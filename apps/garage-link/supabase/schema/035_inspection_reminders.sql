@@ -165,6 +165,47 @@ declare
   v_today date := coalesce(p_today, (now() at time zone 'Asia/Tokyo')::date);
   v_count integer;
 begin
+  -- ------------------------------------------------------------------------------
+  -- 0. 既存 pending イベントの失効判定（新規生成の直前・同一トランザクション内で実行）
+  --    車検満了日の訂正や車両の削除/アーカイブ/満了日クリアにより、生成時点のスナップショットと
+  --    現況が一致しなくなった pending の inspection_reminder イベントのみを 'skipped' にする。
+  --    completed / processing / failed / skipped の行、他 event_type の行は対象外。
+  --    冪等性キー（store_id:vehicle_id:inspection_expiry_date:offset_days）や既存の生成ロジックには
+  --    一切手を入れない。無効化は生成と同一トランザクションで完結させ、アトミック性を保つ。
+  -- ------------------------------------------------------------------------------
+
+  -- 0a. 車両は存在するが、現況が生成時点のスナップショットと一致しない場合。
+  update public.inspection_reminder_events e
+  set status = 'skipped',
+      error_detail = case
+        when v.deleted_at is not null then 'stale: vehicle deleted or missing'
+        when coalesce(v.is_archived, false) then 'stale: vehicle archived'
+        when v.inspection_expiry_date is null then 'stale: vehicle expiry date cleared'
+        else 'stale: vehicle expiry date changed'
+      end
+  from public.vehicles v
+  where v.id = e.vehicle_id
+    and v.store_id = e.store_id
+    and e.event_type = 'inspection_reminder'
+    and e.status = 'pending'
+    and (p_store_id is null or e.store_id = p_store_id)
+    and (
+      v.deleted_at is not null
+      or coalesce(v.is_archived, false)
+      or v.inspection_expiry_date is null
+      or v.inspection_expiry_date <> e.inspection_expiry_date
+    );
+
+  -- 0b. 車両が参照先ごと消失している場合（vehicles.id が削除され vehicle_id が
+  --     on delete set null により null になったケース）。
+  update public.inspection_reminder_events e
+  set status = 'skipped',
+      error_detail = 'stale: vehicle deleted or missing'
+  where e.event_type = 'inspection_reminder'
+    and e.status = 'pending'
+    and e.vehicle_id is null
+    and (p_store_id is null or e.store_id = p_store_id);
+
   with eligible as (
     select
       st.tenant_id as company_id,
