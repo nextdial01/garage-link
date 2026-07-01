@@ -152,6 +152,19 @@ grant select, update on public.inspection_reminder_events to authenticated;
 -- ================================================================
 -- p_store_id=null: 全店舗（cron用）。指定時: その店舗のみ（手動実行用）。
 -- SECURITY DEFINER でRLSをバイパスしてINSERTするが、p_store_id でスコープを限定する。
+--
+-- 認可（Layer 2・defence-in-depth）:
+--   正規の呼び出し元は2つ:
+--     1. /api/jobs/inspection-reminders の service_role クライアント（cron はCRON_SECRET、
+--        手動実行はowner/adminセッションを、この関数を呼ぶ前にAPIルート側で確認済み）。
+--        service_role・SQL Editor（postgres superuser等）からの呼び出しは PostgREST 経由の
+--        ユーザーJWTを持たないため auth.uid() が null になる。この場合は下記チェックをスキップする
+--        （運用ドキュメント記載の `select public.generate_inspection_reminder_events();` による
+--        SQL Editor 手動実行もこの経路で従来どおり動作する）。
+--     2. authenticated ロールでの直接RPC呼び出し（API ルートを経由しない場合）。この場合は
+--        auth.uid() が必ず非nullになる（Supabase発行のauthenticated JWTは常にsubクレームを含み、
+--        anonロールはそもそもEXECUTE権限が無いためここに到達しない）。p_store_id が null（全店舗）
+--        の場合、または呼び出し元が対象店舗のowner/adminでない場合は拒否する。
 create or replace function public.generate_inspection_reminder_events(
   p_store_id uuid default null,
   p_today date default null
@@ -159,12 +172,33 @@ create or replace function public.generate_inspection_reminder_events(
 returns integer
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   v_today date := coalesce(p_today, (now() at time zone 'Asia/Tokyo')::date);
   v_count integer;
+  v_caller_id uuid;
+  v_caller_role text;
 begin
+  v_caller_id := auth.uid();
+  if v_caller_id is not null then
+    if p_store_id is null then
+      raise exception 'アクセスが拒否されました。' using errcode = 'insufficient_privilege';
+    end if;
+
+    select sm.role into v_caller_role
+    from public.store_members sm
+    where sm.store_id = p_store_id
+      and sm.user_id  = v_caller_id
+      and sm.role     in ('owner', 'admin')
+    limit 1;
+
+    if v_caller_role is null then
+      -- Generic message: do not reveal whether the store exists or the caller's role.
+      raise exception 'アクセスが拒否されました。' using errcode = 'insufficient_privilege';
+    end if;
+  end if;
+
   -- ------------------------------------------------------------------------------
   -- 0. 既存 pending イベントの失効判定（新規生成の直前・同一トランザクション内で実行）
   --    車検満了日の訂正や車両の削除/アーカイブ/満了日クリアにより、生成時点のスナップショットと

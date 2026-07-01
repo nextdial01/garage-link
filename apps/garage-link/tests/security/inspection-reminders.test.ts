@@ -252,7 +252,13 @@ test.describe('車検案内: 失効した pending イベントの無効化（sta
     // 無効化で更新された件数を含まない）ことを、両UPDATE文がINSERTより前にあることから保証する。
   });
 
-  test('新migration（20260628）のファンクション定義が schema/035 の定義と完全一致する（デプロイ差分なし）', async () => {
+  test('20260628（stale event invalidation）のロジックは、その後のパッチ（20260703の認可チェック追加）を経た schema/035 にも失われず残っている', async () => {
+    // 20260628 は「schema/035 と完全一致（デプロイ差分なし）」を担保する時点固定のmigration。
+    // 20260703_generate_events_store_authorization.sql で schema/035 の同関数へ認可チェックを
+    // 追加したことにより、schema/035 は 20260628 より新しい内容を持つようになった（意図的な差分）。
+    // 20260628自体は履歴migrationのため編集しない。ここでは「完全一致」ではなく、
+    // 20260628が導入した失効判定ロジックが最新のschema/035からも失われていないことを確認する
+    // （最新パッチとの完全一致は generate-events-tenant-authorization.test.ts 側で別途担保する）。
     const schemaSql = await readFile('supabase/schema/035_inspection_reminders.sql', 'utf8');
     const migrationSql = await readFile(
       'supabase/migrations/20260628000000_inspection_reminder_stale_event_invalidation.sql',
@@ -265,11 +271,19 @@ test.describe('車検案内: 失効した pending イベントの無効化（sta
       return sql.slice(start, end).trim();
     };
 
-    expect(extract(migrationSql)).toBe(extract(schemaSql));
+    const migrationBody = extract(migrationSql);
+    const schemaBody = extract(schemaSql);
+
     // migration側にも grant 文が保持されていること（authenticated が実行権限を失わない）。
     expect(migrationSql).toContain(
       'grant execute on function public.generate_inspection_reminder_events(uuid, date) to authenticated;'
     );
+
+    // 20260628の本体（宣言部・認可チェックの有無を除く、ロジック本体）が schema/035 の本体に
+    // すべて含まれていることを、declare〜beginブロックを除いた「0. 失効判定」以降で比較する。
+    const migrationLogic = migrationBody.slice(migrationBody.indexOf('-- 0. 既存 pending イベントの失効判定'));
+    const schemaLogic = schemaBody.slice(schemaBody.indexOf('-- 0. 既存 pending イベントの失効判定'));
+    expect(schemaLogic).toBe(migrationLogic);
   });
 });
 

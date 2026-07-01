@@ -10,6 +10,12 @@
 --   - reference date は inspection_expiry_date 列を「判定基準日」として再利用（種別ごとに意味が異なる）。
 --
 -- 影響: 新規関数1のみ。テーブル/RLS/既存035関数は不変。
+--
+-- 認可（Layer 2・defence-in-depth。generate_inspection_reminder_events と同一方針）:
+--   service_role（/api/jobs/inspection-reminders）・SQL Editor（superuser）からの呼び出しは
+--   ユーザーJWTを持たず auth.uid() が null になるためチェックをスキップする。
+--   authenticated ロールでの直接RPC呼び出しは、対象 p_store_id の owner/admin membership を
+--   要求し、p_store_id が null（全店舗）の場合は拒否する。
 
 create or replace function public.generate_followup_candidate_events(
   p_store_id uuid default null,
@@ -18,13 +24,34 @@ create or replace function public.generate_followup_candidate_events(
 returns integer
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   v_today date := coalesce(p_today, (now() at time zone 'Asia/Tokyo')::date);
   v_count integer := 0;
   v_n     integer;
+  v_caller_id uuid;
+  v_caller_role text;
 begin
+  v_caller_id := auth.uid();
+  if v_caller_id is not null then
+    if p_store_id is null then
+      raise exception 'アクセスが拒否されました。' using errcode = 'insufficient_privilege';
+    end if;
+
+    select sm.role into v_caller_role
+    from public.store_members sm
+    where sm.store_id = p_store_id
+      and sm.user_id  = v_caller_id
+      and sm.role     in ('owner', 'admin')
+    limit 1;
+
+    if v_caller_role is null then
+      -- Generic message: do not reveal whether the store exists or the caller's role.
+      raise exception 'アクセスが拒否されました。' using errcode = 'insufficient_privilege';
+    end if;
+  end if;
+
   -- 共通: 対象店舗（cfg.enabled）と顧客の配信可否を満たす整備案件/顧客から候補を生成。
 
   -- 1) 点検案内 periodic_inspection: next_inspection_date の30日前
