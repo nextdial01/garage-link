@@ -13,6 +13,7 @@
     "test:billing": "playwright test -c playwright.security.config.ts tests/security/garage-billing.test.ts",
     "test:e2e:billing": "node scripts/run-billing-e2e.mjs",
     "test:line-link-s2s": "node scripts/check-line-link-s2s.mjs",
+    "test:line-link-s2s-ack": "node scripts/check-line-link-s2s-ack.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },

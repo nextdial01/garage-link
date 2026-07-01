@@ -287,6 +287,92 @@ $$;
 grant execute on function public.generate_inspection_reminder_events(uuid, date) to authenticated;
 
 -- ================================================================
+-- 5b. L-LINK からの取込確認応答関数（pending → completed、冪等・店舗スコープ）
+-- ================================================================
+-- L-LINK が inspection_reminder_events を正常に取り込んだことを確認応答する。
+-- 呼び出しは service_role のみ（新設の /api/s2s/line-link/delivery-candidates/ack ルート経由）。
+-- 既存の候補取得ルート（/api/s2s/line-link/delivery-candidates、SELECTのみ）の挙動には一切影響しない。
+-- 冪等: 既に completed の event_id を再確認応答しても状態は変わらず 'already_acknowledged' を返す。
+-- 店舗越境防止: p_store_id（HMAC検証済みヘッダ由来。リクエストbodyのstore_idは信用しない）に
+-- 属さない event_id、または pending/completed 以外の event_id は、存在有無を明かさず 'rejected' とする。
+create or replace function public.acknowledge_inspection_reminder_events(
+  p_store_id uuid,
+  p_acknowledgements jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_result jsonb;
+begin
+  with input as (
+    select distinct on (event_id_text) event_id_text, external_reference_id
+    from (
+      select
+        elem->>'event_id' as event_id_text,
+        elem->>'external_reference_id' as external_reference_id
+      from jsonb_array_elements(coalesce(p_acknowledgements, '[]'::jsonb)) as elem
+      where coalesce(elem->>'event_id', '') <> ''
+    ) parsed
+    order by event_id_text
+  ),
+  -- pending -> completed for events owned by p_store_id. Never touches any other status.
+  updated as (
+    update public.inspection_reminder_events e
+    set status = 'completed',
+        external_reference_id = i.external_reference_id
+    from input i
+    where e.id::text = i.event_id_text
+      and e.store_id = p_store_id
+      and e.status = 'pending'
+    returning e.id::text as event_id_text
+  ),
+  -- Idempotent re-acknowledgement: already completed, owned by p_store_id, not touched just now.
+  already as (
+    select distinct i.event_id_text
+    from input i
+    join public.inspection_reminder_events e on e.id::text = i.event_id_text
+    where e.store_id = p_store_id
+      and e.status = 'completed'
+      and i.event_id_text not in (select event_id_text from updated)
+  ),
+  -- Every input entry gets exactly one outcome: acknowledged, already_acknowledged, or rejected
+  -- (nonexistent id, wrong store, or a status other than pending/completed all fall through here
+  -- with no distinguishing detail — do not reveal whether the event exists or belongs elsewhere).
+  outcomes as (
+    select
+      i.event_id_text,
+      case
+        when u.event_id_text is not null then 'acknowledged'
+        when a.event_id_text is not null then 'already_acknowledged'
+        else 'rejected'
+      end as outcome
+    from input i
+    left join updated u on u.event_id_text = i.event_id_text
+    left join already a on a.event_id_text = i.event_id_text
+  )
+  select jsonb_build_object(
+    'results', coalesce(
+      jsonb_agg(jsonb_build_object('event_id', event_id_text, 'outcome', outcome)),
+      '[]'::jsonb
+    )
+  )
+  into v_result
+  from outcomes;
+
+  return v_result;
+end;
+$$;
+
+-- Revoke default PUBLIC access before granting to service_role only.
+-- No raw UPDATE grant on inspection_reminder_events is added anywhere — all acknowledgement
+-- writes must go through this function.
+revoke all on function public.acknowledge_inspection_reminder_events(uuid, jsonb) from public;
+grant execute on function public.acknowledge_inspection_reminder_events(uuid, jsonb) to service_role;
+
+-- ================================================================
 -- 6. 既存店舗へ初期設定（OFF）と初期タイミング（90/60/30）を補完
 -- ================================================================
 insert into public.inspection_reminder_settings (store_id, company_id, enabled)
