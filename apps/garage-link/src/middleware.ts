@@ -101,7 +101,7 @@ export async function middleware(request: NextRequest) {
     }
 
     if (!isPublicPath(pathname)) {
-      const { data: contractAccess } = await supabase.rpc('get_member_contract_access');
+      const { data: contractAccess } = await supabase.rpc('get_member_contract_access', {});
       const accessState =
         contractAccess &&
         typeof contractAccess === 'object' &&
