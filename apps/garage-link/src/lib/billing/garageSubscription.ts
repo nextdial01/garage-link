@@ -62,43 +62,50 @@ export function createDefaultFreeSubscription(companyId: string): CompanySubscri
   };
 }
 
+function parseSubscriptionRow(value: unknown): CompanySubscriptionRow | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const row = value as Record<string, unknown>;
+  if (typeof row.company_id !== 'string' || typeof row.plan !== 'string') {
+    return null;
+  }
+
+  return row as CompanySubscriptionRow;
+}
+
+function shouldUseSubscriptionFallback(message: string) {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes('permission denied') ||
+    normalized.includes('could not find the function') ||
+    normalized.includes('does not exist')
+  );
+}
+
 export async function getActiveCompanySubscription(
   supabase: SupabaseClient,
   companyId: string,
   options: { ensure?: boolean } = {}
 ) {
-  const selectColumns =
-    'id, company_id, plan, status, included_staff_count, extra_staff_count, included_store_count, extra_store_count, storage_limit_mb, extra_storage_gb, current_inventory_limit, l_link_integration_enabled, started_at, updated_at';
-
-  const { data, error } = await supabase
-    .from<CompanySubscriptionRow>('company_subscriptions')
-    .select(selectColumns)
-    .eq('company_id', companyId)
-    .eq('status', 'active')
-    .single();
-
-  if (data) {
-    return data;
-  }
-
   const fallback = createDefaultFreeSubscription(companyId);
+  const rpcName = options.ensure ? 'ensure_company_subscription' : 'get_company_subscription';
 
-  if (!options.ensure) {
-    return fallback;
+  const { data, error } = await supabase.rpc(rpcName, {
+    p_company_id: companyId,
+  });
+
+  const parsed = parseSubscriptionRow(data);
+  if (parsed) {
+    return parsed;
   }
 
-  const { data: inserted, error: insertError } = await supabase
-    .from<CompanySubscriptionRow>('company_subscriptions')
-    .insert(fallback)
-    .select(selectColumns)
-    .single();
-
-  if (inserted) {
-    return inserted;
-  }
-
-  if (insertError && !error) {
-    throw new Error(insertError.message);
+  if (error) {
+    if (shouldUseSubscriptionFallback(error.message)) {
+      return fallback;
+    }
+    throw new Error(error.message);
   }
 
   return fallback;

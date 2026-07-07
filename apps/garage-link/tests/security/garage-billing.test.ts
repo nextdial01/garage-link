@@ -106,6 +106,16 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(getStorageLimit({ plan: 'starter', storage_limit_mb: 2048, extra_storage_gb: 20 })).toBe(22528);
   });
 
+  test('037 SQLはサインアップ用RPCとオンボーディング列を含む', async () => {
+    const sql = await readFile('supabase/schema/037_signup_onboarding.sql', 'utf8');
+
+    expect(sql).toContain('create or replace function public.create_store_for_current_user');
+    expect(sql).toContain('onboarding_completed_at');
+    expect(sql).toContain('insert into public.company_subscriptions');
+    expect(sql).toContain("'owner'");
+    expect(sql).toContain('grant execute on function public.create_store_for_current_user');
+  });
+
   test('030 SQLは契約テーブル・申込テーブル・completed反映RPCを含む', async () => {
     const sql = await readFile('supabase/schema/030_company_billing_requests.sql', 'utf8');
 
@@ -141,15 +151,59 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     // ユーザー向けUIにはサービス名「L-Link」を出さず「外部連携」表記に統一する。
     expect(billingPage).toContain('外部連携');
     expect(billingPage).not.toContain('L-Link連携');
-    expect(billingPage).toContain('申し込む');
-    expect(billingPage).toContain('標準スタッフ数 / 追加スタッフ数');
-    expect(billingPage).toContain('標準店舗数 / 追加店舗数');
-    expect(billingPage).toContain('標準ストレージ / 追加ストレージ');
+    expect(billingPage).toContain('このプランで申し込む');
+    expect(billingPage).toContain('手動で申し込む');
+    expect(billingPage).toContain('プランを選ぶ');
     expect(billingPage).toContain('追加するスタッフ数');
-    expect(billingPage).toContain('追加する店舗数');
-    expect(billingPage).toContain('追加するストレージ容量');
 
     expect(`${billingPage}\n${lLinkPage}`).not.toContain('LINE基本連携');
     expect(lLinkPage).toContain('L-Link連携はStandard以上で利用できます。');
+  });
+
+  test('Stripe Checkout API と migration が存在する', async () => {
+    const checkoutRoute = await readFile('src/app/api/billing/checkout/route.ts', 'utf8');
+    const subscriptionRoute = await readFile('src/app/api/billing/subscription/route.ts', 'utf8');
+    const webhookRoute = await readFile('src/app/api/billing/webhook/route.ts', 'utf8');
+    const migration = await readFile('supabase/migrations/20260706110000_stripe_billing.sql', 'utf8');
+    const grantsMigration = await readFile('supabase/migrations/20260706120000_company_subscriptions_grants.sql', 'utf8');
+    const rpcMigration = await readFile('supabase/migrations/20260706130000_company_subscriptions_rpc_reads.sql', 'utf8');
+    const ownerMigration = await readFile('supabase/migrations/20260706140000_company_subscriptions_owner.sql', 'utf8');
+    const billingPage = await readFile('src/app/settings/billing/page.tsx', 'utf8');
+
+    expect(checkoutRoute).toContain("mode: 'subscription'");
+    expect(checkoutRoute).toContain('createAdminClient');
+    expect(subscriptionRoute).toContain('createAdminClient');
+    expect(billingPage).toContain('/api/billing/subscription');
+    expect(billingPage).toContain('translateDbError');
+    expect(checkoutRoute).not.toContain('payment_method_types');
+    expect(webhookRoute).toContain('checkout.session.completed');
+    expect(migration).toContain('stripe_customer_id');
+    expect(migration).toContain('stripe_subscription_id');
+    expect(grantsMigration).toContain('ensure_company_subscription');
+    expect(rpcMigration).toContain('get_company_subscription');
+    expect(ownerMigration).toContain('owner to postgres');
+  });
+
+  test('解約データ保有 migration が存在する', async () => {
+    const retention = await readFile('supabase/migrations/20260706150000_subscription_retention.sql', 'utf8');
+    const contractAccess = await readFile('src/lib/billing/contractAccess.ts', 'utf8');
+    const cronRoute = await readFile('src/app/api/cron/purge-expired-store-data/route.ts', 'utf8');
+
+    expect(retention).toContain('data_delete_scheduled_at');
+    expect(retention).toContain("interval '1 year'");
+    expect(retention).toContain('purge_expired_store_data');
+    expect(contractAccess).toContain('cancelled_retention');
+    expect(cronRoute).toContain('purge_expired_store_data');
+    const vercel = await readFile('vercel.json', 'utf8');
+    expect(vercel).toContain('/api/cron/purge-expired-store-data');
+  });
+
+  test('契約取得はRPC経由でテーブル直接SELECTしない', async () => {
+    const source = await readFile('src/lib/billing/garageSubscription.ts', 'utf8');
+
+    expect(source).not.toContain("from('company_subscriptions')");
+    expect(source).not.toContain("from<CompanySubscriptionRow>('company_subscriptions')");
+    expect(source).toContain('ensure_company_subscription');
+    expect(source).toContain('get_company_subscription');
   });
 });

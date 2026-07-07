@@ -3,6 +3,10 @@
     {
       "path": "/api/jobs/inspection-reminders",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/purge-expired-store-data",
+      "schedule": "0 1 * * *"
     }
   ]
 }

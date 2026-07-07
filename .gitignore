@@ -48,7 +48,9 @@ next-env.d.ts
 !.env.local.example
 !apps/**/.env.example
 !apps/**/.env.local.example
+!.env.secrets.local.example
 .claude/
+.codex/
 test-results/
 
 .webui_secret_key

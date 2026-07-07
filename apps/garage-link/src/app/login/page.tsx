@@ -1,13 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { FormEvent, Suspense, useState } from 'react';
 import BrandLogo from '@/components/BrandLogo';
+import { translateAuthError } from '@/lib/auth/auth-errors';
+import { resolvePostAuthPath } from '@/lib/auth/post-auth-redirect';
 import { createClient } from '@/lib/supabase/client';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get('next');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -19,19 +23,25 @@ export default function LoginPage() {
     setIsLoading(true);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
       password,
     });
 
-    setIsLoading(false);
-
     if (error) {
-      setMessage(error.message);
+      setMessage(translateAuthError(error.message));
+      setIsLoading(false);
       return;
     }
 
-    router.push('/dashboard');
+    if (!data.user?.id) {
+      setMessage('ログインに失敗しました。もう一度お試しください。');
+      setIsLoading(false);
+      return;
+    }
+
+    const redirectPath = await resolvePostAuthPath(supabase, data.user.id, { nextPath });
+    router.replace(redirectPath);
   }
 
   return (
@@ -45,22 +55,31 @@ export default function LoginPage() {
           <p className="mt-2 text-sm leading-6 text-slate-500">
             メールアドレスとパスワードでログインします
           </p>
+          {nextPath && nextPath !== '/dashboard' && (
+            <p className="mt-3 rounded-xl bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-800">
+              ログイン後、元のページ（{nextPath}）へ移動します
+            </p>
+          )}
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
           <div>
             <label
               htmlFor="email"
               className="mb-2 block text-sm font-bold text-slate-700"
             >
-              メールアドレス
+              メールアドレス <span className="text-red-600">*</span>
             </label>
             <input
               id="email"
+              name="email"
               type="email"
+              autoComplete="email"
+              inputMode="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
+              placeholder="例: tanaka@example.com"
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
             />
           </div>
@@ -70,11 +89,13 @@ export default function LoginPage() {
               htmlFor="password"
               className="mb-2 block text-sm font-bold text-slate-700"
             >
-              パスワード
+              パスワード <span className="text-red-600">*</span>
             </label>
             <input
               id="password"
+              name="password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
@@ -83,29 +104,46 @@ export default function LoginPage() {
           </div>
 
           {message && (
-            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            <p
+              role="alert"
+              className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"
+            >
               {message}
             </p>
           )}
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !email.trim() || !password}
             className="w-full rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {isLoading ? 'ログイン中...' : 'ログインする'}
           </button>
         </form>
 
-        <div className="mt-6 flex items-center justify-between text-sm">
+        <div className="mt-6 flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
           <Link href="/signup" className="font-bold text-blue-600">
-            アカウント作成
+            初めての方：アカウント作成
           </Link>
           <Link href="/forgot-password" className="font-bold text-slate-600">
-            パスワード再設定
+            パスワードを忘れた
           </Link>
         </div>
       </section>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-600">
+          読み込み中...
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -194,7 +194,13 @@ function fieldId(sectionTitle: string, label: string) {
 }
 
 function toNullableText(value: string) {
-  return value.trim() === '' ? null : value.trim();
+  const trimmed = value.trim();
+
+  if (trimmed === '' || trimmed === 'undefined' || trimmed === 'null') {
+    return null;
+  }
+
+  return trimmed;
 }
 
 function toNullableNumber(value: string) {
@@ -230,13 +236,23 @@ function FieldControl({
       : {};
 
   if (field.type === 'select') {
+    if (onChange === undefined) {
+      return (
+        <select id={id} className={inputClass} defaultValue="">
+          <option value="" disabled>
+            選択してください
+          </option>
+          {field.options?.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
     return (
-      <select
-        id={id}
-        className={inputClass}
-        defaultValue={onChange === undefined ? '' : undefined}
-        {...controlledProps}
-      >
+      <select id={id} className={inputClass} value={value ?? ''} onChange={(event) => onChange(event.target.value)}>
         <option value="" disabled>
           選択してください
         </option>
@@ -337,6 +353,21 @@ export default function NewVehiclePage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveError('');
+
+    const missingFields: string[] = [];
+    if (!formState.vin.trim()) missingFields.push('車台No');
+    if (!formState.maker.trim() || formState.maker.trim() === 'undefined') {
+      missingFields.push('メーカー名');
+    }
+    if (!formState.model_name.trim() || formState.model_name.trim() === 'undefined') {
+      missingFields.push('車名');
+    }
+
+    if (missingFields.length > 0) {
+      setSaveError(`${missingFields.join('・')}を入力してください。`);
+      return;
+    }
+
     setIsSaving(true);
 
     try {

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ChangeEvent, FormEvent, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
+import { buildDealTitleFromVehicle, formatVehicleLabel } from '@/lib/vehicles/vehicle-label';
 
 type FieldType =
   | 'text'
@@ -281,8 +282,7 @@ function formatDisplacement(value: number | null | undefined) {
 }
 
 function vehicleLabel(vehicle: VehicleOption) {
-  const name = `${vehicle.maker ?? ''} ${vehicle.model_name ?? ''}`.trim();
-  return name || vehicle.management_no || '車両名未設定';
+  return formatVehicleLabel(vehicle);
 }
 
 function statusBadgeClass(status: string | null | undefined) {
@@ -668,6 +668,7 @@ function DealSection({
   filteredVehicles,
   onVehicleSearchTextChange,
   onClearVehicle,
+  isLoadingOptions,
 }: {
   section: FormSection;
   formState: DealFormState;
@@ -680,6 +681,7 @@ function DealSection({
   filteredVehicles: VehicleOption[];
   onVehicleSearchTextChange: (value: string) => void;
   onClearVehicle: () => void;
+  isLoadingOptions: boolean;
 }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -691,14 +693,20 @@ function DealSection({
       </div>
 
       {section.title === '対象車両' ? (
-        <VehicleSearchPanel
-          vehicles={filteredVehicles}
-          selectedVehicle={selectedVehicle}
-          searchText={vehicleSearchText}
-          onSearchTextChange={onVehicleSearchTextChange}
-          onSelectVehicle={(vehicleId) => updateField('vehicle_id', vehicleId)}
-          onClearVehicle={onClearVehicle}
-        />
+        isLoadingOptions ? (
+          <p className="px-5 py-6 text-sm font-semibold text-slate-500 sm:px-6">
+            車両の選択肢を読み込み中です...
+          </p>
+        ) : (
+          <VehicleSearchPanel
+            vehicles={filteredVehicles}
+            selectedVehicle={selectedVehicle}
+            searchText={vehicleSearchText}
+            onSearchTextChange={onVehicleSearchTextChange}
+            onSelectVehicle={(vehicleId) => updateField('vehicle_id', vehicleId)}
+            onClearVehicle={onClearVehicle}
+          />
+        )
       ) : (
         <div className="grid gap-5 px-5 py-6 sm:px-6 md:grid-cols-2 xl:grid-cols-3">
           {section.fields.map((field) => {
@@ -733,11 +741,11 @@ function DealSection({
         </div>
       )}
 
-      {section.title === '顧客情報' && (
+      {section.title === '顧客情報' && !isLoadingOptions && (
         <CustomerPreview customer={selectedCustomer} />
       )}
 
-      {section.title === '対象車両' && (
+      {section.title === '対象車両' && !isLoadingOptions && (
         <VehiclePreview vehicle={selectedVehicle} />
       )}
 
@@ -828,9 +836,7 @@ function NewDealPageContent() {
           };
         }
 
-        const title = `${vehicle.maker ?? ''} ${vehicle.model_name ?? ''} 商談`
-          .replace(/\s+/g, ' ')
-          .trim();
+        const title = buildDealTitleFromVehicle(vehicle);
 
         return {
           ...current,
@@ -918,9 +924,7 @@ function NewDealPageContent() {
 
         if (initialCustomer || initialVehicle) {
           setFormState((current) => {
-            const vehicleTitle = initialVehicle
-              ? `${initialVehicle.maker ?? ''} ${initialVehicle.model_name ?? ''} 商談`.replace(/\s+/g, ' ').trim()
-              : '';
+            const vehicleTitle = initialVehicle ? buildDealTitleFromVehicle(initialVehicle) : '';
 
             return {
               ...current,
@@ -1062,6 +1066,7 @@ function NewDealPageContent() {
             filteredVehicles={filteredVehicles}
             onVehicleSearchTextChange={setVehicleSearchText}
             onClearVehicle={clearVehicleSelection}
+            isLoadingOptions={isLoadingOptions}
           />
         ))}
 

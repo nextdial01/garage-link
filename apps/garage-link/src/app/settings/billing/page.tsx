@@ -16,8 +16,8 @@ import {
   normalizeGaragePlanCode,
   type GaragePlanCode,
 } from '@/lib/billing/garagePlans';
-import { getActiveCompanySubscription } from '@/lib/billing/garageSubscription';
-import { getRoleLabel } from '@/lib/auth/permissions';
+import { formatRetentionDeadline } from '@/lib/billing/contractAccess';
+import { translateDbError } from '@/lib/errors/translate-db-error';
 import { createClient } from '@/lib/supabase/client';
 
 type StoreMemberRow = {
@@ -46,6 +46,9 @@ type CompanySubscriptionRow = {
   l_link_integration_enabled: boolean;
   started_at: string | null;
   updated_at: string | null;
+  cancelled_at?: string | null;
+  data_delete_scheduled_at?: string | null;
+  data_deleted_at?: string | null;
 };
 
 type RequestType = 'plan_change' | 'add_staff' | 'add_store' | 'add_storage' | 'support';
@@ -96,6 +99,8 @@ export default function BillingSettingsPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isStripeLoading, setIsStripeLoading] = useState(false);
+  const [stripeConfigured, setStripeConfigured] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -123,10 +128,20 @@ export default function BillingSettingsPage() {
           .single();
         setStore(storeData ?? { id: member.store_id, name: null, company_name: null });
 
-        const subscriptionData = await getActiveCompanySubscription(supabase, member.store_id, { ensure: true });
-        setSubscription(subscriptionData as CompanySubscriptionRow);
+        const subscriptionResponse = await fetch('/api/billing/subscription');
+        const subscriptionPayload = (await subscriptionResponse.json()) as {
+          ok?: boolean;
+          error?: string;
+          subscription?: CompanySubscriptionRow;
+        };
+
+        if (!subscriptionResponse.ok || !subscriptionPayload.ok || !subscriptionPayload.subscription) {
+          throw new Error(subscriptionPayload.error ?? '契約情報の取得に失敗しました。');
+        }
+
+        setSubscription(subscriptionPayload.subscription);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '契約情報の取得に失敗しました。');
+        setErrorMessage(translateDbError(error instanceof Error ? error.message : '契約情報の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -135,8 +150,51 @@ export default function BillingSettingsPage() {
     void loadBilling();
   }, []);
 
+  useEffect(() => {
+    async function finalizeCheckout() {
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('checkout') !== 'success') return;
+
+      const sessionId = params.get('session_id');
+      if (!sessionId) return;
+
+      try {
+        setSuccessMessage('');
+        setErrorMessage('');
+        const response = await fetch(`/api/billing/checkout?session_id=${encodeURIComponent(sessionId)}`);
+        const payload = (await response.json()) as { ok?: boolean; error?: string; plan?: string };
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error ?? '決済結果の反映に失敗しました。');
+        }
+        setSuccessMessage(`Stripe 決済が完了しました。プランを ${payload.plan ?? ''} に更新しました。`);
+        window.history.replaceState({}, '', '/settings/billing');
+        window.location.reload();
+      } catch (error) {
+        setErrorMessage(translateDbError(error instanceof Error ? error.message : '決済結果の反映に失敗しました。'));
+      }
+    }
+
+    void finalizeCheckout();
+  }, []);
+
+  useEffect(() => {
+    async function loadStripeStatus() {
+      try {
+        const response = await fetch('/api/billing/status');
+        const payload = (await response.json()) as { checkoutReady?: boolean };
+        setStripeConfigured(Boolean(payload.checkoutReady));
+      } catch {
+        setStripeConfigured(false);
+      }
+    }
+
+    void loadStripeStatus();
+  }, []);
+
   const currentPlanCode = normalizeGaragePlanCode(subscription?.plan);
   const currentPlan = getGaragePlan(currentPlanCode);
+  const isCancelledRetention = subscription?.status === 'cancelled';
 
   const validationMessage = (() => {
     if (form.request_type === 'add_staff' && !canAddStaff(currentPlanCode)) return 'Freeプランではスタッフ追加はできません。';
@@ -185,14 +243,53 @@ export default function BillingSettingsPage() {
         status: 'pending',
       });
 
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(translateDbError(error.message));
       setSuccessMessage('お申し込みを受け付けました。内容を確認後、担当者よりご連絡いたします。');
       setForm((current) => ({ ...current, message: '' }));
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '申込の送信に失敗しました。');
+      setErrorMessage(translateDbError(error instanceof Error ? error.message : '申込の送信に失敗しました。'));
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  async function handleStripeCheckout(planCode?: GaragePlanCode) {
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    const targetPlan = planCode ?? form.requested_plan;
+
+    if (targetPlan === 'free' || targetPlan === currentPlanCode) {
+      setErrorMessage('有料プランへ変更する場合のみ Stripe 決済を利用できます。');
+      return;
+    }
+
+    try {
+      setIsStripeLoading(true);
+      const response = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: targetPlan }),
+      });
+      const payload = (await response.json()) as { ok?: boolean; url?: string; error?: string };
+      if (!response.ok || !payload.ok || !payload.url) {
+        throw new Error(payload.error ?? 'Checkout の開始に失敗しました。');
+      }
+      window.location.href = payload.url;
+    } catch (error) {
+      setErrorMessage(translateDbError(error instanceof Error ? error.message : 'Checkout の開始に失敗しました。'));
+    } finally {
+      setIsStripeLoading(false);
+    }
+  }
+
+  function planCardSummary(code: GaragePlanCode) {
+    const plan = GARAGE_PLANS[code];
+    return [
+      `在庫 ${plan.inventoryLimit}台`,
+      `スタッフ ${plan.includedStaffCount}名`,
+      plan.quoteInvoiceLimit === null ? '見積・請求 無制限' : `見積・請求 月${plan.quoteInvoiceLimit}件`,
+    ];
   }
 
   return (
@@ -219,113 +316,182 @@ export default function BillingSettingsPage() {
         <div className="mx-auto max-w-7xl space-y-6">
           {errorMessage && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>}
           {successMessage && <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{successMessage}</p>}
+          {isCancelledRetention && (
+            <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+              契約は解約済みです。Free プランへの復帰はできません。データは{' '}
+              {formatRetentionDeadline(subscription?.data_delete_scheduled_at)} まで保管され、その後削除されます。利用再開は有料プランへの再契約のみ可能です。
+            </p>
+          )}
 
-          <div className="rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm">
-            現在の権限: {getRoleLabel(role)} / 対象会社: {store?.company_name || store?.name || '-'}
-          </div>
-
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {[
-              ['現在のプラン', currentPlan.name],
-              ['月額料金', `${formatGarageYen(currentPlan.monthlyPrice)} / 月`],
-              ['現在庫上限', `${subscription?.current_inventory_limit ?? currentPlan.inventoryLimit}台`],
-              ['標準スタッフ数 / 追加スタッフ数', `${subscription?.included_staff_count ?? currentPlan.includedStaffCount}名 / ${subscription?.extra_staff_count ?? 0}名`],
-              ['標準店舗数 / 追加店舗数', `${subscription?.included_store_count ?? currentPlan.includedStoreCount}店舗 / ${subscription?.extra_store_count ?? 0}店舗`],
-              ['標準ストレージ / 追加ストレージ', `${formatStorage(subscription?.storage_limit_mb ?? currentPlan.storageLimitMb)} / ${subscription?.extra_storage_gb ?? 0}GB`],
-              ['ストレージ使用量', '集計準備中'],
-              ['見積・請求', currentPlan.quoteInvoiceLimit === null ? '無制限' : `月${currentPlan.quoteInvoiceLimit}件`],
-              ['外部連携', subscription?.l_link_integration_enabled ? '可' : '不可'],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-sm font-bold text-slate-500">{label}</p>
-                <p className="mt-2 text-2xl font-black text-slate-950">{value}</p>
+          <section className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 shadow-sm">
+            <p className="text-sm font-bold text-blue-700">{isCancelledRetention ? '解約済み契約' : '現在の契約'}</p>
+            <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-3xl font-black text-slate-950">{currentPlan.name}</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {store?.company_name || store?.name || '—'} ／ {formatGarageYen(currentPlan.monthlyPrice)} / 月（税抜）
+                </p>
               </div>
-            ))}
+              <div className="flex flex-wrap gap-3 text-sm font-semibold text-slate-600">
+                <span className="rounded-full bg-white px-3 py-1 shadow-sm">在庫 {subscription?.current_inventory_limit ?? currentPlan.inventoryLimit}台</span>
+                <span className="rounded-full bg-white px-3 py-1 shadow-sm">スタッフ {subscription?.included_staff_count ?? currentPlan.includedStaffCount}名</span>
+                <span className="rounded-full bg-white px-3 py-1 shadow-sm">{formatStorage(subscription?.storage_limit_mb ?? currentPlan.storageLimitMb)}</span>
+              </div>
+            </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 p-5">
-              <h3 className="text-lg font-bold text-slate-950">プラン比較</h3>
-              <p className="mt-1 text-sm text-slate-500">表示価格は税抜です。Stripe決済連携は後工程で実装します。</p>
+          <section className="space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-slate-950">プランを選ぶ</h3>
+              <p className="mt-1 text-sm text-slate-500">有料プランはボタン1つで Stripe Checkout（テスト）へ進みます。表示価格は税抜です。</p>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-5 py-4">項目</th>
-                    {GARAGE_PLAN_ORDER.map((code) => <th key={code} className="px-5 py-4 text-right">{GARAGE_PLANS[code].name}</th>)}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {[
-                    ['月額', (code: GaragePlanCode) => formatGarageYen(GARAGE_PLANS[code].monthlyPrice)],
-                    ['現在庫', (code: GaragePlanCode) => `${GARAGE_PLANS[code].inventoryLimit}台`],
-                    ['標準スタッフ', (code: GaragePlanCode) => `${GARAGE_PLANS[code].includedStaffCount}名`],
-                    ['スタッフ追加', (code: GaragePlanCode) => GARAGE_PLANS[code].extraStaffPrice ? `${formatGarageYen(GARAGE_PLANS[code].extraStaffPrice)}/月・名` : '不可'],
-                    ['標準店舗', (code: GaragePlanCode) => `${GARAGE_PLANS[code].includedStoreCount}店舗`],
-                    ['店舗追加', (code: GaragePlanCode) => GARAGE_PLANS[code].extraStorePrice ? `${formatGarageYen(GARAGE_PLANS[code].extraStorePrice)}/月・店舗` : '不可'],
-                    ['ストレージ', (code: GaragePlanCode) => formatStorage(GARAGE_PLANS[code].storageLimitMb)],
-                    ['ストレージ追加', (code: GaragePlanCode) => GARAGE_PLANS[code].extraStoragePricePer10Gb ? `${formatGarageYen(GARAGE_PLANS[code].extraStoragePricePer10Gb)}/月・10GB` : '不可'],
-                    ['見積・請求', (code: GaragePlanCode) => GARAGE_PLANS[code].quoteInvoiceLimit === null ? '無制限' : `月${GARAGE_PLANS[code].quoteInvoiceLimit}件`],
-                    ['外部連携', (code: GaragePlanCode) => GARAGE_PLANS[code].lLinkIntegrationEnabled ? '可' : '不可'],
-                    ['チャットサポート', () => '無料'],
-                    ['個別サポート', (code: GaragePlanCode) => `${formatGarageYen(GARAGE_PLANS[code].individualSupportHourlyPrice)}/時`],
-                  ].map(([label, formatter]) => (
-                    <tr key={label as string} className="hover:bg-slate-50">
-                      <td className="px-5 py-4 font-bold text-slate-700">{label as string}</td>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {GARAGE_PLAN_ORDER.map((code) => {
+                const plan = GARAGE_PLANS[code];
+                const isCurrent = !isCancelledRetention && code === currentPlanCode;
+                const isPaid = code !== 'free';
+
+                return (
+                  <article
+                    key={code}
+                    className={`flex flex-col rounded-2xl border p-5 shadow-sm ${
+                      isCurrent ? 'border-blue-500 bg-blue-50/60 ring-2 ring-blue-200' : 'border-slate-200 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-lg font-black text-slate-950">{plan.name}</p>
+                        <p className="mt-1 text-2xl font-black text-slate-950">
+                          {formatGarageYen(plan.monthlyPrice)}
+                          <span className="text-sm font-bold text-slate-500"> / 月</span>
+                        </p>
+                      </div>
+                      {isCurrent && (
+                        <span className="rounded-full bg-blue-600 px-2 py-1 text-xs font-bold text-white">利用中</span>
+                      )}
+                    </div>
+                    <ul className="mt-4 flex-1 space-y-2 text-sm text-slate-600">
+                      {planCardSummary(code).map((item) => (
+                        <li key={item}>・{item}</li>
+                      ))}
+                    </ul>
+                    <div className="mt-5">
+                      {isCurrent ? (
+                        <p className="rounded-xl bg-white px-4 py-3 text-center text-sm font-bold text-slate-500">現在のプラン</p>
+                      ) : isPaid ? (
+                        <button
+                          type="button"
+                          onClick={() => void handleStripeCheckout(code)}
+                          disabled={isStripeLoading || !stripeConfigured}
+                          className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                        >
+                          {isStripeLoading ? 'Stripeへ移動中...' : isCancelledRetention ? '再契約する' : 'このプランで申し込む'}
+                        </button>
+                      ) : (
+                        <p className="rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-semibold text-slate-500">
+                          {isCancelledRetention ? 'Free への復帰不可' : '無料プラン'}
+                        </p>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+            {!stripeConfigured && (
+              <p className="text-xs font-semibold text-slate-500">
+                Stripe Checkout を使うには `pnpm stripe:setup-test` で Price ID を作成してください。
+              </p>
+            )}
+          </section>
+
+          <details className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <summary className="cursor-pointer p-5 text-sm font-bold text-slate-700">詳細比較・手動申込（オプション追加など）</summary>
+            <div className="space-y-6 border-t border-slate-100 p-5">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[980px] text-left text-sm">
+                  <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="px-5 py-4">項目</th>
                       {GARAGE_PLAN_ORDER.map((code) => (
-                        <td key={code} className="px-5 py-4 text-right">{(formatter as (code: GaragePlanCode) => string)(code)}</td>
+                        <th key={code} className="px-5 py-4 text-right">
+                          {GARAGE_PLANS[code].name}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <h3 className="text-lg font-bold text-slate-950">申込フォーム</h3>
-            <form onSubmit={handleSubmit} className="mt-5 grid gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-700">申込種別</span>
-                <select className={inputClass} value={form.request_type} onChange={(event) => setForm((current) => ({ ...current, request_type: event.target.value as RequestType }))}>
-                  {Object.entries(requestTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-700">希望プラン</span>
-                <select className={inputClass} value={form.requested_plan} onChange={(event) => setForm((current) => ({ ...current, requested_plan: event.target.value as GaragePlanCode }))} disabled={form.request_type !== 'plan_change'}>
-                  {GARAGE_PLAN_ORDER.map((code) => <option key={code} value={code}>{GARAGE_PLANS[code].name}</option>)}
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-700">追加するスタッフ数</span>
-                <input type="number" min="0" className={inputClass} value={form.requested_extra_staff_count} onChange={(event) => setForm((current) => ({ ...current, requested_extra_staff_count: event.target.value }))} disabled={form.request_type !== 'add_staff'} />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-700">追加する店舗数</span>
-                <input type="number" min="0" className={inputClass} value={form.requested_extra_store_count} onChange={(event) => setForm((current) => ({ ...current, requested_extra_store_count: event.target.value }))} disabled={form.request_type !== 'add_store'} />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-700">追加するストレージ容量（GB）</span>
-                <input type="number" min="0" step="10" className={inputClass} value={form.requested_extra_storage_gb} onChange={(event) => setForm((current) => ({ ...current, requested_extra_storage_gb: event.target.value }))} disabled={form.request_type !== 'add_storage'} />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-700">サポート希望時間</span>
-                <input type="number" min="0" step="0.5" className={inputClass} value={form.support_hours} onChange={(event) => setForm((current) => ({ ...current, support_hours: event.target.value }))} disabled={form.request_type !== 'support'} />
-              </label>
-              <label className="block md:col-span-2">
-                <span className="mb-2 block text-sm font-bold text-slate-700">備考</span>
-                <textarea className={`${inputClass} min-h-32`} value={form.message} onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))} />
-              </label>
-              {validationMessage && <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 md:col-span-2">{validationMessage}</p>}
-              <div className="flex justify-end md:col-span-2">
-                <button type="submit" disabled={isSubmitting || Boolean(validationMessage)} className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
-                  {isSubmitting ? '送信中...' : '申し込む'}
-                </button>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {[
+                      ['月額', (code: GaragePlanCode) => formatGarageYen(GARAGE_PLANS[code].monthlyPrice)],
+                      ['現在庫', (code: GaragePlanCode) => `${GARAGE_PLANS[code].inventoryLimit}台`],
+                      ['標準スタッフ', (code: GaragePlanCode) => `${GARAGE_PLANS[code].includedStaffCount}名`],
+                      ['見積・請求', (code: GaragePlanCode) => (GARAGE_PLANS[code].quoteInvoiceLimit === null ? '無制限' : `月${GARAGE_PLANS[code].quoteInvoiceLimit}件`)],
+                      ['外部連携', (code: GaragePlanCode) => (GARAGE_PLANS[code].lLinkIntegrationEnabled ? '可' : '不可')],
+                    ].map(([label, formatter]) => (
+                      <tr key={label as string} className="hover:bg-slate-50">
+                        <td className="px-5 py-4 font-bold text-slate-700">{label as string}</td>
+                        {GARAGE_PLAN_ORDER.map((code) => (
+                          <td key={code} className="px-5 py-4 text-right">
+                            {(formatter as (code: GaragePlanCode) => string)(code)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </form>
-          </section>
+
+              <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-bold text-slate-700">申込種別</span>
+                  <select className={inputClass} value={form.request_type} onChange={(event) => setForm((current) => ({ ...current, request_type: event.target.value as RequestType }))}>
+                    {Object.entries(requestTypeLabels).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-bold text-slate-700">希望プラン</span>
+                  <select
+                    className={inputClass}
+                    value={form.requested_plan}
+                    onChange={(event) => setForm((current) => ({ ...current, requested_plan: event.target.value as GaragePlanCode }))}
+                    disabled={form.request_type !== 'plan_change'}
+                  >
+                    {GARAGE_PLAN_ORDER.map((code) => (
+                      <option key={code} value={code}>
+                        {GARAGE_PLANS[code].name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-bold text-slate-700">追加するスタッフ数</span>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClass}
+                    value={form.requested_extra_staff_count}
+                    onChange={(event) => setForm((current) => ({ ...current, requested_extra_staff_count: event.target.value }))}
+                    disabled={form.request_type !== 'add_staff'}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-bold text-slate-700">備考</span>
+                  <textarea className={`${inputClass} min-h-24`} value={form.message} onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))} />
+                </label>
+                {validationMessage && (
+                  <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 md:col-span-2">{validationMessage}</p>
+                )}
+                <div className="flex justify-end md:col-span-2">
+                  <button type="submit" disabled={isSubmitting || Boolean(validationMessage)} className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+                    {isSubmitting ? '送信中...' : '手動で申し込む（担当者確認）'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </details>
         </div>
       )}
     </AppShell>

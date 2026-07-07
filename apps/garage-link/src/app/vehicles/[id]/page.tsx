@@ -56,7 +56,13 @@ function formatDateTime(value: string | null | undefined) {
   return value ? value.replace('T', ' ').slice(0, 16) : '-';
 }
 function toNullableText(value: string) {
-  return value.trim() === '' ? null : value.trim();
+  const trimmed = value.trim();
+
+  if (trimmed === '' || trimmed === 'undefined' || trimmed === 'null') {
+    return null;
+  }
+
+  return trimmed;
 }
 function toNullableNumber(value: string) {
   if (value.trim() === '') return null;
@@ -64,11 +70,18 @@ function toNullableNumber(value: string) {
   return Number.isNaN(numberValue) ? null : numberValue;
 }
 function mapVehicleToForm(vehicle: VehicleRow): VehicleForm {
+  const text = (value: string | null | undefined) => {
+    if (value === null || value === undefined || value === 'undefined' || value === 'null') {
+      return '';
+    }
+    return value;
+  };
+
   return {
-    management_no: vehicle.management_no ?? '',
-    vehicle_type: vehicle.vehicle_type ?? '',
-    maker: vehicle.maker ?? '',
-    model_name: vehicle.model_name ?? '',
+    management_no: text(vehicle.management_no),
+    vehicle_type: text(vehicle.vehicle_type),
+    maker: text(vehicle.maker),
+    model_name: text(vehicle.model_name),
     grade: vehicle.grade ?? '',
     vin: vehicle.vin ?? '',
     registration_no: vehicle.registration_no ?? '',

@@ -130,14 +130,16 @@ function MenuGroup({
 
 export default function AppSidebar({ activeLabel }: AppSidebarProps) {
   const pathname = usePathname();
+  const [menuReady, setMenuReady] = useState(false);
   const [canUseImportExport, setCanUseImportExport] = useState(false);
-  const [role, setRole] = useState('');
+  const [role, setRole] = useState('owner');
   const lineCategory = isLineCategory(pathname);
+  const effectiveRole = menuReady ? role : 'owner';
   const mainItems = (() => {
-    if (role === 'implementer') {
+    if (effectiveRole === 'implementer') {
       return vehicleMainItems.filter((item) => ['ダッシュボード', '顧客管理', '商談管理', '分析'].includes(item.label));
     }
-    if (role === 'viewer') {
+    if (effectiveRole === 'viewer') {
       return vehicleMainItems.filter((item) => ['ダッシュボード', '車両一覧', '顧客管理', '商談管理', '整備・車検', '部品管理', '見積書', '請求書', '棚卸し', '分析'].includes(item.label));
     }
     return vehicleMainItems;
@@ -147,14 +149,14 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
       return [];
     }
 
-    if (role === 'viewer' || role === 'staff') {
+    if (effectiveRole === 'viewer' || effectiveRole === 'staff') {
       return [];
     }
-    if (role === 'implementer') {
+    if (effectiveRole === 'implementer') {
       return vehicleSettingItems.filter((item) => ['/settings/company', '/settings/import-export'].includes(item.href));
     }
     return vehicleSettingItems.filter((item) => {
-      if (item.href === '/settings/import-export') return canUseImportExport;
+      if (item.href === '/settings/import-export') return menuReady ? canUseImportExport : true;
       if (
         item.href === '/settings/audit-logs' ||
         item.href === '/settings/trash' ||
@@ -162,7 +164,7 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
         item.href === '/settings/env-check' ||
         item.href === '/settings/launch-checklist'
       ) {
-        return role === 'owner' || role === 'admin';
+        return effectiveRole === 'owner' || effectiveRole === 'admin';
       }
       return true;
     });
@@ -188,11 +190,13 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
           .single();
 
         const nextRole = member?.role ?? '';
-        setRole(nextRole);
+        setRole(nextRole || 'owner');
         setCanUseImportExport(importExportAllowedRoles.includes(nextRole));
       } catch {
-        setRole('');
+        setRole('owner');
         setCanUseImportExport(false);
+      } finally {
+        setMenuReady(true);
       }
     }
 
@@ -205,7 +209,7 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
         <div className="rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-white/70">
           <BrandLogo className="mx-auto h-10 w-48 max-w-full" priority />
         </div>
-        {role && (
+        {menuReady && role && (
           <span className={`mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-slate-200 ring-1 ${roleRingClass}`}>
             現在の権限: {getRoleLabel(role)}
           </span>
@@ -213,8 +217,20 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
       </div>
 
       <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-        {mainItems.length > 0 && <MenuGroup title={categoryTitle} items={mainItems} pathname={pathname} activeLabel={activeLabel} lineCategory={lineCategory} />}
-        {settingItems.length > 0 && <MenuGroup title="設定" items={settingItems} pathname={pathname} activeLabel={activeLabel} lineCategory={lineCategory} />}
+        {!menuReady ? (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm font-semibold text-slate-400">
+            メニューを読み込み中...
+          </div>
+        ) : (
+          <>
+            {mainItems.length > 0 && (
+              <MenuGroup title={categoryTitle} items={mainItems} pathname={pathname} activeLabel={activeLabel} lineCategory={lineCategory} />
+            )}
+            {settingItems.length > 0 && (
+              <MenuGroup title="設定" items={settingItems} pathname={pathname} activeLabel={activeLabel} lineCategory={lineCategory} />
+            )}
+          </>
+        )}
       </nav>
 
       <div className="mt-4 border-t border-slate-100 pt-4">

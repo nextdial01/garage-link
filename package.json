@@ -20,7 +20,10 @@
     "verify:garage-link": "pnpm lint && pnpm typecheck && pnpm build && pnpm test:billing:garage-link && pnpm test:e2e:garage-link && pnpm test:security && pnpm test:line-link-s2s:garage-link && pnpm test:line-link-s2s-ack:garage-link",
     "garage-link:lint": "npm --prefix apps/garage-link run lint",
     "garage-link:typecheck": "npm --prefix apps/garage-link run typecheck",
-    "garage-link:build": "npm --prefix apps/garage-link run build"
+    "garage-link:build": "npm --prefix apps/garage-link run build",
+    "sync:env": "node scripts/sync-env-from-secrets.mjs",
+    "stripe:setup-test": "node apps/garage-link/scripts/setup-stripe-test-products.mjs && pnpm sync:env",
+    "stripe:setup-test:llink": "node apps/l-link/scripts/setup-stripe-test-products.mjs && pnpm sync:env"
   },
   "devDependencies": {}
 }

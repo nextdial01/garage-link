@@ -708,7 +708,6 @@ export default function NewCustomerPage() {
         </div>
 
         <p className="text-xs text-slate-500">
-          ※ 現在は見た目だけのフォームです。次の工程でSupabaseに保存できるようにします。
         </p>
       </form>
     </AppShell>
