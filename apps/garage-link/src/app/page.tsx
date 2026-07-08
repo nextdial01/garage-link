@@ -15,9 +15,33 @@ const planCards = [
   GARAGE_PLANS.pro,
 ];
 
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'GARAGE LINK',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  description:
+    '中古車・バイク販売店・整備工場向けの業務管理SaaS。在庫管理・商談・見積書・請求書発行・整備部品管理・LINE連携をクラウドで一元化する。',
+  url: 'https://garage-link.tech/',
+  provider: { '@type': 'Organization', name: '株式会社かんなぎ', url: 'https://garage-link.tech/' },
+  offers: planCards.map((plan) => ({
+    '@type': 'Offer',
+    name: plan.name,
+    price: plan.monthlyPrice,
+    priceCurrency: 'JPY',
+    url: 'https://garage-link.tech/signup',
+  })),
+};
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-white text-slate-950">
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       <section className="mx-auto flex min-h-[70vh] max-w-5xl flex-col items-center justify-center px-6 py-16 text-center">
         <div className="mb-6 inline-flex rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
           中古車・バイク販売店 / 整備工場向け

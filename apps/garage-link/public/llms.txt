@@ -1,0 +1,18 @@
+# GARAGE LINK
+
+> 中古車・バイク販売店・整備工場向けの業務管理SaaS。在庫管理・商談・見積書/請求書発行・整備部品管理・棚卸し・LINE連携（L-Link）をクラウドで一元化する。株式会社かんなぎが運営。
+
+## サービス概要
+- 対象: 中古車・バイク販売店、整備工場
+- 主な機能: 車両在庫管理、顧客・商談管理、見積書/請求書発行、整備・部品管理、棚卸し、L-Link連携（Standard以上）
+- プラン: Free（¥0/月・在庫5台）、Starter（¥6,800/月）、Standard（¥14,800/月）、Pro（上位プラン）
+
+## 主要ページ
+- [トップページ](https://garage-link.tech/): サービス概要・課題・機能・料金
+- [新規登録](https://garage-link.tech/signup)
+- [利用規約](https://garage-link.tech/legal/terms)
+- [プライバシーポリシー](https://garage-link.tech/legal/privacy)
+- [特定商取引法に基づく表記](https://garage-link.tech/legal/tokusho)
+
+## 運営会社
+株式会社かんなぎ（大阪府枚方市）
