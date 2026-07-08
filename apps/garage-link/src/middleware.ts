@@ -10,6 +10,9 @@ const PUBLIC_PATHS = [
   '/logout',
   '/legal/terms',
   '/legal/privacy',
+  '/robots.txt',
+  '/sitemap.xml',
+  '/llms.txt',
 ];
 
 const CANCELLED_RETENTION_ALLOWED = [
