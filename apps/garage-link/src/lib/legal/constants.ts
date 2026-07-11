@@ -13,18 +13,18 @@ export const LEGAL_SELLER = {
   email: 'info@kannagi-co.com',
   /** 任意。サポート窓口として特商法表記に併記可（単独連絡先にはしない） */
   lineOfficialUrl: '',
-  /** GARAGE LINK 本番URL（独立ドメイン・DNS設定後に有効化） */
-  serviceUrl: 'http://garage-link.tech/',
+  /** GARAGE LINK 本番URL */
+  serviceUrl: 'https://garage-link.tech/',
   /** コーポレートホームページ */
-  corporateHomeUrl: 'http://kannagi-co.com/',
+  corporateHomeUrl: 'https://kannagi-co.com/',
 } as const;
 
-/** 独立ドメイン方針（オーナー確定 2026-07-06）— http表記 */
+/** 独立ドメイン方針（オーナー確定 2026-07-06。2026-07-11: 本番デプロイ完了・https到達確認済みのためhttps表記に更新） */
 export const LEGAL_PRODUCT_DOMAINS = {
-  corporate: 'http://kannagi-co.com/',
-  garageLink: 'http://garage-link.tech/',
-  lLink: 'http://llink.tech/',
-  lTouring: 'http://l-touring.tech/',
+  corporate: 'https://kannagi-co.com/',
+  garageLink: 'https://garage-link.tech/',
+  lLink: 'https://llink.tech/',
+  lTouring: 'https://l-touring.tech/',
 } as const;
 
 /** 料金（税抜）。garagePlans.ts と整合 */
@@ -44,4 +44,4 @@ export const LEGAL_SUBPROCESSORS = [
   { name: 'Stripe, Inc.', purpose: '決済処理（導入後）' },
 ] as const;
 
-export const LEGAL_LAST_UPDATED = '2026年7月6日';
+export const LEGAL_LAST_UPDATED = '2026年7月11日';
