@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect } from 'react';
 
 // レイアウト/ルートレベルの致命的例外用フォールバック。html/bodyを自前で描画する必要があります。
@@ -35,26 +36,60 @@ export default function GlobalError({
           <p style={{ fontSize: '14px', color: '#475569' }}>
             予期しないエラーが発生しました。お手数ですが、もう一度お試しください。
           </p>
+          <p style={{ fontSize: '13px', color: '#64748b' }}>
+            入力内容が残っている場合があります。再読み込みの前に、もう一度お試しください。
+          </p>
           {error.digest ? (
             <p style={{ fontSize: '12px', color: '#94a3b8' }}>参照コード: {error.digest}</p>
           ) : null}
-          <button
-            type="button"
-            onClick={() => reset()}
-            style={{
-              marginTop: '8px',
-              borderRadius: '12px',
-              background: '#16a34a',
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: '14px',
-              padding: '10px 20px',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            再試行
-          </button>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center', marginTop: '8px' }}>
+            <button
+              type="button"
+              onClick={() => reset()}
+              style={{
+                borderRadius: '12px',
+                background: '#16a34a',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: '14px',
+                padding: '10px 20px',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              もう一度試す
+            </button>
+            <Link
+              href="/dashboard"
+              style={{
+                borderRadius: '12px',
+                background: '#fff',
+                color: '#0f172a',
+                fontWeight: 700,
+                fontSize: '14px',
+                padding: '10px 20px',
+                border: '1px solid #cbd5e1',
+                textDecoration: 'none',
+              }}
+            >
+              トップへ戻る
+            </Link>
+            <Link
+              href="/login"
+              style={{
+                borderRadius: '12px',
+                background: '#fff',
+                color: '#0f172a',
+                fontWeight: 700,
+                fontSize: '14px',
+                padding: '10px 20px',
+                border: '1px solid #cbd5e1',
+                textDecoration: 'none',
+              }}
+            >
+              ログイン画面へ
+            </Link>
+          </div>
         </div>
       </body>
     </html>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
+import { translateAuthError } from '@/lib/auth/auth-errors';
 import { createClient } from '@/lib/supabase/client';
 
 export default function ForgotPasswordPage() {
@@ -18,18 +19,18 @@ export default function ForgotPasswordPage() {
 
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/login`,
+      redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
     });
 
     setIsLoading(false);
 
     if (error) {
-      setMessage(error.message);
+      setMessage(translateAuthError(error.message));
       return;
     }
 
     setIsSuccess(true);
-    setMessage('再設定メールを送信しました');
+    setMessage('再設定メールを送りました。届かないときは迷惑メールもご確認ください。');
   }
 
   return (
@@ -41,7 +42,7 @@ export default function ForgotPasswordPage() {
           </p>
           <h1 className="mt-2 text-2xl font-bold">パスワード再設定</h1>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            登録済みのメールアドレスへ再設定メールを送信します
+            登録済みのメールアドレスに再設定メールを送ります
           </p>
         </div>
 
@@ -59,6 +60,7 @@ export default function ForgotPasswordPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
+              placeholder="例: tanaka@example.com"
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
             />
           </div>
@@ -80,7 +82,7 @@ export default function ForgotPasswordPage() {
             disabled={isLoading}
             className="w-full rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {isLoading ? '送信中...' : '再設定メールを送信'}
+            {isLoading ? '送信中...' : 'メールを送る'}
           </button>
         </form>
 

@@ -181,6 +181,10 @@ export default function InvoiceDetailPage() {
       const paidAmount = editPaidAmount.trim() ? parseFloat(editPaidAmount) : 0;
       const totalAmount = invoice?.total_amount ?? 0;
       const unpaidAmount = Math.max(totalAmount - paidAmount, 0);
+      const issueDate =
+        editIssueStatus === 'issued' && !invoice?.issue_date
+          ? new Date().toISOString().slice(0, 10)
+          : invoice?.issue_date ?? null;
 
       const supabase = createClient();
       const { error } = await supabase
@@ -188,6 +192,7 @@ export default function InvoiceDetailPage() {
         .update({
           status: editStatus,
           issue_status: editIssueStatus,
+          issue_date: issueDate,
           paid_amount: paidAmount,
           unpaid_amount: unpaidAmount,
           payment_due_date: editPaymentDueDate || null,
@@ -204,6 +209,7 @@ export default function InvoiceDetailPage() {
               ...prev,
               status: editStatus,
               issue_status: editIssueStatus,
+              issue_date: issueDate,
               paid_amount: paidAmount,
               unpaid_amount: unpaidAmount,
               payment_due_date: editPaymentDueDate || null,

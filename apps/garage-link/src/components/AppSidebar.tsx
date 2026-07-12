@@ -26,6 +26,8 @@ const vehicleMainItems: MenuItem[] = [
   { label: 'ダッシュボード', href: '/dashboard' },
   { label: '車両一覧', href: '/vehicles' },
   { label: '入庫・出庫管理', href: '/vehicle-management' },
+  { label: '来店・試乗予約', href: '/appointments' },
+  { label: '問い合わせ', href: '/inquiries' },
   { label: '整備・車検', href: '/maintenance' },
   { label: '部品管理', href: '/parts' },
   { label: '顧客管理', href: '/customers' },

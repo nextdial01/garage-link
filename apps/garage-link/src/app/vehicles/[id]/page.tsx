@@ -27,6 +27,11 @@ type VehicleRow = {
   purchase_price: number | null;
   base_price: number | null;
   total_price: number | null;
+  market_value: number | null;
+  market_source: string | null;
+  market_checked_at: string | null;
+  market_conditions: string | null;
+  market_note: string | null;
   status: string | null;
   location_name: string | null;
   description: string | null;
@@ -35,17 +40,19 @@ type VehicleRow = {
 type DealRow = { id: string; customer_id: string | null; deal_no: string | null; title: string | null; status: string | null; next_action_at: string | null };
 type CustomerRow = { id: string; name: string | null };
 type MaintenanceRow = { id: string; job_no: string | null; job_type: string | null; status: string | null; scheduled_in_at: string | null; scheduled_delivery_at: string | null };
+type ListingStatusRow = { id: string; vehicle_id: string; channel: string; status: string; listing_url: string | null; last_checked_at: string | null; error_message: string | null };
 
 type VehicleForm = {
   management_no: string; vehicle_type: string; maker: string; model_name: string; grade: string; vin: string; registration_no: string;
   first_registration_month: string; model_year: string; displacement_cc: string; mileage_km: string; color: string; inspection_expiry_date: string;
-  purchase_price: string; base_price: string; total_price: string; status: string; location_name: string; description: string; internal_memo: string;
+  purchase_price: string; base_price: string; total_price: string; market_value: string; market_source: string; market_checked_at: string; market_conditions: string; market_note: string;
+  status: string; location_name: string; description: string; internal_memo: string;
 };
 
 const inputClass = 'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100';
 const emptyForm: VehicleForm = {
   management_no: '', vehicle_type: '', maker: '', model_name: '', grade: '', vin: '', registration_no: '', first_registration_month: '',
-  model_year: '', displacement_cc: '', mileage_km: '', color: '', inspection_expiry_date: '', purchase_price: '', base_price: '', total_price: '',
+  model_year: '', displacement_cc: '', mileage_km: '', color: '', inspection_expiry_date: '', purchase_price: '', base_price: '', total_price: '', market_value: '', market_source: '', market_checked_at: '', market_conditions: '', market_note: '',
   status: '在庫中', location_name: '', description: '', internal_memo: '',
 };
 
@@ -94,6 +101,9 @@ function mapVehicleToForm(vehicle: VehicleRow): VehicleForm {
     purchase_price: vehicle.purchase_price === null ? '' : String(vehicle.purchase_price ?? ''),
     base_price: vehicle.base_price === null ? '' : String(vehicle.base_price ?? ''),
     total_price: vehicle.total_price === null ? '' : String(vehicle.total_price ?? ''),
+    market_value: vehicle.market_value === null ? '' : String(vehicle.market_value ?? ''),
+    market_source: vehicle.market_source ?? '', market_checked_at: vehicle.market_checked_at ?? '',
+    market_conditions: vehicle.market_conditions ?? '', market_note: vehicle.market_note ?? '',
     status: vehicle.status ?? '在庫中',
     location_name: vehicle.location_name ?? '',
     description: vehicle.description ?? '',
@@ -127,6 +137,7 @@ export default function VehicleDetailPage() {
   const [deals, setDeals] = useState<DealRow[]>([]);
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceRow[]>([]);
+  const [listingStatuses, setListingStatuses] = useState<ListingStatusRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -146,11 +157,12 @@ export default function VehicleDetailPage() {
         const { data: member, error: memberError } = await supabase.from<StoreMemberRow>('store_members').select('store_id').eq('user_id', userData.user.id).single();
         if (memberError || !member?.store_id) throw new Error('所属店舗が見つかりません。');
         setStoreId(member.store_id);
-        const [vehicleResult, dealResult, customerResult, maintenanceResult] = await Promise.all([
+        const [vehicleResult, dealResult, customerResult, maintenanceResult, listingResult] = await Promise.all([
           supabase.from<VehicleRow>('vehicles').select('*').eq('id', vehicleId).eq('store_id', member.store_id).single(),
           supabase.from<DealRow>('deals').select('id, customer_id, deal_no, title, status, next_action_at').eq('vehicle_id', vehicleId).eq('store_id', member.store_id).order('created_at', { ascending: false }),
           supabase.from<CustomerRow>('customers').select('id, name').eq('store_id', member.store_id),
           supabase.from<MaintenanceRow>('maintenance_jobs').select('id, job_no, job_type, status, scheduled_in_at, scheduled_delivery_at').eq('vehicle_id', vehicleId).eq('store_id', member.store_id).order('created_at', { ascending: false }),
+          supabase.from<ListingStatusRow>('vehicle_listing_statuses').select('id, vehicle_id, channel, status, listing_url, last_checked_at, error_message').eq('vehicle_id', vehicleId).eq('store_id', member.store_id),
         ]);
         if (vehicleResult.error || !vehicleResult.data) {
           if (vehicleResult.error?.message.toLowerCase().includes('0 rows')) setNotFound(true);
@@ -160,10 +172,12 @@ export default function VehicleDetailPage() {
         if (dealResult.error) throw new Error(dealResult.error.message);
         if (customerResult.error) throw new Error(customerResult.error.message);
         if (maintenanceResult.error) throw new Error(maintenanceResult.error.message);
+        if (listingResult.error) throw new Error(listingResult.error.message);
         setForm(mapVehicleToForm(vehicleResult.data));
         setDeals(dealResult.data ?? []);
         setCustomers(customerResult.data ?? []);
         setMaintenance(maintenanceResult.data ?? []);
+        setListingStatuses(listingResult.data ?? []);
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : '車両詳細の取得に失敗しました。');
       } finally {
@@ -184,6 +198,8 @@ export default function VehicleDetailPage() {
         first_registration_month: toNullableText(form.first_registration_month), model_year: toNullableNumber(form.model_year), displacement_cc: toNullableNumber(form.displacement_cc),
         mileage_km: toNullableNumber(form.mileage_km), color: toNullableText(form.color), inspection_expiry_date: form.inspection_expiry_date || null,
         purchase_price: toNullableNumber(form.purchase_price), base_price: toNullableNumber(form.base_price), total_price: toNullableNumber(form.total_price),
+        market_value: toNullableNumber(form.market_value), market_source: toNullableText(form.market_source), market_checked_at: form.market_checked_at || null,
+        market_conditions: toNullableText(form.market_conditions), market_note: toNullableText(form.market_note),
         status: toNullableText(form.status), location_name: toNullableText(form.location_name), description: toNullableText(form.description), internal_memo: toNullableText(form.internal_memo),
       }).eq('id', vehicleId).eq('store_id', storeId);
       if (error) throw new Error(error.message);
@@ -193,6 +209,37 @@ export default function VehicleDetailPage() {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  async function saveListingStatus(channel: string, status: string, listingUrl: string) {
+    try {
+      setErrorMessage(''); setSuccessMessage('');
+      if (!storeId) throw new Error('所属店舗が見つかりません。');
+      const supabase = createClient();
+      const current = listingStatuses.find((item) => item.channel === channel);
+      const { data, error } = await supabase.from<ListingStatusRow>('vehicle_listing_statuses').upsert({
+        ...(current?.id ? { id: current.id } : {}), store_id: storeId, vehicle_id: vehicleId, channel, status,
+        listing_url: toNullableText(listingUrl), last_checked_at: new Date().toISOString(),
+        error_message: status === 'エラー' ? current?.error_message ?? null : null,
+      }, { onConflict: 'vehicle_id,channel' }).select('id, vehicle_id, channel, status, listing_url, last_checked_at, error_message').single();
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error('掲載状態を保存できませんでした。');
+      setListingStatuses((items) => [...items.filter((item) => item.channel !== channel), data]);
+      setSuccessMessage(`${channel}の掲載状態を保存しました。`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '掲載状態の保存に失敗しました。');
+    }
+  }
+
+  function listingStatus(channel: string) {
+    return listingStatuses.find((item) => item.channel === channel);
+  }
+
+  function listingNextAction(status: string) {
+    if (status === '掲載中') return '対応不要';
+    if (status === 'エラー') return 'エラー内容を確認';
+    if (status === '停止') return '再掲載するか確認';
+    return '掲載先を設定';
   }
 
   return (
@@ -220,6 +267,34 @@ export default function VehicleDetailPage() {
           <Section title="価格情報">
             <div className="grid gap-4 md:grid-cols-3">
               {(['purchase_price','base_price','total_price'] as const).map((name) => <Field key={name} label={priceLabels[name]}><input type="number" className={`${inputClass} text-right`} value={form[name]} onChange={(event) => updateField(name, event.target.value)} /></Field>)}
+            </div>
+          </Section>
+          <Section title="相場確認">
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">相場は参考情報です。出所・確認日・条件がない数字は相場として扱いません。</div>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <Field label="参考相場"><input type="number" className={`${inputClass} text-right`} value={form.market_value} onChange={(event) => updateField('market_value', event.target.value)} placeholder="未確認" /></Field>
+              <Field label="出どころ"><input className={inputClass} value={form.market_source} onChange={(event) => updateField('market_source', event.target.value)} placeholder="例：Goo小売 / AA / 自店実績" /></Field>
+              <Field label="確認日"><input type="date" className={inputClass} value={form.market_checked_at} onChange={(event) => updateField('market_checked_at', event.target.value)} /></Field>
+              <Field label="検索条件" wide><input className={inputClass} value={form.market_conditions} onChange={(event) => updateField('market_conditions', event.target.value)} placeholder="例：2021年・5万km・大阪府" /></Field>
+              <Field label="相場メモ" wide><textarea className={`${inputClass} min-h-20`} value={form.market_note} onChange={(event) => updateField('market_note', event.target.value)} placeholder="価格を決めた理由など" /></Field>
+            </div>
+            <p className="mt-4 text-sm font-bold text-slate-700">{form.market_value && form.market_source && form.market_checked_at ? `参考相場 ${Number(form.market_value).toLocaleString()}円（${form.market_source}・${form.market_checked_at}確認）` : '相場未確認'}</p>
+          </Section>
+          <Section title="掲載状況">
+            <p className="mb-4 text-sm text-slate-500">外部媒体との自動連携前でも、今どこに掲載しているかを記録できます。</p>
+            <div className="space-y-3">
+              {['Goo', 'カーセンサー', '自社サイト', 'Google'].map((channel) => {
+                const current = listingStatus(channel);
+                const currentStatus = current?.status ?? '未掲載';
+                return <div key={channel} className="grid gap-3 rounded-xl border border-slate-200 p-4 md:grid-cols-[1fr_170px_1.5fr_auto] md:items-center">
+                  <div><p className="font-bold text-slate-950">{channel}</p><p className="mt-1 text-xs text-slate-500">次にすること: {listingNextAction(currentStatus)}</p>{current?.last_checked_at && <p className="mt-1 text-xs text-slate-400">確認: {formatDateTime(current.last_checked_at)}</p>}</div>
+                  <select aria-label={`${channel}の掲載状態`} className={inputClass} defaultValue={currentStatus} id={`listing-status-${channel}`}>
+                    {['未掲載', '掲載中', 'エラー', '停止'].map((option) => <option key={option}>{option}</option>)}
+                  </select>
+                  <input aria-label={`${channel}の掲載URL`} className={inputClass} defaultValue={current?.listing_url ?? ''} id={`listing-url-${channel}`} placeholder="掲載URL（任意）" />
+                  <button type="button" onClick={() => { const status = document.getElementById(`listing-status-${channel}`) as HTMLSelectElement | null; const url = document.getElementById(`listing-url-${channel}`) as HTMLInputElement | null; void saveListingStatus(channel, status?.value ?? '未掲載', url?.value ?? ''); }} className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">保存</button>
+                </div>;
+              })}
             </div>
           </Section>
           <Section title="関連商談">

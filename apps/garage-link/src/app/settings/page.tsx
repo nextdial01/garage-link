@@ -44,6 +44,11 @@ const settingCards = [
     description: '店舗設定や業務設定を別環境へ移行します。',
   },
   {
+    title: '会計ソフト連携（CSV出力）',
+    href: '/settings/accounting-export',
+    description: 'freee・弥生会計・マネーフォワード クラウド会計に取り込める仕訳CSVを出力します。',
+  },
+  {
     title: 'セキュリティ設定',
     href: '/settings/security',
     description: 'ログイン、権限、監査ログなどを確認します。',
@@ -121,7 +126,7 @@ export default function SettingsPage() {
     if (card.href === '/settings/members') return canManageMembers(role);
     if (card.href === '/settings/import-export') return canImportExportSettings(role);
     if (card.href === '/settings/company' || card.href === '/settings/documents') return canManageSettings(role);
-    if (card.href === '/settings/store' || card.href === '/settings/security' || card.href === '/settings/billing' || card.href === '/settings/customer-follow-up/inspection-reminders') return role === 'owner' || role === 'admin';
+    if (card.href === '/settings/store' || card.href === '/settings/security' || card.href === '/settings/billing' || card.href === '/settings/customer-follow-up/inspection-reminders' || card.href === '/settings/accounting-export') return role === 'owner' || role === 'admin';
     if (
       card.href === '/settings/audit-logs' ||
       card.href === '/settings/trash' ||

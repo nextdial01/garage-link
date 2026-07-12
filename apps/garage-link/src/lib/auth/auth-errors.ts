@@ -5,6 +5,8 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   'Password should be at least 6 characters': 'パスワードは6文字以上で入力してください。',
   'Unable to validate email address: invalid format': 'メールアドレスの形式が正しくありません。',
   'Signup requires a valid password': '有効なパスワードを入力してください。',
+  'Email rate limit exceeded': '少し時間をおいてから、もう一度お試しください。',
+  'Password recovery requires an email': 'メールアドレスを入力してください。',
   '既に店舗が登録されています。': '既に店舗が登録されています。ログインして続行してください。',
   '店舗名を入力してください。': '店舗名を入力してください。',
   'ログインが必要です。': 'ログインが必要です。再度ログインしてください。',

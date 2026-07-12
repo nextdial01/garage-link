@@ -25,7 +25,17 @@ type VehicleRow = {
   purchase_price?: number | null;
   purchase_date?: string | null;
   listing_price?: number | null;
+  market_value?: number | null;
+  market_source?: string | null;
+  market_checked_at?: string | null;
   created_at?: string | null;
+};
+
+type ListingStatusRow = {
+  vehicle_id: string;
+  channel: string;
+  status: string;
+  error_message: string | null;
 };
 
 const LONG_STAY_DEFAULT = 90;
@@ -81,6 +91,8 @@ export default function VehiclesPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [longStayOnly, setLongStayOnly] = useState(false);
   const [longStayThreshold, setLongStayThreshold] = useState(LONG_STAY_DEFAULT);
+  const [listingStatuses, setListingStatuses] = useState<ListingStatusRow[]>([]);
+  const [listingStatusError, setListingStatusError] = useState('');
 
   useEffect(() => {
     async function loadVehicles() {
@@ -118,6 +130,18 @@ export default function VehiclesPage() {
         }
 
         setVehicles((data ?? []).filter((vehicle) => !vehicle.deleted_at && vehicle.is_archived !== true));
+
+        const { data: listingData, error: listingError } = await supabase
+          .from<ListingStatusRow>('vehicle_listing_statuses')
+          .select('vehicle_id, channel, status, error_message')
+          .eq('store_id', member.store_id);
+        if (listingError) {
+          // 媒体連携未設定でも、車両一覧自体は止めない。
+          setListingStatusError('媒体掲載状況はまだ設定されていません。');
+          setListingStatuses([]);
+        } else {
+          setListingStatuses(listingData ?? []);
+        }
 
         // 長期滞留閾値（自店舗のみ。RLSで店舗越境なし）
         const { data: storeRow } = await supabase
@@ -170,8 +194,33 @@ export default function VehiclesPage() {
         return d !== null && d > longStayThreshold;
       });
     }
+    const statusMap = new Map<string, ListingStatusRow[]>();
+    listingStatuses.forEach((item) => statusMap.set(item.vehicle_id, [...(statusMap.get(item.vehicle_id) ?? []), item]));
+    return [...result].sort((a, b) => {
+      const riskScore = (vehicle: VehicleRow) => {
+        const statuses = statusMap.get(vehicle.id) ?? [];
+        const hasListingError = statuses.some((item) => item.status === 'エラー');
+        const isPublishedAfterSale = ['売約済み', '納車済み'].includes(vehicle.status ?? '') && statuses.some((item) => item.status === '掲載中');
+        const marketMissing = vehicle.market_value == null || !vehicle.market_source || !vehicle.market_checked_at;
+        const longStay = (daysInStock(vehicle) ?? 0) > longStayThreshold;
+        return (isPublishedAfterSale ? 1000 : 0) + (hasListingError ? 500 : 0) + (marketMissing ? 50 : 0) + (longStay ? 20 : 0);
+      };
+      return riskScore(b) - riskScore(a);
+    });
+  }, [vehicles, searchQuery, statusFilter, longStayOnly, longStayThreshold, listingStatuses]);
+
+  const listingByVehicle = useMemo(() => {
+    const result = new Map<string, ListingStatusRow[]>();
+    listingStatuses.forEach((item) => result.set(item.vehicle_id, [...(result.get(item.vehicle_id) ?? []), item]));
     return result;
-  }, [vehicles, searchQuery, statusFilter, longStayOnly, longStayThreshold]);
+  }, [listingStatuses]);
+
+  const attentionCount = useMemo(() => vehicles.filter((vehicle) => {
+    const statuses = listingByVehicle.get(vehicle.id) ?? [];
+    return statuses.some((item) => item.status === 'エラー')
+      || (['売約済み', '納車済み'].includes(vehicle.status ?? '') && statuses.some((item) => item.status === '掲載中'))
+      || vehicle.market_value == null || !vehicle.market_source || !vehicle.market_checked_at;
+  }).length, [vehicles, listingByVehicle]);
 
   return (
     <AppShell
@@ -197,6 +246,12 @@ export default function VehiclesPage() {
             <p className="mt-3 text-3xl font-bold">{stat.value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+        <p className="text-sm font-black text-amber-900">要確認 {attentionCount}件</p>
+        <p className="mt-1 text-sm text-amber-800">掲載エラー、売約後も掲載中、相場未確認の車両を上から表示しています。</p>
+        {listingStatusError && <p className="mt-2 text-xs font-bold text-amber-700">{listingStatusError}</p>}
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -270,6 +325,7 @@ export default function VehiclesPage() {
                   <th className="px-5 py-4 text-right">見込み粗利</th>
                   <th className="px-5 py-4 text-right">在庫日数</th>
                   <th className="px-5 py-4">ステータス</th>
+                  <th className="px-5 py-4">要確認</th>
                   <th className="px-5 py-4">保管場所</th>
                   <th className="px-5 py-4">詳細</th>
                 </tr>
@@ -282,9 +338,13 @@ export default function VehiclesPage() {
                   const days = daysInStock(vehicle);
                   const isLongStay = days !== null && days > longStayThreshold;
                   const profit = expectedProfit(vehicle);
+                  const listingItems = listingByVehicle.get(vehicle.id) ?? [];
+                  const listingError = listingItems.some((item) => item.status === 'エラー');
+                  const publishedAfterSale = ['売約済み', '納車済み'].includes(status) && listingItems.some((item) => item.status === '掲載中');
+                  const marketMissing = vehicle.market_value == null || !vehicle.market_source || !vehicle.market_checked_at;
 
                   return (
-                    <tr key={vehicle.id} className={`hover:bg-blue-50/50 ${isLongStay ? 'bg-amber-50/60' : ''}`}>
+                    <tr key={vehicle.id} className={`hover:bg-blue-50/50 ${publishedAfterSale || listingError ? 'bg-red-50/70' : isLongStay || marketMissing ? 'bg-amber-50/60' : ''}`}>
                       <td className="px-5 py-4 font-semibold">
                         {vehicle.management_no ?? '-'}
                       </td>
@@ -294,6 +354,15 @@ export default function VehiclesPage() {
                       </td>
                       <td className="px-5 py-4">
                         {vehicle.model_year ?? '-'}
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex max-w-[190px] flex-wrap gap-1">
+                          {publishedAfterSale && <span className="rounded-full bg-red-100 px-2 py-1 text-[11px] font-black text-red-700">売約後も掲載中</span>}
+                          {listingError && <span className="rounded-full bg-red-100 px-2 py-1 text-[11px] font-black text-red-700">掲載エラー</span>}
+                          {marketMissing && <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-black text-amber-800">相場未確認</span>}
+                          {isLongStay && <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-black text-amber-800">長期滞留</span>}
+                          {!publishedAfterSale && !listingError && !marketMissing && !isLongStay && <span className="text-xs font-bold text-green-700">確認不要</span>}
+                        </div>
                       </td>
                       <td className="px-5 py-4">
                         {formatMileage(vehicle.mileage_km)}

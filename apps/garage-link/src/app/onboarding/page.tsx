@@ -8,15 +8,6 @@ import { translateAuthError } from '@/lib/auth/auth-errors';
 import { fetchStoreForOnboarding, markOnboardingComplete } from '@/lib/auth/store-onboarding';
 import { createClient } from '@/lib/supabase/client';
 
-type StoreRow = {
-  id: string;
-  name: string | null;
-  phone: string | null;
-  address: string | null;
-  representative_name: string | null;
-  onboarding_completed_at: string | null;
-};
-
 const STEP_LABELS = ['法人・店舗の基本情報', '最初にやること', '準備完了'];
 
 export default function OnboardingPage() {
@@ -281,7 +272,7 @@ export default function OnboardingPage() {
         {step === 2 && (
           <div className="space-y-4">
             <h2 className="text-lg font-bold">最初にやること</h2>
-            <p className="text-sm text-slate-600">ダッシュボードに入ったら、次の順番がおすすめです。</p>
+            <p className="text-sm text-slate-600">最初はこの3つだけで大丈夫です。</p>
             <ol className="space-y-3 text-sm leading-7 text-slate-700">
               <li className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <span className="font-bold text-blue-700">1.</span> 車両を1台登録する（在庫管理の起点）
@@ -327,8 +318,20 @@ export default function OnboardingPage() {
             </div>
             <h2 className="text-lg font-bold">準備完了です</h2>
             <p className="text-sm leading-7 text-slate-600">
-              ダッシュボードから在庫登録を始められます。困ったときは設定画面の「本番前チェックリスト」をご確認ください。
+              まずは1台登録すると始めやすいです。困ったときはヘルプをご確認ください。
             </p>
+            <Link
+              href="/vehicles/new"
+              className="block w-full rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-bold text-blue-700 hover:bg-blue-100"
+            >
+              先に1台登録する
+            </Link>
+            <Link
+              href="/help"
+              className="block w-full rounded-xl border border-slate-300 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+            >
+              ヘルプを見る
+            </Link>
             <button
               type="button"
               disabled={isSaving}

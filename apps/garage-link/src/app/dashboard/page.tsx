@@ -17,6 +17,10 @@ type VehicleRow = {
   status: string | null;
   location_name: string | null;
   total_price: number | null;
+  purchase_date?: string | null;
+  market_value?: number | null;
+  market_source?: string | null;
+  market_checked_at?: string | null;
   created_at: string | null;
 };
 
@@ -54,6 +58,8 @@ type VehicleDashboardSummary = {
   maintenanceJobs: MaintenanceRow[];
   inventoryCounts: InventoryRow[];
 };
+
+type ListingStatusRow = { vehicle_id: string; channel: string; status: string };
 
 const emptySummary: VehicleDashboardSummary = {
   vehicles: [],
@@ -168,6 +174,8 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [metrics, setMetrics] = useState<InventoryMetrics | null>(null);
   const [metricsError, setMetricsError] = useState('');
+  const [todayKey] = useState(() => new Date().toISOString().slice(0, 10));
+  const [listingStatuses, setListingStatuses] = useState<ListingStatusRow[]>([]);
 
   useEffect(() => {
     async function loadSummary() {
@@ -187,10 +195,10 @@ export default function DashboardPage() {
 
         if (!member?.store_id) return;
 
-        const [vehicles, deals, maintenanceJobs, inventoryCounts] = await Promise.all([
+        const [vehicles, deals, maintenanceJobs, inventoryCounts, listingStatuses] = await Promise.all([
           supabase
             .from<VehicleRow>('vehicles')
-            .select('id, management_no, maker, model_name, status, location_name, total_price, created_at')
+            .select('id, management_no, maker, model_name, status, location_name, total_price, purchase_date, market_value, market_source, market_checked_at, created_at')
             .eq('store_id', member.store_id)
             .order('created_at', { ascending: false }),
           supabase
@@ -206,6 +214,10 @@ export default function DashboardPage() {
             .from<InventoryRow>('inventory_counts')
             .select('id, count_no, name, status, planned_date')
             .eq('store_id', member.store_id),
+          supabase
+            .from<ListingStatusRow>('vehicle_listing_statuses')
+            .select('vehicle_id, channel, status')
+            .eq('store_id', member.store_id),
         ]);
 
         setSummary({
@@ -214,6 +226,7 @@ export default function DashboardPage() {
           maintenanceJobs: maintenanceJobs.data ?? [],
           inventoryCounts: inventoryCounts.data ?? [],
         });
+        setListingStatuses(listingStatuses.data ?? []);
         // 在庫指標（041 RPC・サーバ側集計・店舗スコープ）
         const metricsResult = await supabase.rpc('inventory_dashboard_metrics', { p_store_id: member.store_id });
         if (metricsResult.error) setMetricsError('在庫指標の取得に失敗しました。');
@@ -237,6 +250,19 @@ export default function DashboardPage() {
   const maintenanceCount = summary.vehicles.filter((vehicle) => vehicle.status === '整備中').length + summary.maintenanceJobs.filter((job) => job.status === '作業中').length;
   const activeDeals = summary.deals.filter((deal) => !['成約', '失注'].includes(deal.status ?? '')).length;
   const wonDeals = summary.deals.filter((deal) => deal.status === '成約').length;
+  const todayActions = useMemo(() => {
+    const today = todayKey;
+    const tomorrow = new Date(`${todayKey}T00:00:00Z`);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const tomorrowKey = tomorrow.toISOString().slice(0, 10);
+    const vehicleMap = new Map(summary.vehicles.map((vehicle) => [vehicle.id, vehicle]));
+    const actions: Array<{ title: string; detail: string; href: string; tone: 'red' | 'amber' | 'blue' }> = [];
+    summary.deals.filter((deal) => deal.next_action_at && deal.next_action_at.slice(0, 10) <= today && !['成約', '失注'].includes(deal.status ?? '')).slice(0, 4).forEach((deal) => actions.push({ title: '商談に対応', detail: `${deal.title ?? deal.deal_no ?? '商談'}の次回対応日です`, href: `/deals/${deal.id}`, tone: 'red' }));
+    summary.maintenanceJobs.filter((job) => job.scheduled_delivery_at && job.scheduled_delivery_at.slice(0, 10) <= tomorrowKey && !['完了', '納車済み'].includes(job.status ?? '')).slice(0, 3).forEach((job) => actions.push({ title: '整備予定を確認', detail: `${job.reception_no ?? '整備案件'}の納車予定を確認`, href: `/maintenance/${job.id}`, tone: 'blue' }));
+    summary.vehicles.filter((vehicle) => vehicle.market_value == null || !vehicle.market_source || !vehicle.market_checked_at).slice(0, 3).forEach((vehicle) => actions.push({ title: '相場を確認', detail: `${vehicleLabel(vehicle)}は相場未確認`, href: `/vehicles/${vehicle.id}`, tone: 'amber' }));
+    listingStatuses.filter((item) => item.status === 'エラー').slice(0, 3).forEach((item) => { const vehicle = vehicleMap.get(item.vehicle_id); if (vehicle) actions.push({ title: '掲載エラーを確認', detail: `${vehicleLabel(vehicle)}の${item.channel}掲載`, href: `/vehicles/${vehicle.id}`, tone: 'red' }); });
+    return actions.slice(0, 8);
+  }, [summary, listingStatuses, todayKey]);
 
   return (
     <AppShell
@@ -263,6 +289,17 @@ export default function DashboardPage() {
               <p className="text-xs font-bold text-slate-400">確認状態</p>
               <p className="mt-1 text-sm font-black text-slate-800">{isLoading ? '読み込み中' : '最新データを表示中'}</p>
             </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-baseline justify-between gap-3">
+            <div><h3 className="text-base font-black text-slate-950">今日やること</h3><p className="mt-1 text-sm text-slate-500">期限が近いもの、止まっているものから表示します。</p></div>
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{todayActions.length}件</span>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {todayActions.map((action, index) => <Link key={`${action.href}-${index}`} href={action.href} className={`rounded-xl border px-4 py-3 transition hover:shadow-sm ${action.tone === 'red' ? 'border-red-200 bg-red-50/60' : action.tone === 'amber' ? 'border-amber-200 bg-amber-50/60' : 'border-blue-200 bg-blue-50/50'}`}><p className="text-sm font-black text-slate-950">{action.title}</p><p className="mt-1 text-xs font-semibold text-slate-600">{action.detail}</p></Link>)}
+            {todayActions.length === 0 && <p className="rounded-xl bg-green-50 px-4 py-4 text-sm font-bold text-green-800">今日の対応はありません。</p>}
           </div>
         </section>
 

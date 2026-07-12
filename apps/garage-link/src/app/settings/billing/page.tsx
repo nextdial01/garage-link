@@ -275,7 +275,7 @@ export default function BillingSettingsPage() {
       if (!response.ok || !payload.ok || !payload.url) {
         throw new Error(payload.error ?? 'Checkout の開始に失敗しました。');
       }
-      window.location.href = payload.url;
+      window.location.assign(payload.url);
     } catch (error) {
       setErrorMessage(translateDbError(error instanceof Error ? error.message : 'Checkout の開始に失敗しました。'));
     } finally {
@@ -296,7 +296,7 @@ export default function BillingSettingsPage() {
     <AppShell
       activeLabel="プラン・契約"
       title="プラン・契約"
-      description="現在の契約内容、料金プラン、追加オプションの申込を管理します。"
+      description="今のプラン確認と、プラン変更の申込ができます。"
       actionButton={
         <>
           <Link href="/admin/plan-requests" className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700">
@@ -343,7 +343,7 @@ export default function BillingSettingsPage() {
           <section className="space-y-4">
             <div>
               <h3 className="text-lg font-bold text-slate-950">プランを選ぶ</h3>
-              <p className="mt-1 text-sm text-slate-500">有料プランはボタン1つで Stripe Checkout（テスト）へ進みます。表示価格は税抜です。</p>
+              <p className="mt-1 text-sm text-slate-500">有料プランは下のボタンから決済ページへ進みます。表示価格は税抜です。</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {GARAGE_PLAN_ORDER.map((code) => {
@@ -385,7 +385,7 @@ export default function BillingSettingsPage() {
                           disabled={isStripeLoading || !stripeConfigured}
                           className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                         >
-                          {isStripeLoading ? 'Stripeへ移動中...' : isCancelledRetention ? '再契約する' : 'このプランで申し込む'}
+                          {isStripeLoading ? '決済ページを開いています...' : isCancelledRetention ? '再契約する' : 'このプランで進む'}
                         </button>
                       ) : (
                         <p className="rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-semibold text-slate-500">
@@ -399,7 +399,7 @@ export default function BillingSettingsPage() {
             </div>
             {!stripeConfigured && (
               <p className="text-xs font-semibold text-slate-500">
-                Stripe Checkout を使うには `pnpm stripe:setup-test` で Price ID を作成してください。
+                いまは決済の準備中です。お急ぎの場合は下の手動申込をご利用ください。
               </p>
             )}
           </section>

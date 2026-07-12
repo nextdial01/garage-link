@@ -7,6 +7,9 @@ const PUBLIC_PATHS = [
   '/login',
   '/signup',
   '/forgot-password',
+  '/auth/callback',
+  '/auth/reset-password',
+  '/help',
   '/logout',
   '/legal/terms',
   '/legal/privacy',
@@ -23,6 +26,9 @@ const CANCELLED_RETENTION_ALLOWED = [
 function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true;
   if (pathname.startsWith('/legal/')) return true;
+  // Google向け在庫フィードはBearerトークン/クエリトークンで自前認証するため、
+  // セッションCookieを持たないクローラーからのアクセスをここで弾かない。
+  if (pathname === '/api/vehicles/google-feed') return true;
   return false;
 }
 

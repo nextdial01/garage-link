@@ -38,6 +38,7 @@ declare module '@supabase/ssr' {
     eq(column: string, value: unknown): QueryBuilder<TRecord>;
     gte(column: string, value: unknown): QueryBuilder<TRecord>;
     lte(column: string, value: unknown): QueryBuilder<TRecord>;
+    in(column: string, values: unknown[]): QueryBuilder<TRecord>;
     or(filters: string): QueryBuilder<TRecord>;
     order(
       column: string,
@@ -50,6 +51,10 @@ declare module '@supabase/ssr' {
 
   type SupabaseClient = {
     auth: {
+      getSession(): Promise<{
+        data: { session: { user: AuthUser | null } | null };
+        error: AuthError | null;
+      }>;
       getUser(): Promise<{
         data: { user: AuthUser | null };
         error: AuthError | null;
@@ -67,6 +72,17 @@ declare module '@supabase/ssr' {
         email: string,
         options?: { redirectTo?: string }
       ): Promise<{ data: unknown; error: AuthError | null }>;
+      updateUser(credentials: {
+        password: string;
+      }): Promise<{ data: { user: AuthUser | null }; error: AuthError | null }>;
+      exchangeCodeForSession(code: string): Promise<{
+        data: { session: unknown; user: AuthUser | null };
+        error: AuthError | null;
+      }>;
+      setSession(credentials: {
+        access_token: string;
+        refresh_token: string;
+      }): Promise<{ data: { session: unknown; user: AuthUser | null }; error: AuthError | null }>;
     };
     from<TRecord extends object>(
       table: string

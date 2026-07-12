@@ -95,7 +95,7 @@ function SignupForm() {
     setInfoMessage('');
 
     if (!acceptedTerms) {
-      setMessage('利用規約とプライバシーポリシーへの同意が必要です。下のチェックボックスにチェックを入れてください。');
+      setMessage('同意にチェックしてください。');
       return;
     }
 
@@ -105,7 +105,7 @@ function SignupForm() {
     }
 
     if (password !== passwordConfirmation) {
-      setMessage('パスワードとパスワード確認が一致しません。もう一度確認してください。');
+      setMessage('同じパスワードを入力してください。');
       return;
     }
 
@@ -232,7 +232,7 @@ function SignupForm() {
         </div>
 
         <ol className="mb-6 space-y-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-          <li className="font-bold text-blue-700">1. この画面でアカウント作成</li>
+          <li className="font-bold text-blue-700">1. この画面で登録</li>
           <li>2. 店舗の基本情報を登録（オンボーディング）</li>
           <li>3. ダッシュボードから在庫登録を開始</li>
         </ol>
@@ -267,6 +267,7 @@ function SignupForm() {
               placeholder="例: 田中 太郎"
               className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
             />
+            <p className="mt-1 text-xs text-slate-500">後から変更できます</p>
           </div>
 
           <div>
@@ -356,7 +357,7 @@ function SignupForm() {
 
           {!acceptedTerms && (
             <p className="text-xs font-semibold text-amber-800">
-              送信するには、上の同意チェックが必要です
+              チェックすると送信できます
             </p>
           )}
 
@@ -404,7 +405,7 @@ export default function SignupPage() {
     <Suspense
       fallback={
         <main className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-600">
-          読み込み中...
+          登録画面を開いています...
         </main>
       }
     >

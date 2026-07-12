@@ -39,7 +39,6 @@ export default function Home() {
     <main className="min-h-screen bg-white text-slate-950">
       <script
         type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
       <section className="mx-auto flex min-h-[70vh] max-w-5xl flex-col items-center justify-center px-6 py-16 text-center">
@@ -69,6 +68,12 @@ export default function Home() {
           >
             ログイン
           </Link>
+        </div>
+        <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 text-left text-sm leading-6 text-blue-900">
+          <p className="font-bold">申込の流れ</p>
+          <p className="mt-1">
+            Freeはそのまま開始できます。有料プランはアプリ内で申込後、担当者が内容を確認して反映します。
+          </p>
         </div>
       </section>
 
@@ -144,13 +149,17 @@ export default function Home() {
               </article>
             ))}
           </div>
-          <p className="mt-6 text-center text-xs text-slate-500">
-            決済連携（Stripe）は準備中です。現時点ではアプリ内申込 → 手動反映で有料プラン開始できます。
+          <p className="mt-6 text-center text-xs leading-6 text-slate-500">
+            決済連携（Stripe）は準備中です。現時点ではアプリ内申込のあと、担当者確認を経て有料プランを開始します。
           </p>
         </div>
       </section>
 
       <footer className="border-t px-6 py-8 text-center text-sm text-slate-500">
+        <Link href="/help" className="hover:text-blue-600">
+          ヘルプ
+        </Link>
+        <span className="mx-2">·</span>
         <Link href="/legal/terms" className="hover:text-blue-600">
           利用規約
         </Link>
