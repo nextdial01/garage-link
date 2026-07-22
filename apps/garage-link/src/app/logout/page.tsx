@@ -10,6 +10,7 @@ export default function LogoutPage() {
   useEffect(() => {
     async function signOut() {
       const supabase = createClient();
+      await fetch('/api/security/admin-access', { method: 'DELETE' }).catch(() => undefined);
       await supabase.auth.signOut();
       router.replace('/login');
     }

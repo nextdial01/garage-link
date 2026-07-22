@@ -1,12 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import Script from 'next/script';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import BrandLogo from '@/components/BrandLogo';
-import { translateAuthError } from '@/lib/auth/auth-errors';
-import { resolvePostAuthPath } from '@/lib/auth/post-auth-redirect';
-import { createClient } from '@/lib/supabase/client';
 
 export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
@@ -16,32 +14,63 @@ export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaEnabled = process.env.NEXT_PUBLIC_ENABLE_BOT_PROTECTION === 'true';
+  const captchaSiteKey = process.env.NEXT_PUBLIC_BOT_PROTECTION_SITE_KEY ?? '1x00000000000000000000AA';
+
+  useEffect(() => {
+    if (!captchaEnabled) return;
+    const browser = window as typeof window & { turnstile?: { render: (target: string, options: Record<string, unknown>) => void; reset: () => void }; onGarageTurnstileLoad?: () => void };
+    browser.onGarageTurnstileLoad = () => {
+      browser.turnstile?.render('#garage-login-turnstile', {
+        sitekey: captchaSiteKey,
+        callback: (token: string) => setCaptchaToken(token),
+        'expired-callback': () => setCaptchaToken(null),
+        'error-callback': () => setCaptchaToken(null),
+      });
+    };
+    return () => { delete browser.onGarageTurnstileLoad; };
+  }, [captchaEnabled, captchaSiteKey]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage('');
     setIsLoading(true);
 
-    const supabase = createClient();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-
-    if (error) {
-      setMessage(translateAuthError(error.message));
+    if (captchaEnabled && !captchaToken) {
+      setMessage('ボット対策の確認を完了してください。');
       setIsLoading(false);
       return;
     }
 
-    if (!data.user?.id) {
-      setMessage('ログインに失敗しました。もう一度お試しください。');
+    const response = await fetch('/api/auth/password-login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        email: email.trim(),
+        password,
+        captchaToken: captchaEnabled ? captchaToken : undefined,
+      }),
+    }).catch(() => null);
+    if (!response) {
+      setMessage('ログインサーバーへ接続できませんでした。時間をおいて再試行してください。');
+      setIsLoading(false);
+      return;
+    }
+    const result = await response.json().catch(() => null) as { error?: string } | null;
+
+    if (!response.ok) {
+      setMessage(result?.error ?? 'ログインに失敗しました。時間をおいて再試行してください。');
+      const browser = window as typeof window & { turnstile?: { reset: () => void } };
+      browser.turnstile?.reset();
+      setCaptchaToken(null);
       setIsLoading(false);
       return;
     }
 
-    const redirectPath = await resolvePostAuthPath(supabase, data.user.id, { nextPath });
+    const redirectPath = nextPath?.startsWith('/') && !nextPath.startsWith('//') ? nextPath : '/dashboard';
     router.replace(redirectPath);
+    router.refresh();
   }
 
   const card = (
@@ -108,6 +137,13 @@ export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
           <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
             {message}
           </p>
+        )}
+
+        {captchaEnabled && (
+          <div className="flex justify-center">
+            <div id="garage-login-turnstile" />
+            <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onGarageTurnstileLoad" strategy="lazyOnload" />
+          </div>
         )}
 
         <button

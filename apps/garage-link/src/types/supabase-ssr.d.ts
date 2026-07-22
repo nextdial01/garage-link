@@ -6,6 +6,7 @@ declare module '@supabase/ssr' {
 
   type AuthError = {
     message: string;
+    code?: string;
   };
 
   type AuthResponse = {
@@ -45,6 +46,7 @@ declare module '@supabase/ssr' {
       options?: { ascending?: boolean }
     ): QueryBuilder<TRecord>;
     range(from: number, to: number): QueryBuilder<TRecord>;
+    limit(count: number): QueryBuilder<TRecord>;
     single(): Promise<QueryResponse<TRecord>>;
     maybeSingle(): Promise<QueryResponse<TRecord>>;
   };
@@ -59,18 +61,24 @@ declare module '@supabase/ssr' {
         data: { user: AuthUser | null };
         error: AuthError | null;
       }>;
+      getClaims(): Promise<{
+        data: { claims: { sub?: string; email?: string; aal?: 'aal1' | 'aal2' } | null };
+        error: AuthError | null;
+      }>;
       signInWithPassword(credentials: {
         email: string;
         password: string;
+        options?: { captchaToken?: string };
       }): Promise<AuthResponse>;
       signUp(credentials: {
         email: string;
         password: string;
+        options?: { captchaToken?: string; emailRedirectTo?: string };
       }): Promise<AuthResponse>;
       signOut(): Promise<{ error: AuthError | null }>;
       resetPasswordForEmail(
         email: string,
-        options?: { redirectTo?: string }
+        options?: { redirectTo?: string; captchaToken?: string }
       ): Promise<{ data: unknown; error: AuthError | null }>;
       updateUser(credentials: {
         password: string;
@@ -83,6 +91,31 @@ declare module '@supabase/ssr' {
         access_token: string;
         refresh_token: string;
       }): Promise<{ data: { session: unknown; user: AuthUser | null }; error: AuthError | null }>;
+      mfa: {
+        getAuthenticatorAssuranceLevel(): Promise<{
+          data: { currentLevel: 'aal1' | 'aal2' | null; nextLevel: 'aal1' | 'aal2' | null } | null;
+          error: AuthError | null;
+        }>;
+        listFactors(): Promise<{
+          data: {
+            totp: Array<{ id: string; status: 'verified' | 'unverified'; factor_type: 'totp' }>;
+            all: Array<{ id: string; status: 'verified' | 'unverified'; factor_type: 'totp' | 'phone' | 'webauthn' }>;
+          };
+          error: AuthError | null;
+        }>;
+        enroll(params: { factorType: 'totp'; friendlyName?: string }): Promise<{
+          data: { id: string; totp: { qr_code: string; secret: string } };
+          error: AuthError | null;
+        }>;
+        challengeAndVerify(params: { factorId: string; code: string }): Promise<{
+          data: unknown;
+          error: AuthError | null;
+        }>;
+        unenroll(params: { factorId: string }): Promise<{
+          data: unknown;
+          error: AuthError | null;
+        }>;
+      };
     };
     from<TRecord extends object>(
       table: string
