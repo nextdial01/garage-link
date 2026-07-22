@@ -2,6 +2,20 @@ export const ADMIN_ACCESS_COOKIE = 'garage_admin_access';
 
 const encoder = new TextEncoder();
 
+type RoleLookupResult = {
+  data: Array<{ role: string | null }> | null;
+  error: unknown | null;
+};
+
+export function hasAdministratorRole(...lookups: RoleLookupResult[]) {
+  return lookups.some((lookup) =>
+    !lookup.error
+    && (lookup.data ?? []).some((membership) =>
+      ['owner', 'admin', 'implementer'].includes(membership.role ?? '')
+    )
+  );
+}
+
 async function hmacHex(secret: string, value: string) {
   const key = await crypto.subtle.importKey(
     'raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']

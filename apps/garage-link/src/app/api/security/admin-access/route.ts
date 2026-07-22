@@ -5,6 +5,7 @@ import {
   ADMIN_ACCESS_COOKIE,
   adminAccessCookieValue,
   createAdminAccessSalt,
+  hasAdministratorRole,
   hashAdminAccessCode,
   verifyAdminAccessCode,
 } from '@/lib/security/adminAccess';
@@ -31,9 +32,7 @@ async function getAdminContext() {
     service.from('memberships').select('role').eq('user_id', userId).eq('status', 'active').limit(10),
     service.from('store_members').select('role').eq('user_id', userId).in('status', ['active', 'member']).limit(10),
   ]);
-  const isAdministrator = !membershipRole.error && !storeRole.error
-    && [...(membershipRole.data ?? []), ...(storeRole.data ?? [])]
-      .some((membership) => ['owner', 'admin', 'implementer'].includes(membership.role ?? ''));
+  const isAdministrator = hasAdministratorRole(membershipRole, storeRole);
   if (!isAdministrator) return { error: '管理者権限が必要です。', status: 403 } as const;
 
   return { userId, service } as const;

@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import {
   adminAccessCookieValue,
+  hasAdministratorRole,
   loginIdentityHash,
   verifyAdminAccessCookie,
 } from '../../src/lib/security/adminAccess';
@@ -61,5 +62,22 @@ test.describe('Stripe security controls', () => {
     expect(await loginIdentityHash(secret, 'owner@example.com')).not.toBe(
       await loginIdentityHash(secret, 'other@example.com'),
     );
+  });
+
+  test('administrator role remains valid when one optional role source is unavailable', () => {
+    expect(hasAdministratorRole(
+      { data: null, error: new Error('permission denied') },
+      { data: [{ role: 'owner' }], error: null },
+    )).toBe(true);
+
+    expect(hasAdministratorRole(
+      { data: null, error: new Error('permission denied') },
+      { data: [{ role: 'staff' }], error: null },
+    )).toBe(false);
+
+    expect(hasAdministratorRole(
+      { data: null, error: new Error('permission denied') },
+      { data: null, error: new Error('permission denied') },
+    )).toBe(false);
   });
 });
