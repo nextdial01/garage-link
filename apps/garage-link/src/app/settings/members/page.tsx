@@ -161,6 +161,7 @@ export default function MemberSettingsPage() {
   const [currentRole, setCurrentRole] = useState('');
   const [currentDisplayName, setCurrentDisplayName] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<CompanySubscriptionRow | null>(null);
+  const [contractStaffCount, setContractStaffCount] = useState(0);
   const [members, setMembers] = useState<MemberFormRow[]>([]);
   const [newMember, setNewMember] = useState<NewMemberForm>(emptyNewMember);
   const [isLoading, setIsLoading] = useState(true);
@@ -203,6 +204,10 @@ export default function MemberSettingsPage() {
       setCurrentDisplayName(currentMember.display_name);
       const subscriptionData = await getActiveCompanySubscription(supabase, currentMember.store_id);
       setSubscription(subscriptionData);
+      const { data: usageData } = await supabase.rpc('get_garage_plan_usage', {
+        p_store_id: currentMember.store_id,
+      });
+      setContractStaffCount(Number((usageData as { staff_count?: number } | null)?.staff_count ?? 0));
 
       if (!allowedViewRoles.includes(currentMember.role ?? '')) {
         setMembers([]);
@@ -241,6 +246,10 @@ export default function MemberSettingsPage() {
       if (!newMember.email.trim()) throw new Error('メールアドレスを入力してください。');
       if (!canAddStaff(subscription)) {
         throw new Error('Freeプランではスタッフ追加はできません。プラン変更をご検討ください。');
+      }
+      const staffLimit = (subscription?.included_staff_count ?? 1) + (subscription?.extra_staff_count ?? 0);
+      if (contractStaffCount >= staffLimit) {
+        throw new Error(`契約全店舗のスタッフ上限（${staffLimit}名）に達しています。プラン・契約から追加スタッフをお申し込みください。`);
       }
 
       const supabase = createClient();
@@ -365,7 +374,7 @@ export default function MemberSettingsPage() {
         {isLoading ? (
           <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-semibold text-slate-500 shadow-sm">読み込み中...</p>
         ) : !canView ? (
-          <PermissionDeniedCard />
+          <PermissionDeniedCard backHref="/settings" />
         ) : (
           <>
             <div className="grid gap-4 md:grid-cols-4">

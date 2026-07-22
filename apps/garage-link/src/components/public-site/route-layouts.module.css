@@ -1,0 +1,126 @@
+.routeBody {
+  --navy: #0d2344;
+  --navy2: #173b68;
+  --green: #52bd79;
+  --ink: #0b1d38;
+  --muted: #617087;
+  --line: rgba(13,35,68,.14);
+  color: var(--ink);
+  background: #fff;
+}
+.routeBody * { box-sizing: border-box; }
+.shell { width: min(1160px, calc(100% - 48px)); margin: 0 auto; }
+.eyebrow { margin: 0 0 16px; color: #258553; font-size: 13px; font-weight: 900; letter-spacing: .13em; }
+.heroLead { max-width: 720px; margin: 22px auto 0; color: var(--muted); font-size: 17px; line-height: 1.85; }
+.headlineLine { display:block; word-break:keep-all; }
+.pricingHero h1, .vehicleHero h1, .dualHero h1, .scheduleHero h1, .faqHero h1 { margin: 0; font-size: clamp(38px,5vw,66px); line-height: 1.2; letter-spacing: -.035em; }
+
+.pricingHero { padding: 84px 0 44px; text-align: center; background: linear-gradient(180deg,#eff8f3,#fff); }
+.plans { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-top: 38px; text-align: left; }
+.plan { padding: 26px 22px; border: 1px solid var(--line); background: #fff; box-shadow: 0 18px 40px rgba(13,35,68,.08); }
+.plan.featured { position: relative; border: 2px solid var(--green); transform: translateY(-10px); }
+.planBadge { display: inline-flex; padding: 5px 9px; background: #e9f8ef; color: #20764a; font-size: 11px; font-weight: 900; }
+.plan h2 { margin: 16px 0 5px; font-size: 21px; }
+.price { display: flex; gap: 4px; align-items: baseline; margin-bottom: 18px; }
+.price strong { font-size: 36px; letter-spacing: -.04em; }
+.plan dl { margin: 0; border-top: 1px solid var(--line); }
+.plan dl div { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.plan dt { color: var(--muted); }
+.plan dd { margin: 0; font-weight: 800; text-align: right; }
+.inlineCta { display: inline-flex; margin-top: 20px; padding: 12px 17px; background: var(--navy); color:#fff; text-decoration:none; font-weight:800; }
+
+.detailSection, .pipelineSection, .laneSection, .scheduleSection, .faqSection { padding: 84px 0; }
+.sectionHeader { max-width: 760px; margin-bottom: 34px; }
+.sectionHeader h2 { margin:0 0 12px; font-size:clamp(30px,4vw,46px); line-height:1.3; }
+.sectionHeader p { margin:0; color:var(--muted); line-height:1.8; }
+.costRows { border-top: 2px solid var(--navy); }
+.costRow { display:grid; grid-template-columns: 260px 180px 1fr; gap:28px; padding:22px 0; border-bottom:1px solid var(--line); align-items:start; }
+.costRow strong { font-size:18px; }
+.costRow b { color:#257a4c; }
+.costRow p { margin:0; color:var(--muted); line-height:1.7; }
+
+.vehicleHero { padding: 80px 0 0; background: #f5f8fb; overflow:hidden; }
+.vehicleHero .heroLead, .dualHero .heroLead, .scheduleHero .heroLead { margin-left:0; }
+.vehiclePipeline { display:grid; grid-template-columns:repeat(5,1fr); margin-top:44px; background:var(--navy); color:#fff; }
+.vehiclePipeline article { position:relative; min-height:190px; padding:26px 22px; border-right:1px solid rgba(255,255,255,.15); }
+.vehiclePipeline article:last-child { border-right:0; }
+.vehiclePipeline span { color:var(--green); font-weight:900; font-size:12px; }
+.vehiclePipeline h2 { margin:38px 0 8px; font-size:19px; }
+.vehiclePipeline p { margin:0; color:#c8d3e1; line-height:1.6; }
+.vehiclePipeline article:not(:last-child)::after { content:""; position:absolute; right:-7px; top:50%; width:14px; height:14px; border-top:2px solid var(--green); border-right:2px solid var(--green); transform:rotate(45deg); }
+.dashboardStrip { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.metricPanel, .actionPanel { padding:30px; border:1px solid var(--line); }
+.metricPanel { background:#f4f8f6; }
+.metricPanel h3,.actionPanel h3 { margin:0 0 22px; font-size:22px; }
+.metrics { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+.metrics div { padding:18px; background:#fff; border-left:4px solid var(--green); }
+.metrics strong { display:block; font-size:28px; }
+.metrics span { color:var(--muted); font-size:13px; }
+.actionPanel ol { margin:0; padding:0; list-style:none; counter-reset:job; }
+.actionPanel li { counter-increment:job; display:flex; gap:14px; padding:14px 0; border-top:1px solid var(--line); }
+.actionPanel li::before { content:counter(job,decimal-leading-zero); color:#258553; font-weight:900; }
+
+.dualHero { padding:80px 0; background:linear-gradient(120deg,#f7faf8 0 50%,#eef3f9 50%); }
+.dualBoard { display:grid; grid-template-columns:1fr 80px 1fr; gap:0; margin-top:42px; align-items:stretch; }
+.lane { padding:30px; color:#fff; }
+.lane.sales { background:var(--navy); }
+.lane.service { background:#23533a; }
+.lane > span { font-size:12px; font-weight:900; letter-spacing:.1em; color:#8be0aa; }
+.lane h2 { margin:13px 0 24px; font-size:26px; }
+.lane ul { margin:0; padding:0; list-style:none; }
+.lane li { padding:12px 0; border-top:1px solid rgba(255,255,255,.18); }
+.merge { display:grid; place-items:center; background:#dff3e6; color:#17472f; font-weight:900; writing-mode:vertical-rl; letter-spacing:.16em; }
+.workTable { border-top:2px solid var(--navy); }
+.workRow { display:grid; grid-template-columns:180px 1fr 1fr; gap:28px; padding:24px 0; border-bottom:1px solid var(--line); }
+.workRow > span { color:#258553; font-weight:900; }
+.workRow h3 { margin:0; font-size:20px; }
+.workRow p { margin:0; color:var(--muted); line-height:1.75; }
+
+.scheduleHero { padding:80px 0 70px; background:#0d2344; color:#fff; }
+.scheduleHero .heroLead { color:#c4d0df; }
+.daySchedule { margin-top:40px; border-top:1px solid rgba(255,255,255,.2); }
+.slot { display:grid; grid-template-columns:90px 190px 1fr 160px; gap:22px; padding:18px 0; border-bottom:1px solid rgba(255,255,255,.16); align-items:center; }
+.slot time { color:#72d493; font-size:20px; font-weight:900; }
+.slot strong { font-size:17px; }
+.slot p { margin:0; color:#c4d0df; }
+.slot span { padding:7px 10px; border:1px solid rgba(255,255,255,.2); text-align:center; font-size:12px; font-weight:800; }
+.caseFlow { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+.caseFlow article { padding:24px; border-top:5px solid var(--green); background:#f5f8f6; }
+.caseFlow span { color:#258553; font-size:12px; font-weight:900; }
+.caseFlow h3 { margin:18px 0 8px; font-size:20px; }
+.caseFlow p { margin:0; color:var(--muted); line-height:1.7; }
+
+.faqHero { padding:84px 0 54px; background:#f5f8fb; }
+.faqHero .heroLead { margin-left:0; }
+.faqLayout { display:grid; grid-template-columns:260px 1fr; gap:60px; align-items:start; }
+.faqNav { position:sticky; top:110px; border-top:4px solid var(--green); background:var(--navy); padding:22px; }
+.faqNav strong { display:block; margin-bottom:15px; color:#fff; font-size:18px; }
+.faqNav a { display:block; padding:11px 0; border-top:1px solid rgba(255,255,255,.15); color:#d4dfec; text-decoration:none; }
+.faqGroup { margin-bottom:42px; scroll-margin-top:110px; }
+.faqGroup h2 { margin:0 0 14px; font-size:25px; }
+.faqGroup details { border-top:1px solid var(--line); }
+.faqGroup details:last-child { border-bottom:1px solid var(--line); }
+.faqGroup summary { cursor:pointer; padding:21px 0; font-weight:900; list-style:none; }
+.faqGroup details p { margin:-2px 0 22px; color:var(--muted); line-height:1.8; }
+
+@media (max-width: 840px) {
+  .plans { grid-template-columns:repeat(2,1fr); }
+  .vehiclePipeline { grid-template-columns:1fr; }
+  .vehiclePipeline article { min-height:auto; border-right:0; border-bottom:1px solid rgba(255,255,255,.15); }
+  .vehiclePipeline article:not(:last-child)::after { display:none; }
+  .dualBoard { grid-template-columns:1fr; }
+  .merge { min-height:54px; writing-mode:horizontal-tb; }
+  .slot { grid-template-columns:80px 1fr; }
+  .slot p,.slot span { grid-column:2; }
+}
+@media (max-width: 620px) {
+  .shell { width:min(100% - 32px,1160px); }
+  .pricingHero,.vehicleHero,.dualHero,.scheduleHero,.faqHero { padding-top:56px; }
+  .pricingHero h1,.vehicleHero h1,.dualHero h1,.scheduleHero h1,.faqHero h1 { font-size:32px; }
+  .plans,.dashboardStrip,.caseFlow { grid-template-columns:1fr; }
+  .plan.featured { transform:none; }
+  .costRow,.workRow { grid-template-columns:1fr; gap:8px; }
+  .metrics { grid-template-columns:1fr 1fr; }
+  .faqLayout { grid-template-columns:1fr; gap:28px; }
+  .faqNav { position:static; }
+}

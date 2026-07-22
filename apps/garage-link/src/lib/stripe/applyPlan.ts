@@ -47,10 +47,17 @@ export async function applyGaragePlanFromStripe(input: {
     status: input.status,
   });
 
+  const { data: companyStore } = await admin
+    .from('stores')
+    .select('tenant_id')
+    .eq('id', input.companyId)
+    .single();
+  const tenantId = (companyStore as { tenant_id: string | null } | null)?.tenant_id ?? null;
+
   const { data: existing } = await admin
     .from('company_subscriptions')
     .select('id')
-    .eq('company_id', input.companyId)
+    .eq(tenantId ? 'tenant_id' : 'company_id', tenantId ?? input.companyId)
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -65,6 +72,7 @@ export async function applyGaragePlanFromStripe(input: {
     const { error } = await admin.from('company_subscriptions').insert({
       ...fallback,
       ...patch,
+      tenant_id: tenantId,
     });
     if (error) {
       return { ok: false, reason: error.message };
@@ -85,8 +93,15 @@ export async function recordStripeCheckoutCompletion(input: {
     return;
   }
 
+  const { data: companyStore } = await admin
+    .from('stores')
+    .select('tenant_id')
+    .eq('id', input.companyId)
+    .single();
+
   await admin.from('plan_change_requests').insert({
     company_id: input.companyId,
+    tenant_id: (companyStore as { tenant_id: string | null } | null)?.tenant_id ?? null,
     requested_by: input.requestedBy,
     request_type: 'plan_change',
     current_plan: null,

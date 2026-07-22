@@ -1,131 +1,169 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import BrandLogo from './BrandLogo';
-import { createClient } from '@/lib/supabase/client';
+import ContextHelp from './ContextHelp';
 import { getRoleLabel } from '@/lib/auth/permissions';
+import { createClient } from '@/lib/supabase/client';
+import { DEFAULT_PRIMARY_TABS, PRIMARY_TAB_OPTIONS, filterMenuGroupsByRole, getPrimaryTabMeta, resolvePrimaryTabs, type PrimaryTabKey } from '@/lib/store/uiPreferences';
 
 interface AppSidebarProps {
   activeLabel: string;
 }
 
-type MenuItem = {
-  label: string;
-  href: string;
-};
-
 type StoreMemberRow = {
+  store_id: string;
   role: string | null;
 };
 
-const importExportAllowedRoles = ['owner', 'admin', 'implementer'];
+type StoreRow = {
+  name: string | null;
+  primary_navigation_tabs: string[] | null;
+  long_stay_threshold_days: number | null;
+};
 
-const vehicleMainItems: MenuItem[] = [
-  { label: 'ダッシュボード', href: '/dashboard' },
-  { label: '車両一覧', href: '/vehicles' },
-  { label: '入庫・出庫管理', href: '/vehicle-management' },
-  { label: '来店・試乗予約', href: '/appointments' },
-  { label: '問い合わせ', href: '/inquiries' },
-  { label: '整備・車検', href: '/maintenance' },
-  { label: '部品管理', href: '/parts' },
-  { label: '顧客管理', href: '/customers' },
-  { label: '商談管理', href: '/deals' },
-  { label: '車検案内対象履歴', href: '/customer-follow-up/inspection-reminders' },
-  { label: '配信候補一覧', href: '/customer-follow-up/delivery-candidates' },
-  { label: '見積書', href: '/quotes' },
-  { label: '請求書', href: '/invoices' },
-  { label: '棚卸し', href: '/inventory-counts' },
-  { label: '分析', href: '/analytics' },
-];
+type VehicleRow = {
+  id: string;
+  status: string | null;
+  purchase_date: string | null;
+  created_at: string | null;
+  market_value: number | null;
+  market_source: string | null;
+  market_checked_at: string | null;
+  deleted_at?: string | null;
+  is_archived?: boolean | null;
+};
 
-const vehicleSettingItems: MenuItem[] = [
-  { label: '会社情報・帳票設定', href: '/settings/company' },
-  { label: 'メンバー・権限設定', href: '/settings/members' },
-  { label: '車検案内設定', href: '/settings/customer-follow-up/inspection-reminders' },
-  { label: 'プラン・契約', href: '/settings/billing' },
-  { label: '環境変数チェック', href: '/settings/env-check' },
-  { label: 'セキュリティチェック', href: '/settings/security-check' },
-  { label: '監査ログ', href: '/settings/audit-logs' },
-  { label: 'ゴミ箱 / アーカイブ', href: '/settings/trash' },
-  { label: '本番前チェックリスト', href: '/settings/launch-checklist' },
-  { label: '設定', href: '/settings' },
-];
+type ListingStatusRow = {
+  vehicle_id: string;
+  status: string;
+};
 
-function isLineCategory(pathname: string) {
-  return pathname === '/line' || pathname.startsWith('/line/');
-}
+type DealRow = {
+  status: string | null;
+  next_action_at: string | null;
+  deleted_at?: string | null;
+  is_archived?: boolean | null;
+};
 
-function isActivePath(item: MenuItem, pathname: string) {
-  const itemPath = item.href.split('?')[0];
+type CustomerRow = {
+  customer_status: string | null;
+  next_action_date: string | null;
+  deleted_at?: string | null;
+  is_archived?: boolean | null;
+};
 
-  if (itemPath === '/dashboard' || itemPath === '/line' || itemPath === '/settings') {
-    return pathname === itemPath;
+type AppointmentRow = {
+  status: string;
+  scheduled_at: string;
+};
+
+type MaintenanceRow = {
+  status: string | null;
+  scheduled_delivery_at: string | null;
+};
+
+type InquiryRow = {
+  response_status: 'unhandled' | 'in_progress' | 'completed';
+};
+
+type CountChip = {
+  tone: 'red' | 'amber' | 'blue';
+  label: string;
+  value: number;
+};
+
+type CountMap = Partial<Record<PrimaryTabKey | 'menu', CountChip[]>>;
+
+const defaultCountMap: CountMap = {};
+
+function isActivePath(pathname: string, href: string) {
+  if (href === '/dashboard' || href === '/settings' || href === '/menu') {
+    return pathname === href;
   }
 
-  return pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function MenuLink({
-  item,
+function daysSince(dateLike: string | null | undefined) {
+  if (!dateLike) return null;
+  const ms = Date.now() - new Date(`${dateLike.slice(0, 10)}T00:00:00+09:00`).getTime();
+  return Math.max(0, Math.floor(ms / 86400000));
+}
+
+function toneClass(tone: CountChip['tone']) {
+  switch (tone) {
+    case 'red':
+      return 'bg-red-50 text-red-700 ring-red-200';
+    case 'amber':
+      return 'bg-amber-50 text-amber-800 ring-amber-200';
+    default:
+      return 'bg-blue-50 text-blue-700 ring-blue-200';
+  }
+}
+
+function toDateKey(value: string | null | undefined) {
+  return value ? value.slice(0, 10) : null;
+}
+
+function buildMenuCounts(primaryTabs: PrimaryTabKey[], baseCounts: CountMap): CountChip[] {
+  const hiddenPrimaryKeys = PRIMARY_TAB_OPTIONS.map((item) => item.key).filter((key) => key !== 'menu' && !primaryTabs.includes(key));
+  const chips = hiddenPrimaryKeys.flatMap((key) => baseCounts[key] ?? []);
+  const urgent = chips.filter((chip) => chip.tone === 'red').reduce((sum, chip) => sum + chip.value, 0);
+  const today = chips.filter((chip) => chip.tone === 'amber').reduce((sum, chip) => sum + chip.value, 0);
+  const result: CountChip[] = [];
+
+  if (urgent > 0) {
+    result.push({ tone: 'red', label: '緊急', value: urgent });
+  }
+  if (today > 0) {
+    result.push({ tone: 'amber', label: '今日', value: today });
+  }
+
+  return result.slice(0, 2);
+}
+
+function PrimaryLink({
+  tab,
   pathname,
-  activeLabel,
-  lineCategory,
+  counts,
 }: {
-  item: MenuItem;
+  tab: PrimaryTabKey;
   pathname: string;
-  activeLabel: string;
-  lineCategory: boolean;
+  counts: CountMap;
 }) {
-  const active = item.label === activeLabel || isActivePath(item, pathname);
-  const activeClass = lineCategory
-    ? 'bg-green-500 text-white shadow-sm'
-    : 'bg-blue-500 text-white shadow-sm';
-  const inactiveClass = lineCategory
-    ? 'text-slate-300 hover:bg-white/10 hover:text-white'
-    : 'text-slate-300 hover:bg-white/10 hover:text-white';
+  const meta = getPrimaryTabMeta(tab);
+  const active = isActivePath(pathname, meta.href);
+  const chips = (tab === 'menu' ? counts.menu : counts[tab]) ?? [];
 
   return (
-    <Link
-      href={item.href}
-      className={`flex items-center rounded-xl px-3 py-2.5 text-sm font-bold transition ${
-        active ? activeClass : inactiveClass
+    <div
+      className={`w-full rounded-2xl border px-4 py-3 transition ${
+        active
+          ? 'border-[#123B6A] bg-[#123B6A] text-white shadow-sm'
+          : 'border-slate-200 bg-white text-slate-800 hover:border-blue-200 hover:bg-blue-50/60'
       }`}
     >
-      <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/10 text-[11px] font-black">
-        {item.label.slice(0, 1)}
-      </span>
-      {item.label}
-    </Link>
-  );
-}
-
-function MenuGroup({
-  title,
-  items,
-  pathname,
-  activeLabel,
-  lineCategory,
-}: {
-  title: string;
-  items: MenuItem[];
-  pathname: string;
-  activeLabel: string;
-  lineCategory: boolean;
-}) {
-  const titleClass = lineCategory ? 'text-green-600' : 'text-blue-600';
-
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 shadow-sm">
-      <p className={`mb-2 px-2 text-xs font-black tracking-wide ${titleClass}`}>
-        {title}
-      </p>
-      <div className="space-y-1">
-        {items.map((item, index) => (
-          <MenuLink key={`${item.href}-${item.label}-${index}`} item={item} pathname={pathname} activeLabel={activeLabel} lineCategory={lineCategory} />
-        ))}
+      <div className="flex items-center justify-between gap-3">
+        <Link href={meta.href} className={`min-w-0 flex-1 py-1 text-sm font-black ${active ? 'text-white' : 'text-slate-900'}`}>
+          {meta.label}
+        </Link>
+        <ContextHelp title={meta.label} description={meta.description} inverted={active} />
       </div>
+      {chips.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {chips.map((chip) => (
+            <span
+              key={`${meta.key}-${chip.label}`}
+              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black ring-1 ${active ? 'bg-white/15 text-white ring-white/10' : toneClass(chip.tone)}`}
+            >
+              {chip.label} {chip.value}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -133,112 +171,260 @@ function MenuGroup({
 export default function AppSidebar({ activeLabel }: AppSidebarProps) {
   const pathname = usePathname();
   const [menuReady, setMenuReady] = useState(false);
-  const [canUseImportExport, setCanUseImportExport] = useState(false);
-  const [role, setRole] = useState('owner');
-  const lineCategory = isLineCategory(pathname);
-  const effectiveRole = menuReady ? role : 'owner';
-  const mainItems = (() => {
-    if (effectiveRole === 'implementer') {
-      return vehicleMainItems.filter((item) => ['ダッシュボード', '顧客管理', '商談管理', '分析'].includes(item.label));
-    }
-    if (effectiveRole === 'viewer') {
-      return vehicleMainItems.filter((item) => ['ダッシュボード', '車両一覧', '顧客管理', '商談管理', '整備・車検', '部品管理', '見積書', '請求書', '棚卸し', '分析'].includes(item.label));
-    }
-    return vehicleMainItems;
-  })();
-  const settingItems = (() => {
-    if (lineCategory) {
-      return [];
-    }
-
-    if (effectiveRole === 'viewer' || effectiveRole === 'staff') {
-      return [];
-    }
-    if (effectiveRole === 'implementer') {
-      return vehicleSettingItems.filter((item) => ['/settings/company', '/settings/import-export'].includes(item.href));
-    }
-    return vehicleSettingItems.filter((item) => {
-      if (item.href === '/settings/import-export') return menuReady ? canUseImportExport : true;
-      if (
-        item.href === '/settings/audit-logs' ||
-        item.href === '/settings/trash' ||
-        item.href === '/settings/security-check' ||
-        item.href === '/settings/env-check' ||
-        item.href === '/settings/launch-checklist'
-      ) {
-        return effectiveRole === 'owner' || effectiveRole === 'admin';
-      }
-      return true;
-    });
-  })();
-  const categoryTitle = '車両管理';
-  const roleRingClass = lineCategory ? 'ring-green-400/30' : 'ring-blue-400/30';
+  const [role, setRole] = useState('viewer');
+  const [storeLabel, setStoreLabel] = useState('店舗');
+  const [primaryTabs, setPrimaryTabs] = useState<PrimaryTabKey[]>(DEFAULT_PRIMARY_TABS);
+  const [counts, setCounts] = useState<CountMap>(defaultCountMap);
 
   useEffect(() => {
-    async function loadRole() {
+    async function loadSidebar() {
       try {
         const supabase = createClient();
         const { data: userData } = await supabase.auth.getUser();
 
         if (!userData.user?.id) {
-          setCanUseImportExport(false);
+          setMenuReady(true);
           return;
         }
 
         const { data: member } = await supabase
           .from<StoreMemberRow>('store_members')
-          .select('role')
+          .select('store_id, role')
           .eq('user_id', userData.user.id)
           .single();
 
-        const nextRole = member?.role ?? '';
-        setRole(nextRole || 'owner');
-        setCanUseImportExport(importExportAllowedRoles.includes(nextRole));
+        if (!member?.store_id) {
+          setMenuReady(true);
+          return;
+        }
+
+        setRole(member.role ?? 'viewer');
+
+        const { data: store } = await supabase
+          .from<StoreRow>('stores')
+          .select('name, primary_navigation_tabs, long_stay_threshold_days')
+          .eq('id', member.store_id)
+          .single();
+
+        const nextPrimaryTabs = resolvePrimaryTabs(store?.primary_navigation_tabs);
+        setPrimaryTabs(nextPrimaryTabs);
+        setStoreLabel(store?.name?.trim() || '店舗');
+
+        const todayKey = new Date().toISOString().slice(0, 10);
+        const longStayThreshold = store?.long_stay_threshold_days ?? 90;
+
+        const [vehicleResult, listingResult, dealResult, customerResult, appointmentResult, maintenanceResult, inquiryResult] = await Promise.all([
+          supabase
+            .from<VehicleRow>('vehicles')
+            .select('id, status, purchase_date, created_at, market_value, market_source, market_checked_at, deleted_at, is_archived')
+            .eq('store_id', member.store_id),
+          supabase
+            .from<ListingStatusRow>('vehicle_listing_statuses')
+            .select('vehicle_id, status')
+            .eq('store_id', member.store_id),
+          supabase
+            .from<DealRow>('deals')
+            .select('status, next_action_at, deleted_at, is_archived')
+            .eq('store_id', member.store_id),
+          supabase
+            .from<CustomerRow>('customers')
+            .select('customer_status, next_action_date, deleted_at, is_archived')
+            .eq('store_id', member.store_id),
+          supabase
+            .from<AppointmentRow>('appointments')
+            .select('status, scheduled_at')
+            .eq('store_id', member.store_id),
+          supabase
+            .from<MaintenanceRow>('maintenance_jobs')
+            .select('status, scheduled_delivery_at')
+            .eq('store_id', member.store_id),
+          supabase
+            .from<InquiryRow>('line_form_responses')
+            .select('response_status')
+            .eq('store_id', member.store_id),
+        ]);
+
+        const listingMap = new Map<string, ListingStatusRow[]>();
+        for (const item of listingResult.data ?? []) {
+          listingMap.set(item.vehicle_id, [...(listingMap.get(item.vehicle_id) ?? []), item]);
+        }
+
+        const activeVehicles = (vehicleResult.data ?? []).filter((vehicle: VehicleRow) => !vehicle.deleted_at && vehicle.is_archived !== true);
+        const activeDeals = (dealResult.data ?? []).filter((deal: DealRow) => !deal.deleted_at && deal.is_archived !== true);
+        const activeCustomers = (customerResult.data ?? []).filter((customer: CustomerRow) => !customer.deleted_at && customer.is_archived !== true);
+
+        const vehicleAttentionCount = activeVehicles.filter((vehicle: VehicleRow) => {
+          const statuses = listingMap.get(vehicle.id) ?? [];
+          const hasListingError = statuses.some((item) => item.status === 'エラー');
+          const publishedAfterSale = ['売約済み', '納車済み'].includes(vehicle.status ?? '') && statuses.some((item) => item.status === '掲載中');
+          const marketMissing = vehicle.market_value == null || !vehicle.market_source || !vehicle.market_checked_at;
+          const days = daysSince(vehicle.purchase_date ?? vehicle.created_at);
+          const isLongStay = days !== null && days > longStayThreshold;
+          return hasListingError || publishedAfterSale || marketMissing || isLongStay;
+        }).length;
+
+        const dealsToday = activeDeals.filter((deal: DealRow) => toDateKey(deal.next_action_at) === todayKey && !['成約', '失注'].includes(deal.status ?? '')).length;
+        const dealsOverdue = activeDeals.filter((deal: DealRow) => {
+          const key = toDateKey(deal.next_action_at);
+          return key !== null && key < todayKey && !['成約', '失注'].includes(deal.status ?? '');
+        }).length;
+
+        const customersToday = activeCustomers.filter((customer: CustomerRow) => customer.next_action_date === todayKey && customer.customer_status !== '対応不要').length;
+        const customersOverdue = activeCustomers.filter((customer: CustomerRow) => customer.next_action_date !== null && customer.next_action_date < todayKey && customer.customer_status !== '対応不要').length;
+
+        const appointmentsToday = (appointmentResult.data ?? []).filter((appointment: AppointmentRow) => toDateKey(appointment.scheduled_at) === todayKey && ['予約済み', '確認済み'].includes(appointment.status)).length;
+        const appointmentsOpen = (appointmentResult.data ?? []).filter((appointment: AppointmentRow) => ['予約済み', '確認済み'].includes(appointment.status)).length;
+
+        const maintenanceToday = (maintenanceResult.data ?? []).filter((job: MaintenanceRow) => toDateKey(job.scheduled_delivery_at) === todayKey && job.status !== '完了').length;
+        const maintenanceOverdue = (maintenanceResult.data ?? []).filter((job: MaintenanceRow) => {
+          const key = toDateKey(job.scheduled_delivery_at);
+          return key !== null && key < todayKey && job.status !== '完了';
+        }).length;
+
+        const inquiryPending = (inquiryResult.data ?? []).filter((row: InquiryRow) => row.response_status !== 'completed').length;
+
+        const nextCounts: CountMap = {
+          vehicles: vehicleAttentionCount > 0 ? [{ tone: 'red', label: '要確認', value: vehicleAttentionCount }] : [],
+          deals: [
+            ...(dealsOverdue > 0 ? [{ tone: 'red' as const, label: '期限超過', value: dealsOverdue }] : []),
+            ...(dealsToday > 0 ? [{ tone: 'amber' as const, label: '今日', value: dealsToday }] : []),
+          ].slice(0, 2),
+          customers: [
+            ...(customersOverdue > 0 ? [{ tone: 'red' as const, label: '期限超過', value: customersOverdue }] : []),
+            ...(customersToday > 0 ? [{ tone: 'amber' as const, label: '今日', value: customersToday }] : []),
+          ].slice(0, 2),
+          maintenance: [
+            ...(maintenanceOverdue > 0 ? [{ tone: 'red' as const, label: '期限超過', value: maintenanceOverdue }] : []),
+            ...(maintenanceToday > 0 ? [{ tone: 'amber' as const, label: '今日', value: maintenanceToday }] : []),
+          ].slice(0, 2),
+          appointments: [
+            ...(appointmentsToday > 0 ? [{ tone: 'amber' as const, label: '今日', value: appointmentsToday }] : []),
+            ...(appointmentsOpen > 0 ? [{ tone: 'blue' as const, label: '未完了', value: appointmentsOpen }] : []),
+          ].slice(0, 2),
+          inquiries: inquiryPending > 0 ? [{ tone: 'amber', label: '未完了', value: inquiryPending }] : [],
+        };
+
+        nextCounts.menu = buildMenuCounts(nextPrimaryTabs, nextCounts);
+        setCounts(nextCounts);
       } catch {
-        setRole('owner');
-        setCanUseImportExport(false);
+        setPrimaryTabs(DEFAULT_PRIMARY_TABS);
       } finally {
         setMenuReady(true);
       }
     }
 
-    void loadRole();
+    void loadSidebar();
   }, []);
 
+  const visibleMenuGroups = useMemo(() => filterMenuGroupsByRole(role), [role]);
+  const desktopPrimaryTabs = useMemo(() => resolvePrimaryTabs(primaryTabs), [primaryTabs]);
+  const mobileTabs = useMemo(() => resolvePrimaryTabs(primaryTabs).slice(0, 5), [primaryTabs]);
+
   return (
-    <aside className="flex w-full shrink-0 flex-col border-b border-slate-900 bg-[#071225] px-4 py-5 text-white md:sticky md:top-0 md:h-screen md:w-72 md:border-r md:border-b-0 md:border-slate-900 md:py-6">
-      <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-        <div className="rounded-xl bg-white px-3 py-2 shadow-sm ring-1 ring-white/70">
-          <BrandLogo className="mx-auto h-10 w-48 max-w-full" priority />
-        </div>
-        {menuReady && role && (
-          <span className={`mt-3 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-slate-200 ring-1 ${roleRingClass}`}>
-            現在の権限: {getRoleLabel(role)}
-          </span>
-        )}
-      </div>
-
-      <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-        {!menuReady ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm font-semibold text-slate-400">
-            メニューを読み込み中...
+    <>
+      <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-[#F4F6FA] lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
+        <div className="border-b border-slate-200 px-5 py-5">
+          <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <BrandLogo className="h-10 w-36 max-w-full" priority />
+              {menuReady && (
+                <span className="inline-flex shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 ring-1 ring-slate-200">
+                  権限: {getRoleLabel(role)}
+                </span>
+              )}
+            </div>
+            <p className="mt-4 truncate text-sm font-black text-slate-900">{storeLabel}</p>
           </div>
-        ) : (
-          <>
-            {mainItems.length > 0 && (
-              <MenuGroup title={categoryTitle} items={mainItems} pathname={pathname} activeLabel={activeLabel} lineCategory={lineCategory} />
-            )}
-            {settingItems.length > 0 && (
-              <MenuGroup title="設定" items={settingItems} pathname={pathname} activeLabel={activeLabel} lineCategory={lineCategory} />
-            )}
-          </>
-        )}
-      </nav>
+        </div>
 
-      <div className="mt-4 border-t border-slate-100 pt-4">
-        <MenuLink item={{ label: 'ログアウト', href: '/logout' }} pathname={pathname} activeLabel={activeLabel} lineCategory={lineCategory} />
-        <p className="mt-3 px-3 text-[11px] font-semibold text-slate-500">GARAGE LINK Business Console</p>
-      </div>
-    </aside>
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5">
+          <section>
+            <div className="mb-3 flex items-center justify-between px-1">
+              <p className="text-xs font-black tracking-[0.18em] text-slate-500">よく使う画面</p>
+              {(role === 'owner' || role === 'admin') && (
+                <Link href="/settings/store" className="text-xs font-bold text-blue-700 hover:underline">
+                  主タブを変更
+                </Link>
+              )}
+            </div>
+            <div className="space-y-3">
+              {desktopPrimaryTabs.map((tab) => (
+                <PrimaryLink key={tab} tab={tab} pathname={pathname} counts={counts} />
+              ))}
+            </div>
+          </section>
+
+          {visibleMenuGroups.map((group) => (
+            <section key={group.title} className="rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
+              <p className="mb-2 px-2 text-xs font-black tracking-[0.18em] text-slate-500">{group.title}</p>
+              <div className="space-y-1">
+                {group.items.map((item) => {
+                  const active = item.label === activeLabel || isActivePath(pathname, item.href);
+                  const chips = item.primaryTabKey ? counts[item.primaryTabKey] ?? [] : [];
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center justify-between gap-3 rounded-2xl px-3 py-3 transition ${
+                        active ? 'bg-blue-50 text-blue-800' : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="min-w-0 text-sm font-bold">{item.label}</span>
+                      {chips.length > 0 && (
+                        <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                          {chips.map((chip) => (
+                            <span key={`${item.href}-${chip.label}`} className={`rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${toneClass(chip.tone)}`}>
+                              {chip.label} {chip.value}
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+
+        <div className="border-t border-slate-200 px-4 py-4">
+          <Link
+            href="/logout"
+            className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
+            ログアウト
+          </Link>
+        </div>
+      </aside>
+
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur lg:hidden">
+        <div className="grid grid-cols-5 gap-2">
+          {mobileTabs.map((tab) => {
+            const meta = getPrimaryTabMeta(tab);
+            const active = isActivePath(pathname, meta.href);
+            const chips = (tab === 'menu' ? counts.menu : counts[tab]) ?? [];
+            const primaryChip = chips[0];
+
+            return (
+              <Link
+                key={tab}
+                href={meta.href}
+                className={`relative flex min-h-[56px] flex-col items-center justify-center rounded-2xl px-2 py-2 text-center transition ${
+                  active ? 'bg-blue-50 text-blue-800' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <span className="text-[11px] font-black">{meta.shortLabel}</span>
+                {primaryChip && (
+                  <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${toneClass(primaryChip.tone)}`}>
+                    {primaryChip.value}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    </>
   );
 }

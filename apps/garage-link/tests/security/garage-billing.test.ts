@@ -136,23 +136,22 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(sql).toContain('grant execute on function public.complete_plan_change_request(uuid) to authenticated');
   });
 
-  test('管理画面はcompleted反映RPCを呼び、契約テーブルを直接加算しない', async () => {
+  test('契約者の申込画面は履歴専用で自己承認できない', async () => {
     const source = await readFile('src/app/admin/plan-requests/page.tsx', 'utf8');
 
-    expect(source).toContain("supabase.rpc('complete_plan_change_request'");
+    expect(source).not.toContain("supabase.rpc('complete_plan_change_request'");
     expect(source).not.toContain("from('company_subscriptions')");
-    expect(source).toContain('この申込は既に契約へ反映済みです。');
+    expect(source).not.toContain('updateStatus');
+    expect(source).toContain('この画面から契約を直接変更することはできません。');
   });
 
   test('設定画面の主要文言は外部連携・申し込む表記に統一されている', async () => {
     const billingPage = await readFile('src/app/settings/billing/page.tsx', 'utf8');
     const lLinkPage = await readFile('src/app/settings/l-link/page.tsx', 'utf8');
 
-    // ユーザー向けUIにはサービス名「L-Link」を出さず「外部連携」表記に統一する。
-    expect(billingPage).toContain('外部連携');
-    expect(billingPage).not.toContain('L-Link連携');
+    expect(billingPage).toContain('L-LINK連携');
     expect(billingPage).toContain('このプランで申し込む');
-    expect(billingPage).toContain('手動で申し込む');
+    expect(billingPage).toContain('詳細比較・手動申込');
     expect(billingPage).toContain('プランを選ぶ');
     expect(billingPage).toContain('追加するスタッフ数');
 
@@ -184,6 +183,25 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(ownerMigration).toContain('owner to postgres');
   });
 
+  test('月額利用料の請求書は会社単位で取得し、領収書を表示しない', async () => {
+    const invoiceRoute = await readFile('src/app/api/billing/invoices/route.ts', 'utf8');
+    const downloadRoute = await readFile('src/app/api/billing/invoices/[invoiceId]/download/route.ts', 'utf8');
+    const mapper = await readFile('src/lib/stripe/invoiceHistory.ts', 'utf8');
+    const billingPage = await readFile('src/app/settings/billing/page.tsx', 'utf8');
+
+    expect(invoiceRoute).toContain(".eq('tenant_id', tenantId)");
+    expect(invoiceRoute).toContain("member.role !== 'owner' && member.role !== 'admin'");
+    expect(invoiceRoute).toContain('stripe.invoices.list');
+    expect(downloadRoute).toContain("member.role !== 'owner' && member.role !== 'admin'");
+    expect(downloadRoute).toContain('invoiceCustomerId !== customerId');
+    expect(downloadRoute).toContain("action: 'view_billing_invoice'");
+    expect(downloadRoute).toContain('if (!auditLogged)');
+    expect(mapper).toContain('/api/billing/invoices/');
+    expect(mapper).not.toContain('pdfUrl: invoice.invoice_pdf');
+    expect(billingPage).toContain('請求書 PDF');
+    expect(`${invoiceRoute}\n${downloadRoute}\n${billingPage}`).not.toContain('領収書');
+  });
+
   test('解約データ保有 migration が存在する', async () => {
     const retention = await readFile('supabase/migrations/20260706150000_subscription_retention.sql', 'utf8');
     const contractAccess = await readFile('src/lib/billing/contractAccess.ts', 'utf8');
@@ -205,5 +223,45 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(source).not.toContain("from<CompanySubscriptionRow>('company_subscriptions')");
     expect(source).toContain('ensure_company_subscription');
     expect(source).toContain('get_company_subscription');
+  });
+
+  test('料金表の上限はDBで全店舗合算し、契約者の自己反映を禁止する', async () => {
+    const migration = await readFile(
+      'supabase/migrations/20260718000500_tenant_plan_limits_and_billing_security.sql',
+      'utf8',
+    );
+
+    expect(migration).toContain('create or replace function public.get_garage_plan_usage');
+    expect(migration).toContain('create or replace function public.garage_plan_limit_guard');
+    expect(migration).toContain('guard_vehicle_plan_limit');
+    expect(migration).toContain('guard_quote_plan_limit');
+    expect(migration).toContain('guard_invoice_plan_limit');
+    expect(migration).toContain('guard_storage_plan_limit');
+    expect(migration).toContain('guard_staff_plan_limit');
+    expect(migration).toContain('guard_store_plan_limit');
+    expect(migration).toContain('revoke update on public.plan_change_requests from authenticated');
+    expect(migration).toContain('revoke execute on function public.complete_plan_change_request(uuid) from authenticated');
+    expect(migration).toContain('grant execute on function public.complete_plan_change_request(uuid) to service_role');
+  });
+
+  test('有料プラン変更は新規Checkoutを作らず途中精算なしで既存契約を更新する', async () => {
+    const checkout = await readFile('src/app/api/billing/checkout/route.ts', 'utf8');
+    const changePlan = await readFile('src/app/api/billing/change-plan/route.ts', 'utf8');
+    const webhook = await readFile('src/app/api/billing/webhook/route.ts', 'utf8');
+
+    expect(checkout).toContain('use_plan_change');
+    expect(changePlan).toContain("proration_behavior: 'none'");
+    expect(changePlan).toContain('pending_plan_effective_at');
+    expect(webhook).toContain('applyScheduledPlanIfDue');
+    expect(webhook).toContain("case 'invoice.paid'");
+  });
+
+  test('L-LINK APIは契約可否をサーバー側で確認する', async () => {
+    const inquiries = await readFile('src/app/api/s2s/line-link/inquiries/route.ts', 'utf8');
+    const candidates = await readFile('src/app/api/s2s/line-link/delivery-candidates/route.ts', 'utf8');
+    const sessionCandidates = await readFile('src/app/api/line-link/delivery-candidates/route.ts', 'utf8');
+    expect(inquiries).toContain('canStoreUseLLink');
+    expect(candidates).toContain('canStoreUseLLink');
+    expect(sessionCandidates).toContain('canStoreUseLLink');
   });
 });

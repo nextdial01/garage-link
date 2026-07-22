@@ -25,6 +25,10 @@ type VehicleRow = {
   color: string | null;
   inspection_expiry_date: string | null;
   purchase_price: number | null;
+  direct_cost_special: number | null;
+  direct_cost_accessories: number | null;
+  direct_cost_agency: number | null;
+  direct_cost_legal: number | null;
   base_price: number | null;
   total_price: number | null;
   market_value: number | null;
@@ -45,14 +49,14 @@ type ListingStatusRow = { id: string; vehicle_id: string; channel: string; statu
 type VehicleForm = {
   management_no: string; vehicle_type: string; maker: string; model_name: string; grade: string; vin: string; registration_no: string;
   first_registration_month: string; model_year: string; displacement_cc: string; mileage_km: string; color: string; inspection_expiry_date: string;
-  purchase_price: string; base_price: string; total_price: string; market_value: string; market_source: string; market_checked_at: string; market_conditions: string; market_note: string;
+  purchase_price: string; direct_cost_special: string; direct_cost_accessories: string; direct_cost_agency: string; direct_cost_legal: string; base_price: string; total_price: string; market_value: string; market_source: string; market_checked_at: string; market_conditions: string; market_note: string;
   status: string; location_name: string; description: string; internal_memo: string;
 };
 
 const inputClass = 'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100';
 const emptyForm: VehicleForm = {
   management_no: '', vehicle_type: '', maker: '', model_name: '', grade: '', vin: '', registration_no: '', first_registration_month: '',
-  model_year: '', displacement_cc: '', mileage_km: '', color: '', inspection_expiry_date: '', purchase_price: '', base_price: '', total_price: '', market_value: '', market_source: '', market_checked_at: '', market_conditions: '', market_note: '',
+  model_year: '', displacement_cc: '', mileage_km: '', color: '', inspection_expiry_date: '', purchase_price: '', direct_cost_special: '', direct_cost_accessories: '', direct_cost_agency: '', direct_cost_legal: '', base_price: '', total_price: '', market_value: '', market_source: '', market_checked_at: '', market_conditions: '', market_note: '',
   status: '在庫中', location_name: '', description: '', internal_memo: '',
 };
 
@@ -99,6 +103,10 @@ function mapVehicleToForm(vehicle: VehicleRow): VehicleForm {
     color: vehicle.color ?? '',
     inspection_expiry_date: vehicle.inspection_expiry_date ?? '',
     purchase_price: vehicle.purchase_price === null ? '' : String(vehicle.purchase_price ?? ''),
+    direct_cost_special: vehicle.direct_cost_special === null ? '' : String(vehicle.direct_cost_special ?? ''),
+    direct_cost_accessories: vehicle.direct_cost_accessories === null ? '' : String(vehicle.direct_cost_accessories ?? ''),
+    direct_cost_agency: vehicle.direct_cost_agency === null ? '' : String(vehicle.direct_cost_agency ?? ''),
+    direct_cost_legal: vehicle.direct_cost_legal === null ? '' : String(vehicle.direct_cost_legal ?? ''),
     base_price: vehicle.base_price === null ? '' : String(vehicle.base_price ?? ''),
     total_price: vehicle.total_price === null ? '' : String(vehicle.total_price ?? ''),
     market_value: vehicle.market_value === null ? '' : String(vehicle.market_value ?? ''),
@@ -127,6 +135,13 @@ const priceLabels: Record<'purchase_price' | 'base_price' | 'total_price', strin
   purchase_price: '仕入価格',
   base_price: '車両本体価格',
   total_price: '支払総額',
+};
+
+const directCostLabels: Record<'direct_cost_special' | 'direct_cost_accessories' | 'direct_cost_agency' | 'direct_cost_legal', string> = {
+  direct_cost_special: '特仕原価計',
+  direct_cost_accessories: '付属品原価計',
+  direct_cost_agency: '手続代行原価',
+  direct_cost_legal: '預り法定原価',
 };
 
 export default function VehicleDetailPage() {
@@ -197,7 +212,7 @@ export default function VehicleDetailPage() {
         model_name: toNullableText(form.model_name), grade: toNullableText(form.grade), vin: toNullableText(form.vin), registration_no: toNullableText(form.registration_no),
         first_registration_month: toNullableText(form.first_registration_month), model_year: toNullableNumber(form.model_year), displacement_cc: toNullableNumber(form.displacement_cc),
         mileage_km: toNullableNumber(form.mileage_km), color: toNullableText(form.color), inspection_expiry_date: form.inspection_expiry_date || null,
-        purchase_price: toNullableNumber(form.purchase_price), base_price: toNullableNumber(form.base_price), total_price: toNullableNumber(form.total_price),
+        purchase_price: toNullableNumber(form.purchase_price), direct_cost_special: toNullableNumber(form.direct_cost_special), direct_cost_accessories: toNullableNumber(form.direct_cost_accessories), direct_cost_agency: toNullableNumber(form.direct_cost_agency), direct_cost_legal: toNullableNumber(form.direct_cost_legal), base_price: toNullableNumber(form.base_price), total_price: toNullableNumber(form.total_price),
         market_value: toNullableNumber(form.market_value), market_source: toNullableText(form.market_source), market_checked_at: form.market_checked_at || null,
         market_conditions: toNullableText(form.market_conditions), market_note: toNullableText(form.market_note),
         status: toNullableText(form.status), location_name: toNullableText(form.location_name), description: toNullableText(form.description), internal_memo: toNullableText(form.internal_memo),
@@ -268,6 +283,10 @@ export default function VehicleDetailPage() {
             <div className="grid gap-4 md:grid-cols-3">
               {(['purchase_price','base_price','total_price'] as const).map((name) => <Field key={name} label={priceLabels[name]}><input type="number" className={`${inputClass} text-right`} value={form[name]} onChange={(event) => updateField(name, event.target.value)} /></Field>)}
             </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {(['direct_cost_special','direct_cost_accessories','direct_cost_agency','direct_cost_legal'] as const).map((name) => <Field key={name} label={directCostLabels[name]}><input type="number" className={`${inputClass} text-right`} value={form[name]} onChange={(event) => updateField(name, event.target.value)} /></Field>)}
+            </div>
+            <p className="mt-4 text-sm font-bold text-slate-700">直接原価合計 {([form.direct_cost_special, form.direct_cost_accessories, form.direct_cost_agency, form.direct_cost_legal].reduce((sum, value) => sum + (Number(value || 0) || 0), 0)).toLocaleString()}円</p>
           </Section>
           <Section title="相場確認">
             <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">相場は参考情報です。出所・確認日・条件がない数字は相場として扱いません。</div>

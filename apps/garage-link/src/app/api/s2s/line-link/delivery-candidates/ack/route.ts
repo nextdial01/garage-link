@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyLLinkS2SRequest } from '@/lib/line-link/s2sAuth';
 import { logServerError } from '@/lib/observability/logServerError';
+import { canStoreUseLLink } from '@/lib/billing/lLinkContract';
 
 // L-LINK → GARAGE LINK S2S 確認応答（ACK）API（HMAC 署名認証）。
 // - 既存の候補取得ルート（../route.ts、SELECTのみ）とは独立。既存ルートの動作には一切触れない。
@@ -73,6 +74,9 @@ export async function POST(request: Request) {
   });
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error, code: auth.code }, { status: auth.status });
+  }
+  if (!(await canStoreUseLLink(auth.storeId))) {
+    return NextResponse.json({ ok: false, error: 'L-LINK連携はStandard以上の契約が必要です。', code: 'plan_required' }, { status: 403 });
   }
 
   const acknowledgements = parseAcknowledgements(bodyText);

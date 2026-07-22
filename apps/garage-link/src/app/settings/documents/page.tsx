@@ -15,7 +15,7 @@ export default function DocumentSettingsPage() {
         </Link>
       }
     >
-      <RoleAccessGate allowedRoles={['owner', 'admin', 'implementer']}>
+      <RoleAccessGate allowedRoles={['owner', 'admin', 'implementer']} backHref="/settings">
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div>

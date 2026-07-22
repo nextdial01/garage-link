@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FormEvent, Suspense, useEffect, useState } from 'react';
+import { FormEvent, Suspense, useEffect, useRef, useState } from 'react';
 import BrandLogo from '@/components/BrandLogo';
 import { isEmailConfirmationRequired, translateAuthError } from '@/lib/auth/auth-errors';
+import { readSignupAttribution, trackConversion } from '@/lib/analytics/conversion';
 import { createClient } from '@/lib/supabase/client';
 
 const MIN_PASSWORD_LENGTH = 6;
@@ -13,6 +14,7 @@ function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isResumeMode = searchParams.get('resume') === '1';
+  const hasTrackedSignupStart = useRef(false);
 
   const [storeName, setStoreName] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -25,6 +27,13 @@ function SignupForm() {
   const [isBootstrapping, setIsBootstrapping] = useState(isResumeMode);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResumeOnly, setIsResumeOnly] = useState(false);
+
+  useEffect(() => {
+    if (hasTrackedSignupStart.current) return;
+    hasTrackedSignupStart.current = true;
+    const attribution = readSignupAttribution(new URLSearchParams(searchParams.toString()));
+    trackConversion('signup_start', attribution);
+  }, [searchParams]);
 
   useEffect(() => {
     async function detectResumeMode() {
@@ -85,6 +94,7 @@ function SignupForm() {
     setIsSubmitting(false);
 
     if (ok) {
+      trackConversion('signup_complete');
       router.replace('/onboarding');
     }
   }
@@ -109,6 +119,8 @@ function SignupForm() {
       return;
     }
 
+    trackConversion('signup_submit');
+
     setIsSubmitting(true);
     const supabase = createClient();
 
@@ -123,6 +135,8 @@ function SignupForm() {
       return;
     }
 
+    trackConversion('account_created');
+
     if (!authData.user?.id || !authData.session) {
       setInfoMessage('確認メールを送信しました。メール内のリンクを開いてから、ログインしてください。');
       setIsSubmitting(false);
@@ -133,6 +147,7 @@ function SignupForm() {
     setIsSubmitting(false);
 
     if (ok) {
+      trackConversion('signup_complete');
       router.replace('/onboarding');
     }
   }

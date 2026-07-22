@@ -11,6 +11,7 @@ type SupabaseClient = ReturnType<typeof createClient>;
 export type CompanySubscriptionRow = GarageSubscriptionLike & {
   id?: string;
   company_id: string;
+  tenant_id?: string | null;
   plan: string;
   status: string;
   included_staff_count: number;
@@ -23,6 +24,15 @@ export type CompanySubscriptionRow = GarageSubscriptionLike & {
   l_link_integration_enabled: boolean;
   started_at?: string | null;
   updated_at?: string | null;
+};
+
+type GaragePlanUsage = {
+  tenant_id: string;
+  inventory_count: number;
+  document_count: number;
+  staff_count: number;
+  store_count: number;
+  storage_bytes: number;
 };
 
 type VehicleLimitRow = {
@@ -121,6 +131,11 @@ export function isCurrentInventoryVehicle(row: VehicleLimitRow) {
 }
 
 export async function getCurrentInventoryCount(supabase: SupabaseClient, storeId: string) {
+  const { data: usage } = await supabase.rpc('get_garage_plan_usage', { p_store_id: storeId });
+  if (usage && typeof usage === 'object' && 'inventory_count' in usage) {
+    return Number((usage as GaragePlanUsage).inventory_count);
+  }
+
   const { data, error } = await supabase
     .from<VehicleLimitRow>('vehicles')
     .select('status, deleted_at, is_archived')
@@ -143,6 +158,11 @@ function isInCurrentMonth(row: DocumentCountRow, now = new Date()) {
 }
 
 export async function getMonthlyDocumentCount(supabase: SupabaseClient, storeId: string) {
+  const { data: usage } = await supabase.rpc('get_garage_plan_usage', { p_store_id: storeId });
+  if (usage && typeof usage === 'object' && 'document_count' in usage) {
+    return Number((usage as GaragePlanUsage).document_count);
+  }
+
   const [quotesResult, invoicesResult] = await Promise.all([
     supabase.from<DocumentCountRow>('quotes').select('id, created_at').eq('store_id', storeId),
     supabase.from<DocumentCountRow>('invoices').select('id, created_at').eq('store_id', storeId),

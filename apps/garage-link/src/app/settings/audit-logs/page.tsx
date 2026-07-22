@@ -141,7 +141,7 @@ export default function AuditLogsPage() {
       {isLoading ? (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-semibold text-slate-500 shadow-sm">読み込み中...</section>
       ) : role !== 'owner' && role !== 'admin' ? (
-        <PermissionDeniedCard />
+        <PermissionDeniedCard backHref="/settings" />
       ) : (
         <div className="mx-auto max-w-7xl space-y-6">
           {errorMessage && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>}

@@ -6,9 +6,11 @@ import { getCurrentStoreMember, getRoleLabel } from '@/lib/auth/permissions';
 
 export default function RoleAccessGate({
   allowedRoles,
+  backHref = '/dashboard',
   children,
 }: {
   allowedRoles: string[];
+  backHref?: string;
   children: React.ReactNode;
 }) {
   const [role, setRole] = useState('');
@@ -40,7 +42,7 @@ export default function RoleAccessGate({
   }
 
   if (!allowedRoles.includes(role)) {
-    return <PermissionDeniedCard />;
+    return <PermissionDeniedCard backHref={backHref} />;
   }
 
   return (

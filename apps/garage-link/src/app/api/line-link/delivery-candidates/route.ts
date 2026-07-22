@@ -7,6 +7,7 @@ import {
   type DeliveryCandidate,
   type DeliveryDraftBatch,
 } from '@/lib/line-link/deliveryCandidates';
+import { canStoreUseLLink } from '@/lib/billing/lLinkContract';
 
 // GARAGE LINK → L-LINK 配信候補の受け渡し（読み取り専用契約）。
 // - 認証ユーザーのセッション（RLS: 所属店舗のみ）でアクセス。service_role 非依存。
@@ -42,6 +43,9 @@ export async function GET(request: Request) {
     .single();
   if (memberError || !member?.store_id) {
     return NextResponse.json({ ok: false, error: '所属店舗を取得できませんでした。', code: 'forbidden_no_membership' }, { status: 403 });
+  }
+  if (!(await canStoreUseLLink(member.store_id))) {
+    return NextResponse.json({ ok: false, error: 'L-LINK連携はStandard以上の契約が必要です。', code: 'plan_required' }, { status: 403 });
   }
 
   const url = new URL(request.url);

@@ -6,6 +6,13 @@ type StoreOnboardingRow = {
   address?: string | null;
   representative_name?: string | null;
   onboarding_completed_at?: string | null;
+  business_type?: string | null;
+  vehicle_focus?: string | null;
+  sales_recognition_basis?: string | null;
+  purchase_recognition_basis?: string | null;
+  long_stay_threshold_days?: number | null;
+  management_target_gross_profit_yen?: number | null;
+  primary_navigation_tabs?: string[] | null;
 };
 
 type SupabaseLike = {
@@ -59,7 +66,7 @@ export async function fetchStoreForOnboarding(
   };
 
   const fullSelect = await client
-    .select('id, name, company_name, phone, address, representative_name, onboarding_completed_at')
+    .select('id, name, company_name, phone, address, representative_name, onboarding_completed_at, business_type, vehicle_focus, sales_recognition_basis, purchase_recognition_basis, long_stay_threshold_days, management_target_gross_profit_yen, primary_navigation_tabs')
     .eq('id', storeId)
     .single();
 

@@ -1,12 +1,36 @@
-'use client';
+ 'use client';
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import ContextHelp from '@/components/ContextHelp';
+import {
+  InventoryAgeDonut,
+  ManagementTrendChart,
+  VehicleStatusBars,
+  type ChartDatum,
+} from '@/components/dashboard/DashboardCharts';
+import { buildTodayActionItems, getTodayActionToneClass, type AttentionTone, type TodayActionItem } from '@/lib/dashboard/todayActions';
 import { createClient } from '@/lib/supabase/client';
+import {
+  SALES_RECOGNITION_OPTIONS,
+  type SalesRecognitionBasis,
+  type PurchaseRecognitionBasis,
+} from '@/lib/store/uiPreferences';
 
 type StoreMemberRow = {
   store_id: string;
+  role: string | null;
+  display_name: string | null;
+};
+
+type StoreRow = {
+  long_stay_threshold_days: number | null;
+  management_target_gross_profit_yen: number | null;
+  l_link_onboarding_completed_at: string | null;
+  sales_recognition_basis: SalesRecognitionBasis | null;
+  purchase_recognition_basis: PurchaseRecognitionBasis | null;
+  business_type: string | null;
 };
 
 type VehicleRow = {
@@ -17,11 +41,21 @@ type VehicleRow = {
   status: string | null;
   location_name: string | null;
   total_price: number | null;
-  purchase_date?: string | null;
-  market_value?: number | null;
-  market_source?: string | null;
-  market_checked_at?: string | null;
+  listing_price: number | null;
+  purchase_price: number | null;
+  direct_cost_special: number | null;
+  direct_cost_accessories: number | null;
+  direct_cost_agency: number | null;
+  direct_cost_legal: number | null;
+  purchase_date: string | null;
+  sale_price: number | null;
+  sold_date: string | null;
+  market_value: number | null;
+  market_source: string | null;
+  market_checked_at: string | null;
   created_at: string | null;
+  is_archived?: boolean | null;
+  deleted_at?: string | null;
 };
 
 type DealRow = {
@@ -29,208 +63,572 @@ type DealRow = {
   deal_no: string | null;
   title: string | null;
   status: string | null;
-  probability: string | null;
   assigned_user_name: string | null;
   next_action_at: string | null;
   created_at: string | null;
+  vehicle_id: string | null;
+};
+
+type InvoiceRow = {
+  id: string;
+  vehicle_id: string | null;
+  issue_date: string | null;
+  issue_status: string | null;
+  total_amount: number | null;
 };
 
 type MaintenanceRow = {
   id: string;
   reception_no: string | null;
+  vehicle_id: string | null;
   job_type: string | null;
   status: string | null;
   scheduled_delivery_at: string | null;
   assigned_user_name: string | null;
 };
 
-type InventoryRow = {
+type AppointmentRow = {
   id: string;
-  count_no: string | null;
-  name: string | null;
+  customer_id: string | null;
+  vehicle_id: string | null;
+  appointment_type: string | null;
+  scheduled_at: string;
   status: string | null;
-  planned_date: string | null;
+  assigned_user_name: string | null;
 };
 
-type VehicleDashboardSummary = {
+type InquiryRow = {
+  id: string;
+  customer_id: string | null;
+  deal_id: string | null;
+  answers: Record<string, unknown>;
+  submitted_at: string | null;
+  source_route: string | null;
+  response_status: 'unhandled' | 'in_progress' | 'completed';
+  assigned_user_name: string | null;
+  next_action_at: string | null;
+};
+
+function inquiryAnswerLabel(answers: Record<string, unknown>) {
+  const preferredKeys = ['問い合わせ内容', '相談内容', 'お問い合わせ内容', '内容', 'message', 'inquiry', 'question'];
+  for (const key of preferredKeys) {
+    const value = answers[key];
+    if (typeof value === 'string' && value.trim()) return value.trim().slice(0, 80);
+  }
+  const value = Object.values(answers).find((item) => typeof item === 'string' && item.trim());
+  return value ? String(value).slice(0, 80) : '回答内容を確認';
+}
+
+type CustomerRow = {
+  id: string;
+  name: string | null;
+  next_action_date: string | null;
+};
+
+type ListingStatusRow = {
+  vehicle_id: string;
+  channel: string;
+  status: string;
+};
+
+type DashboardState = {
   vehicles: VehicleRow[];
   deals: DealRow[];
+  invoices: InvoiceRow[];
   maintenanceJobs: MaintenanceRow[];
-  inventoryCounts: InventoryRow[];
+  appointments: AppointmentRow[];
+  inquiries: InquiryRow[];
+  customers: CustomerRow[];
+  listingStatuses: ListingStatusRow[];
 };
 
-type ListingStatusRow = { vehicle_id: string; channel: string; status: string };
+type PeriodKey = 'this_month' | 'last_month' | 'last_3_months' | 'last_12_months';
 
-const emptySummary: VehicleDashboardSummary = {
+type MetricCardData = {
+  label: string;
+  value: string;
+  detail: string;
+  deltaLabel: string;
+  tone?: 'default' | 'good' | 'bad';
+};
+
+type ManagementSummary = {
+  revenue: number | null;
+  grossProfit: number | null;
+  grossProfitRate: number | null;
+  averageStockDays: number | null;
+  salesCount: number;
+  validGrossCount: number;
+  missingGrossCount: number;
+  inventoryTotalCost: number;
+  inStockCount: number;
+  longStayCount: number;
+};
+
+type PeriodRange = {
+  start: Date;
+  end: Date;
+  previousStart: Date;
+  previousEnd: Date;
+};
+
+type IndustryReference = {
+  minRate: number;
+  maxRate: number;
+  label: string;
+  source: string;
+  year: string;
+};
+
+const INDUSTRY_REFERENCES: Partial<Record<string, IndustryReference>> = {
+  '中古車販売中心': { minRate: 8, maxRate: 15, label: '中古車販売の初期参考帯', source: 'GARAGE LINK 初期参考帯', year: '2026年' },
+  'バイク販売中心': { minRate: 10, maxRate: 18, label: 'バイク販売の初期参考帯', source: 'GARAGE LINK 初期参考帯', year: '2026年' },
+  '整備中心': { minRate: 35, maxRate: 55, label: '整備中心店舗の初期参考帯', source: 'GARAGE LINK 初期参考帯', year: '2026年' },
+  '鈑金・修理中心': { minRate: 30, maxRate: 50, label: '鈑金・修理の初期参考帯', source: 'GARAGE LINK 初期参考帯', year: '2026年' },
+  '複合型': { minRate: 12, maxRate: 25, label: '複合型店舗の初期参考帯', source: 'GARAGE LINK 初期参考帯', year: '2026年' },
+};
+
+const emptyState: DashboardState = {
   vehicles: [],
   deals: [],
+  invoices: [],
   maintenanceJobs: [],
-  inventoryCounts: [],
+  appointments: [],
+  inquiries: [],
+  customers: [],
+  listingStatuses: [],
 };
 
+const PERIOD_OPTIONS: Array<{ key: PeriodKey; label: string }> = [
+  { key: 'this_month', label: '今月' },
+  { key: 'last_month', label: '前月' },
+  { key: 'last_3_months', label: '直近3か月' },
+  { key: 'last_12_months', label: '直近12か月' },
+];
+
 function formatCurrency(value: number | null | undefined) {
-  if (!value) return '0円';
-  return `${value.toLocaleString('ja-JP')}円`;
+  if (value === null || value === undefined) return '—';
+  return `${Math.round(value).toLocaleString('ja-JP')}円`;
 }
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return '-';
-  return value.slice(0, 10);
+function formatPercent(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—';
+  return `${value.toFixed(1)}%`;
 }
 
-function vehicleLabel(vehicle: VehicleRow) {
-  const label = `${vehicle.maker ?? ''} ${vehicle.model_name ?? ''}`.trim();
-  return label || vehicle.management_no || '-';
+function formatDays(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—';
+  return `${Math.round(value).toLocaleString('ja-JP')}日`;
 }
 
-function countBy<T>(items: T[], getter: (item: T) => string | null | undefined) {
-  return items.reduce<Record<string, number>>((result, item) => {
-    const key = getter(item) || '未設定';
-    result[key] = (result[key] ?? 0) + 1;
-    return result;
-  }, {});
+function toJstDate(value?: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function StatusBadge({ value, tone = 'blue' }: { value: string | null | undefined; tone?: 'blue' | 'green' | 'orange' | 'slate' }) {
-  const classes = {
-    blue: 'bg-blue-50 text-blue-700 ring-blue-100',
-    green: 'bg-green-50 text-green-700 ring-green-100',
-    orange: 'bg-orange-50 text-orange-700 ring-orange-100',
-    slate: 'bg-slate-100 text-slate-600 ring-slate-200',
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function endOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+}
+
+function addMonths(date: Date, months: number) {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function endOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+}
+
+function dateKeyJst(date: Date) {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(date);
+}
+
+function todayKeyJst() {
+  return dateKeyJst(new Date());
+}
+
+function deltaTone(value: number | null, higherIsBetter = true): 'default' | 'good' | 'bad' {
+  if (value === null || value === 0) return 'default';
+  if (higherIsBetter) return value > 0 ? 'good' : 'bad';
+  return value < 0 ? 'good' : 'bad';
+}
+
+function formatDelta(value: number | null, formatter: (value: number) => string, higherIsBetter = true) {
+  if (value === null || Number.isNaN(value) || value === 0) {
+    return { label: '前期間比 ±0', tone: 'default' as const };
+  }
+
+  const sign = value > 0 ? '+' : '-';
+  return {
+    label: `前期間比 ${sign}${formatter(Math.abs(value))}`,
+    tone: deltaTone(value, higherIsBetter),
   };
+}
+
+function formatDeltaPercent(value: number | null, higherIsBetter = true) {
+  if (value === null || Number.isNaN(value) || value === 0) {
+    return { label: '前期間比 ±0.0pt', tone: 'default' as const };
+  }
+
+  const sign = value > 0 ? '+' : '-';
+  return {
+    label: `前期間比 ${sign}${Math.abs(value).toFixed(1)}pt`,
+    tone: deltaTone(value, higherIsBetter),
+  };
+}
+
+function isInStockVehicle(vehicle: VehicleRow) {
+  return !vehicle.deleted_at
+    && !vehicle.is_archived
+    && !['売約済み', 'sold', '納車済み', '廃車', 'scrapped'].includes(vehicle.status ?? '');
+}
+
+function getPeriodRange(key: PeriodKey, now = new Date()): PeriodRange {
+  const thisMonthStart = startOfMonth(now);
+  const thisMonthEnd = endOfMonth(now);
+
+  if (key === 'this_month') {
+    return {
+      start: thisMonthStart,
+      end: thisMonthEnd,
+      previousStart: addMonths(thisMonthStart, -1),
+      previousEnd: endOfMonth(addMonths(thisMonthStart, -1)),
+    };
+  }
+
+  if (key === 'last_month') {
+    const start = addMonths(thisMonthStart, -1);
+    return {
+      start,
+      end: endOfMonth(start),
+      previousStart: addMonths(start, -1),
+      previousEnd: endOfMonth(addMonths(start, -1)),
+    };
+  }
+
+  if (key === 'last_3_months') {
+    const start = addMonths(thisMonthStart, -2);
+    return {
+      start,
+      end: thisMonthEnd,
+      previousStart: addMonths(start, -3),
+      previousEnd: endOfMonth(addMonths(start, -1)),
+    };
+  }
+
+  const start = addMonths(thisMonthStart, -11);
+  return {
+    start,
+    end: thisMonthEnd,
+    previousStart: addMonths(start, -12),
+    previousEnd: endOfMonth(addMonths(start, -1)),
+  };
+}
+
+function isDateInRange(date: Date | null, start: Date, end: Date) {
+  if (!date) return false;
+  return date >= startOfDay(start) && date <= endOfDay(end);
+}
+
+function getSalesBasisLabel(value: SalesRecognitionBasis | null | undefined) {
+  return SALES_RECOGNITION_OPTIONS.find((option) => option.value === value)?.label ?? '納車日';
+}
+
+function getVehiclePurchaseDate(vehicle: VehicleRow) {
+  return toJstDate(vehicle.purchase_date ?? vehicle.created_at);
+}
+
+function getVehicleRevenue(vehicle: VehicleRow) {
+  return vehicle.sale_price ?? vehicle.total_price ?? vehicle.listing_price ?? null;
+}
+
+function getVehicleDirectCostTotal(vehicle: VehicleRow) {
+  return (vehicle.direct_cost_special ?? 0) + (vehicle.direct_cost_accessories ?? 0) + (vehicle.direct_cost_agency ?? 0) + (vehicle.direct_cost_legal ?? 0);
+}
+
+function getIndustryReference(businessType: string | null | undefined, salesBasis: SalesRecognitionBasis) {
+  if (!businessType || salesBasis !== 'delivery') return null;
+  return INDUSTRY_REFERENCES[businessType] ?? null;
+}
+
+function buildManagementSummary(
+  range: { start: Date; end: Date },
+  salesBasis: SalesRecognitionBasis,
+  vehicles: VehicleRow[],
+  deals: DealRow[],
+  invoices: InvoiceRow[],
+  longStayThreshold: number,
+) {
+  const inStockVehicles = vehicles.filter(isInStockVehicle);
+  const today = startOfDay(new Date());
+  const vehicleMap = new Map(vehicles.map((vehicle) => [vehicle.id, vehicle]));
+  const soldDealMap = new Map<string, DealRow>();
+
+  deals
+    .filter((deal) => deal.status === '成約' && deal.vehicle_id)
+    .sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? ''))
+    .forEach((deal) => {
+      if (!deal.vehicle_id || soldDealMap.has(deal.vehicle_id)) return;
+      soldDealMap.set(deal.vehicle_id, deal);
+    });
+
+  let revenue = 0;
+  let grossProfit = 0;
+  let revenueCount = 0;
+  let validGrossCount = 0;
+  let missingGrossCount = 0;
+  let stockDaysTotal = 0;
+  let stockDaysCount = 0;
+
+  if (salesBasis === 'invoice') {
+    invoices
+      .filter((invoice) => invoice.issue_status !== 'draft' && isDateInRange(toJstDate(invoice.issue_date), range.start, range.end))
+      .forEach((invoice) => {
+        const invoiceRevenue = invoice.total_amount ?? null;
+        if (invoiceRevenue !== null) {
+          revenue += invoiceRevenue;
+          revenueCount += 1;
+        }
+
+        const vehicle = invoice.vehicle_id ? vehicleMap.get(invoice.vehicle_id) : null;
+        const purchasePrice = vehicle ? (vehicle.purchase_price ?? 0) + getVehicleDirectCostTotal(vehicle) : null;
+        const purchaseDate = vehicle ? getVehiclePurchaseDate(vehicle) : null;
+        const issueDate = toJstDate(invoice.issue_date);
+
+        if (invoiceRevenue !== null && purchasePrice !== null) {
+          grossProfit += invoiceRevenue - purchasePrice;
+          validGrossCount += 1;
+        } else {
+          missingGrossCount += 1;
+        }
+
+        if (purchaseDate && issueDate) {
+          stockDaysTotal += Math.max(0, Math.round((startOfDay(issueDate).getTime() - startOfDay(purchaseDate).getTime()) / 86400000));
+          stockDaysCount += 1;
+        }
+      });
+  } else {
+    vehicles.forEach((vehicle) => {
+      const basisDate =
+        salesBasis === 'delivery'
+          ? toJstDate(vehicle.sold_date)
+          : toJstDate(soldDealMap.get(vehicle.id)?.created_at ?? null);
+
+      if (!isDateInRange(basisDate, range.start, range.end)) return;
+
+      const revenueValue = getVehicleRevenue(vehicle);
+      if (revenueValue !== null) {
+        revenue += revenueValue;
+        revenueCount += 1;
+      }
+
+      const purchaseTotal = vehicle.purchase_price === null ? null : vehicle.purchase_price + getVehicleDirectCostTotal(vehicle);
+      if (revenueValue !== null && purchaseTotal !== null) {
+        grossProfit += revenueValue - purchaseTotal;
+        validGrossCount += 1;
+      } else {
+        missingGrossCount += 1;
+      }
+
+      const purchaseDate = getVehiclePurchaseDate(vehicle);
+      if (purchaseDate && basisDate) {
+        stockDaysTotal += Math.max(0, Math.round((startOfDay(basisDate).getTime() - startOfDay(purchaseDate).getTime()) / 86400000));
+        stockDaysCount += 1;
+      }
+    });
+  }
+
+  const inventoryTotalCost = inStockVehicles.reduce((sum, vehicle) => sum + (vehicle.purchase_price ?? 0) + getVehicleDirectCostTotal(vehicle), 0);
+  const longStayCount = inStockVehicles.filter((vehicle) => {
+    const purchaseDate = getVehiclePurchaseDate(vehicle);
+    if (!purchaseDate) return false;
+    const diff = Math.round((today.getTime() - startOfDay(purchaseDate).getTime()) / 86400000);
+    return diff > longStayThreshold;
+  }).length;
+
+  return {
+    revenue: revenueCount > 0 ? revenue : null,
+    grossProfit: validGrossCount > 0 ? grossProfit : null,
+    grossProfitRate: revenue > 0 && validGrossCount > 0 ? (grossProfit / revenue) * 100 : null,
+    averageStockDays: stockDaysCount > 0 ? stockDaysTotal / stockDaysCount : null,
+    salesCount: revenueCount,
+    validGrossCount,
+    missingGrossCount,
+    inventoryTotalCost,
+    inStockCount: inStockVehicles.length,
+    longStayCount,
+  } satisfies ManagementSummary;
+}
+
+function NumberCard({ label, value, detail, deltaLabel, tone = 'default' }: MetricCardData) {
+  const toneClass =
+    tone === 'good'
+      ? 'text-green-700'
+      : tone === 'bad'
+        ? 'text-red-700'
+        : 'text-slate-950';
 
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${classes[tone]}`}>
-      {value || '未設定'}
-    </span>
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-sm font-black text-slate-500">{label}</p>
+      <p className={`mt-2 text-3xl font-black ${toneClass}`}>{value}</p>
+      <p className="mt-2 text-xs font-semibold text-slate-500">{detail}</p>
+      <p className="mt-1 text-xs font-black text-slate-700">{deltaLabel}</p>
+    </section>
   );
 }
 
-function KpiCard({ label, value, detail, accent }: { label: string; value: string; detail: string; accent: string }) {
+function KpiCard({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`mb-4 h-1.5 w-12 rounded-full ${accent}`} />
-      <p className="text-sm font-bold text-slate-500">{label}</p>
+      <p className="text-sm font-black text-slate-500">{label}</p>
       <p className="mt-2 text-3xl font-black text-slate-950">{value}</p>
       <p className="mt-2 text-xs font-semibold text-slate-400">{detail}</p>
     </section>
   );
 }
 
-function ActionCard({ title, description, href }: { title: string; description: string; href: string }) {
+function ImprovementCard({ title, detail, tone }: { title: string; detail: string; tone: AttentionTone }) {
   return (
-    <Link
-      href={href}
-      className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/50 hover:shadow-md"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-base font-black text-slate-950">{title}</h3>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
-        </div>
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-sm font-black text-blue-700 transition group-hover:bg-blue-600 group-hover:text-white">
-          →
-        </span>
-      </div>
-    </Link>
+    <div className={`rounded-2xl border px-4 py-4 ${getTodayActionToneClass(tone)}`}>
+      <p className="text-sm font-black text-slate-950">{title}</p>
+      <p className="mt-1 text-xs leading-5 text-slate-600">{detail}</p>
+    </div>
   );
 }
-
-function SummaryList({ title, items, emptyLabel }: { title: string; items: Record<string, number>; emptyLabel: string }) {
-  const entries = Object.entries(items);
-
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="text-base font-black text-slate-950">{title}</h3>
-      <div className="mt-4 space-y-3">
-        {entries.length === 0 ? (
-          <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">{emptyLabel}</p>
-        ) : (
-          entries.slice(0, 6).map(([label, count]) => (
-            <div key={label} className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-              <span className="text-sm font-bold text-slate-700">{label}</span>
-              <span className="text-sm font-black text-blue-700">{count}件</span>
-            </div>
-          ))
-        )}
-      </div>
-    </section>
-  );
-}
-
-type InventoryMetrics = {
-  inventory_total_cost: number;
-  expected_gross_profit: number;
-  long_stay_count: number;
-  avg_days_in_stock: number;
-  in_stock_count: number;
-  sold_this_month_count: number;
-  realized_gross_profit_this_month: number;
-  long_stay_threshold_days: number;
-};
 
 export default function DashboardPage() {
-  const [summary, setSummary] = useState<VehicleDashboardSummary>(emptySummary);
+  const [summary, setSummary] = useState<DashboardState>(emptyState);
   const [isLoading, setIsLoading] = useState(true);
-  const [metrics, setMetrics] = useState<InventoryMetrics | null>(null);
-  const [metricsError, setMetricsError] = useState('');
-  const [todayKey] = useState(() => new Date().toISOString().slice(0, 10));
-  const [listingStatuses, setListingStatuses] = useState<ListingStatusRow[]>([]);
+  const [managementError, setManagementError] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [role, setRole] = useState('');
+  const [memberDisplayName, setMemberDisplayName] = useState('');
+  const [storeInfo, setStoreInfo] = useState<StoreRow | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodKey>('this_month');
+  const todayKey = todayKeyJst();
 
   useEffect(() => {
     async function loadSummary() {
       setIsLoading(true);
+      setErrorMessage('');
+      setManagementError('');
 
       try {
         const supabase = createClient();
-        const { data: userData } = await supabase.auth.getUser();
+        const { data: userData, error: userError } = await supabase.auth.getUser();
 
-        if (!userData.user?.id) return;
+        if (userError || !userData.user?.id) {
+          throw new Error(userError?.message ?? 'ログイン情報を取得できませんでした。');
+        }
 
-        const { data: member } = await supabase
+        const { data: member, error: memberError } = await supabase
           .from<StoreMemberRow>('store_members')
-          .select('store_id')
+          .select('store_id, role, display_name')
           .eq('user_id', userData.user.id)
           .single();
 
-        if (!member?.store_id) return;
+        if (memberError || !member?.store_id) {
+          throw new Error(memberError?.message ?? '所属店舗が見つかりません。');
+        }
 
-        const [vehicles, deals, maintenanceJobs, inventoryCounts, listingStatuses] = await Promise.all([
+        setRole(member.role ?? '');
+        setMemberDisplayName(member.display_name ?? '');
+
+        const isManagementRole = member.role === 'owner' || member.role === 'admin';
+
+        const [
+          vehicles,
+          deals,
+          invoices,
+          maintenanceJobs,
+          appointments,
+          inquiries,
+          customers,
+          listingStatuses,
+          storeResult,
+        ] = await Promise.all([
           supabase
             .from<VehicleRow>('vehicles')
-            .select('id, management_no, maker, model_name, status, location_name, total_price, purchase_date, market_value, market_source, market_checked_at, created_at')
+            .select('id, management_no, maker, model_name, status, location_name, total_price, listing_price, purchase_price, direct_cost_special, direct_cost_accessories, direct_cost_agency, direct_cost_legal, purchase_date, sale_price, sold_date, market_value, market_source, market_checked_at, created_at, is_archived, deleted_at')
             .eq('store_id', member.store_id)
             .order('created_at', { ascending: false }),
           supabase
             .from<DealRow>('deals')
-            .select('id, deal_no, title, status, probability, assigned_user_name, next_action_at, created_at')
+            .select('id, deal_no, title, status, assigned_user_name, next_action_at, created_at, vehicle_id')
             .eq('store_id', member.store_id)
             .order('created_at', { ascending: false }),
+          isManagementRole
+            ? supabase
+                .from<InvoiceRow>('invoices')
+                .select('id, vehicle_id, issue_date, issue_status, total_amount')
+                .eq('store_id', member.store_id)
+                .order('created_at', { ascending: false })
+            : Promise.resolve({ data: [], error: null }),
           supabase
             .from<MaintenanceRow>('maintenance_jobs')
-            .select('id, reception_no, job_type, status, scheduled_delivery_at, assigned_user_name')
-            .eq('store_id', member.store_id),
+            .select('id, reception_no, vehicle_id, job_type, status, scheduled_delivery_at, assigned_user_name')
+            .eq('store_id', member.store_id)
+            .order('scheduled_delivery_at', { ascending: true }),
           supabase
-            .from<InventoryRow>('inventory_counts')
-            .select('id, count_no, name, status, planned_date')
+            .from<AppointmentRow>('appointments')
+            .select('id, customer_id, vehicle_id, appointment_type, scheduled_at, status, assigned_user_name')
+            .eq('store_id', member.store_id)
+            .order('scheduled_at', { ascending: true }),
+          supabase
+            .from<InquiryRow>('line_form_responses')
+            .select('id, customer_id, deal_id, answers, submitted_at, source_route, response_status, assigned_user_name, next_action_at')
+            .eq('store_id', member.store_id)
+            .order('submitted_at', { ascending: false }),
+          supabase
+            .from<CustomerRow>('customers')
+            .select('id, name, next_action_date')
             .eq('store_id', member.store_id),
           supabase
             .from<ListingStatusRow>('vehicle_listing_statuses')
             .select('vehicle_id, channel, status')
             .eq('store_id', member.store_id),
+          supabase
+            .from<StoreRow>('stores')
+            .select(
+              isManagementRole
+                ? 'long_stay_threshold_days, management_target_gross_profit_yen, l_link_onboarding_completed_at, sales_recognition_basis, purchase_recognition_basis, business_type'
+                : 'long_stay_threshold_days, l_link_onboarding_completed_at, business_type',
+            )
+            .eq('id', member.store_id)
+            .single(),
         ]);
 
         setSummary({
           vehicles: vehicles.data ?? [],
           deals: deals.data ?? [],
+          invoices: invoices.data ?? [],
           maintenanceJobs: maintenanceJobs.data ?? [],
-          inventoryCounts: inventoryCounts.data ?? [],
+          appointments: appointments.data ?? [],
+          inquiries: inquiries.data ?? [],
+          customers: customers.data ?? [],
+          listingStatuses: listingStatuses.data ?? [],
         });
-        setListingStatuses(listingStatuses.data ?? []);
-        // 在庫指標（041 RPC・サーバ側集計・店舗スコープ）
-        const metricsResult = await supabase.rpc('inventory_dashboard_metrics', { p_store_id: member.store_id });
-        if (metricsResult.error) setMetricsError('在庫指標の取得に失敗しました。');
-        else setMetrics((metricsResult.data as unknown) as InventoryMetrics);
+
+        if (storeResult.error) {
+          setStoreInfo(null);
+        } else {
+          setStoreInfo(storeResult.data ?? null);
+        }
+
+        if (isManagementRole && invoices.error) {
+          setManagementError('経営数字の取得に失敗しました。');
+        }
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : 'ダッシュボードの取得に失敗しました。');
       } finally {
         setIsLoading(false);
       }
@@ -239,36 +637,327 @@ export default function DashboardPage() {
     void loadSummary();
   }, []);
 
-  const vehicleStatus = useMemo(() => countBy(summary.vehicles, (vehicle) => vehicle.status), [summary.vehicles]);
-  const dealStatus = useMemo(() => countBy(summary.deals, (deal) => deal.status), [summary.deals]);
-  const maintenanceStatus = useMemo(() => countBy(summary.maintenanceJobs, (job) => job.status), [summary.maintenanceJobs]);
-  const monthlySales = useMemo(
-    () => summary.vehicles.filter((vehicle) => vehicle.status === '売約済み' || vehicle.status === '納車済み').reduce((total, vehicle) => total + (vehicle.total_price ?? 0), 0),
-    [summary.vehicles]
+  const longStayThreshold = storeInfo?.long_stay_threshold_days ?? 90;
+  const isManagementVisible = role === 'owner' || role === 'admin';
+  const isLLinkConnected = Boolean(storeInfo?.l_link_onboarding_completed_at);
+  const salesBasis = storeInfo?.sales_recognition_basis ?? 'delivery';
+  const periodRange = useMemo(() => getPeriodRange(selectedPeriod), [selectedPeriod]);
+
+  const soldListedCount = useMemo(() => {
+    const publishedIds = new Set(
+      summary.listingStatuses.filter((item) => item.status === '掲載中').map((item) => item.vehicle_id),
+    );
+
+    return summary.vehicles.filter((vehicle) => ['売約済み', '納車済み'].includes(vehicle.status ?? '') && publishedIds.has(vehicle.id)).length;
+  }, [summary.listingStatuses, summary.vehicles]);
+
+  const listingErrorCount = summary.listingStatuses.filter((item) => item.status === 'エラー').length;
+  const marketMissingCount = summary.vehicles.filter((vehicle) => vehicle.market_value == null || !vehicle.market_source || !vehicle.market_checked_at).length;
+  const overdueDealCount = summary.deals.filter((deal) => {
+    const nextActionDate = deal.next_action_at?.slice(0, 10);
+    return nextActionDate && nextActionDate < todayKey && !['成約', '失注'].includes(deal.status ?? '');
+  }).length;
+  const todayAppointmentCount = summary.appointments.filter((appointment) => appointment.scheduled_at.slice(0, 10) === todayKey).length;
+  const upcomingMaintenanceCount = summary.maintenanceJobs.filter((job) => {
+    const scheduledDate = job.scheduled_delivery_at?.slice(0, 10);
+    return scheduledDate && scheduledDate <= todayKey && !['completed', 'delivered', '完了', '納車済み'].includes(job.status ?? '');
+  }).length;
+
+  const unhandledInquiryCount = summary.inquiries.filter((inquiry) => inquiry.response_status === 'unhandled').length;
+  const inProgressInquiryCount = summary.inquiries.filter((inquiry) => inquiry.response_status === 'in_progress').length;
+  const openInquiries = summary.inquiries.filter((inquiry) => inquiry.response_status !== 'completed');
+  const openInquiryCount = openInquiries.length;
+  const overdueInquiryCount = openInquiries.filter((inquiry) => inquiry.next_action_at && inquiry.next_action_at < new Date().toISOString()).length;
+  const openInquiryPreview = [...openInquiries]
+    .sort((a, b) => {
+      if (a.next_action_at && b.next_action_at) return a.next_action_at.localeCompare(b.next_action_at);
+      if (a.next_action_at) return -1;
+      if (b.next_action_at) return 1;
+      return (b.submitted_at ?? '').localeCompare(a.submitted_at ?? '');
+    })
+    .slice(0, 3);
+
+  const todayActions = useMemo<TodayActionItem[]>(
+    () => buildTodayActionItems({
+      appointments: summary.appointments,
+      deals: summary.deals,
+      maintenanceJobs: summary.maintenanceJobs,
+      vehicles: summary.vehicles,
+      listingStatuses: summary.listingStatuses,
+      customers: summary.customers,
+      todayKey,
+      memberRole: role,
+      memberDisplayName,
+      longStayThresholdDays: longStayThreshold,
+    }),
+    [longStayThreshold, memberDisplayName, role, summary.appointments, summary.customers, summary.deals, summary.listingStatuses, summary.maintenanceJobs, summary.vehicles, todayKey],
   );
-  const inStockCount = summary.vehicles.filter((vehicle) => vehicle.status === '在庫中' || vehicle.status === '展示中').length;
-  const maintenanceCount = summary.vehicles.filter((vehicle) => vehicle.status === '整備中').length + summary.maintenanceJobs.filter((job) => job.status === '作業中').length;
-  const activeDeals = summary.deals.filter((deal) => !['成約', '失注'].includes(deal.status ?? '')).length;
-  const wonDeals = summary.deals.filter((deal) => deal.status === '成約').length;
-  const todayActions = useMemo(() => {
-    const today = todayKey;
-    const tomorrow = new Date(`${todayKey}T00:00:00Z`);
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-    const tomorrowKey = tomorrow.toISOString().slice(0, 10);
-    const vehicleMap = new Map(summary.vehicles.map((vehicle) => [vehicle.id, vehicle]));
-    const actions: Array<{ title: string; detail: string; href: string; tone: 'red' | 'amber' | 'blue' }> = [];
-    summary.deals.filter((deal) => deal.next_action_at && deal.next_action_at.slice(0, 10) <= today && !['成約', '失注'].includes(deal.status ?? '')).slice(0, 4).forEach((deal) => actions.push({ title: '商談に対応', detail: `${deal.title ?? deal.deal_no ?? '商談'}の次回対応日です`, href: `/deals/${deal.id}`, tone: 'red' }));
-    summary.maintenanceJobs.filter((job) => job.scheduled_delivery_at && job.scheduled_delivery_at.slice(0, 10) <= tomorrowKey && !['完了', '納車済み'].includes(job.status ?? '')).slice(0, 3).forEach((job) => actions.push({ title: '整備予定を確認', detail: `${job.reception_no ?? '整備案件'}の納車予定を確認`, href: `/maintenance/${job.id}`, tone: 'blue' }));
-    summary.vehicles.filter((vehicle) => vehicle.market_value == null || !vehicle.market_source || !vehicle.market_checked_at).slice(0, 3).forEach((vehicle) => actions.push({ title: '相場を確認', detail: `${vehicleLabel(vehicle)}は相場未確認`, href: `/vehicles/${vehicle.id}`, tone: 'amber' }));
-    listingStatuses.filter((item) => item.status === 'エラー').slice(0, 3).forEach((item) => { const vehicle = vehicleMap.get(item.vehicle_id); if (vehicle) actions.push({ title: '掲載エラーを確認', detail: `${vehicleLabel(vehicle)}の${item.channel}掲載`, href: `/vehicles/${vehicle.id}`, tone: 'red' }); });
-    return actions.slice(0, 8);
-  }, [summary, listingStatuses, todayKey]);
+
+  const todayActionsPreview = todayActions.slice(0, 5);
+  const urgentTodayActionCount = todayActions.filter((item) => item.status === 'urgent').length;
+
+  const industryReference = useMemo(() => getIndustryReference(storeInfo?.business_type, salesBasis), [salesBasis, storeInfo?.business_type]);
+
+  const currentManagement = useMemo(
+    () =>
+      buildManagementSummary(
+        { start: periodRange.start, end: periodRange.end },
+        salesBasis,
+        summary.vehicles,
+        summary.deals,
+        summary.invoices,
+        longStayThreshold,
+      ),
+    [longStayThreshold, periodRange.end, periodRange.start, salesBasis, summary.deals, summary.invoices, summary.vehicles],
+  );
+
+  const previousManagement = useMemo(
+    () =>
+      buildManagementSummary(
+        { start: periodRange.previousStart, end: periodRange.previousEnd },
+        salesBasis,
+        summary.vehicles,
+        summary.deals,
+        summary.invoices,
+        longStayThreshold,
+      ),
+    [longStayThreshold, periodRange.previousEnd, periodRange.previousStart, salesBasis, summary.deals, summary.invoices, summary.vehicles],
+  );
+
+  const inventoryAgeData = useMemo<ChartDatum[]>(() => {
+    const buckets = [0, 0, 0, 0];
+    const today = startOfDay(new Date());
+    summary.vehicles.filter(isInStockVehicle).forEach((vehicle) => {
+      const purchaseDate = getVehiclePurchaseDate(vehicle);
+      if (!purchaseDate) {
+        buckets[0] += 1;
+        return;
+      }
+      const days = Math.max(0, Math.floor((today.getTime() - startOfDay(purchaseDate).getTime()) / 86400000));
+      if (days <= 30) buckets[0] += 1;
+      else if (days <= 60) buckets[1] += 1;
+      else if (days <= 90) buckets[2] += 1;
+      else buckets[3] += 1;
+    });
+    return [
+      { label: '0〜30日', value: buckets[0], color: '#22c55e' },
+      { label: '31〜60日', value: buckets[1], color: '#3b82f6' },
+      { label: '61〜90日', value: buckets[2], color: '#f59e0b' },
+      { label: '91日以上', value: buckets[3], color: '#ef4444' },
+    ];
+  }, [summary.vehicles]);
+
+  const vehicleStatusData = useMemo<ChartDatum[]>(() => {
+    const counts = new Map<string, number>([
+      ['在庫中', 0],
+      ['商談中', 0],
+      ['整備中', 0],
+      ['売約済み', 0],
+      ['納車済み', 0],
+    ]);
+    summary.vehicles
+      .filter((vehicle) => !vehicle.deleted_at && !vehicle.is_archived)
+      .forEach((vehicle) => {
+        const rawStatus = vehicle.status ?? '';
+        const label = ['売約済み', 'sold'].includes(rawStatus)
+          ? '売約済み'
+          : ['納車済み', 'delivered'].includes(rawStatus)
+            ? '納車済み'
+            : ['商談中', 'negotiating'].includes(rawStatus)
+              ? '商談中'
+              : ['整備中', 'maintenance'].includes(rawStatus)
+                ? '整備中'
+                : '在庫中';
+        counts.set(label, (counts.get(label) ?? 0) + 1);
+      });
+    return [
+      { label: '在庫中', value: counts.get('在庫中') ?? 0, color: '#3b82f6' },
+      { label: '商談中', value: counts.get('商談中') ?? 0, color: '#8b5cf6' },
+      { label: '整備中', value: counts.get('整備中') ?? 0, color: '#f59e0b' },
+      { label: '売約済み', value: counts.get('売約済み') ?? 0, color: '#14b8a6' },
+      { label: '納車済み', value: counts.get('納車済み') ?? 0, color: '#64748b' },
+    ];
+  }, [summary.vehicles]);
+
+  const managementTrendData = useMemo(
+    () => Array.from({ length: 6 }, (_, index) => {
+      const monthStart = addMonths(startOfMonth(new Date()), index - 5);
+      const result = buildManagementSummary(
+        { start: monthStart, end: endOfMonth(monthStart) },
+        salesBasis,
+        summary.vehicles,
+        summary.deals,
+        summary.invoices,
+        longStayThreshold,
+      );
+      return {
+        label: `${monthStart.getMonth() + 1}月`,
+        revenue: result.revenue ?? 0,
+        grossProfit: result.grossProfit ?? 0,
+      };
+    }),
+    [longStayThreshold, salesBasis, summary.deals, summary.invoices, summary.vehicles],
+  );
+
+  const improvementPoints = useMemo(() => {
+    const items: Array<{ title: string; detail: string; tone: AttentionTone }> = [];
+
+    if (currentManagement.grossProfitRate !== null && currentManagement.grossProfitRate < 10) {
+      items.push({
+        title: '粗利率がかなり薄めです',
+        detail: `${selectedPeriod === 'this_month' ? '今月' : '選択期間'}の粗利率は${formatPercent(currentManagement.grossProfitRate)}です。長期在庫 ${currentManagement.longStayCount}台の値付け見直しを先に行うのが安全です。`,
+        tone: 'red',
+      });
+    }
+
+    if (overdueDealCount > 0) {
+      items.push({
+        title: '商談の次回連絡が止まっています',
+        detail: `${overdueDealCount}件の次回連絡予定日が過ぎています。まず今日の商談一覧で上から処理するのが早いです。`,
+        tone: 'red',
+      });
+    }
+
+    if (currentManagement.longStayCount > 0) {
+      items.push({
+        title: '長期在庫の見直し余地があります',
+        detail: `${currentManagement.longStayCount}台が${longStayThreshold}日を超えています。価格見直し・掲載先確認・販促強化の順で見るのがおすすめです。`,
+        tone: 'amber',
+      });
+    }
+
+    if (soldListedCount > 0 || listingErrorCount > 0) {
+      items.push({
+        title: '掲載管理の改善余地があります',
+        detail: `売約後掲載中 ${soldListedCount}台 / 掲載エラー ${listingErrorCount}件です。公開先の整理だけでも問い合わせ品質が上がります。`,
+        tone: 'red',
+      });
+    }
+
+    if (marketMissingCount > 0) {
+      items.push({
+        title: '相場確認が未完了の車両があります',
+        detail: `${marketMissingCount}台で相場確認が未完了です。価格見直しの前に、相場金額と確認日を入れておくと判断しやすくなります。`,
+        tone: 'amber',
+      });
+    }
+
+    if (isLLinkConnected && openInquiryCount > 0) {
+      items.push({
+        title: '未完了の問い合わせがあります',
+        detail: `${openInquiryCount}件が未対応または対応中です。担当者と次回対応日時を確認できます。`,
+        tone: 'blue',
+      });
+    }
+
+    if (items.length === 0 && upcomingMaintenanceCount > 0) {
+      items.push({
+        title: '整備・車検の期限確認が必要です',
+        detail: `${upcomingMaintenanceCount}件が納車予定日を迎えているか過ぎています。整備タブで担当と進捗を合わせると安心です。`,
+        tone: 'blue',
+      });
+    }
+
+    if (items.length === 0) {
+      items.push({
+        title: '大きな滞留は見えていません',
+        detail: '今日の対応と長期在庫、掲載管理は落ち着いています。次は粗利と回転を継続して見る段階です。',
+        tone: 'blue',
+      });
+    }
+
+    return items.slice(0, 3);
+  }, [
+    currentManagement.grossProfitRate,
+    currentManagement.longStayCount,
+    isLLinkConnected,
+    listingErrorCount,
+    longStayThreshold,
+    marketMissingCount,
+    overdueDealCount,
+    selectedPeriod,
+    soldListedCount,
+    openInquiryCount,
+    upcomingMaintenanceCount,
+  ]);
+
+  const targetDelta =
+    storeInfo?.management_target_gross_profit_yen == null || currentManagement.grossProfit == null
+      ? null
+      : currentManagement.grossProfit - storeInfo.management_target_gross_profit_yen;
+
+  const metricCards = useMemo<MetricCardData[]>(() => {
+    const revenueDelta = formatDelta(
+      currentManagement.revenue !== null && previousManagement.revenue !== null
+        ? currentManagement.revenue - previousManagement.revenue
+        : null,
+      (value) => `${Math.round(value).toLocaleString('ja-JP')}円`,
+    );
+
+    const grossDelta = formatDelta(
+      currentManagement.grossProfit !== null && previousManagement.grossProfit !== null
+        ? currentManagement.grossProfit - previousManagement.grossProfit
+        : null,
+      (value) => `${Math.round(value).toLocaleString('ja-JP')}円`,
+    );
+
+    const grossRateDelta = formatDeltaPercent(
+      currentManagement.grossProfitRate !== null && previousManagement.grossProfitRate !== null
+        ? currentManagement.grossProfitRate - previousManagement.grossProfitRate
+        : null,
+    );
+
+    const stockDaysDelta = formatDelta(
+      currentManagement.averageStockDays !== null && previousManagement.averageStockDays !== null
+        ? currentManagement.averageStockDays - previousManagement.averageStockDays
+        : null,
+      (value) => `${Math.round(value).toLocaleString('ja-JP')}日`,
+      false,
+    );
+
+    return [
+      {
+        label: '売上',
+        value: formatCurrency(currentManagement.revenue),
+        detail: `${getSalesBasisLabel(salesBasis)}基準 / ${currentManagement.salesCount}件を集計`,
+        deltaLabel: revenueDelta.label,
+        tone: revenueDelta.tone,
+      },
+      {
+        label: '粗利額',
+        value: formatCurrency(currentManagement.grossProfit),
+        detail:
+          currentManagement.missingGrossCount > 0
+            ? `暫定値 / 集計済み ${currentManagement.validGrossCount}件・入力不足 ${currentManagement.missingGrossCount}件`
+            : `集計済み ${currentManagement.validGrossCount}件`,
+        deltaLabel:
+          targetDelta === null
+            ? grossDelta.label
+            : `目標差 ${targetDelta >= 0 ? '+' : '-'}${formatCurrency(Math.abs(targetDelta))} / ${grossDelta.label}`,
+        tone: targetDelta !== null ? deltaTone(targetDelta) : grossDelta.tone,
+      },
+      {
+        label: '粗利率',
+        value: formatPercent(currentManagement.grossProfitRate),
+        detail: '※参考値 / 入力済みの直接原価を含みます',
+        deltaLabel: grossRateDelta.label,
+        tone: grossRateDelta.tone,
+      },
+      {
+        label: '平均在庫日数',
+        value: formatDays(currentManagement.averageStockDays),
+        detail: `${getSalesBasisLabel(salesBasis)}までの日数平均`,
+        deltaLabel: stockDaysDelta.label,
+        tone: stockDaysDelta.tone,
+      },
+    ];
+  }, [currentManagement, previousManagement, salesBasis, targetDelta]);
 
   return (
     <AppShell
       activeLabel="ダッシュボード"
-      title="車両管理ダッシュボード"
-      description="在庫、商談、整備、棚卸しの状況を確認します。LINE管理情報は表示しません。"
+      title="ホーム"
+      description="今日の来店、商談、整備期限、在庫注意点をすぐ確認できます"
       actionButton={
         <Link href="/vehicles/new" className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-blue-700">
           車両を登録
@@ -276,152 +965,199 @@ export default function DashboardPage() {
       }
     >
       <div className="space-y-6">
-        <section className="rounded-3xl border border-blue-100 bg-gradient-to-br from-white to-blue-50 p-5 shadow-sm sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-sm font-black text-blue-700">Vehicle Operations</p>
-              <h2 className="mt-2 text-2xl font-black text-slate-950 sm:text-3xl">車両販売業務の現在地</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                入庫、販売、商談、整備、棚卸しを一画面で把握し、次の作業へすぐ移動できます。
-              </p>
-            </div>
-            <div className="rounded-2xl border border-blue-100 bg-white px-5 py-4 shadow-sm">
-              <p className="text-xs font-bold text-slate-400">確認状態</p>
-              <p className="mt-1 text-sm font-black text-slate-800">{isLoading ? '読み込み中' : '最新データを表示中'}</p>
-            </div>
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+          <h2 className="text-xl font-black text-slate-950">本日の状況</h2>
+          <div className="flex items-center gap-3 text-sm font-bold text-slate-600">
+            <span>{todayKey}</span>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs">{isLoading ? '読み込み中' : '最新'}</span>
           </div>
         </section>
+
+        {errorMessage && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>}
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-baseline justify-between gap-3">
-            <div><h3 className="text-base font-black text-slate-950">今日やること</h3><p className="mt-1 text-sm text-slate-500">期限が近いもの、止まっているものから表示します。</p></div>
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{todayActions.length}件</span>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-black text-slate-950">今日やること</h3>
+              <ContextHelp title="今日やること" description="期限超過や本日対応など、優先度が高い業務から表示します。" />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-black text-red-700">緊急 {urgentTodayActionCount}件</span>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">全{todayActions.length}件</span>
+            </div>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {todayActions.map((action, index) => <Link key={`${action.href}-${index}`} href={action.href} className={`rounded-xl border px-4 py-3 transition hover:shadow-sm ${action.tone === 'red' ? 'border-red-200 bg-red-50/60' : action.tone === 'amber' ? 'border-amber-200 bg-amber-50/60' : 'border-blue-200 bg-blue-50/50'}`}><p className="text-sm font-black text-slate-950">{action.title}</p><p className="mt-1 text-xs font-semibold text-slate-600">{action.detail}</p></Link>)}
-            {todayActions.length === 0 && <p className="rounded-xl bg-green-50 px-4 py-4 text-sm font-bold text-green-800">今日の対応はありません。</p>}
+            {todayActionsPreview.map((action) => (
+              <Link key={action.id} href={action.href} className={`rounded-xl border px-4 py-3 transition hover:shadow-sm ${getTodayActionToneClass(action.tone)}`}>
+                <p className="text-sm font-black text-slate-950">{action.title}</p>
+                <p className="mt-1 text-xs font-semibold text-slate-600">{action.detail}</p>
+              </Link>
+            ))}
+            {todayActionsPreview.length === 0 && (
+              <p className="rounded-xl bg-green-50 px-4 py-4 text-sm font-bold text-green-800">今日の優先対応はありません。</p>
+            )}
           </div>
-        </section>
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-          <KpiCard label="総在庫台数" value={`${summary.vehicles.length}`} detail="登録済み車両" accent="bg-blue-600" />
-          <KpiCard label="入庫中" value={`${inStockCount}`} detail="在庫中・展示中" accent="bg-sky-500" />
-          <KpiCard label="整備中" value={`${maintenanceCount}`} detail="車両/整備案件" accent="bg-orange-500" />
-          <KpiCard label="今月の売上" value={formatCurrency(monthlySales)} detail="売約/納車済み合計" accent="bg-green-500" />
-          <KpiCard label="商談中" value={`${activeDeals}`} detail="進行中商談" accent="bg-indigo-500" />
-          <KpiCard label="成約数" value={`${wonDeals}`} detail="成約ステータス" accent="bg-emerald-500" />
-        </div>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="text-base font-black text-slate-950">在庫利益・回転</h3>
-            <p className="text-xs text-slate-500">長期滞留閾値: {metrics?.long_stay_threshold_days ?? 90}日（店舗設定）</p>
-          </div>
-          {metricsError ? (
-            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{metricsError}</p>
-          ) : !metrics ? (
-            <p className="text-sm text-slate-500">読み込み中...</p>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-              <KpiCard label="在庫総額" value={formatCurrency(metrics.inventory_total_cost)} detail="仕入価格合計" accent="bg-blue-600" />
-              <KpiCard label="見込み粗利" value={formatCurrency(metrics.expected_gross_profit)} detail="希望売価-仕入" accent="bg-emerald-500" />
-              <KpiCard label="長期滞留台数" value={`${metrics.long_stay_count}`} detail="閾値超え在庫" accent="bg-amber-500" />
-              <KpiCard label="平均在庫日数" value={`${metrics.avg_days_in_stock}日`} detail="現在の在庫" accent="bg-indigo-500" />
-              <KpiCard label="当月販売台数" value={`${metrics.sold_this_month_count}`} detail="今月の販売実績" accent="bg-sky-500" />
-              <KpiCard label="当月実現粗利" value={formatCurrency(metrics.realized_gross_profit_this_month)} detail="販売価格-仕入" accent="bg-green-500" />
+          {todayActions.length > 5 && (
+            <div className="mt-4">
+              <Link href="/dashboard/today-actions" className="text-sm font-black text-blue-700 hover:underline">
+                残り{todayActions.length - 5}件をすべて見る
+              </Link>
             </div>
           )}
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <h3 className="text-base font-black text-slate-950">最近の入庫車両</h3>
-              <p className="mt-1 text-sm text-slate-500">直近で登録された車両を確認します。</p>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <KpiCard label="今日の来店・試乗予約" value={`${todayAppointmentCount}件`} detail="当日の予約" />
+          <KpiCard label="商談の次回連絡" value={`${overdueDealCount}件`} detail="期日超過" />
+          <KpiCard label="車検・整備の期限" value={`${upcomingMaintenanceCount}件`} detail="今日までに確認" />
+          <KpiCard label="長期在庫" value={`${currentManagement.longStayCount}台`} detail={`${longStayThreshold}日超えだけ表示`} />
+          <KpiCard label="掲載・相場の要確認" value={`${listingErrorCount + soldListedCount + marketMissingCount}件`} detail="掲載エラー・売約後掲載・相場未確認" />
+        </div>
+
+        <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+          <InventoryAgeDonut data={inventoryAgeData} thresholdDays={longStayThreshold} />
+          <VehicleStatusBars data={vehicleStatusData} />
+        </div>
+
+        {isManagementVisible && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-slate-950">改善ポイント</h3>
+                <ContextHelp title="改善ポイント" description="経営数字、期限超過、長期在庫、掲載状況から、先に見直す項目を表示します。" />
+              </div>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">{improvementPoints.length}件</span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="bg-slate-50 text-xs font-black text-slate-500">
-                  <tr>
-                    <th className="px-5 py-3">管理番号</th>
-                    <th className="px-5 py-3">車両</th>
-                    <th className="px-5 py-3">保管場所</th>
-                    <th className="px-5 py-3">価格</th>
-                    <th className="px-5 py-3">状態</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {summary.vehicles.slice(0, 6).map((vehicle) => (
-                    <tr key={vehicle.id} className="hover:bg-blue-50/50">
-                      <td className="px-5 py-4 font-bold text-slate-700">{vehicle.management_no ?? '-'}</td>
-                      <td className="px-5 py-4 font-black text-slate-950">{vehicleLabel(vehicle)}</td>
-                      <td className="px-5 py-4 text-slate-600">{vehicle.location_name ?? '-'}</td>
-                      <td className="px-5 py-4 text-right font-bold text-slate-700">{formatCurrency(vehicle.total_price)}</td>
-                      <td className="px-5 py-4"><StatusBadge value={vehicle.status} /></td>
-                    </tr>
-                  ))}
-                  {summary.vehicles.length === 0 && (
-                    <tr><td colSpan={5} className="px-5 py-8 text-center text-sm font-bold text-slate-400">データがありません</td></tr>
-                  )}
-                </tbody>
-              </table>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {improvementPoints.map((item) => (
+                <ImprovementCard key={item.title} title={item.title} detail={item.detail} tone={item.tone} />
+              ))}
             </div>
           </section>
+        )}
 
-          <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <h3 className="text-base font-black text-slate-950">最近の商談</h3>
-              <p className="mt-1 text-sm text-slate-500">次回対応日と担当者を確認します。</p>
+        {isManagementVisible && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-slate-950">経営数字</h3>
+                <ContextHelp title="経営数字" description="売上基準と入力済みの直接原価から集計します。業界比較は店舗差があるため参考値です。" />
+              </div>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600">オーナー・管理者限定</span>
+                {PERIOD_OPTIONS.map((option) => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => setSelectedPeriod(option.key)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-black transition ${
+                      selectedPeriod === option.key
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="divide-y divide-slate-100">
-              {summary.deals.slice(0, 5).map((deal) => (
-                <Link key={deal.id} href={`/deals/${deal.id}`} className="block px-5 py-4 transition hover:bg-blue-50/50">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-black text-slate-950">{deal.title ?? deal.deal_no ?? '商談'}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">担当: {deal.assigned_user_name ?? '-'} / 次回: {formatDate(deal.next_action_at)}</p>
-                    </div>
-                    <StatusBadge value={deal.status} tone="orange" />
+
+            <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
+              <span className="rounded-full bg-slate-100 px-3 py-1">
+                売上基準 {getSalesBasisLabel(salesBasis)}
+              </span>
+              <span className="rounded-full bg-slate-100 px-3 py-1">
+                目標粗利 {formatCurrency(storeInfo?.management_target_gross_profit_yen ?? null)}
+              </span>
+              <span className="rounded-full bg-slate-100 px-3 py-1">
+                長期在庫閾値 {longStayThreshold}日
+              </span>
+              <span className="rounded-full bg-slate-100 px-3 py-1">
+                業態 {storeInfo?.business_type ?? '未設定'}
+              </span>
+            </div>
+
+            {managementError ? (
+              <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{managementError}</p>
+            ) : (
+              <>
+                <div className="mt-4">
+                  <ManagementTrendChart data={managementTrendData} />
+                </div>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {metricCards.map((card) => (
+                    <NumberCard key={card.label} {...card} />
+                  ))}
+                </div>
+
+                <div className="mt-4 grid gap-4 lg:grid-cols-4">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-black text-slate-900">集計状態</p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      集計件数 {currentManagement.salesCount}件 / 粗利計算済み {currentManagement.validGrossCount}件 / 入力不足 {currentManagement.missingGrossCount}件
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-black text-slate-900">その他の数字</p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      在庫総額 {formatCurrency(currentManagement.inventoryTotalCost)} / 在庫台数 {currentManagement.inStockCount}台
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-black text-slate-900">業界参考値</p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      {industryReference ? `${industryReference.label} ${industryReference.minRate.toFixed(1)}〜${industryReference.maxRate.toFixed(1)}%` : '条件が合う参考値がまだ未設定です'}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {industryReference ? `${industryReference.source} / ${industryReference.year} / ※参考値` : '業態・基準が合うときだけ表示します'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-black text-slate-900">見方</p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      店舗ごとの運用差があるため、粗利率の高低判定は参考値として見てください。
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {isLLinkConnected && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-slate-950">L-LINK連携の問い合わせ</h3>
+                <ContextHelp title="L-LINK連携の問い合わせ" description="L-LINK連携済み店舗だけに表示し、未完了の問い合わせを次回対応順に確認できます。" />
+              </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">未完了 {openInquiryCount}件</span>
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <KpiCard label="未対応" value={`${unhandledInquiryCount}件`} detail="まだ対応を開始していない" />
+              <KpiCard label="対応中" value={`${inProgressInquiryCount}件`} detail="担当者が対応中" />
+              <KpiCard label="次回対応超過" value={`${overdueInquiryCount}件`} detail="予定日時を超えた未完了" />
+            </div>
+            <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200">
+              {openInquiryPreview.length === 0 ? (
+                <p className="px-4 py-5 text-sm font-bold text-slate-500">未完了の問い合わせはありません。</p>
+              ) : openInquiryPreview.map((inquiry) => (
+                <Link key={inquiry.id} href="/inquiries" className="flex flex-col gap-2 px-4 py-4 transition hover:bg-blue-50/60 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-slate-900">{inquiryAnswerLabel(inquiry.answers)}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">担当: {inquiry.assigned_user_name ?? '未設定'} / 受付: {inquiry.submitted_at ? new Date(inquiry.submitted_at).toLocaleString('ja-JP') : '-'}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2 text-xs font-bold">
+                    <span className={inquiry.response_status === 'in_progress' ? 'rounded-full bg-blue-50 px-2.5 py-1 text-blue-700' : 'rounded-full bg-amber-50 px-2.5 py-1 text-amber-800'}>{inquiry.response_status === 'in_progress' ? '対応中' : '未対応'}</span>
+                    <span className={inquiry.next_action_at && inquiry.next_action_at < new Date().toISOString() ? 'text-red-700' : 'text-slate-500'}>次回: {inquiry.next_action_at ? new Date(inquiry.next_action_at).toLocaleString('ja-JP') : '未設定'}</span>
                   </div>
                 </Link>
               ))}
-              {summary.deals.length === 0 && (
-                <p className="px-5 py-8 text-center text-sm font-bold text-slate-400">データがありません</p>
-              )}
             </div>
+            <div className="mt-4 text-right"><Link href="/inquiries" className="text-sm font-bold text-blue-700 hover:underline">問い合わせ一覧を開く</Link></div>
           </section>
-        </div>
+        )}
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <SummaryList title="車両ステータスサマリー" items={vehicleStatus} emptyLabel="車両データがありません" />
-          <SummaryList title="商談ステータスサマリー" items={dealStatus} emptyLabel="商談データがありません" />
-          <SummaryList title="整備・車検進捗" items={maintenanceStatus} emptyLabel="整備・車検データがありません" />
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-          <ActionCard title="車両一覧へ" description="在庫・販売車両を確認します。" href="/vehicles" />
-          <ActionCard title="顧客管理へ" description="顧客情報と希望条件を確認します。" href="/customers" />
-          <ActionCard title="商談管理へ" description="商談状況と次回対応を管理します。" href="/deals" />
-          <ActionCard title="整備・車検へ" description="作業進捗と納車予定を確認します。" href="/maintenance" />
-          <ActionCard title="棚卸しへ" description="在庫差異と棚卸し状況を確認します。" href="/inventory-counts" />
-          <ActionCard title="分析へ" description="販売・商談・整備の集計を確認します。" href="/analytics" />
-        </div>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="text-base font-black text-slate-950">棚卸し状況</h3>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            {summary.inventoryCounts.slice(0, 3).map((item) => (
-              <div key={item.id} className="rounded-xl bg-slate-50 p-4">
-                <p className="text-sm font-black text-slate-800">{item.name ?? item.count_no ?? '棚卸し'}</p>
-                <p className="mt-2 text-xs font-semibold text-slate-500">予定日: {formatDate(item.planned_date)}</p>
-                <div className="mt-3"><StatusBadge value={item.status} tone="slate" /></div>
-              </div>
-            ))}
-            {summary.inventoryCounts.length === 0 && (
-              <p className="rounded-xl bg-slate-50 px-4 py-5 text-sm font-bold text-slate-400">棚卸しデータがありません</p>
-            )}
-          </div>
-        </section>
       </div>
     </AppShell>
   );

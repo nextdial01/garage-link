@@ -71,13 +71,26 @@ export async function POST(request: Request) {
   let stripeCustomerId: string | null = null;
   const admin = createAdminClient();
   if (admin) {
+    const { data: activeStore } = await admin.from('stores').select('tenant_id').eq('id', member.store_id).single();
+    const tenantId = (activeStore as { tenant_id: string | null } | null)?.tenant_id;
     const { data: subscriptionRow } = await admin
       .from('company_subscriptions')
-      .select('stripe_customer_id')
-      .eq('company_id', member.store_id)
+      .select('stripe_customer_id, stripe_subscription_id, plan')
+      .eq('tenant_id', tenantId)
       .eq('status', 'active')
       .maybeSingle();
-    stripeCustomerId = (subscriptionRow as { stripe_customer_id: string | null } | null)?.stripe_customer_id ?? null;
+    const existing = subscriptionRow as {
+      stripe_customer_id: string | null;
+      stripe_subscription_id: string | null;
+      plan: string;
+    } | null;
+    if (existing?.stripe_subscription_id && normalizeGaragePlanCode(existing.plan) !== 'free') {
+      return NextResponse.json(
+        { ok: false, error: '既存の有料契約はプラン変更APIから変更してください。', code: 'use_plan_change' },
+        { status: 409 },
+      );
+    }
+    stripeCustomerId = existing?.stripe_customer_id ?? null;
   }
 
   const customerParams = stripeCustomerId

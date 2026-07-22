@@ -10,7 +10,7 @@ type StoreMemberRow = {
 };
 
 const subscriptionColumns =
-  'id, company_id, plan, status, included_staff_count, extra_staff_count, included_store_count, extra_store_count, storage_limit_mb, extra_storage_gb, current_inventory_limit, l_link_integration_enabled, started_at, updated_at, stripe_customer_id, stripe_subscription_id, cancelled_at, data_delete_scheduled_at, data_deleted_at';
+  'id, company_id, tenant_id, plan, status, included_staff_count, extra_staff_count, included_store_count, extra_store_count, storage_limit_mb, extra_storage_gb, current_inventory_limit, l_link_integration_enabled, started_at, updated_at, stripe_customer_id, stripe_subscription_id, pending_plan, pending_plan_effective_at, cancelled_at, data_delete_scheduled_at, data_deleted_at';
 
 export async function GET() {
   const supabase = await createClient();
@@ -37,10 +37,20 @@ export async function GET() {
     );
   }
 
+  const { data: activeStore, error: storeError } = await admin
+    .from('stores')
+    .select('tenant_id')
+    .eq('id', member.store_id)
+    .single();
+  const tenantId = (activeStore as { tenant_id: string | null } | null)?.tenant_id;
+  if (storeError || !tenantId) {
+    return NextResponse.json({ ok: false, error: '契約会社を特定できません。' }, { status: 500 });
+  }
+
   const { data: existing, error: readError } = await admin
     .from('company_subscriptions')
     .select(subscriptionColumns)
-    .eq('company_id', member.store_id)
+    .eq('tenant_id', tenantId)
     .eq('status', 'active')
     .maybeSingle();
 
@@ -55,7 +65,7 @@ export async function GET() {
   const { data: cancelled, error: cancelledError } = await admin
     .from('company_subscriptions')
     .select(subscriptionColumns)
-    .eq('company_id', member.store_id)
+    .eq('tenant_id', tenantId)
     .eq('status', 'cancelled')
     .is('data_deleted_at', null)
     .order('updated_at', { ascending: false })
@@ -75,6 +85,7 @@ export async function GET() {
     .from('company_subscriptions')
     .insert({
       company_id: fallback.company_id,
+      tenant_id: tenantId,
       plan: fallback.plan,
       status: fallback.status,
       included_staff_count: fallback.included_staff_count,

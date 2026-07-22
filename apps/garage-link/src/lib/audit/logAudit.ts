@@ -9,6 +9,7 @@ type AuditAction =
   | 'logout'
   | 'issue_quote'
   | 'issue_invoice'
+  | 'view_billing_invoice'
   | 'cancel_quote'
   | 'cancel_invoice'
   | 'send_line'
@@ -40,6 +41,7 @@ type AuditTargetType =
   | 'deal'
   | 'quote'
   | 'invoice'
+  | 'billing_invoice'
   | 'maintenance_job'
   | 'inventory_count'
   | 'line_friend'
@@ -112,7 +114,7 @@ export async function logAudit({
   metadata?: unknown | null;
   ipAddress?: string | null;
   userAgent?: string | null;
-}) {
+}): Promise<boolean> {
   try {
     const payload: AuditLogInsert = {
       store_id: storeId,
@@ -135,8 +137,11 @@ export async function logAudit({
     const { error } = result as { error?: { message: string } | null };
     if (error) {
       console.error('audit log insert failed', error.message);
+      return false;
     }
+    return true;
   } catch (error) {
     console.error('audit log insert failed', error instanceof Error ? error.message : 'unknown error');
+    return false;
   }
 }

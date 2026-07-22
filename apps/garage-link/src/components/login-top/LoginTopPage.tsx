@@ -6,9 +6,9 @@ import { GarageLoginForm } from '@/components/auth/GarageLoginForm';
 import styles from './login-top.module.css';
 
 const features = [
-  { label: '導入・運用が\nカンタン', icon: 'clock' },
-  { label: '安心・安全の\nセキュリティ', icon: 'shield' },
-  { label: '売上につながる\n仕組みを提供', icon: 'chart' },
+  { label: '今日の対応を\n優先順に確認', icon: 'clock' },
+  { label: '役割に合わせて\n権限を設定', icon: 'shield' },
+  { label: '在庫と商談を\n同じ数字で確認', icon: 'chart' },
 ];
 
 function FeatureIcon({ name }: { name: string }) {
@@ -53,7 +53,8 @@ export function LoginTopPage() {
     name: 'GARAGE LINK',
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
-    description: '中古車・バイク販売店、整備工場の店舗業務を一元管理するサービス。',
+    description:
+      '中古車販売店・バイクショップ・整備工場の在庫、顧客、商談、見積、請求、整備をひとつにまとめる店舗管理ツール。',
     url: 'https://garage-link.tech/',
     provider: { '@type': 'Organization', name: '株式会社かんなぎ' },
   };
@@ -74,12 +75,12 @@ export function LoginTopPage() {
         <div className={styles.copy}>
           <p className={styles.eyebrow}>AUTOMOTIVE BUSINESS PLATFORM</p>
           <h1>
-            <span className={styles.headlineLine}>つなぐ力で、</span>
-            <span className={styles.headlineLine}>ビジネスを<em>加速</em>する。</span>
+            <span className={styles.headlineLine}><span className={styles.mobileLine}>在庫も、商談も、</span><span className={styles.mobileLine}>整備も。</span></span>
+            <span className={styles.headlineLine}><span className={styles.mobileLine}>今日の仕事を</span><span className={styles.mobileLine}><em>一画面</em>に。</span></span>
           </h1>
           <p className={styles.lead}>
-            かんなぎのプラットフォームが、店舗業務をシンプルに。
-            中古車販売店・バイクショップ・整備工場の成長を支えます。
+            車両、顧客、商談、整備、見積・請求を一つの店舗台帳へ。
+            担当者と期限を共有し、次に動く仕事から確認できます。
           </p>
           <div className={styles.features}>
             {features.map((feature) => (
@@ -107,16 +108,16 @@ export function LoginTopPage() {
           <a href="https://llink.tech/" className={styles.serviceCard}>
             <Image src="/branding/l-link-logo.png" alt="L-LINK" width={2172} height={724} className={styles.llinkLogo} />
             <span className={styles.serviceCopy}>
-              <strong>LINEから、来店につながる導線へ</strong>
-              <small>LINE導線整理・友だち管理</small>
+              <strong>LINEの反応から、次の案内を判断</strong>
+              <small>友だち・回答・配信履歴の管理</small>
             </span>
             <ArrowIcon />
           </a>
           <a href="https://l-touring.tech/" className={styles.serviceCard}>
             <Image src="/branding/l-touring-logo.png" alt="L-touring" width={1600} height={900} className={styles.touringLogo} />
             <span className={styles.serviceCopy}>
-              <strong>LINEから売上につながる導線へ</strong>
-              <small>LINE売上導線構築支援</small>
+              <strong>LINE導線の設計と初期構築を支援</strong>
+              <small>車・バイク業界向けLINE支援</small>
             </span>
             <ArrowIcon />
           </a>

@@ -1,0 +1,35 @@
+.headerCta {
+  position: relative;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 18px;
+  border-radius: 5px;
+  background: linear-gradient(100deg, #082d55, #174f7f);
+  box-shadow: 0 9px 22px rgba(8, 45, 85, 0.2);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.headerCta::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: #28c76f;
+}
+
+.headerCta:hover {
+  background: linear-gradient(100deg, #061f3c, #113f69);
+}
+
+@media (max-width: 1100px) {
+  .headerCta {
+    display: none;
+  }
+}

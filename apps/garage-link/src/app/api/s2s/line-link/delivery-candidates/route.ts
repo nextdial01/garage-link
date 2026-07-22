@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyLLinkS2SRequest } from '@/lib/line-link/s2sAuth';
 import { CANDIDATE_EVENT_TYPES, type CandidateEventType } from '@/lib/line-link/deliveryCandidates';
 import { logServerError } from '@/lib/observability/logServerError';
+import { canStoreUseLLink } from '@/lib/billing/lLinkContract';
 
 // GARAGE LINK → L-LINK S2S 配信候補 API（HMAC 署名認証）。
 // - 既存セッション認証ルート /api/line-link/delivery-candidates とは独立。既存ルートの動作には触れない。
@@ -54,6 +55,9 @@ export async function POST(request: Request) {
   });
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error, code: auth.code }, { status: auth.status });
+  }
+  if (!(await canStoreUseLLink(auth.storeId))) {
+    return NextResponse.json({ ok: false, error: 'L-LINK連携はStandard以上の契約が必要です。', code: 'plan_required' }, { status: 403 });
   }
 
   // 任意フィルタは body JSON から（type, limit）。未指定でも OK。

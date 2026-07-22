@@ -260,7 +260,7 @@ export default function SecurityCheckPage() {
           セキュリティ項目を確認しています...
         </section>
       ) : isDenied ? (
-        <PermissionDeniedCard />
+        <PermissionDeniedCard backHref="/settings" />
       ) : errorMessage ? (
         <section className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm font-bold text-red-700">
           {errorMessage}

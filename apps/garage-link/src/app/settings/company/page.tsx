@@ -395,7 +395,7 @@ export default function CompanySettingsPage() {
             読み込み中...
           </p>
         ) : !canManageSettings(role) ? (
-          <PermissionDeniedCard />
+          <PermissionDeniedCard backHref="/settings" />
         ) : (
           <>
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">

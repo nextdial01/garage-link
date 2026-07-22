@@ -20,6 +20,7 @@ type StoreRow = {
   id: string;
   name: string | null;
   company_name: string | null;
+  tenant_id: string | null;
 };
 
 type PlanChangeRequestRow = {
@@ -48,7 +49,6 @@ const requestTypeLabels: Record<string, string> = {
   support: '個別サポート',
 };
 
-const statusOptions = ['pending', 'approved', 'rejected', 'completed'];
 const statusLabels: Record<string, string> = {
   pending: '確認待ち',
   approved: '承認',
@@ -70,9 +70,7 @@ export default function AdminPlanRequestsPage() {
   const [members, setMembers] = useState<StoreMemberRow[]>([]);
   const [requests, setRequests] = useState<PlanChangeRequestRow[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState('');
 
   async function loadRequests() {
     try {
@@ -92,25 +90,29 @@ export default function AdminPlanRequestsPage() {
 
       const { data: storeData } = await supabase
         .from<StoreRow>('stores')
-        .select('id, name, company_name')
+        .select('id, name, company_name, tenant_id')
         .eq('id', member.store_id)
         .single();
-      setStore(storeData ?? { id: member.store_id, name: null, company_name: null });
+      setStore(storeData ?? { id: member.store_id, name: null, company_name: null, tenant_id: null });
 
       if (member.role !== 'owner' && member.role !== 'admin') {
         setRequests([]);
         return;
       }
 
+      const { data: tenantStores } = storeData?.tenant_id
+        ? await supabase.from<{ id: string }>('stores').select('id').eq('tenant_id', storeData.tenant_id)
+        : { data: [{ id: member.store_id }] };
+      const storeIds = (tenantStores ?? []).map((item) => item.id);
       const [membersResult, requestsResult] = await Promise.all([
         supabase
           .from<StoreMemberRow>('store_members')
           .select('store_id, user_id, role, display_name, email')
-          .eq('store_id', member.store_id),
+          .in('store_id', storeIds),
         supabase
           .from<PlanChangeRequestRow>('plan_change_requests')
           .select('id, company_id, requested_by, request_type, current_plan, requested_plan, requested_extra_staff_count, requested_extra_store_count, requested_extra_storage_gb, support_hours, message, status, admin_note, completed_at, created_at')
-          .eq('company_id', member.store_id)
+          .eq('tenant_id', storeData?.tenant_id)
           .order('created_at', { ascending: false }),
       ]);
 
@@ -137,53 +139,11 @@ export default function AdminPlanRequestsPage() {
     return new Map(members.map((member) => [member.user_id, member]));
   }, [members]);
 
-  async function updateStatus(requestId: string, status: string) {
-    try {
-      setUpdatingId(requestId);
-      setErrorMessage('');
-      setSuccessMessage('');
-      const supabase = createClient();
-      const request = requests.find((item) => item.id === requestId);
-      if (!request) throw new Error('申込情報が見つかりません。');
-
-      if (status === 'completed') {
-        if (request.completed_at || request.status === 'completed') {
-          setSuccessMessage('この申込は既に契約へ反映済みです。');
-          await loadRequests();
-          return;
-        }
-
-        const { error: completeError } = await supabase.rpc('complete_plan_change_request', {
-          p_request_id: requestId,
-        });
-        if (completeError) throw new Error(completeError.message);
-
-        setSuccessMessage(request.request_type === 'support'
-          ? '申込を完了にしました。'
-          : '申込を完了し、契約へ反映しました。');
-        await loadRequests();
-        return;
-      }
-
-      const { error } = await supabase
-        .from('plan_change_requests')
-        .update({ status })
-        .eq('id', requestId);
-      if (error) throw new Error(error.message);
-      setSuccessMessage('ステータスを更新しました。');
-      await loadRequests();
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'ステータス更新に失敗しました。');
-    } finally {
-      setUpdatingId('');
-    }
-  }
-
   return (
     <AppShell
       activeLabel="プラン・契約"
-      title="プラン申込管理"
-      description="プラン変更、追加オプション、個別サポートの申込を確認します。"
+      title="プラン申込履歴"
+      description="プラン変更、追加オプション、個別サポートの申込履歴を確認します。"
       actionButton={
         <Link href="/settings/billing" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50">
           プラン・契約へ
@@ -197,8 +157,6 @@ export default function AdminPlanRequestsPage() {
       ) : (
         <div className="mx-auto max-w-7xl space-y-6">
           {errorMessage && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>}
-          {successMessage && <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{successMessage}</p>}
-
           <div className="rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm">
             現在の権限: {getRoleLabel(role)} / 対象会社: {store?.company_name || store?.name || '-'}
           </div>
@@ -206,7 +164,7 @@ export default function AdminPlanRequestsPage() {
           <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-5">
               <h3 className="text-lg font-bold text-slate-950">申込一覧</h3>
-              <p className="mt-1 text-sm text-slate-500">請求処理はまだ行いません。申込内容の確認とステータス管理のみ行います。</p>
+              <p className="mt-1 text-sm text-slate-500">契約内容の承認・反映は運営側の安全な処理で行います。この画面から契約を直接変更することはできません。</p>
             </div>
             <div className="overflow-x-auto p-5">
               <table className="w-full min-w-[1300px] text-left text-sm">
@@ -235,14 +193,9 @@ export default function AdminPlanRequestsPage() {
                         <td className="px-4 py-3">{request.support_hours ?? 0}時間</td>
                         <td className="max-w-xs px-4 py-3">{request.message || '-'}</td>
                         <td className="px-4 py-3">
-                          <select
-                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700"
-                            value={request.status}
-                            disabled={updatingId === request.id}
-                            onChange={(event) => void updateStatus(request.id, event.target.value)}
-                          >
-                            {statusOptions.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
-                          </select>
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                            {statusLabels[request.status] ?? request.status}
+                          </span>
                         </td>
                         <td className="px-4 py-3">{formatDateTime(request.created_at)}</td>
                         <td className="px-4 py-3">{formatDateTime(request.completed_at)}</td>

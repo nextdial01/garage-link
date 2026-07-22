@@ -67,7 +67,7 @@ export async function getCurrentUserRole() {
 }
 
 export function canManageSettings(role: string | null | undefined) {
-  return role === 'owner' || role === 'admin' || role === 'implementer';
+  return role === 'owner' || role === 'admin';
 }
 
 export function canManageMembers(role: string | null | undefined) {

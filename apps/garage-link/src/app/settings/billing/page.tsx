@@ -34,6 +34,7 @@ type StoreRow = {
 type CompanySubscriptionRow = {
   id: string;
   company_id: string;
+  tenant_id: string | null;
   plan: string;
   status: string;
   included_staff_count: number;
@@ -46,10 +47,34 @@ type CompanySubscriptionRow = {
   l_link_integration_enabled: boolean;
   started_at: string | null;
   updated_at: string | null;
+  pending_plan?: string | null;
+  pending_plan_effective_at?: string | null;
   cancelled_at?: string | null;
   data_delete_scheduled_at?: string | null;
   data_deleted_at?: string | null;
 };
+
+type GaragePlanUsage = {
+  inventory_count: number;
+  document_count: number;
+  staff_count: number;
+  store_count: number;
+  storage_bytes: number;
+};
+
+type BillingInvoice = {
+  id: string;
+  number: string;
+  issuedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  amount: number;
+  currency: string;
+  status: 'paid' | 'open' | 'void' | 'uncollectible';
+  pdfUrl: string;
+};
+
+type InvoiceLoadState = 'loading' | 'ready' | 'not_configured' | 'no_customer' | 'error';
 
 type RequestType = 'plan_change' | 'add_staff' | 'add_store' | 'add_storage' | 'support';
 
@@ -74,6 +99,29 @@ const requestTypeLabels: Record<RequestType, string> = {
   support: '個別サポート',
 };
 
+const invoiceStatusLabels = {
+  paid: '支払済み',
+  open: '支払待ち',
+  void: '取消済み',
+  uncollectible: '回収不能',
+} as const;
+
+function formatInvoiceDate(value: string) {
+  return new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(value));
+}
+
+function formatInvoicePeriod(start: string, end: string) {
+  const endDate = new Date(new Date(end).getTime() - 1);
+  const format = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+  return `${format.format(new Date(start))}〜${format.format(endDate)}`;
+}
+
+function formatInvoiceAmount(amount: number, currency: string) {
+  const normalizedCurrency = currency.toUpperCase();
+  const normalizedAmount = normalizedCurrency === 'JPY' ? amount : amount / 100;
+  return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: normalizedCurrency }).format(normalizedAmount);
+}
+
 function toNonNegativeInt(value: string) {
   const parsed = Number.parseInt(value || '0', 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
@@ -88,6 +136,9 @@ export default function BillingSettingsPage() {
   const [role, setRole] = useState('');
   const [store, setStore] = useState<StoreRow | null>(null);
   const [subscription, setSubscription] = useState<CompanySubscriptionRow | null>(null);
+  const [usage, setUsage] = useState<GaragePlanUsage | null>(null);
+  const [invoices, setInvoices] = useState<BillingInvoice[]>([]);
+  const [invoiceLoadState, setInvoiceLoadState] = useState<InvoiceLoadState>('loading');
   const [form, setForm] = useState<FormState>({
     request_type: 'plan_change',
     requested_plan: 'starter',
@@ -128,7 +179,10 @@ export default function BillingSettingsPage() {
           .single();
         setStore(storeData ?? { id: member.store_id, name: null, company_name: null });
 
-        const subscriptionResponse = await fetch('/api/billing/subscription');
+        const [subscriptionResponse, invoiceResponse] = await Promise.all([
+          fetch('/api/billing/subscription'),
+          fetch('/api/billing/invoices'),
+        ]);
         const subscriptionPayload = (await subscriptionResponse.json()) as {
           ok?: boolean;
           error?: string;
@@ -140,6 +194,22 @@ export default function BillingSettingsPage() {
         }
 
         setSubscription(subscriptionPayload.subscription);
+        const { data: usageData } = await supabase.rpc('get_garage_plan_usage', {
+          p_store_id: member.store_id,
+        });
+        setUsage((usageData as GaragePlanUsage | null) ?? null);
+
+        const invoicePayload = (await invoiceResponse.json()) as {
+          ok?: boolean;
+          invoices?: BillingInvoice[];
+          state?: InvoiceLoadState;
+        };
+        if (invoiceResponse.ok && invoicePayload.ok) {
+          setInvoices(invoicePayload.invoices ?? []);
+          setInvoiceLoadState(invoicePayload.state ?? 'ready');
+        } else {
+          setInvoiceLoadState('error');
+        }
       } catch (error) {
         setErrorMessage(translateDbError(error instanceof Error ? error.message : '契約情報の取得に失敗しました。'));
       } finally {
@@ -225,20 +295,42 @@ export default function BillingSettingsPage() {
 
     try {
       setIsSubmitting(true);
+      if (form.request_type === 'plan_change') {
+        await handleStripeCheckout(form.requested_plan);
+        return;
+      }
+      if (form.request_type === 'add_staff' || form.request_type === 'add_store' || form.request_type === 'add_storage') {
+        const amount = form.request_type === 'add_staff'
+          ? toNonNegativeInt(form.requested_extra_staff_count)
+          : form.request_type === 'add_store'
+            ? toNonNegativeInt(form.requested_extra_store_count)
+            : toNonNegativeInt(form.requested_extra_storage_gb);
+        const response = await fetch('/api/billing/change-options', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: form.request_type, amount }),
+        });
+        const payload = (await response.json()) as { ok?: boolean; error?: string; message?: string };
+        if (!response.ok || !payload.ok) throw new Error(payload.error ?? '追加オプションを反映できませんでした。');
+        setSuccessMessage(payload.message ?? '追加オプションを反映しました。');
+        window.setTimeout(() => window.location.reload(), 1200);
+        return;
+      }
       const supabase = createClient();
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
 
       const { error } = await supabase.from('plan_change_requests').insert({
         company_id: store.id,
-        requested_by: userData.user.id,
-        request_type: form.request_type,
-        current_plan: currentPlanCode,
-        requested_plan: form.request_type === 'plan_change' ? form.requested_plan : null,
-        requested_extra_staff_count: form.request_type === 'add_staff' ? toNonNegativeInt(form.requested_extra_staff_count) : 0,
-        requested_extra_store_count: form.request_type === 'add_store' ? toNonNegativeInt(form.requested_extra_store_count) : 0,
-        requested_extra_storage_gb: form.request_type === 'add_storage' ? toNonNegativeInt(form.requested_extra_storage_gb) : 0,
-        support_hours: form.request_type === 'support' ? toNonNegativeNumber(form.support_hours) : 0,
+        tenant_id: subscription.tenant_id,
+            requested_by: userData.user.id,
+            request_type: 'support',
+            current_plan: currentPlanCode,
+            requested_plan: null,
+            requested_extra_staff_count: 0,
+            requested_extra_store_count: 0,
+            requested_extra_storage_gb: 0,
+            support_hours: toNonNegativeNumber(form.support_hours),
         message: form.message.trim() || null,
         status: 'pending',
       });
@@ -266,16 +358,22 @@ export default function BillingSettingsPage() {
 
     try {
       setIsStripeLoading(true);
-      const response = await fetch('/api/billing/checkout', {
+      const hasPaidSubscription = currentPlanCode !== 'free' && !isCancelledRetention;
+      const response = await fetch(hasPaidSubscription ? '/api/billing/change-plan' : '/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan: targetPlan }),
       });
-      const payload = (await response.json()) as { ok?: boolean; url?: string; error?: string };
-      if (!response.ok || !payload.ok || !payload.url) {
-        throw new Error(payload.error ?? 'Checkout の開始に失敗しました。');
+      const payload = (await response.json()) as { ok?: boolean; url?: string; error?: string; message?: string };
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error ?? 'プラン変更の開始に失敗しました。');
       }
-      window.location.assign(payload.url);
+      if (payload.url) {
+        window.location.assign(payload.url);
+        return;
+      }
+      setSuccessMessage(payload.message ?? 'プラン変更を受け付けました。');
+      window.setTimeout(() => window.location.reload(), 1200);
     } catch (error) {
       setErrorMessage(translateDbError(error instanceof Error ? error.message : 'Checkout の開始に失敗しました。'));
     } finally {
@@ -300,7 +398,7 @@ export default function BillingSettingsPage() {
       actionButton={
         <>
           <Link href="/admin/plan-requests" className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700">
-            申込管理
+            申込履歴
           </Link>
           <Link href="/settings" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50">
             設定へ戻る
@@ -333,11 +431,84 @@ export default function BillingSettingsPage() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-3 text-sm font-semibold text-slate-600">
-                <span className="rounded-full bg-white px-3 py-1 shadow-sm">在庫 {subscription?.current_inventory_limit ?? currentPlan.inventoryLimit}台</span>
-                <span className="rounded-full bg-white px-3 py-1 shadow-sm">スタッフ {subscription?.included_staff_count ?? currentPlan.includedStaffCount}名</span>
-                <span className="rounded-full bg-white px-3 py-1 shadow-sm">{formatStorage(subscription?.storage_limit_mb ?? currentPlan.storageLimitMb)}</span>
+                <span className="rounded-full bg-white px-3 py-1 shadow-sm">在庫 {usage?.inventory_count ?? 0}/{subscription?.current_inventory_limit ?? currentPlan.inventoryLimit}台</span>
+                <span className="rounded-full bg-white px-3 py-1 shadow-sm">スタッフ {usage?.staff_count ?? 0}/{(subscription?.included_staff_count ?? currentPlan.includedStaffCount) + (subscription?.extra_staff_count ?? 0)}名</span>
+                <span className="rounded-full bg-white px-3 py-1 shadow-sm">店舗 {usage?.store_count ?? 1}/{(subscription?.included_store_count ?? currentPlan.includedStoreCount) + (subscription?.extra_store_count ?? 0)}</span>
+                <span className="rounded-full bg-white px-3 py-1 shadow-sm">保存容量 {formatStorage(Math.ceil((usage?.storage_bytes ?? 0) / 1024 / 1024))}/{formatStorage((subscription?.storage_limit_mb ?? currentPlan.storageLimitMb) + (subscription?.extra_storage_gb ?? 0) * 1024)}</span>
+                <span className="rounded-full bg-white px-3 py-1 shadow-sm">L-LINK {subscription?.l_link_integration_enabled ? '利用可' : '対象外'}</span>
               </div>
             </div>
+            {subscription?.pending_plan && subscription.pending_plan_effective_at && (
+              <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+                {getGaragePlan(subscription.pending_plan).name}への変更を予約済みです。{formatInvoiceDate(subscription.pending_plan_effective_at)}から機能と契約内容を切り替えます。
+              </p>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-green-200 bg-green-50 p-5 shadow-sm">
+            <h3 className="text-lg font-black text-slate-950">チャットサポート</h3>
+            <p className="mt-1 text-sm text-slate-600">通常のお問い合わせは、株式会社かんなぎ公式LINEで受け付けます。</p>
+            {process.env.NEXT_PUBLIC_KANNAGI_OFFICIAL_LINE_URL ? (
+              <a
+                href={process.env.NEXT_PUBLIC_KANNAGI_OFFICIAL_LINE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex rounded-xl bg-green-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-green-700"
+              >
+                公式LINEで問い合わせる
+              </a>
+            ) : (
+              <p className="mt-4 inline-flex rounded-xl bg-white px-4 py-3 text-sm font-bold text-slate-500">公式LINEリンク設定待ち</p>
+            )}
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-6 py-5">
+              <h3 className="text-lg font-black text-slate-950">請求書</h3>
+              <p className="mt-1 text-sm text-slate-500">発行済みの月額利用料の請求書をPDFで保存できます。</p>
+            </div>
+            {invoiceLoadState === 'loading' ? (
+              <p className="px-6 py-8 text-center text-sm font-semibold text-slate-500">請求書を読み込んでいます...</p>
+            ) : invoices.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead className="bg-slate-50 text-xs font-bold text-slate-500">
+                    <tr>
+                      <th className="px-6 py-3">発行日</th>
+                      <th className="px-6 py-3">対象期間</th>
+                      <th className="px-6 py-3">請求番号</th>
+                      <th className="px-6 py-3 text-right">金額</th>
+                      <th className="px-6 py-3">支払状況</th>
+                      <th className="px-6 py-3 text-right">ダウンロード</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {invoices.map((invoice) => (
+                      <tr key={invoice.id}>
+                        <td className="px-6 py-4 font-medium text-slate-700">{formatInvoiceDate(invoice.issuedAt)}</td>
+                        <td className="px-6 py-4 text-slate-600">{formatInvoicePeriod(invoice.periodStart, invoice.periodEnd)}</td>
+                        <td className="px-6 py-4 font-mono text-xs text-slate-600">{invoice.number}</td>
+                        <td className="px-6 py-4 text-right font-bold text-slate-950">{formatInvoiceAmount(invoice.amount, invoice.currency)}</td>
+                        <td className="px-6 py-4">
+                          <span className={`rounded-full px-3 py-1 text-xs font-bold ${invoice.status === 'paid' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
+                            {invoiceStatusLabels[invoice.status]}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <a href={invoice.pdfUrl} target="_blank" rel="noopener noreferrer" className="inline-flex rounded-xl border border-blue-300 bg-white px-4 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-50">
+                            請求書 PDF
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="px-6 py-8 text-center text-sm font-semibold text-slate-500">
+                {invoiceLoadState === 'error' ? '請求書を取得できませんでした。時間をおいて再度お試しください。' : '発行済みの請求書はありません。'}
+              </p>
+            )}
           </section>
 
           <section className="space-y-4">
@@ -385,7 +556,7 @@ export default function BillingSettingsPage() {
                           disabled={isStripeLoading || !stripeConfigured}
                           className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                         >
-                          {isStripeLoading ? '決済ページを開いています...' : isCancelledRetention ? '再契約する' : 'このプランで進む'}
+                          {isStripeLoading ? '決済ページを開いています...' : isCancelledRetention ? '再契約する' : 'このプランで申し込む'}
                         </button>
                       ) : (
                         <p className="rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-semibold text-slate-500">
@@ -424,8 +595,10 @@ export default function BillingSettingsPage() {
                       ['月額', (code: GaragePlanCode) => formatGarageYen(GARAGE_PLANS[code].monthlyPrice)],
                       ['現在庫', (code: GaragePlanCode) => `${GARAGE_PLANS[code].inventoryLimit}台`],
                       ['標準スタッフ', (code: GaragePlanCode) => `${GARAGE_PLANS[code].includedStaffCount}名`],
+                      ['標準店舗', (code: GaragePlanCode) => `${GARAGE_PLANS[code].includedStoreCount}店舗`],
+                      ['保存容量', (code: GaragePlanCode) => formatStorage(GARAGE_PLANS[code].storageLimitMb)],
                       ['見積・請求', (code: GaragePlanCode) => (GARAGE_PLANS[code].quoteInvoiceLimit === null ? '無制限' : `月${GARAGE_PLANS[code].quoteInvoiceLimit}件`)],
-                      ['外部連携', (code: GaragePlanCode) => (GARAGE_PLANS[code].lLinkIntegrationEnabled ? '可' : '不可')],
+                      ['L-LINK連携', (code: GaragePlanCode) => (GARAGE_PLANS[code].lLinkIntegrationEnabled ? '利用可' : '対象外')],
                     ].map(([label, formatter]) => (
                       <tr key={label as string} className="hover:bg-slate-50">
                         <td className="px-5 py-4 font-bold text-slate-700">{label as string}</td>
@@ -478,6 +651,41 @@ export default function BillingSettingsPage() {
                   />
                 </label>
                 <label className="block">
+                  <span className="mb-2 block text-sm font-bold text-slate-700">追加する店舗数</span>
+                  <input
+                    type="number"
+                    min="0"
+                    className={inputClass}
+                    value={form.requested_extra_store_count}
+                    onChange={(event) => setForm((current) => ({ ...current, requested_extra_store_count: event.target.value }))}
+                    disabled={form.request_type !== 'add_store'}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-bold text-slate-700">追加ストレージ（10GB単位）</span>
+                  <input
+                    type="number"
+                    min="10"
+                    step="10"
+                    className={inputClass}
+                    value={form.requested_extra_storage_gb}
+                    onChange={(event) => setForm((current) => ({ ...current, requested_extra_storage_gb: event.target.value }))}
+                    disabled={form.request_type !== 'add_storage'}
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-bold text-slate-700">個別サポート時間</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="0.5"
+                    className={inputClass}
+                    value={form.support_hours}
+                    onChange={(event) => setForm((current) => ({ ...current, support_hours: event.target.value }))}
+                    disabled={form.request_type !== 'support'}
+                  />
+                </label>
+                <label className="block">
                   <span className="mb-2 block text-sm font-bold text-slate-700">備考</span>
                   <textarea className={`${inputClass} min-h-24`} value={form.message} onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))} />
                 </label>
@@ -486,7 +694,7 @@ export default function BillingSettingsPage() {
                 )}
                 <div className="flex justify-end md:col-span-2">
                   <button type="submit" disabled={isSubmitting || Boolean(validationMessage)} className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
-                    {isSubmitting ? '送信中...' : '手動で申し込む（担当者確認）'}
+                    {isSubmitting ? '送信中...' : form.request_type === 'support' ? '個別サポートを相談する' : '申し込む'}
                   </button>
                 </div>
               </form>

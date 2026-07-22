@@ -14,7 +14,7 @@ export default function SecuritySettingsPage() {
         </Link>
       }
     >
-      <RoleAccessGate allowedRoles={['owner', 'admin']}>
+      <RoleAccessGate allowedRoles={['owner', 'admin']} backHref="/settings">
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-bold text-slate-950">セキュリティ設定</h3>
         <p className="mt-2 text-sm text-slate-500">この機能は今後実装します。</p>

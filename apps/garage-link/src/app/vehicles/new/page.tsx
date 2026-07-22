@@ -40,6 +40,10 @@ type VehicleFormState = {
   color: string;
   inspection_expiry_date: string;
   purchase_price: string;
+  direct_cost_special: string;
+  direct_cost_accessories: string;
+  direct_cost_agency: string;
+  direct_cost_legal: string;
   base_price: string;
   total_price: string;
   status: string;
@@ -68,6 +72,10 @@ type VehicleInsert = {
   color: string | null;
   inspection_expiry_date: string | null;
   purchase_price: number | null;
+  direct_cost_special: number | null;
+  direct_cost_accessories: number | null;
+  direct_cost_agency: number | null;
+  direct_cost_legal: number | null;
   base_price: number | null;
   total_price: number | null;
   status: string;
@@ -94,6 +102,10 @@ const initialFormState: VehicleFormState = {
   color: '',
   inspection_expiry_date: '',
   purchase_price: '',
+  direct_cost_special: '',
+  direct_cost_accessories: '',
+  direct_cost_agency: '',
+  direct_cost_legal: '',
   base_price: '',
   total_price: '',
   status: '在庫中',
@@ -148,10 +160,10 @@ const vehicleSections: FormSection[] = [
       { label: 'リ預相当額', type: 'number', placeholder: '例：9800' },
       { label: '仕入価格', type: 'number', name: 'purchase_price', placeholder: '例：1200000', required: true },
       { label: '仕入消費税', type: 'number', placeholder: '例：120000' },
-      { label: '特仕原価計', type: 'number', placeholder: '例：0' },
-      { label: '付属品原価計', type: 'number', placeholder: '例：30000' },
-      { label: '手続代行原価', type: 'number', placeholder: '例：15000' },
-      { label: '預り法定原価', type: 'number', placeholder: '例：25000' },
+      { label: '特仕原価計', type: 'number', name: 'direct_cost_special', placeholder: '例：0' },
+      { label: '付属品原価計', type: 'number', name: 'direct_cost_accessories', placeholder: '例：30000' },
+      { label: '手続代行原価', type: 'number', name: 'direct_cost_agency', placeholder: '例：15000' },
+      { label: '預り法定原価', type: 'number', name: 'direct_cost_legal', placeholder: '例：25000' },
       { label: '経費計', type: 'number', placeholder: '例：50000' },
       { label: '加修費計', type: 'number', placeholder: '例：80000' },
       { label: '仕入合計', type: 'number', placeholder: '例：1329800' },
@@ -390,6 +402,10 @@ export default function NewVehiclePage() {
         color: toNullableText(formState.color),
         inspection_expiry_date: toNullableText(formState.inspection_expiry_date),
         purchase_price: toNullableNumber(formState.purchase_price),
+        direct_cost_special: toNullableNumber(formState.direct_cost_special),
+        direct_cost_accessories: toNullableNumber(formState.direct_cost_accessories),
+        direct_cost_agency: toNullableNumber(formState.direct_cost_agency),
+        direct_cost_legal: toNullableNumber(formState.direct_cost_legal),
         base_price: toNullableNumber(formState.base_price),
         total_price: toNullableNumber(formState.total_price),
         status: formState.status || '在庫中',

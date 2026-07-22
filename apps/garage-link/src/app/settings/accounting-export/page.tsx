@@ -161,7 +161,7 @@ export default function AccountingExportSettingsPage() {
           権限を確認しています...
         </section>
       ) : !hasPermission ? (
-        <PermissionDeniedCard />
+        <PermissionDeniedCard backHref="/settings" />
       ) : (
         <div className="space-y-6">
           {(message || errorMessage) && (

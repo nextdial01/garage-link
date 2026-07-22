@@ -9,7 +9,6 @@ import { createClient } from '@/lib/supabase/client';
 import {
   canImportExportSettings,
   canManageMembers,
-  canManageSettings,
   getRoleLabel,
 } from '@/lib/auth/permissions';
 
@@ -27,6 +26,11 @@ const settingCards = [
     title: '店舗設定',
     href: '/settings/store',
     description: '店舗名、住所、営業時間、通知先などを設定します。',
+  },
+  {
+    title: '店舗管理・切替',
+    href: '/settings/stores',
+    description: '契約内の店舗を追加し、操作する店舗を切り替えます。',
   },
   {
     title: 'メンバー・権限設定',
@@ -125,8 +129,9 @@ export default function SettingsPage() {
   const visibleSettingCards = settingCards.filter((card) => {
     if (card.href === '/settings/members') return canManageMembers(role);
     if (card.href === '/settings/import-export') return canImportExportSettings(role);
-    if (card.href === '/settings/company' || card.href === '/settings/documents') return canManageSettings(role);
-    if (card.href === '/settings/store' || card.href === '/settings/security' || card.href === '/settings/billing' || card.href === '/settings/customer-follow-up/inspection-reminders' || card.href === '/settings/accounting-export') return role === 'owner' || role === 'admin';
+    if (card.href === '/settings/documents') return role === 'owner' || role === 'admin' || role === 'implementer';
+    if (card.href === '/settings/company') return role === 'owner' || role === 'admin';
+    if (card.href === '/settings/store' || card.href === '/settings/stores' || card.href === '/settings/security' || card.href === '/settings/billing' || card.href === '/settings/customer-follow-up/inspection-reminders' || card.href === '/settings/accounting-export') return role === 'owner' || role === 'admin';
     if (
       card.href === '/settings/audit-logs' ||
       card.href === '/settings/trash' ||
@@ -136,7 +141,7 @@ export default function SettingsPage() {
     ) {
       return role === 'owner' || role === 'admin';
     }
-    return canManageSettings(role);
+    return role === 'owner' || role === 'admin';
   });
 
   return (
@@ -149,7 +154,7 @@ export default function SettingsPage() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-semibold text-slate-500 shadow-sm">
           権限を確認しています...
         </section>
-      ) : !canManageSettings(role) ? (
+      ) : visibleSettingCards.length === 0 ? (
         <PermissionDeniedCard />
       ) : (
       <div className="mx-auto max-w-5xl">

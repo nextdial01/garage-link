@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="garage-navy" x1="12" y1="10" x2="44" y2="38" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#071B3D"/>
+      <stop offset="1" stop-color="#0B2F69"/>
+    </linearGradient>
+    <linearGradient id="garage-green" x1="25" y1="23" x2="55" y2="54" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00C95A"/>
+      <stop offset="1" stop-color="#00A943"/>
+    </linearGradient>
+  </defs>
+  <path d="M45 12H25c-8 0-13 5-13 13v8c0 8 5 13 13 13h14V32H27" fill="none" stroke="url(#garage-navy)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M25 27h18c5 0 9 4 9 9v16h7" fill="none" stroke="url(#garage-green)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

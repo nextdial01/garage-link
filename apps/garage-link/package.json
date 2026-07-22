@@ -13,6 +13,8 @@
     "test:billing": "playwright test -c playwright.security.config.ts tests/security/garage-billing.test.ts",
     "test:e2e:billing": "node scripts/run-billing-e2e.mjs",
     "test:line-link-s2s": "node scripts/check-line-link-s2s.mjs",
+    "test:l-link-inquiry-s2s": "node scripts/check-l-link-inquiry-s2s.mjs",
+    "test:inquiry-response-management": "node scripts/check-inquiry-response-management.mjs",
     "test:line-link-s2s-ack": "node scripts/check-line-link-s2s-ack.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
@@ -25,7 +27,9 @@
     "@garage-link/ui": "workspace:*",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.2",
+    "@vercel/analytics": "^2.0.1",
     "iconv-lite": "^0.7.3",
+    "lucide-react": "^1.25.0",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",

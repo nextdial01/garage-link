@@ -270,7 +270,7 @@ export default function TrashPage() {
           削除済みデータを確認しています...
         </section>
       ) : !canView ? (
-        <PermissionDeniedCard />
+        <PermissionDeniedCard backHref="/settings" />
       ) : (
         <div className="mx-auto max-w-7xl space-y-6">
           {(message || errorMessage) && (

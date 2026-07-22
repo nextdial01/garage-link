@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import AppSidebar from './AppSidebar';
+import ContextHelp from './ContextHelp';
+import { getRoleLabel } from '@/lib/auth/permissions';
 import { fetchStoreOnboardingStatus } from '@/lib/auth/store-onboarding';
 import { createClient } from '@/lib/supabase/client';
 
@@ -17,10 +19,18 @@ interface AppShellProps {
 
 type StoreMemberRow = {
   store_id: string;
+  role: string | null;
 };
 
 type StoreRow = {
   name: string | null;
+};
+
+type AccessibleStore = {
+  id: string;
+  name: string | null;
+  company_name: string | null;
+  is_current: boolean;
 };
 
 export default function AppShell({
@@ -33,10 +43,12 @@ export default function AppShell({
   const router = useRouter();
   const pathname = usePathname();
   const [storeLabel, setStoreLabel] = useState('読み込み中...');
+  const [role, setRole] = useState('viewer');
+  const [stores, setStores] = useState<AccessibleStore[]>([]);
+  const [activeStoreId, setActiveStoreId] = useState('');
+  const [isSwitchingStore, setIsSwitchingStore] = useState(false);
   const shellBackground = 'bg-[#F6F8FC]';
-  const categoryLabel = '車両管理';
   const headerBorderClass = 'border-blue-100';
-  const accentText = 'text-blue-700';
 
   useEffect(() => {
     async function loadStoreContext() {
@@ -50,7 +62,7 @@ export default function AppShell({
 
         const { data: member } = await supabase
           .from<StoreMemberRow>('store_members')
-          .select('store_id')
+          .select('store_id, role')
           .eq('user_id', userData.user.id)
           .single();
 
@@ -59,6 +71,8 @@ export default function AppShell({
           return;
         }
 
+        setRole(member.role ?? 'viewer');
+
         const { data: store } = await supabase
           .from<StoreRow>('stores')
           .select('name')
@@ -66,6 +80,10 @@ export default function AppShell({
           .single();
 
         setStoreLabel(store?.name?.trim() || '店舗');
+        const { data: accessibleStores } = await supabase.rpc('list_accessible_garage_stores', {});
+        const nextStores = (accessibleStores as AccessibleStore[] | null) ?? [];
+        setStores(nextStores);
+        setActiveStoreId(nextStores.find((item) => item.is_current)?.id ?? member.store_id);
 
         const { onboardingCompleted } = await fetchStoreOnboardingStatus(
           supabase,
@@ -83,39 +101,60 @@ export default function AppShell({
     void loadStoreContext();
   }, [pathname, router]);
 
+  async function switchStore(storeId: string) {
+    if (!storeId || storeId === activeStoreId) return;
+    try {
+      setIsSwitchingStore(true);
+      const supabase = createClient();
+      const { error } = await supabase.rpc('switch_active_garage_store', { p_store_id: storeId });
+      if (error) throw error;
+      window.location.reload();
+    } catch {
+      setIsSwitchingStore(false);
+    }
+  }
+
   return (
-    <main className={`flex min-h-screen flex-col text-slate-950 md:flex-row ${shellBackground}`}>
+    <main className={`flex min-h-screen flex-col text-slate-950 lg:flex-row ${shellBackground}`}>
       <AppSidebar activeLabel={activeLabel} />
 
-      <section className="min-w-0 flex-1">
+      <section className="min-w-0 flex-1 pb-24 lg:pb-0">
         <header className={`sticky top-0 z-20 border-b bg-white/95 px-4 py-4 backdrop-blur sm:px-6 lg:px-8 ${headerBorderClass}`}>
           <div className="mx-auto flex max-w-[1440px] flex-col gap-4">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 ring-1 ring-blue-100">
-                  {categoryLabel}
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button type="button" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-400 shadow-sm" disabled aria-disabled="true">
-                  通知
-                </button>
+            <div className="flex flex-wrap items-center justify-end gap-2">
                 <Link href="/help" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:bg-slate-50">
                   ヘルプ
                 </Link>
-                <div className="max-w-[220px] truncate rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600">
-                  {storeLabel}
+                <div className="rounded-xl bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 ring-1 ring-inset ring-blue-100">
+                  権限: {getRoleLabel(role)}
                 </div>
-              </div>
+                {stores.length > 1 ? (
+                  <label className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-600">
+                    <span className="sr-only">表示店舗</span>
+                    <select
+                      value={activeStoreId}
+                      disabled={isSwitchingStore}
+                      onChange={(event) => void switchStore(event.target.value)}
+                      className="max-w-[220px] bg-transparent outline-none disabled:opacity-60"
+                    >
+                      {stores.map((item) => (
+                        <option key={item.id} value={item.id}>{item.name || item.company_name || '店舗'}</option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <div className="max-w-[220px] truncate rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600">
+                    {storeLabel}
+                  </div>
+                )}
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0">
-                <p className={`text-xs font-black ${accentText}`}>{categoryLabel} / GARAGE LINK</p>
-                <h1 className="mt-1 text-xl font-black tracking-normal text-slate-950 sm:text-2xl">{title}</h1>
-                {description && (
-                  <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
-                )}
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-black tracking-normal text-slate-950 sm:text-2xl">{title}</h1>
+                  {description && <ContextHelp title={title} description={description} />}
+                </div>
               </div>
 
               {actionButton && (
