@@ -488,10 +488,10 @@ function NumberCard({ label, value, detail, deltaLabel, tone = 'default' }: Metr
 
 function KpiCard({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm font-black text-slate-500">{label}</p>
+    <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="break-words text-sm font-black text-slate-500">{label}</p>
       <p className="mt-2 text-3xl font-black text-slate-950">{value}</p>
-      <p className="mt-2 text-xs font-semibold text-slate-400">{detail}</p>
+      <p className="mt-2 break-words text-xs font-semibold text-slate-400">{detail}</p>
     </section>
   );
 }
@@ -1006,7 +1006,7 @@ export default function DashboardPage() {
           )}
         </section>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <KpiCard label="今日の来店・試乗予約" value={`${todayAppointmentCount}件`} detail="当日の予約" />
           <KpiCard label="商談の次回連絡" value={`${overdueDealCount}件`} detail="期日超過" />
           <KpiCard label="車検・整備の期限" value={`${upcomingMaintenanceCount}件`} detail="今日までに確認" />
