@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ContextHelpProps {
   title: string;
@@ -38,7 +39,7 @@ export default function ContextHelp({ title, description, inverted = false }: Co
         ?
       </button>
 
-      {open && (
+      {open && createPortal(
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" role="presentation">
           <button type="button" aria-label="説明を閉じる" className="absolute inset-0 bg-slate-950/40 backdrop-blur-[1px]" onClick={() => setOpen(false)} />
           <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
@@ -51,7 +52,8 @@ export default function ContextHelp({ title, description, inverted = false }: Co
             </div>
             <button type="button" onClick={() => setOpen(false)} className="mt-6 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700">閉じる</button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

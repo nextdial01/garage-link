@@ -115,13 +115,13 @@ export default function AppShell({
   }
 
   return (
-    <main className={`flex min-h-screen flex-col text-slate-950 lg:flex-row ${shellBackground}`}>
+    <main className={`flex min-h-screen w-full max-w-full overflow-x-hidden flex-col text-slate-950 lg:flex-row ${shellBackground}`}>
       <AppSidebar activeLabel={activeLabel} />
 
-      <section className="min-w-0 flex-1 pb-24 lg:pb-0">
+      <section className="min-w-0 w-full flex-1 pb-24 lg:pb-0">
         <header className={`sticky top-0 z-20 border-b bg-white/95 px-4 py-4 backdrop-blur sm:px-6 lg:px-8 ${headerBorderClass}`}>
-          <div className="mx-auto flex max-w-[1440px] flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="mx-auto w-full min-w-0 max-w-[1440px] flex flex-col gap-4">
+            <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
                 <Link href="/help" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:bg-slate-50">
                   ヘルプ
                 </Link>
@@ -129,13 +129,13 @@ export default function AppShell({
                   権限: {getRoleLabel(role)}
                 </div>
                 {stores.length > 1 ? (
-                  <label className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-600">
+                  <label className="flex min-w-0 max-w-full items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-600">
                     <span className="sr-only">表示店舗</span>
                     <select
                       value={activeStoreId}
                       disabled={isSwitchingStore}
                       onChange={(event) => void switchStore(event.target.value)}
-                      className="max-w-[220px] bg-transparent outline-none disabled:opacity-60"
+                      className="min-w-0 max-w-[220px] bg-transparent outline-none disabled:opacity-60"
                     >
                       {stores.map((item) => (
                         <option key={item.id} value={item.id}>{item.name || item.company_name || '店舗'}</option>
@@ -143,7 +143,7 @@ export default function AppShell({
                     </select>
                   </label>
                 ) : (
-                  <div className="max-w-[220px] truncate rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600">
+                  <div className="min-w-0 max-w-[220px] truncate rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600">
                     {storeLabel}
                   </div>
                 )}
@@ -166,7 +166,7 @@ export default function AppShell({
           </div>
         </header>
 
-        <div className="mx-auto max-w-[1440px] p-4 sm:p-6 lg:p-8">{children}</div>
+        <div className="mx-auto w-full min-w-0 max-w-[1440px] p-4 sm:p-6 lg:p-8">{children}</div>
       </section>
     </main>
   );
