@@ -105,6 +105,11 @@ export function MfaForm({ returnPath }: { returnPath: string }) {
     <form onSubmit={verify} className="mt-6 space-y-4">
       {mode === 'enroll' && (
         <div className="space-y-3 rounded-xl bg-slate-50 p-4">
+          <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-slate-700">
+            <p className="font-bold text-slate-900">認証アプリは「Google Authenticator」がおすすめです</p>
+            <p className="mt-1">スマホへ無料でインストールし、アプリの「＋」から「QRコードをスキャン」を選んで、下のQRコードを読み取ってください。</p>
+            <p className="mt-1 text-xs text-slate-600">Microsoft Authenticatorや1Passwordも利用できます。</p>
+          </div>
           <p className="text-sm font-bold text-slate-800">認証アプリでQRコードを読み取ってください</p>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={qrCode} alt="認証アプリ登録用QRコード" className="mx-auto h-48 w-48" />
