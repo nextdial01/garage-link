@@ -46,7 +46,7 @@ try {
 
   await stripe.invoiceItems.create({
     customer: customer.id,
-    amount: 14800,
+    amount: 16280,
     currency: 'jpy',
     description: 'GARAGE LINK Standard 月額利用料（検証用）',
     period: { start: periodStart, end: periodEnd },
@@ -66,7 +66,7 @@ try {
 
   assert.equal(invoice.livemode, false);
   assert.equal(invoice.customer, customer.id);
-  assert.equal(invoice.total, 14800);
+  assert.equal(invoice.total, 16280);
   assert.equal(invoice.currency, 'jpy');
   assert.ok(invoice.number);
   assert.ok(invoice.invoice_pdf?.startsWith('https://'));

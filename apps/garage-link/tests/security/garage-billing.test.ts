@@ -213,7 +213,9 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     const publicPage = await readFile('src/components/public-site/GaragePublicPage.tsx', 'utf8');
     const publicRouteBody = await readFile('src/components/public-site/GarageRouteBody.tsx', 'utf8');
     const planDefinitions = await readFile('../../packages/billing/src/garagePlans.ts', 'utf8');
-    const sources = `${legalConstants}\n${billingPage}\n${publicPage}\n${publicRouteBody}\n${planDefinitions}`;
+    const stripeSetup = await readFile('scripts/setup-stripe-test-products.mjs', 'utf8');
+    const invoiceVerification = await readFile('scripts/verify-stripe-test-invoice.mjs', 'utf8');
+    const sources = `${legalConstants}\n${billingPage}\n${publicPage}\n${publicRouteBody}\n${planDefinitions}\n${stripeSetup}\n${invoiceVerification}`;
 
     expect(sources).not.toContain('表示価格は税抜です');
     expect(sources).not.toContain('価格は税別です');
@@ -226,6 +228,10 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(planDefinitions).toContain('monthlyPrice: 7480');
     expect(planDefinitions).toContain('monthlyPrice: 16280');
     expect(planDefinitions).toContain('monthlyPrice: 32780');
+    expect(stripeSetup).toContain("amount: 7480");
+    expect(stripeSetup).toContain("amount: 16280");
+    expect(stripeSetup).toContain("amount: 32780");
+    expect(invoiceVerification).toContain("assert.equal(invoice.total, 16280)");
   });
 
   test('月額利用料の請求書は会社単位で取得し、領収書を表示しない', async () => {
