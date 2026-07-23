@@ -36,7 +36,7 @@ export const LEGAL_PLANS = [
 ] as const;
 
 export const LEGAL_TAX_NOTE =
-  '表示額は、基準料金に10%相当額を加えた請求総額です。当社は免税事業者であり、適格請求書は発行できません。';
+  '表示額は、基準料金に10%相当額を加えた請求総額です。';
 
 /** B2B SaaS で一般的に列挙する委託先（利用状況に応じてリーガルチェックで確定） */
 export const LEGAL_SUBPROCESSORS = [

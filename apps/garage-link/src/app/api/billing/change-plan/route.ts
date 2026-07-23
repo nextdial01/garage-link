@@ -47,7 +47,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: '契約を変更する権限がありません。' }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => null)) as { plan?: string } | null;
+  const body = (await request.json().catch(() => null)) as { plan?: string; termsAccepted?: boolean } | null;
+  if (body?.termsAccepted !== true) {
+    return NextResponse.json({ ok: false, error: '契約変更には利用規約への同意が必要です。', code: 'terms_not_accepted' }, { status: 400 });
+  }
   const requestedPlan = normalizeGaragePlanCode(body?.plan);
   if (requestedPlan === 'free') {
     return NextResponse.json({ ok: false, error: 'Freeプランへの変更はできません。' }, { status: 400 });
@@ -99,6 +102,8 @@ export async function POST(request: Request) {
         company_id: subscription.company_id,
         plan_code: upgrade ? requestedPlan : currentPlan,
         pending_plan: upgrade ? '' : requestedPlan,
+        terms_accepted_at: new Date().toISOString(),
+        terms_version: '2026-07-23',
       },
     });
 

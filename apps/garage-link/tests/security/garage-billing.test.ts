@@ -307,6 +307,27 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(webhook).toContain("case 'invoice.paid'");
   });
 
+  test('Stripe決済は利用規約への明示同意を画面とAPIの両方で必須にする', async () => {
+    const billingPage = await readFile('src/app/settings/billing/page.tsx', 'utf8');
+    const checkout = await readFile('src/app/api/billing/checkout/route.ts', 'utf8');
+    const changePlan = await readFile('src/app/api/billing/change-plan/route.ts', 'utf8');
+    const changeOptions = await readFile('src/app/api/billing/change-options/route.ts', 'utf8');
+    const terms = await readFile('src/app/legal/terms/page.tsx', 'utf8');
+    const tokusho = await readFile('src/app/legal/tokusho/page.tsx', 'utf8');
+
+    expect(billingPage).toContain('利用規約');
+    expect(billingPage).toContain('termsAccepted');
+    expect(billingPage).toContain('!termsAccepted');
+    expect(checkout).toContain("body.termsAccepted !== true");
+    expect(changePlan).toContain("body?.termsAccepted !== true");
+    expect(changeOptions).toContain("body?.termsAccepted !== true");
+    expect(checkout).toContain("terms_version: '2026-07-23'");
+    expect(checkout).toContain('integration_identifier: createIntegrationIdentifier()');
+    expect(terms).toContain('当社は免税事業者であり、適格請求書発行事業者ではありません。');
+    expect(tokusho).not.toContain('適格請求書発行事業者ではありません');
+    expect(billingPage).not.toContain('当社は免税事業者であり、適格請求書は発行できません。');
+  });
+
   test('L-LINK APIは契約可否をサーバー側で確認する', async () => {
     const inquiries = await readFile('src/app/api/s2s/line-link/inquiries/route.ts', 'utf8');
     const candidates = await readFile('src/app/api/s2s/line-link/delivery-candidates/route.ts', 'utf8');
