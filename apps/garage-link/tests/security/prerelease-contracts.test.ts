@@ -92,6 +92,14 @@ test.describe('Pre-release contracts (認証不要)', () => {
     await expect(access('src/app/global-error.tsx')).resolves.toBeUndefined();
   });
 
+  test('狭い画面のメニューからログアウトできる', async () => {
+    const menuPage = await readFile('src/app/menu/page.tsx', 'utf8');
+
+    expect(menuPage).toContain('href="/logout"');
+    expect(menuPage).toContain('ログアウト');
+    expect(menuPage).toContain('lg:hidden');
+  });
+
   test('complete_plan_change_request: 二重反映防止ロジックが維持されている', async () => {
     const sql = await readFile('supabase/schema/030_company_billing_requests.sql', 'utf8');
 
