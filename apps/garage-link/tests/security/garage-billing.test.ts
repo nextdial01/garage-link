@@ -212,6 +212,7 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(legalConstants).toContain('消費税は別途加算しません');
     expect(legalConstants).toContain('適格請求書は発行できません');
     expect(billingPage).toContain('表示額がプラン料金としての支払総額です');
+    expect(publicRouteBody).toContain('当社は免税事業者のため、消費税は別途加算しません。適格請求書は発行できません。');
   });
 
   test('月額利用料の請求書は会社単位で取得し、領収書を表示しない', async () => {

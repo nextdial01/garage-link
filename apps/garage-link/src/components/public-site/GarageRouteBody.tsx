@@ -41,6 +41,9 @@ function PricingBody() {
               {plan.name === "Free" && <Link className={styles.inlineCta} href="/signup">無料で始める</Link>}
             </article>)}
           </div>
+          <p className={styles.taxNote}>
+            当社は免税事業者のため、消費税は別途加算しません。適格請求書は発行できません。
+          </p>
         </div>
       </section>
       <section className={styles.detailSection}><div className={styles.shell}>
