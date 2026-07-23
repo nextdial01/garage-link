@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 import { resolvePostAuthPath } from '@/lib/auth/post-auth-redirect';
-import { ADMIN_EMAIL_OTP_COOKIE, deviceTokenHash, getAdminEmailOtpSecret, readTrustedDeviceCookieValue } from '@/lib/security/adminEmailOtp';
+import { ADMIN_EMAIL_OTP_COOKIE, deviceTokenHash, getAdminEmailOtpSecret, hasEffectiveAdminRole, readTrustedDeviceCookieValue } from '@/lib/security/adminEmailOtp';
 
 const PUBLIC_PATHS = [
   '/',
@@ -68,13 +68,23 @@ async function requiresAdminSecurity(
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
   if (!url || !key) return true;
   const supabase = createServiceClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-  const [membershipRole, storeRole] = await Promise.all([
-    supabase.from('memberships').select('role').eq('user_id', userId).eq('status', 'active').limit(10),
-    supabase.from('store_members').select('role').eq('user_id', userId).in('status', ['active', 'member']).limit(10),
-  ]);
-  if (membershipRole.error || storeRole.error) return true;
-  return [...(membershipRole.data ?? []), ...(storeRole.data ?? [])]
-    .some((membership) => ['owner', 'admin', 'implementer'].includes(membership.role ?? ''));
+  const storeRole = await supabase
+    .from('store_members')
+    .select('role')
+    .eq('user_id', userId)
+    .in('status', ['active', 'member'])
+    .limit(10);
+  if (storeRole.error) return true;
+  if ((storeRole.data ?? []).length > 0) return hasEffectiveAdminRole([], storeRole.data ?? []);
+
+  const membershipRole = await supabase
+    .from('memberships')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .limit(10);
+  if (membershipRole.error) return true;
+  return hasEffectiveAdminRole(membershipRole.data ?? [], []);
 }
 
 async function hasTrustedAdminDevice(request: NextRequest, userId: string, sessionId: string) {

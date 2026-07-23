@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { loginIdentityHash } from '../../src/lib/security/authSecurity';
 import {
   createTrustedDeviceCookieValue,
+  hasEffectiveAdminRole,
   otpHash,
   readTrustedDeviceCookieValue,
 } from '../../src/lib/security/adminEmailOtp';
@@ -42,6 +43,9 @@ test.describe('Stripe security controls', () => {
     expect(middleware.indexOf('shouldCheckAdminSecurity')).toBeLessThan(
       middleware.indexOf('const postAuthPath'),
     );
+    expect(middleware.indexOf("from('store_members')")).toBeLessThan(
+      middleware.indexOf("from('memberships')"),
+    );
 
     expect(otpForm).toContain("fetch('/api/auth/admin-email-otp/request'");
     expect(otpForm).toContain("fetch('/api/auth/admin-email-otp/verify'");
@@ -72,6 +76,13 @@ test.describe('Stripe security controls', () => {
     expect(await otpHash(secret, 'user-a', 'session-a', '123456')).not.toBe(
       await otpHash(secret, 'user-a', 'session-b', '123456'),
     );
+  });
+
+  test('store_membersの現在権限を優先し、古いmemberships権限で管理者扱いに戻さない', () => {
+    expect(hasEffectiveAdminRole([{ role: 'owner' }], [{ role: 'staff' }])).toBeFalsy();
+    expect(hasEffectiveAdminRole([{ role: 'viewer' }], [{ role: 'admin' }])).toBeTruthy();
+    expect(hasEffectiveAdminRole([{ role: 'implementer' }], [])).toBeTruthy();
+    expect(hasEffectiveAdminRole([{ role: 'staff' }], [])).toBeFalsy();
   });
 
 });

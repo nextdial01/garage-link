@@ -2,6 +2,14 @@ const encoder = new TextEncoder();
 
 export const ADMIN_EMAIL_OTP_COOKIE = 'garage_admin_email_verified';
 export const ADMIN_DEVICE_TTL_SECONDS = 30 * 24 * 60 * 60;
+const ADMIN_ROLES = new Set(['owner', 'admin', 'implementer']);
+
+type RoleRow = { role?: string | null };
+
+export function hasEffectiveAdminRole(membershipRoles: RoleRow[], storeRoles: RoleRow[]) {
+  const effectiveRoles = storeRoles.length > 0 ? storeRoles : membershipRoles;
+  return effectiveRoles.some((membership) => ADMIN_ROLES.has(membership.role ?? ''));
+}
 
 function base64UrlEncode(value: string) {
   const bytes = encoder.encode(value);
@@ -93,4 +101,3 @@ export async function readTrustedDeviceCookieValue(secret: string, value: string
 export function trustedDeviceCookieOptions() {
   return { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const, path: '/', maxAge: ADMIN_DEVICE_TTL_SECONDS };
 }
-

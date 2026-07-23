@@ -17,6 +17,8 @@
     "test:inquiry-response-management": "node scripts/check-inquiry-response-management.mjs",
     "test:line-link-s2s-ack": "node scripts/check-line-link-s2s-ack.mjs",
     "test:e2e": "playwright test",
+    "qa:provision": "node scripts/provision-qa-account.mjs",
+    "test:qa:mobile-logout": "node scripts/run-mobile-logout-qa.mjs",
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
