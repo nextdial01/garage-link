@@ -101,6 +101,15 @@ export default function MenuPage() {
             </div>
           </section>
         ))}
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:hidden">
+          <Link
+            href="/logout"
+            className="flex min-h-14 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-black text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
+          >
+            ログアウト
+          </Link>
+        </section>
       </div>
     </AppShell>
   );

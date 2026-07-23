@@ -62,7 +62,7 @@ declare module '@supabase/ssr' {
         error: AuthError | null;
       }>;
       getClaims(): Promise<{
-        data: { claims: { sub?: string; email?: string; aal?: 'aal1' | 'aal2' } | null };
+        data: { claims: { sub?: string; email?: string; aal?: 'aal1' | 'aal2'; session_id?: string } | null };
         error: AuthError | null;
       }>;
       signInWithPassword(credentials: {

@@ -1,23 +1,33 @@
 import { access, readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { loginIdentityHash } from '../../src/lib/security/authSecurity';
+import {
+  createTrustedDeviceCookieValue,
+  hasEffectiveAdminRole,
+  otpHash,
+  readTrustedDeviceCookieValue,
+} from '../../src/lib/security/adminEmailOtp';
 
 test.describe('Stripe security controls', () => {
-  test('login and administrator lockouts are atomic and MFA is enforced in PostgREST', async () => {
-    const [migration, enforcement, loginRoute, middleware, mfaForm, removal] = await Promise.all([
+  test('login lockout and administrator email OTP are enforced in PostgREST', async () => {
+    const [migration, emailOtp, loginRoute, middleware, otpForm, removal] = await Promise.all([
       readFile('supabase/migrations/20260722000200_auth_security_hardening.sql', 'utf8'),
-      readFile('supabase/migrations/20260722000300_enforce_administrator_aal2.sql', 'utf8'),
+      readFile('supabase/migrations/20260723000300_admin_email_otp.sql', 'utf8'),
       readFile('src/app/api/auth/password-login/route.ts', 'utf8'),
       readFile('src/middleware.ts', 'utf8'),
-      readFile('src/app/security/mfa/MfaForm.tsx', 'utf8'),
+      readFile('src/app/security/email-otp/EmailOtpForm.tsx', 'utf8'),
       readFile('supabase/migrations/20260723000100_remove_admin_access_code.sql', 'utf8'),
     ]);
 
     expect(migration).toContain('create table if not exists public.auth_login_attempts');
     expect(migration).toContain('on conflict (identity_hash) do update');
     expect(migration).toContain('least(10, attempts.failed_attempts + 1)');
-    expect(enforcement).toContain('pgrst.db_pre_request');
-    expect(enforcement).toContain("coalesce(jwt ->> 'aal', 'aal1') <> 'aal2'");
+    expect(emailOtp).toContain('create table if not exists public.admin_email_otp_challenges');
+    expect(emailOtp).toContain('create table if not exists public.admin_trusted_sessions');
+    expect(emailOtp).toContain("interval '10 minutes'");
+    expect(emailOtp).toContain("interval '30 days'");
+    expect(emailOtp).toContain("coalesce(jwt ->> 'aal', 'aal1') <> 'aal2'");
+    expect(emailOtp).toContain("pgrst.db_pre_request = 'public.enforce_administrator_email_otp'");
 
     expect(loginRoute).toContain("service.rpc('get_login_lock'");
     expect(loginRoute).toContain("service.rpc('record_login_failure'");
@@ -33,10 +43,14 @@ test.describe('Stripe security controls', () => {
     expect(middleware.indexOf('shouldCheckAdminSecurity')).toBeLessThan(
       middleware.indexOf('const postAuthPath'),
     );
+    expect(middleware.indexOf("from('store_members')")).toBeLessThan(
+      middleware.indexOf("from('memberships')"),
+    );
 
-    expect(mfaForm).toContain('factors.data.all.filter');
-    expect(mfaForm).toContain('supabase.auth.mfa.unenroll');
-    expect(mfaForm).toContain('pendingFactorPreparation');
+    expect(otpForm).toContain("fetch('/api/auth/admin-email-otp/request'");
+    expect(otpForm).toContain("fetch('/api/auth/admin-email-otp/verify'");
+    expect(otpForm).toContain('この端末では、確認後30日間');
+    await expect(access('src/app/security/mfa/MfaForm.tsx')).rejects.toThrow();
   });
 
   test('login lock identity is normalized and user-bound', async () => {
@@ -47,6 +61,28 @@ test.describe('Stripe security controls', () => {
     expect(await loginIdentityHash(secret, 'owner@example.com')).not.toBe(
       await loginIdentityHash(secret, 'other@example.com'),
     );
+  });
+
+  test('trusted-device cookie is signed, user/session bound, and expiring', async () => {
+    const secret = 'test-secret-with-at-least-32-random-characters';
+    const payload = { userId: 'user-a', sessionId: 'session-a', token: 'device-token', expiresAt: Date.now() + 60_000 };
+    const cookie = await createTrustedDeviceCookieValue(secret, payload);
+    expect(await readTrustedDeviceCookieValue(secret, cookie, 'user-a', 'session-a')).toEqual(payload);
+    expect(await readTrustedDeviceCookieValue(secret, cookie, 'user-b', 'session-a')).toBeNull();
+    expect(await readTrustedDeviceCookieValue(secret, cookie, 'user-a', 'session-b')).toBeNull();
+    expect(await readTrustedDeviceCookieValue(secret, `${cookie}x`, 'user-a', 'session-a')).toBeNull();
+    const expired = await createTrustedDeviceCookieValue(secret, { ...payload, expiresAt: Date.now() - 1 });
+    expect(await readTrustedDeviceCookieValue(secret, expired, 'user-a', 'session-a')).toBeNull();
+    expect(await otpHash(secret, 'user-a', 'session-a', '123456')).not.toBe(
+      await otpHash(secret, 'user-a', 'session-b', '123456'),
+    );
+  });
+
+  test('store_membersの現在権限を優先し、古いmemberships権限で管理者扱いに戻さない', () => {
+    expect(hasEffectiveAdminRole([{ role: 'owner' }], [{ role: 'staff' }])).toBeFalsy();
+    expect(hasEffectiveAdminRole([{ role: 'viewer' }], [{ role: 'admin' }])).toBeTruthy();
+    expect(hasEffectiveAdminRole([{ role: 'implementer' }], [])).toBeTruthy();
+    expect(hasEffectiveAdminRole([{ role: 'staff' }], [])).toBeFalsy();
   });
 
 });
