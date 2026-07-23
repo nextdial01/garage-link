@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { randomInt } from 'node:crypto';
 import type { GaragePlanCode } from '@/lib/billing/garagePlans';
 import { normalizeGaragePlanCode } from '@/lib/billing/garagePlans';
+import { createTermsConsentMetadata } from '@/lib/legal/termsConsent';
 import { getAppBaseUrl } from '@/lib/stripe/garageBilling';
 import { applyGaragePlanFromStripe, recordStripeCheckoutCompletion } from '@/lib/stripe/applyPlan';
 import { assertStripePriceId, getStripeClient, isStripeConfigured } from '@/lib/stripe/client';
@@ -15,6 +16,7 @@ type StoreMemberRow = {
 
 type CheckoutBody = {
   plan?: string;
+  termsAccepted?: boolean;
 };
 
 function createIntegrationIdentifier() {
@@ -61,6 +63,12 @@ export async function POST(request: Request) {
   }
 
   const planCode = normalizeGaragePlanCode(body.plan) as GaragePlanCode;
+  if (body.termsAccepted !== true) {
+    return NextResponse.json(
+      { ok: false, error: '決済へ進むには利用規約への同意が必要です。', code: 'terms_not_accepted' },
+      { status: 400 },
+    );
+  }
   if (planCode === 'free') {
     return NextResponse.json({ ok: false, error: 'Free プランは Checkout 対象外です。' }, { status: 400 });
   }
@@ -121,6 +129,7 @@ export async function POST(request: Request) {
         company_id: member.store_id,
         plan_code: planCode,
         requested_by: userData.user.id,
+        ...createTermsConsentMetadata(),
       },
       subscription_data: {
         metadata: {

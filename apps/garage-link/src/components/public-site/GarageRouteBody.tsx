@@ -42,7 +42,7 @@ function PricingBody() {
             </article>)}
           </div>
           <p className={styles.taxNote}>
-            有料プランの表示額は、基準料金に10%相当額を加えた請求総額です。当社は免税事業者であり、適格請求書は発行できません。
+            有料プランの表示額は、基準料金に10%相当額を加えた請求総額です。
           </p>
         </div>
       </section>
