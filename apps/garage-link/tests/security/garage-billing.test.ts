@@ -207,11 +207,13 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(ownerMigration).toContain('owner to postgres');
   });
 
-  test('免税事業者として10%相当額を含む請求総額と適格請求書の非対応を明記する', async () => {
+  test('10%相当額を含む請求総額を維持し、免税・適格請求書の案内は利用規約だけに記載する', async () => {
     const legalConstants = await readFile('src/lib/legal/constants.ts', 'utf8');
     const billingPage = await readFile('src/app/settings/billing/page.tsx', 'utf8');
     const publicPage = await readFile('src/components/public-site/GaragePublicPage.tsx', 'utf8');
     const publicRouteBody = await readFile('src/components/public-site/GarageRouteBody.tsx', 'utf8');
+    const terms = await readFile('src/app/legal/terms/page.tsx', 'utf8');
+    const tokusho = await readFile('src/app/legal/tokusho/page.tsx', 'utf8');
     const planDefinitions = await readFile('../../packages/billing/src/garagePlans.ts', 'utf8');
     const stripeSetup = await readFile('scripts/setup-stripe-test-products.mjs', 'utf8');
     const invoiceVerification = await readFile('scripts/verify-stripe-test-invoice.mjs', 'utf8');
@@ -222,9 +224,9 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(sources).not.toContain('円／月・税別');
     expect(sources).not.toContain(' 税抜</p>');
     expect(legalConstants).toContain('基準料金に10%相当額を加えた請求総額');
-    expect(legalConstants).toContain('適格請求書は発行できません');
     expect(billingPage).toContain('表示額は10%相当額を含む請求総額です');
-    expect(publicRouteBody).toContain('当社は免税事業者であり、適格請求書は発行できません。');
+    expect(`${legalConstants}\n${billingPage}\n${publicPage}\n${publicRouteBody}\n${tokusho}`).not.toContain('当社は免税事業者であり');
+    expect(terms).toContain('当社は免税事業者であり、適格請求書発行事業者ではありません。');
     expect(planDefinitions).toContain('monthlyPrice: 7480');
     expect(planDefinitions).toContain('monthlyPrice: 16280');
     expect(planDefinitions).toContain('monthlyPrice: 32780');
