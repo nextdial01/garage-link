@@ -7,7 +7,7 @@ import {
 } from '@/lib/legal/constants';
 
 function formatYen(value: number) {
-  return `${value.toLocaleString('ja-JP')}円（税抜）`;
+  return `${value.toLocaleString('ja-JP')}円`;
 }
 
 export default function TokushoPage() {
@@ -64,7 +64,7 @@ export default function TokushoPage() {
         <ul className="list-disc space-y-2 pl-5">
           {LEGAL_PLANS.map((plan) => (
             <li key={plan.name}>
-              {plan.name}: {plan.monthlyPriceExTax === 0 ? '無料' : `${formatYen(plan.monthlyPriceExTax)} / 月`}
+              {plan.name}: {plan.monthlyPrice === 0 ? '無料' : `${formatYen(plan.monthlyPrice)} / 月`}
               {plan.note ? `（${plan.note}）` : ''}
             </li>
           ))}

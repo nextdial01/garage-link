@@ -14,12 +14,12 @@ import Stripe from 'stripe';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '../../..');
-const secretsPath = path.join(root, '.env.secrets.local');
+const secretsPath = process.env.GARAGE_LINK_SECRETS_PATH || path.join(root, '.env.secrets.local');
 
 const PLANS = [
-  { code: 'starter', name: 'GARAGE LINK Starter', amount: 6800 },
-  { code: 'standard', name: 'GARAGE LINK Standard', amount: 14800 },
-  { code: 'pro', name: 'GARAGE LINK Pro', amount: 29800 },
+  { code: 'starter', name: 'GARAGE LINK Starter', amount: 7480 },
+  { code: 'standard', name: 'GARAGE LINK Standard', amount: 16280 },
+  { code: 'pro', name: 'GARAGE LINK Pro', amount: 32780 },
 ];
 
 function loadEnvFile(filePath) {
@@ -67,7 +67,11 @@ const created = {};
 for (const plan of PLANS) {
   const product = await stripe.products.create({
     name: plan.name,
-    metadata: { garage_plan_code: plan.code },
+    metadata: {
+      garage_plan_code: plan.code,
+      seller_tax_status: 'tax_exempt',
+      pricing_basis: 'includes_10_percent_equivalent',
+    },
   });
 
   const price = await stripe.prices.create({

@@ -427,7 +427,7 @@ export default function BillingSettingsPage() {
               <div>
                 <p className="text-3xl font-black text-slate-950">{currentPlan.name}</p>
                 <p className="mt-1 text-sm text-slate-600">
-                  {store?.company_name || store?.name || '—'} ／ {formatGarageYen(currentPlan.monthlyPrice)} / 月（税抜）
+                  {store?.company_name || store?.name || '—'} ／ {formatGarageYen(currentPlan.monthlyPrice)} / 月
                 </p>
               </div>
               <div className="flex flex-wrap gap-3 text-sm font-semibold text-slate-600">
@@ -514,7 +514,12 @@ export default function BillingSettingsPage() {
           <section className="space-y-4">
             <div>
               <h3 className="text-lg font-bold text-slate-950">プランを選ぶ</h3>
-              <p className="mt-1 text-sm text-slate-500">有料プランは下のボタンから決済ページへ進みます。表示価格は税抜です。</p>
+              <p className="mt-1 text-sm text-slate-500">
+                有料プランは下のボタンから決済ページへ進みます。表示額は10%相当額を含む請求総額です。
+              </p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                当社は免税事業者であり、適格請求書は発行できません。
+              </p>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {GARAGE_PLAN_ORDER.map((code) => {

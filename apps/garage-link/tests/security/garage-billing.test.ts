@@ -24,7 +24,10 @@ test.describe('GARAGE LINK billing and plan safety', () => {
       lLinkIntegrationEnabled: false,
     });
     expect(GARAGE_PLANS.starter).toMatchObject({
-      monthlyPrice: 6800,
+      monthlyPrice: 7480,
+      extraStaffPrice: 1100,
+      extraStoragePricePer10Gb: 550,
+      individualSupportHourlyPrice: 11000,
       inventoryLimit: 50,
       includedStaffCount: 1,
       includedStoreCount: 1,
@@ -33,7 +36,11 @@ test.describe('GARAGE LINK billing and plan safety', () => {
       lLinkIntegrationEnabled: false,
     });
     expect(GARAGE_PLANS.standard).toMatchObject({
-      monthlyPrice: 14800,
+      monthlyPrice: 16280,
+      extraStaffPrice: 1100,
+      extraStorePrice: 5500,
+      extraStoragePricePer10Gb: 550,
+      individualSupportHourlyPrice: 11000,
       inventoryLimit: 200,
       includedStaffCount: 3,
       includedStoreCount: 1,
@@ -42,7 +49,11 @@ test.describe('GARAGE LINK billing and plan safety', () => {
       lLinkIntegrationEnabled: true,
     });
     expect(GARAGE_PLANS.pro).toMatchObject({
-      monthlyPrice: 29800,
+      monthlyPrice: 32780,
+      extraStaffPrice: 1100,
+      extraStorePrice: 5500,
+      extraStoragePricePer10Gb: 550,
+      individualSupportHourlyPrice: 11000,
       inventoryLimit: 500,
       includedStaffCount: 10,
       includedStoreCount: 3,
@@ -180,6 +191,7 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(billingPage).toContain('/api/billing/subscription');
     expect(billingPage).toContain('translateDbError');
     expect(checkoutRoute).not.toContain('payment_method_types');
+    expect(checkoutRoute).not.toContain('automatic_tax');
     expect(checkoutRoute).toContain('integration_identifier');
     expect(stripeClient).toContain("apiVersion: '2026-06-24.dahlia'");
     expect(webhookRoute).toContain('checkout.session.completed');
@@ -193,6 +205,33 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(grantsMigration).toContain('ensure_company_subscription');
     expect(rpcMigration).toContain('get_company_subscription');
     expect(ownerMigration).toContain('owner to postgres');
+  });
+
+  test('免税事業者として10%相当額を含む請求総額と適格請求書の非対応を明記する', async () => {
+    const legalConstants = await readFile('src/lib/legal/constants.ts', 'utf8');
+    const billingPage = await readFile('src/app/settings/billing/page.tsx', 'utf8');
+    const publicPage = await readFile('src/components/public-site/GaragePublicPage.tsx', 'utf8');
+    const publicRouteBody = await readFile('src/components/public-site/GarageRouteBody.tsx', 'utf8');
+    const planDefinitions = await readFile('../../packages/billing/src/garagePlans.ts', 'utf8');
+    const stripeSetup = await readFile('scripts/setup-stripe-test-products.mjs', 'utf8');
+    const invoiceVerification = await readFile('scripts/verify-stripe-test-invoice.mjs', 'utf8');
+    const sources = `${legalConstants}\n${billingPage}\n${publicPage}\n${publicRouteBody}\n${planDefinitions}\n${stripeSetup}\n${invoiceVerification}`;
+
+    expect(sources).not.toContain('表示価格は税抜です');
+    expect(sources).not.toContain('価格は税別です');
+    expect(sources).not.toContain('円／月・税別');
+    expect(sources).not.toContain(' 税抜</p>');
+    expect(legalConstants).toContain('基準料金に10%相当額を加えた請求総額');
+    expect(legalConstants).toContain('適格請求書は発行できません');
+    expect(billingPage).toContain('表示額は10%相当額を含む請求総額です');
+    expect(publicRouteBody).toContain('当社は免税事業者であり、適格請求書は発行できません。');
+    expect(planDefinitions).toContain('monthlyPrice: 7480');
+    expect(planDefinitions).toContain('monthlyPrice: 16280');
+    expect(planDefinitions).toContain('monthlyPrice: 32780');
+    expect(stripeSetup).toContain("amount: 7480");
+    expect(stripeSetup).toContain("amount: 16280");
+    expect(stripeSetup).toContain("amount: 32780");
+    expect(invoiceVerification).toContain("assert.equal(invoice.total, 16280)");
   });
 
   test('月額利用料の請求書は会社単位で取得し、領収書を表示しない', async () => {
