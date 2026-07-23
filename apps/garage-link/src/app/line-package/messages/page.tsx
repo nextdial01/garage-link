@@ -221,7 +221,7 @@ export default function LinePackageMessagesPage() {
                           </p>
                           <p>月間配信上限: {billingByDraft[draft.id].unlimited_delivery_enabled ? '無制限オプション適用中' : `${billingByDraft[draft.id].monthly_delivery_limit.toLocaleString()}通`}</p>
                           <p>超過見込み: {billingByDraft[draft.id].overage_count.toLocaleString()}通</p>
-                          <p>追加料金見込み: {formatYen(billingByDraft[draft.id].estimated_overage_amount)} 税抜</p>
+                          <p>追加料金見込み: {formatYen(billingByDraft[draft.id].estimated_overage_amount)}</p>
                           {billingByDraft[draft.id].unlimited_delivery_enabled && (
                             <p className="mt-1 font-semibold">本サービス上の配信通数上限が無制限になります。LINE公式アカウント側の料金・配信通数は別途発生する場合があります。</p>
                           )}

@@ -47,9 +47,9 @@ export default function TermsPage() {
           {LEGAL_PLANS.map((plan) => (
             <li key={plan.name}>
               {plan.name}:{' '}
-              {plan.monthlyPriceExTax === 0
+              {plan.monthlyPrice === 0
                 ? '無料'
-                : `${plan.monthlyPriceExTax.toLocaleString('ja-JP')}円 / 月`}
+                : `${plan.monthlyPrice.toLocaleString('ja-JP')}円 / 月`}
             </li>
           ))}
         </ul>

@@ -77,7 +77,7 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
   },
   pricing: {
     title: "GARAGE LINKの料金",
-    description: "在庫台数、スタッフ数、店舗数、L-LINK連携の有無に合わせて、月額0円のFreeを含む4プランから選べます。価格は税別です。",
+    description: "在庫台数、スタッフ数、店舗数、L-LINK連携の有無に合わせて、月額0円のFreeを含む4プランから選べます。表示額がプラン料金としての支払総額です。消費税の別途加算はなく、適格請求書は発行できません。",
     sections: [
       {
         title: "店舗規模に合わせた4プラン",
@@ -203,7 +203,7 @@ const facts: Record<GaragePublicPageKey, Array<{ value: string; label: string }>
   pricing: [
     { value: "0円", label: "Freeプランの月額" },
     { value: "4プラン", label: "FreeからProまで" },
-    { value: "税別", label: "表示している月額料金" },
+    { value: "別途加算なし", label: "表示している月額料金" },
   ],
   "industries/used-car": [
     { value: "仕入〜納車", label: "車両単位で確認" },

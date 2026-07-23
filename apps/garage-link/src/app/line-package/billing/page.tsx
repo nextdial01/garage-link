@@ -74,7 +74,7 @@ export default function LinePackageBillingPage() {
         <section className="rounded-2xl border border-green-100 bg-white shadow-sm">
           <div className="border-b border-green-50 p-5">
             <h2 className="text-lg font-bold text-slate-950">料金表</h2>
-            <p className="mt-1 text-sm text-slate-500">表示価格は税抜です。契約変更・Stripe連携は後工程で実装します。</p>
+            <p className="mt-1 text-sm text-slate-500">表示額がプラン料金としての支払総額です。契約変更・Stripe連携は後工程で実装します。</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] text-left text-sm">
@@ -103,7 +103,7 @@ export default function LinePackageBillingPage() {
         <section className="rounded-2xl border border-amber-100 bg-amber-50 p-5 text-sm leading-6 text-amber-900">
           <h2 className="font-bold">注意事項</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>表示価格は税抜です。</li>
+            <li>当社は免税事業者のため、消費税は別途加算しません。適格請求書は発行できません。</li>
             <li>配信数は本サービス上の月間配信上限です。</li>
             <li>LINE公式アカウント側の料金・配信通数は別途発生する場合があります。</li>
             <li>FREEプランは配信数超過時の従量課金・通数無制限オプションに対応していません。</li>

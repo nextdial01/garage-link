@@ -27,15 +27,16 @@ export const LEGAL_PRODUCT_DOMAINS = {
   lTouring: 'https://l-touring.tech/',
 } as const;
 
-/** 料金（税抜）。garagePlans.ts と整合 */
+/** 月額料金（表示額が支払総額）。garagePlans.ts と整合 */
 export const LEGAL_PLANS = [
-  { name: 'Free', monthlyPriceExTax: 0, note: '無料プラン' },
-  { name: 'Starter', monthlyPriceExTax: 6800, note: '月額サブスクリプション' },
-  { name: 'Standard', monthlyPriceExTax: 14800, note: '月額サブスクリプション' },
-  { name: 'Pro', monthlyPriceExTax: 29800, note: '月額サブスクリプション' },
+  { name: 'Free', monthlyPrice: 0, note: '無料プラン' },
+  { name: 'Starter', monthlyPrice: 6800, note: '月額サブスクリプション' },
+  { name: 'Standard', monthlyPrice: 14800, note: '月額サブスクリプション' },
+  { name: 'Pro', monthlyPrice: 29800, note: '月額サブスクリプション' },
 ] as const;
 
-export const LEGAL_TAX_NOTE = '表示価格は税抜です。消費税は別途請求します。';
+export const LEGAL_TAX_NOTE =
+  '表示額がプラン料金としての支払総額です。当社は免税事業者のため、消費税は別途加算しません。適格請求書は発行できません。';
 
 /** B2B SaaS で一般的に列挙する委託先（利用状況に応じてリーガルチェックで確定） */
 export const LEGAL_SUBPROCESSORS = [
@@ -44,4 +45,4 @@ export const LEGAL_SUBPROCESSORS = [
   { name: 'Stripe, Inc.', purpose: '決済処理（導入後）' },
 ] as const;
 
-export const LEGAL_LAST_UPDATED = '2026年7月11日';
+export const LEGAL_LAST_UPDATED = '2026年7月23日';

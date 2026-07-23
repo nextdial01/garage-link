@@ -180,6 +180,7 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(billingPage).toContain('/api/billing/subscription');
     expect(billingPage).toContain('translateDbError');
     expect(checkoutRoute).not.toContain('payment_method_types');
+    expect(checkoutRoute).not.toContain('automatic_tax');
     expect(checkoutRoute).toContain('integration_identifier');
     expect(stripeClient).toContain("apiVersion: '2026-06-24.dahlia'");
     expect(webhookRoute).toContain('checkout.session.completed');
@@ -193,6 +194,24 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(grantsMigration).toContain('ensure_company_subscription');
     expect(rpcMigration).toContain('get_company_subscription');
     expect(ownerMigration).toContain('owner to postgres');
+  });
+
+  test('免税事業者として消費税を別途加算せず適格請求書の非対応を明記する', async () => {
+    const legalConstants = await readFile('src/lib/legal/constants.ts', 'utf8');
+    const billingPage = await readFile('src/app/settings/billing/page.tsx', 'utf8');
+    const publicPage = await readFile('src/components/public-site/GaragePublicPage.tsx', 'utf8');
+    const publicRouteBody = await readFile('src/components/public-site/GarageRouteBody.tsx', 'utf8');
+    const lineBillingPage = await readFile('src/app/line-package/billing/page.tsx', 'utf8');
+    const lineMessagesPage = await readFile('src/app/line-package/messages/page.tsx', 'utf8');
+    const sources = `${legalConstants}\n${billingPage}\n${publicPage}\n${publicRouteBody}\n${lineBillingPage}\n${lineMessagesPage}`;
+
+    expect(sources).not.toContain('表示価格は税抜です');
+    expect(sources).not.toContain('価格は税別です');
+    expect(sources).not.toContain('円／月・税別');
+    expect(sources).not.toContain(' 税抜</p>');
+    expect(legalConstants).toContain('消費税は別途加算しません');
+    expect(legalConstants).toContain('適格請求書は発行できません');
+    expect(billingPage).toContain('表示額がプラン料金としての支払総額です');
   });
 
   test('月額利用料の請求書は会社単位で取得し、領収書を表示しない', async () => {

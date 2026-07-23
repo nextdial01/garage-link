@@ -17,7 +17,7 @@ const faqGroups = [
   ] },
   { id: "price", title: "無料範囲・料金", items: [
     ["無料で試せる範囲を教えてください。", "Freeプランは月額0円で、在庫5台、スタッフ1人、1店舗、見積・請求は月5件まで利用できます。登録時に決済情報の入力はありません。"],
-    ["スタッフや店舗を追加できますか？", "対象プランでは、追加スタッフは月額1,000円／人、追加店舗は月額5,000円／店舗です。表示価格は税別です。"],
+    ["スタッフや店舗を追加できますか？", "対象プランでは、追加スタッフは月額1,000円／人、追加店舗は月額5,000円／店舗です。表示額が支払総額で、消費税の別途加算はありません。"],
   ] },
   { id: "permission", title: "権限・連携", items: [
     ["スタッフごとに見られる情報を分けられますか？", "はい。店舗内の役割に応じて、閲覧や操作の範囲を分けられます。導入前に現在の担当範囲をご確認ください。"],
@@ -36,7 +36,7 @@ function PricingBody() {
           <div className={styles.plans}>
             {plans.map((plan) => <article className={`${styles.plan} ${plan.featured ? styles.featured : ""}`} key={plan.name}>
               <span className={styles.planBadge}>{plan.note}</span><h2>{plan.name}</h2>
-              <div className={styles.price}><strong>{plan.price}</strong><span>円／月・税別</span></div>
+              <div className={styles.price}><strong>{plan.price}</strong><span>円／月・別途加算なし</span></div>
               <dl><div><dt>在庫</dt><dd>{plan.inventory}</dd></div><div><dt>スタッフ</dt><dd>{plan.staff}</dd></div><div><dt>店舗</dt><dd>{plan.stores}</dd></div><div><dt>見積・請求</dt><dd>{plan.quote}</dd></div></dl>
               {plan.name === "Free" && <Link className={styles.inlineCta} href="/signup">無料で始める</Link>}
             </article>)}
