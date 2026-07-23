@@ -25,5 +25,13 @@
     "stripe:setup-test": "node apps/garage-link/scripts/setup-stripe-test-products.mjs && pnpm sync:env",
     "stripe:setup-test:llink": "node apps/l-link/scripts/setup-stripe-test-products.mjs && pnpm sync:env"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "pnpm": {
+    "overrides": {
+      "brace-expansion@<1.1.16": "1.1.16",
+      "brace-expansion@>=3.0.0 <5.0.7": "5.0.7",
+      "js-yaml@>=4.0.0 <4.3.0": "4.3.0",
+      "sharp@<0.35.0": "0.35.0"
+    }
+  }
 }

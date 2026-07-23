@@ -77,7 +77,7 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
   },
   pricing: {
     title: "GARAGE LINKの料金",
-    description: "在庫台数、スタッフ数、店舗数、L-LINK連携の有無に合わせて、月額0円のFreeを含む4プランから選べます。有料プランの表示額は基準料金に10%相当額を加えた請求総額です。当社は免税事業者であり、適格請求書は発行できません。",
+    description: "在庫台数、スタッフ数、店舗数、L-LINK連携の有無に合わせて、月額0円のFreeを含む4プランから選べます。有料プランの表示額は基準料金に10%相当額を加えた請求総額です。",
     sections: [
       {
         title: "店舗規模に合わせた4プラン",

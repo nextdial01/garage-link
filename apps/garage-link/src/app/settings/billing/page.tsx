@@ -152,6 +152,7 @@ export default function BillingSettingsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isStripeLoading, setIsStripeLoading] = useState(false);
   const [stripeConfigured, setStripeConfigured] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -300,6 +301,10 @@ export default function BillingSettingsPage() {
         return;
       }
       if (form.request_type === 'add_staff' || form.request_type === 'add_store' || form.request_type === 'add_storage') {
+        if (!termsAccepted) {
+          setErrorMessage('契約変更には利用規約への同意が必要です。');
+          return;
+        }
         const amount = form.request_type === 'add_staff'
           ? toNonNegativeInt(form.requested_extra_staff_count)
           : form.request_type === 'add_store'
@@ -308,7 +313,7 @@ export default function BillingSettingsPage() {
         const response = await fetch('/api/billing/change-options', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: form.request_type, amount }),
+          body: JSON.stringify({ type: form.request_type, amount, termsAccepted: true }),
         });
         const payload = (await response.json()) as { ok?: boolean; error?: string; message?: string };
         if (!response.ok || !payload.ok) throw new Error(payload.error ?? '追加オプションを反映できませんでした。');
@@ -351,6 +356,11 @@ export default function BillingSettingsPage() {
 
     const targetPlan = planCode ?? form.requested_plan;
 
+    if (!termsAccepted) {
+      setErrorMessage('決済へ進むには利用規約への同意が必要です。');
+      return;
+    }
+
     if (targetPlan === 'free' || targetPlan === currentPlanCode) {
       setErrorMessage('有料プランへ変更する場合のみ Stripe 決済を利用できます。');
       return;
@@ -362,7 +372,7 @@ export default function BillingSettingsPage() {
       const response = await fetch(hasPaidSubscription ? '/api/billing/change-plan' : '/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: targetPlan }),
+        body: JSON.stringify({ plan: targetPlan, termsAccepted: true }),
       });
       const payload = (await response.json()) as { ok?: boolean; url?: string; error?: string; message?: string };
       if (!response.ok || !payload.ok) {
@@ -517,10 +527,21 @@ export default function BillingSettingsPage() {
               <p className="mt-1 text-sm text-slate-500">
                 有料プランは下のボタンから決済ページへ進みます。表示額は10%相当額を含む請求総額です。
               </p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                当社は免税事業者であり、適格請求書は発行できません。
-              </p>
             </div>
+            <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(event) => setTermsAccepted(event.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600"
+              />
+              <span>
+                <Link href="/legal/terms" target="_blank" className="font-bold text-blue-700 underline">
+                  利用規約
+                </Link>
+                を確認し、内容に同意します。
+              </span>
+            </label>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {GARAGE_PLAN_ORDER.map((code) => {
                 const plan = GARAGE_PLANS[code];
@@ -558,7 +579,7 @@ export default function BillingSettingsPage() {
                         <button
                           type="button"
                           onClick={() => void handleStripeCheckout(code)}
-                          disabled={isStripeLoading || !stripeConfigured}
+                          disabled={isStripeLoading || !stripeConfigured || !termsAccepted}
                           className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                         >
                           {isStripeLoading ? '決済ページを開いています...' : isCancelledRetention ? '再契約する' : 'このプランで申し込む'}
@@ -697,8 +718,24 @@ export default function BillingSettingsPage() {
                 {validationMessage && (
                   <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 md:col-span-2">{validationMessage}</p>
                 )}
+                {form.request_type !== 'support' && (
+                  <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 md:col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={termsAccepted}
+                      onChange={(event) => setTermsAccepted(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600"
+                    />
+                    <span>
+                      <Link href="/legal/terms" target="_blank" className="font-bold text-blue-700 underline">
+                        利用規約
+                      </Link>
+                      を確認し、内容に同意します。
+                    </span>
+                  </label>
+                )}
                 <div className="flex justify-end md:col-span-2">
-                  <button type="submit" disabled={isSubmitting || Boolean(validationMessage)} className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+                  <button type="submit" disabled={isSubmitting || Boolean(validationMessage) || (form.request_type !== 'support' && !termsAccepted)} className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
                     {isSubmitting ? '送信中...' : form.request_type === 'support' ? '個別サポートを相談する' : '申し込む'}
                   </button>
                 </div>

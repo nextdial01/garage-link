@@ -2,6 +2,8 @@
  * GARAGE LINK 法務ページ共通定数
  */
 
+import { formatTermsVersionJa } from './termsConsent';
+
 /** リーガルチェック時に確定する事業者情報 */
 export const LEGAL_SELLER = {
   legalName: '株式会社かんなぎ',
@@ -36,7 +38,7 @@ export const LEGAL_PLANS = [
 ] as const;
 
 export const LEGAL_TAX_NOTE =
-  '表示額は、基準料金に10%相当額を加えた請求総額です。当社は免税事業者であり、適格請求書は発行できません。';
+  '表示額は、基準料金に10%相当額を加えた請求総額です。';
 
 /** B2B SaaS で一般的に列挙する委託先（利用状況に応じてリーガルチェックで確定） */
 export const LEGAL_SUBPROCESSORS = [
@@ -45,4 +47,4 @@ export const LEGAL_SUBPROCESSORS = [
   { name: 'Stripe, Inc.', purpose: '決済処理（導入後）' },
 ] as const;
 
-export const LEGAL_LAST_UPDATED = '2026年7月23日';
+export const LEGAL_LAST_UPDATED = formatTermsVersionJa();
