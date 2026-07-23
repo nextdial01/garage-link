@@ -2,16 +2,15 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
 
 export default function LogoutPage() {
   const router = useRouter();
 
   useEffect(() => {
     async function signOut() {
-      const supabase = createClient();
-      await supabase.auth.signOut();
+      await fetch('/api/auth/logout', { method: 'POST' });
       router.replace('/login');
+      router.refresh();
     }
 
     void signOut();

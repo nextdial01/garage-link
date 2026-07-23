@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 import { resolvePostAuthPath } from '@/lib/auth/post-auth-redirect';
+import { ADMIN_EMAIL_OTP_COOKIE, deviceTokenHash, getAdminEmailOtpSecret, readTrustedDeviceCookieValue } from '@/lib/security/adminEmailOtp';
 
 const PUBLIC_PATHS = [
   '/',
@@ -47,7 +49,10 @@ function isCancelledRetentionAllowedPath(pathname: string) {
 }
 
 function isSecurityGate(pathname: string) {
-  return pathname === '/security/mfa';
+  return pathname === '/security/mfa'
+    || pathname === '/security/email-otp'
+    || pathname.startsWith('/api/auth/admin-email-otp/')
+    || pathname === '/api/auth/logout';
 }
 
 function redirectWithSessionCookies(url: URL, source: NextResponse) {
@@ -57,16 +62,40 @@ function redirectWithSessionCookies(url: URL, source: NextResponse) {
 }
 
 async function requiresAdminSecurity(
-  supabase: ReturnType<typeof createServerClient>,
   userId: string
 ) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+  if (!url || !key) return true;
+  const supabase = createServiceClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   const [membershipRole, storeRole] = await Promise.all([
-    supabase.from<{ role: string | null }>('memberships').select('role').eq('user_id', userId).eq('status', 'active').limit(10),
-    supabase.from<{ role: string | null }>('store_members').select('role').eq('user_id', userId).in('status', ['active', 'member']).limit(10),
+    supabase.from('memberships').select('role').eq('user_id', userId).eq('status', 'active').limit(10),
+    supabase.from('store_members').select('role').eq('user_id', userId).in('status', ['active', 'member']).limit(10),
   ]);
   if (membershipRole.error || storeRole.error) return true;
   return [...(membershipRole.data ?? []), ...(storeRole.data ?? [])]
     .some((membership) => ['owner', 'admin', 'implementer'].includes(membership.role ?? ''));
+}
+
+async function hasTrustedAdminDevice(request: NextRequest, userId: string, sessionId: string) {
+  const secret = getAdminEmailOtpSecret();
+  const cookie = await readTrustedDeviceCookieValue(secret, request.cookies.get(ADMIN_EMAIL_OTP_COOKIE)?.value, userId, sessionId);
+  if (!cookie) return false;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+  if (!url || !key) return false;
+  const service = createServiceClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const hash = await deviceTokenHash(secret, cookie.token);
+  const { data, error } = await service
+    .from('admin_trusted_sessions')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('session_id', sessionId)
+    .eq('device_token_hash', hash)
+    .is('revoked_at', null)
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle();
+  return !error && Boolean(data);
 }
 
 export async function middleware(request: NextRequest) {
@@ -112,15 +141,15 @@ export async function middleware(request: NextRequest) {
     const shouldCheckAdminSecurity = isAuthEntry || (!isPublicPath(pathname) && !isSecurityGate(pathname));
 
     if (shouldCheckAdminSecurity) {
-      const adminSecurityRequired = await requiresAdminSecurity(supabase, user.id);
+      const adminSecurityRequired = await requiresAdminSecurity(user.id);
       if (adminSecurityRequired) {
         const returnPath = isAuthEntry ? '/dashboard' : `${pathname}${request.nextUrl.search}`;
-        if (claimData?.claims?.aal !== 'aal2') {
-          const mfaUrl = new URL('/security/mfa', request.url);
-          mfaUrl.searchParams.set('from', returnPath);
-          return redirectWithSessionCookies(mfaUrl, response);
+        const sessionId = typeof claimData?.claims?.session_id === 'string' ? claimData.claims.session_id : '';
+        if (!sessionId || !await hasTrustedAdminDevice(request, user.id, sessionId)) {
+          const verificationUrl = new URL('/security/email-otp', request.url);
+          verificationUrl.searchParams.set('from', returnPath);
+          return redirectWithSessionCookies(verificationUrl, response);
         }
-
       }
     }
 
