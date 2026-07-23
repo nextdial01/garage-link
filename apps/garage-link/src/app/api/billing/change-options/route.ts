@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { canAddStaff, canAddStorage, canAddStore } from '@/lib/billing/garagePlans';
 import { getStripeClient } from '@/lib/stripe/client';
+import { createTermsConsentMetadata } from '@/lib/legal/termsConsent';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
@@ -94,8 +95,7 @@ export async function POST(request: Request) {
       proration_behavior: 'none',
       metadata: {
         ...stripeSubscription.metadata,
-        terms_accepted_at: new Date().toISOString(),
-        terms_version: '2026-07-23',
+        ...createTermsConsentMetadata(),
       },
     });
 

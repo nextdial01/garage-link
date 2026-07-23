@@ -2,6 +2,8 @@
  * GARAGE LINK 法務ページ共通定数
  */
 
+import { formatTermsVersionJa } from './termsConsent';
+
 /** リーガルチェック時に確定する事業者情報 */
 export const LEGAL_SELLER = {
   legalName: '株式会社かんなぎ',
@@ -45,4 +47,4 @@ export const LEGAL_SUBPROCESSORS = [
   { name: 'Stripe, Inc.', purpose: '決済処理（導入後）' },
 ] as const;
 
-export const LEGAL_LAST_UPDATED = '2026年7月23日';
+export const LEGAL_LAST_UPDATED = formatTermsVersionJa();

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { randomInt } from 'node:crypto';
 import type { GaragePlanCode } from '@/lib/billing/garagePlans';
 import { normalizeGaragePlanCode } from '@/lib/billing/garagePlans';
+import { createTermsConsentMetadata } from '@/lib/legal/termsConsent';
 import { getAppBaseUrl } from '@/lib/stripe/garageBilling';
 import { applyGaragePlanFromStripe, recordStripeCheckoutCompletion } from '@/lib/stripe/applyPlan';
 import { assertStripePriceId, getStripeClient, isStripeConfigured } from '@/lib/stripe/client';
@@ -128,8 +129,7 @@ export async function POST(request: Request) {
         company_id: member.store_id,
         plan_code: planCode,
         requested_by: userData.user.id,
-        terms_accepted_at: new Date().toISOString(),
-        terms_version: '2026-07-23',
+        ...createTermsConsentMetadata(),
       },
       subscription_data: {
         metadata: {

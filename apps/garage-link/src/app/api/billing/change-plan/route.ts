@@ -6,6 +6,7 @@ import {
   type GaragePlanCode,
 } from '@/lib/billing/garagePlans';
 import { buildGaragePlanSubscriptionUpdate } from '@/lib/stripe/garageBilling';
+import { createTermsConsentMetadata } from '@/lib/legal/termsConsent';
 import { assertStripePriceId, getStripeClient } from '@/lib/stripe/client';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -102,8 +103,7 @@ export async function POST(request: Request) {
         company_id: subscription.company_id,
         plan_code: upgrade ? requestedPlan : currentPlan,
         pending_plan: upgrade ? '' : requestedPlan,
-        terms_accepted_at: new Date().toISOString(),
-        terms_version: '2026-07-23',
+        ...createTermsConsentMetadata(),
       },
     });
 

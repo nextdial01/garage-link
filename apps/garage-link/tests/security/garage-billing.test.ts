@@ -11,6 +11,7 @@ import {
   getStorageLimit,
 } from '../../src/lib/billing/garagePlans';
 import { isCurrentInventoryVehicle } from '../../src/lib/billing/garageSubscription';
+import { createTermsConsentMetadata, TERMS_VERSION } from '../../src/lib/legal/termsConsent';
 
 test.describe('GARAGE LINK billing and plan safety', () => {
   test('料金プラン定義は指定仕様と一致する', () => {
@@ -323,7 +324,14 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(checkout).toContain("body.termsAccepted !== true");
     expect(changePlan).toContain("body?.termsAccepted !== true");
     expect(changeOptions).toContain("body?.termsAccepted !== true");
-    expect(checkout).toContain("terms_version: '2026-07-23'");
+    expect(checkout).toContain('createTermsConsentMetadata()');
+    expect(changePlan).toContain('createTermsConsentMetadata()');
+    expect(changeOptions).toContain('createTermsConsentMetadata()');
+    expect(TERMS_VERSION).toBe('2026-07-23');
+    expect(createTermsConsentMetadata(new Date('2026-07-23T00:00:00.000Z'))).toEqual({
+      terms_accepted_at: '2026-07-23T00:00:00.000Z',
+      terms_version: '2026-07-23',
+    });
     expect(checkout).toContain('integration_identifier: createIntegrationIdentifier()');
     expect(terms).toContain('当社は免税事業者であり、適格請求書発行事業者ではありません。');
     expect(tokusho).not.toContain('適格請求書発行事業者ではありません');
