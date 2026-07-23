@@ -1,5 +1,5 @@
 import { MfaForm } from './MfaForm';
-import { secureReturnPath } from '@/lib/security/adminAccess';
+import { secureReturnPath } from '@/lib/security/authSecurity';
 
 export default async function MfaPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const params = searchParams ? await searchParams : {};
