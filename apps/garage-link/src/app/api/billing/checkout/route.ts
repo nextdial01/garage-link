@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { randomInt } from 'node:crypto';
 import type { GaragePlanCode } from '@/lib/billing/garagePlans';
 import { normalizeGaragePlanCode } from '@/lib/billing/garagePlans';
 import { getAppBaseUrl } from '@/lib/stripe/garageBilling';
@@ -15,6 +16,12 @@ type StoreMemberRow = {
 type CheckoutBody = {
   plan?: string;
 };
+
+function createIntegrationIdentifier() {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+  const suffix = Array.from({ length: 8 }, () => alphabet[randomInt(alphabet.length)]).join('');
+  return `garage_link_${suffix}`;
+}
 
 export async function POST(request: Request) {
   if (!isStripeConfigured()) {
@@ -104,6 +111,7 @@ export async function POST(request: Request) {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
+      integration_identifier: createIntegrationIdentifier(),
       ...customerParams,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/settings/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,

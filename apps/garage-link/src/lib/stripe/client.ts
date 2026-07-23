@@ -11,7 +11,9 @@ export function getStripeClient() {
   }
 
   if (!stripeClient) {
-    stripeClient = new Stripe(secretKey);
+    stripeClient = new Stripe(secretKey, {
+      apiVersion: '2026-06-24.dahlia',
+    });
   }
 
   return stripeClient;
