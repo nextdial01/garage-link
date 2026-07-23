@@ -190,6 +190,7 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(checkoutRoute).toContain('createAdminClient');
     expect(subscriptionRoute).toContain('createAdminClient');
     expect(billingPage).toContain('/api/billing/subscription');
+    expect(billingPage).toContain("Boolean(subscription?.stripe_subscription_id)");
     expect(billingPage).toContain('translateDbError');
     expect(checkoutRoute).not.toContain('payment_method_types');
     expect(checkoutRoute).not.toContain('automatic_tax');

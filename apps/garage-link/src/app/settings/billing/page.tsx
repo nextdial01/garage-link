@@ -52,6 +52,8 @@ type CompanySubscriptionRow = {
   cancelled_at?: string | null;
   data_delete_scheduled_at?: string | null;
   data_deleted_at?: string | null;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
 };
 
 type GaragePlanUsage = {
@@ -368,7 +370,7 @@ export default function BillingSettingsPage() {
 
     try {
       setIsStripeLoading(true);
-      const hasPaidSubscription = currentPlanCode !== 'free' && !isCancelledRetention;
+      const hasPaidSubscription = Boolean(subscription?.stripe_subscription_id) && !isCancelledRetention;
       const response = await fetch(hasPaidSubscription ? '/api/billing/change-plan' : '/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
