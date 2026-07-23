@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { loginIdentityHash } from '@/lib/security/adminAccess';
+import { loginIdentityHash } from '@/lib/security/authSecurity';
 
 type LoginBody = {
   email?: unknown;
@@ -21,7 +21,9 @@ export async function POST(request: NextRequest) {
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const secret = process.env.GARAGE_ADMIN_ACCESS_COOKIE_SECRET;
+  const secret = process.env.GARAGE_LOGIN_SECURITY_SECRET
+    ?? process.env.GARAGE_ADMIN_ACCESS_COOKIE_SECRET
+    ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
   const service = createAdminClient();
   if (!url || !anonKey || !secret || !service) {
     return NextResponse.json({ error: 'ログインの安全確認を利用できません。管理者に連絡してください。' }, { status: 503 });

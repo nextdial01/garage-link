@@ -1,7 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { resolvePostAuthPath } from '@/lib/auth/post-auth-redirect';
-import { ADMIN_ACCESS_COOKIE, verifyAdminAccessCookie } from '@/lib/security/adminAccess';
 
 const PUBLIC_PATHS = [
   '/',
@@ -11,7 +10,6 @@ const PUBLIC_PATHS = [
   '/auth/callback',
   '/auth/reset-password',
   '/api/auth/password-login',
-  '/api/security/admin-access',
   '/help',
   '/logout',
   '/legal/terms',
@@ -49,7 +47,7 @@ function isCancelledRetentionAllowedPath(pathname: string) {
 }
 
 function isSecurityGate(pathname: string) {
-  return pathname === '/security/mfa' || pathname === '/security/admin-access' || pathname === '/api/security/admin-access';
+  return pathname === '/security/mfa';
 }
 
 function redirectWithSessionCookies(url: URL, source: NextResponse) {
@@ -123,16 +121,6 @@ export async function middleware(request: NextRequest) {
           return redirectWithSessionCookies(mfaUrl, response);
         }
 
-        const cookieSecret = process.env.GARAGE_ADMIN_ACCESS_COOKIE_SECRET;
-        const actualCookie = request.cookies.get(ADMIN_ACCESS_COOKIE)?.value ?? '';
-        const validCookie = cookieSecret
-          ? await verifyAdminAccessCookie(cookieSecret, user.id, actualCookie)
-          : false;
-        if (!validCookie) {
-          const accessUrl = new URL('/security/admin-access', request.url);
-          accessUrl.searchParams.set('from', returnPath);
-          return redirectWithSessionCookies(accessUrl, response);
-        }
       }
     }
 

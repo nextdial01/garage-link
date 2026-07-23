@@ -94,7 +94,6 @@ export function MfaForm({ returnPath }: { returnPath: string }) {
   }
 
   async function signOut() {
-    await fetch('/api/security/admin-access', { method: 'DELETE' }).catch(() => undefined);
     await createClient().auth.signOut();
     router.replace('/login');
     router.refresh();
