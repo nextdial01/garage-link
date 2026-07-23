@@ -515,10 +515,10 @@ export default function BillingSettingsPage() {
             <div>
               <h3 className="text-lg font-bold text-slate-950">プランを選ぶ</h3>
               <p className="mt-1 text-sm text-slate-500">
-                有料プランは下のボタンから決済ページへ進みます。表示額がプラン料金としての支払総額です。
+                有料プランは下のボタンから決済ページへ進みます。表示額は10%相当額を含む請求総額です。
               </p>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                当社は免税事業者のため、消費税は別途加算しません。適格請求書は発行できません。
+                当社は免税事業者であり、適格請求書は発行できません。
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

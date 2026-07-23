@@ -27,16 +27,16 @@ export const LEGAL_PRODUCT_DOMAINS = {
   lTouring: 'https://l-touring.tech/',
 } as const;
 
-/** 月額料金（表示額が支払総額）。garagePlans.ts と整合 */
+/** 月額料金（基準料金に10%相当額を加えた請求総額）。garagePlans.ts と整合 */
 export const LEGAL_PLANS = [
   { name: 'Free', monthlyPrice: 0, note: '無料プラン' },
-  { name: 'Starter', monthlyPrice: 6800, note: '月額サブスクリプション' },
-  { name: 'Standard', monthlyPrice: 14800, note: '月額サブスクリプション' },
-  { name: 'Pro', monthlyPrice: 29800, note: '月額サブスクリプション' },
+  { name: 'Starter', monthlyPrice: 7480, note: '月額サブスクリプション' },
+  { name: 'Standard', monthlyPrice: 16280, note: '月額サブスクリプション' },
+  { name: 'Pro', monthlyPrice: 32780, note: '月額サブスクリプション' },
 ] as const;
 
 export const LEGAL_TAX_NOTE =
-  '表示額がプラン料金としての支払総額です。当社は免税事業者のため、消費税は別途加算しません。適格請求書は発行できません。';
+  '表示額は、基準料金に10%相当額を加えた請求総額です。当社は免税事業者であり、適格請求書は発行できません。';
 
 /** B2B SaaS で一般的に列挙する委託先（利用状況に応じてリーガルチェックで確定） */
 export const LEGAL_SUBPROCESSORS = [

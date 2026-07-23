@@ -5,9 +5,9 @@ type RouteKey = "pricing" | "industries/used-car" | "industries/motorcycle" | "i
 
 const plans = [
   { name: "Free", price: "0", note: "操作を試す", inventory: "5台", staff: "1人", stores: "1店舗", quote: "月5件", featured: false },
-  { name: "Starter", price: "6,800", note: "小規模店舗", inventory: "50台", staff: "1人", stores: "1店舗", quote: "月20件", featured: false },
-  { name: "Standard", price: "14,800", note: "店舗運用", inventory: "200台", staff: "3人", stores: "1店舗", quote: "上限なし", featured: true },
-  { name: "Pro", price: "29,800", note: "複数店舗", inventory: "500台", staff: "10人", stores: "3店舗", quote: "上限なし", featured: false },
+  { name: "Starter", price: "7,480", note: "小規模店舗", inventory: "50台", staff: "1人", stores: "1店舗", quote: "月20件", featured: false },
+  { name: "Standard", price: "16,280", note: "店舗運用", inventory: "200台", staff: "3人", stores: "1店舗", quote: "上限なし", featured: true },
+  { name: "Pro", price: "32,780", note: "複数店舗", inventory: "500台", staff: "10人", stores: "3店舗", quote: "上限なし", featured: false },
 ] as const;
 
 const faqGroups = [
@@ -17,7 +17,7 @@ const faqGroups = [
   ] },
   { id: "price", title: "無料範囲・料金", items: [
     ["無料で試せる範囲を教えてください。", "Freeプランは月額0円で、在庫5台、スタッフ1人、1店舗、見積・請求は月5件まで利用できます。登録時に決済情報の入力はありません。"],
-    ["スタッフや店舗を追加できますか？", "対象プランでは、追加スタッフは月額1,000円／人、追加店舗は月額5,000円／店舗です。表示額が支払総額で、消費税の別途加算はありません。"],
+    ["スタッフや店舗を追加できますか？", "対象プランでは、追加スタッフは月額1,100円／人、追加店舗は月額5,500円／店舗です。表示額は10%相当額を含む請求総額です。"],
   ] },
   { id: "permission", title: "権限・連携", items: [
     ["スタッフごとに見られる情報を分けられますか？", "はい。店舗内の役割に応じて、閲覧や操作の範囲を分けられます。導入前に現在の担当範囲をご確認ください。"],
@@ -36,22 +36,22 @@ function PricingBody() {
           <div className={styles.plans}>
             {plans.map((plan) => <article className={`${styles.plan} ${plan.featured ? styles.featured : ""}`} key={plan.name}>
               <span className={styles.planBadge}>{plan.note}</span><h2>{plan.name}</h2>
-              <div className={styles.price}><strong>{plan.price}</strong><span>円／月・別途加算なし</span></div>
+              <div className={styles.price}><strong>{plan.price}</strong><span>円／月・請求総額</span></div>
               <dl><div><dt>在庫</dt><dd>{plan.inventory}</dd></div><div><dt>スタッフ</dt><dd>{plan.staff}</dd></div><div><dt>店舗</dt><dd>{plan.stores}</dd></div><div><dt>見積・請求</dt><dd>{plan.quote}</dd></div></dl>
               {plan.name === "Free" && <Link className={styles.inlineCta} href="/signup">無料で始める</Link>}
             </article>)}
           </div>
           <p className={styles.taxNote}>
-            当社は免税事業者のため、消費税は別途加算しません。適格請求書は発行できません。
+            有料プランの表示額は、基準料金に10%相当額を加えた請求総額です。当社は免税事業者であり、適格請求書は発行できません。
           </p>
         </div>
       </section>
       <section className={styles.detailSection}><div className={styles.shell}>
         <div className={styles.sectionHeader}><h2>追加が必要になった時の料金</h2><p>契約後の想定差を減らすため、プラン外の追加費用も登録前に確認できます。</p></div>
         <div className={styles.costRows}>
-          <div className={styles.costRow}><strong>追加スタッフ</strong><b>月額1,000円／人</b><p>対象プランで、店舗の利用人数に合わせて追加できます。</p></div>
-          <div className={styles.costRow}><strong>追加店舗</strong><b>月額5,000円／店舗</b><p>Standard・Proで、契約に含まれる店舗数を超える場合に追加できます。</p></div>
-          <div className={styles.costRow}><strong>個別サポート</strong><b>60分10,000円</b><p>画面共有による個別支援です。通常のチャットサポートは各プランに含まれます。</p></div>
+          <div className={styles.costRow}><strong>追加スタッフ</strong><b>月額1,100円／人</b><p>対象プランで、店舗の利用人数に合わせて追加できます。</p></div>
+          <div className={styles.costRow}><strong>追加店舗</strong><b>月額5,500円／店舗</b><p>Standard・Proで、契約に含まれる店舗数を超える場合に追加できます。</p></div>
+          <div className={styles.costRow}><strong>個別サポート</strong><b>60分11,000円</b><p>画面共有による個別支援です。通常のチャットサポートは各プランに含まれます。</p></div>
         </div>
       </div></section>
     </div>
