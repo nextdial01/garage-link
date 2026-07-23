@@ -163,6 +163,11 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     const checkoutRoute = await readFile('src/app/api/billing/checkout/route.ts', 'utf8');
     const subscriptionRoute = await readFile('src/app/api/billing/subscription/route.ts', 'utf8');
     const webhookRoute = await readFile('src/app/api/billing/webhook/route.ts', 'utf8');
+    const stripeClient = await readFile('src/lib/stripe/client.ts', 'utf8');
+    const webhookIdempotency = await readFile(
+      'supabase/migrations/20260723000200_stripe_webhook_idempotency.sql',
+      'utf8',
+    );
     const migration = await readFile('supabase/migrations/20260706110000_stripe_billing.sql', 'utf8');
     const grantsMigration = await readFile('supabase/migrations/20260706120000_company_subscriptions_grants.sql', 'utf8');
     const rpcMigration = await readFile('supabase/migrations/20260706130000_company_subscriptions_rpc_reads.sql', 'utf8');
@@ -175,7 +180,14 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(billingPage).toContain('/api/billing/subscription');
     expect(billingPage).toContain('translateDbError');
     expect(checkoutRoute).not.toContain('payment_method_types');
+    expect(checkoutRoute).toContain('integration_identifier');
+    expect(stripeClient).toContain("apiVersion: '2026-06-24.dahlia'");
     expect(webhookRoute).toContain('checkout.session.completed');
+    expect(webhookRoute).toContain('claimStripeEvent');
+    expect(webhookRoute).toContain("status: 'failed'");
+    expect(webhookIdempotency).toContain('stripe_event_id text not null unique');
+    expect(webhookIdempotency).toContain('enable row level security');
+    expect(webhookIdempotency).toContain('revoke all on table public.stripe_webhook_events from anon, authenticated');
     expect(migration).toContain('stripe_customer_id');
     expect(migration).toContain('stripe_subscription_id');
     expect(grantsMigration).toContain('ensure_company_subscription');
