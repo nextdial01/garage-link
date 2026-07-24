@@ -53,6 +53,20 @@ test.describe('共通UIコンテキストの実装契約', () => {
     expect(dashboard).toContain("data-testid=\"dashboard-hydration-fallback\"");
   });
 
+  test('ダッシュボードの業務データは1つのRPCで取得する', async () => {
+    const dashboard = await readFile('src/app/dashboard/page.tsx', 'utf8');
+    const sql = await readFile(
+      'supabase/migrations/20260724000200_garage_dashboard_payload.sql',
+      'utf8',
+    );
+
+    expect(dashboard).toContain("rpc('get_garage_dashboard_payload'");
+    expect(dashboard).not.toContain(".from<VehicleRow>('vehicles')");
+    expect(sql).toContain('create or replace function public.get_garage_dashboard_payload()');
+    expect(sql).toContain('auth.uid()');
+    expect(sql).toContain("v_role in ('owner', 'admin')");
+  });
+
   test('サイドバーとシェルは業務テーブルを直接取得せず共通ローダーを使う', async () => {
     const [sidebar, shell] = await Promise.all([
       readFile('src/components/AppSidebar.tsx', 'utf8'),

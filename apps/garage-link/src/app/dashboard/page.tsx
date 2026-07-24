@@ -137,6 +137,18 @@ type DashboardState = {
   listingStatuses: ListingStatusRow[];
 };
 
+type DashboardPayload = {
+  vehicles: VehicleRow[];
+  deals: DealRow[];
+  invoices: InvoiceRow[];
+  maintenance_jobs: MaintenanceRow[];
+  appointments: AppointmentRow[];
+  inquiries: InquiryRow[];
+  customers: CustomerRow[];
+  listing_statuses: ListingStatusRow[];
+  store_info: StoreRow | null;
+};
+
 type PeriodKey = 'this_month' | 'last_month' | 'last_3_months' | 'last_12_months';
 
 type MetricCardData = {
@@ -193,6 +205,28 @@ const emptyState: DashboardState = {
   customers: [],
   listingStatuses: [],
 };
+
+function normalizeDashboardPayload(value: unknown): DashboardPayload {
+  const payload = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const array = <T,>(key: string): T[] => Array.isArray(payload[key]) ? payload[key] as T[] : [];
+  const storeInfo = payload.store_info && typeof payload.store_info === 'object' && !Array.isArray(payload.store_info)
+    ? payload.store_info as StoreRow
+    : null;
+
+  return {
+    vehicles: array<VehicleRow>('vehicles'),
+    deals: array<DealRow>('deals'),
+    invoices: array<InvoiceRow>('invoices'),
+    maintenance_jobs: array<MaintenanceRow>('maintenance_jobs'),
+    appointments: array<AppointmentRow>('appointments'),
+    inquiries: array<InquiryRow>('inquiries'),
+    customers: array<CustomerRow>('customers'),
+    listing_statuses: array<ListingStatusRow>('listing_statuses'),
+    store_info: storeInfo,
+  };
+}
 
 const PERIOD_OPTIONS: Array<{ key: PeriodKey; label: string }> = [
   { key: 'this_month', label: '今月' },
@@ -531,90 +565,21 @@ export default function DashboardPage() {
         setRole(context.role);
         setMemberDisplayName(context.displayName);
 
-        const isManagementRole = context.role === 'owner' || context.role === 'admin';
-
-        const [
-          vehicles,
-          deals,
-          invoices,
-          maintenanceJobs,
-          appointments,
-          inquiries,
-          customers,
-          listingStatuses,
-          storeResult,
-        ] = await Promise.all([
-          supabase
-            .from<VehicleRow>('vehicles')
-            .select('id, management_no, maker, model_name, status, location_name, total_price, listing_price, purchase_price, direct_cost_special, direct_cost_accessories, direct_cost_agency, direct_cost_legal, purchase_date, sale_price, sold_date, market_value, market_source, market_checked_at, created_at, is_archived, deleted_at')
-            .eq('store_id', context.storeId)
-            .order('created_at', { ascending: false }),
-          supabase
-            .from<DealRow>('deals')
-            .select('id, deal_no, title, status, assigned_user_name, next_action_at, created_at, vehicle_id')
-            .eq('store_id', context.storeId)
-            .order('created_at', { ascending: false }),
-          isManagementRole
-            ? supabase
-                .from<InvoiceRow>('invoices')
-                .select('id, vehicle_id, issue_date, issue_status, total_amount')
-                .eq('store_id', context.storeId)
-                .order('created_at', { ascending: false })
-            : Promise.resolve({ data: [], error: null }),
-          supabase
-            .from<MaintenanceRow>('maintenance_jobs')
-            .select('id, reception_no, vehicle_id, job_type, status, scheduled_delivery_at, assigned_user_name')
-            .eq('store_id', context.storeId)
-            .order('scheduled_delivery_at', { ascending: true }),
-          supabase
-            .from<AppointmentRow>('appointments')
-            .select('id, customer_id, vehicle_id, appointment_type, scheduled_at, status, assigned_user_name')
-            .eq('store_id', context.storeId)
-            .order('scheduled_at', { ascending: true }),
-          supabase
-            .from<InquiryRow>('line_form_responses')
-            .select('id, customer_id, deal_id, answers, submitted_at, source_route, response_status, assigned_user_name, next_action_at')
-            .eq('store_id', context.storeId)
-            .order('submitted_at', { ascending: false }),
-          supabase
-            .from<CustomerRow>('customers')
-            .select('id, name, next_action_date')
-            .eq('store_id', context.storeId),
-          supabase
-            .from<ListingStatusRow>('vehicle_listing_statuses')
-            .select('vehicle_id, channel, status')
-            .eq('store_id', context.storeId),
-          supabase
-            .from<StoreRow>('stores')
-            .select(
-              isManagementRole
-                ? 'long_stay_threshold_days, management_target_gross_profit_yen, l_link_onboarding_completed_at, sales_recognition_basis, purchase_recognition_basis, business_type'
-                : 'long_stay_threshold_days, l_link_onboarding_completed_at, business_type',
-            )
-            .eq('id', context.storeId)
-            .single(),
-        ]);
+        const { data, error } = await supabase.rpc('get_garage_dashboard_payload', {});
+        if (error) throw new Error(error.message);
+        const payload = normalizeDashboardPayload(data);
 
         setSummary({
-          vehicles: vehicles.data ?? [],
-          deals: deals.data ?? [],
-          invoices: invoices.data ?? [],
-          maintenanceJobs: maintenanceJobs.data ?? [],
-          appointments: appointments.data ?? [],
-          inquiries: inquiries.data ?? [],
-          customers: customers.data ?? [],
-          listingStatuses: listingStatuses.data ?? [],
+          vehicles: payload.vehicles,
+          deals: payload.deals,
+          invoices: payload.invoices,
+          maintenanceJobs: payload.maintenance_jobs,
+          appointments: payload.appointments,
+          inquiries: payload.inquiries,
+          customers: payload.customers,
+          listingStatuses: payload.listing_statuses,
         });
-
-        if (storeResult.error) {
-          setStoreInfo(null);
-        } else {
-          setStoreInfo(storeResult.data ?? null);
-        }
-
-        if (isManagementRole && invoices.error) {
-          setManagementError('経営数字の取得に失敗しました。');
-        }
+        setStoreInfo(payload.store_info);
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : 'ダッシュボードの取得に失敗しました。');
       } finally {
