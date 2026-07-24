@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import ResponsiveDetailPanel from '@/components/ResponsiveDetailPanel';
+import { getGarageUiContext } from '@/lib/store/garageUiContext';
 import { createClient } from '@/lib/supabase/client';
 
-type StoreMemberRow = { store_id: string };
 type MaintenanceJobRow = {
   id: string;
   customer_id: string | null;
@@ -77,14 +77,12 @@ export default function MaintenancePage() {
       setIsLoading(true);
       setErrorMessage('');
       const supabase = createClient();
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
-      const { data: member, error: memberError } = await supabase.from<StoreMemberRow>('store_members').select('store_id').eq('user_id', userData.user.id).single();
-      if (memberError || !member?.store_id) throw new Error('所属店舗が見つかりません。');
+      const context = await getGarageUiContext();
+      if (!context.storeId) throw new Error('所属店舗が見つかりません。');
       const [jobResult, customerResult, vehicleResult] = await Promise.all([
-        supabase.from<MaintenanceJobRow>('maintenance_jobs').select('id, customer_id, vehicle_id, job_no, job_type, status, scheduled_in_at, scheduled_delivery_at, estimated_total_amount, assigned_user_name, updated_at, deleted_at, is_archived').eq('store_id', member.store_id).order('scheduled_delivery_at', { ascending: true }),
-        supabase.from<CustomerRow>('customers').select('id, name, deleted_at, is_archived').eq('store_id', member.store_id),
-        supabase.from<VehicleRow>('vehicles').select('id, maker, model_name, management_no, deleted_at, is_archived').eq('store_id', member.store_id),
+        supabase.from<MaintenanceJobRow>('maintenance_jobs').select('id, customer_id, vehicle_id, job_no, job_type, status, scheduled_in_at, scheduled_delivery_at, estimated_total_amount, assigned_user_name, updated_at, deleted_at, is_archived').eq('store_id', context.storeId).order('scheduled_delivery_at', { ascending: true }),
+        supabase.from<CustomerRow>('customers').select('id, name, deleted_at, is_archived').eq('store_id', context.storeId),
+        supabase.from<VehicleRow>('vehicles').select('id, maker, model_name, management_no, deleted_at, is_archived').eq('store_id', context.storeId),
       ]);
       if (jobResult.error) throw new Error(jobResult.error.message);
       if (customerResult.error) throw new Error(customerResult.error.message);

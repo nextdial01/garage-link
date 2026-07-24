@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import ResponsiveDetailPanel from '@/components/ResponsiveDetailPanel';
+import { getGarageUiContext } from '@/lib/store/garageUiContext';
 import { createClient } from '@/lib/supabase/client';
 
-type StoreMemberRow = { store_id: string };
 type CustomerRow = {
   id: string;
   name: string | null;
@@ -65,11 +65,9 @@ export default function CustomersPage() {
     setErrorMessage('');
     try {
       const supabase = createClient();
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData.user?.id) throw new Error(userError?.message ?? 'ログイン情報を取得できませんでした。');
-      const { data: member, error: memberError } = await supabase.from<StoreMemberRow>('store_members').select('store_id').eq('user_id', userData.user.id).single();
-      if (memberError || !member?.store_id) throw new Error(memberError?.message ?? '所属店舗が見つかりません。');
-      const { data, error } = await supabase.from<CustomerRow>('customers').select('id, name, phone, mobile_phone, email, line_friend_status, desired_model, budget_min, budget_max, customer_status, next_action_date, updated_at, deleted_at, is_archived').eq('store_id', member.store_id).order('created_at', { ascending: false });
+      const context = await getGarageUiContext();
+      if (!context.storeId) throw new Error('所属店舗が見つかりません。');
+      const { data, error } = await supabase.from<CustomerRow>('customers').select('id, name, phone, mobile_phone, email, line_friend_status, desired_model, budget_min, budget_max, customer_status, next_action_date, updated_at, deleted_at, is_archived').eq('store_id', context.storeId).order('created_at', { ascending: false });
       if (error) throw new Error(error.message);
       setCustomers((data ?? []).filter((customer) => !customer.deleted_at && customer.is_archived !== true));
     } catch (error) {

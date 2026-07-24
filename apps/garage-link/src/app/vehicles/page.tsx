@@ -5,11 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import ContextHelp from '@/components/ContextHelp';
 import ResponsiveDetailPanel from '@/components/ResponsiveDetailPanel';
+import { getGarageUiContext } from '@/lib/store/garageUiContext';
 import { createClient } from '@/lib/supabase/client';
-
-type StoreMemberRow = {
-  store_id: string;
-};
 
 type VehicleRow = {
   id: string;
@@ -105,28 +102,15 @@ export default function VehiclesPage() {
 
       try {
         const supabase = createClient();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-
-        if (userError || !userData.user?.id) {
-          throw new Error(userError?.message ?? 'ログイン情報を取得できませんでした。');
-        }
-
-        const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
-          .select('store_id')
-          .eq('user_id', userData.user.id)
-          .single();
-
-        if (memberError || !member?.store_id) {
-          throw new Error(memberError?.message ?? '所属店舗が見つかりません。');
-        }
+        const context = await getGarageUiContext();
+        if (!context.storeId) throw new Error('所属店舗が見つかりません。');
 
         const { data, error } = await supabase
           .from<VehicleRow>('vehicles')
           .select(
             'id, management_no, maker, model_name, model_year, mileage_km, total_price, base_price, status, location_name, deleted_at, is_archived, purchase_price, purchase_date, listing_price, market_value, market_source, market_checked_at, created_at'
           )
-          .eq('store_id', member.store_id)
+          .eq('store_id', context.storeId)
           .order('created_at', { ascending: false });
 
         if (error) throw new Error(error.message);
@@ -136,7 +120,7 @@ export default function VehiclesPage() {
         const { data: listingData, error: listingError } = await supabase
           .from<ListingStatusRow>('vehicle_listing_statuses')
           .select('vehicle_id, channel, status, error_message')
-          .eq('store_id', member.store_id);
+          .eq('store_id', context.storeId);
 
         if (listingError) {
           setListingStatusError('媒体掲載状況はまだ設定されていません。');
@@ -145,13 +129,7 @@ export default function VehiclesPage() {
           setListingStatuses(listingData ?? []);
         }
 
-        const { data: storeRow } = await supabase
-          .from<{ long_stay_threshold_days: number | null }>('stores')
-          .select('long_stay_threshold_days')
-          .eq('id', member.store_id)
-          .single();
-
-        setLongStayThreshold(storeRow?.long_stay_threshold_days ?? LONG_STAY_DEFAULT);
+        setLongStayThreshold(context.longStayThresholdDays);
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : '車両一覧の取得に失敗しました。');
       } finally {

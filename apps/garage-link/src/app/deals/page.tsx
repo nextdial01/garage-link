@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import ResponsiveDetailPanel from '@/components/ResponsiveDetailPanel';
+import { getGarageUiContext } from '@/lib/store/garageUiContext';
 import { createClient } from '@/lib/supabase/client';
 
-type StoreMemberRow = { store_id: string };
 type DealRow = {
   id: string;
   customer_id: string | null;
@@ -68,14 +68,12 @@ export default function DealsPage() {
     setErrorMessage('');
     try {
       const supabase = createClient();
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData.user?.id) throw new Error(userError?.message ?? 'ログイン情報を取得できませんでした。');
-      const { data: member, error: memberError } = await supabase.from<StoreMemberRow>('store_members').select('store_id').eq('user_id', userData.user.id).single();
-      if (memberError || !member?.store_id) throw new Error(memberError?.message ?? '所属店舗が見つかりません。');
+      const context = await getGarageUiContext();
+      if (!context.storeId) throw new Error('所属店舗が見つかりません。');
       const [dealResult, customerResult, vehicleResult] = await Promise.all([
-        supabase.from<DealRow>('deals').select('id, customer_id, vehicle_id, deal_no, title, deal_type, status, probability, next_action_at, assigned_user_name, updated_at, deleted_at, is_archived').eq('store_id', member.store_id).order('created_at', { ascending: false }),
-        supabase.from<CustomerRow>('customers').select('id, name, deleted_at, is_archived').eq('store_id', member.store_id),
-        supabase.from<VehicleRow>('vehicles').select('id, maker, model_name, management_no, deleted_at, is_archived').eq('store_id', member.store_id),
+        supabase.from<DealRow>('deals').select('id, customer_id, vehicle_id, deal_no, title, deal_type, status, probability, next_action_at, assigned_user_name, updated_at, deleted_at, is_archived').eq('store_id', context.storeId).order('created_at', { ascending: false }),
+        supabase.from<CustomerRow>('customers').select('id, name, deleted_at, is_archived').eq('store_id', context.storeId),
+        supabase.from<VehicleRow>('vehicles').select('id, maker, model_name, management_no, deleted_at, is_archived').eq('store_id', context.storeId),
       ]);
       if (dealResult.error) throw new Error(dealResult.error.message);
       if (customerResult.error) throw new Error(customerResult.error.message);

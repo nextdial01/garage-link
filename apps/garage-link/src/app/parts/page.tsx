@@ -3,11 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import { getGarageUiContext } from '@/lib/store/garageUiContext';
 import { createClient } from '@/lib/supabase/client';
-
-type StoreMemberRow = {
-  store_id: string;
-};
 
 type RepairPartRow = {
   id: string;
@@ -65,24 +62,13 @@ export default function PartsPage() {
       setErrorMessage('');
       try {
         const supabase = createClient();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError || !userData.user?.id) {
-          throw new Error(userError?.message ?? 'ログイン情報を取得できませんでした。');
-        }
-
-        const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
-          .select('store_id')
-          .eq('user_id', userData.user.id)
-          .single();
-        if (memberError || !member?.store_id) {
-          throw new Error(memberError?.message ?? '所属店舗が見つかりません。');
-        }
+        const context = await getGarageUiContext();
+        if (!context.storeId) throw new Error('所属店舗が見つかりません。');
 
         const { data, error } = await supabase
           .from<RepairPartRow>('repair_parts')
           .select('id, part_no, name, category, stock, unit_price, low_stock_threshold, reorder_point, status, supplier_name, location_shelf, updated_at, deleted_at, is_archived')
-          .eq('store_id', member.store_id)
+          .eq('store_id', context.storeId)
           .order('name', { ascending: true });
         if (error) throw new Error(error.message);
 

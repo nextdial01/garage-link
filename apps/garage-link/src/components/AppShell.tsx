@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import AppSidebar from './AppSidebar';
 import ContextHelp from './ContextHelp';
 import { getRoleLabel } from '@/lib/auth/permissions';
-import { fetchStoreOnboardingStatus } from '@/lib/auth/store-onboarding';
+import { getGarageUiContext, invalidateGarageUiContext } from '@/lib/store/garageUiContext';
 import { createClient } from '@/lib/supabase/client';
 
 interface AppShellProps {
@@ -17,20 +17,11 @@ interface AppShellProps {
   actionButton?: React.ReactNode;
 }
 
-type StoreMemberRow = {
-  store_id: string;
-  role: string | null;
-};
-
-type StoreRow = {
-  name: string | null;
-};
-
 type AccessibleStore = {
   id: string;
   name: string | null;
-  company_name: string | null;
-  is_current: boolean;
+  companyName: string | null;
+  isCurrent: boolean;
 };
 
 export default function AppShell({
@@ -53,44 +44,13 @@ export default function AppShell({
   useEffect(() => {
     async function loadStoreContext() {
       try {
-        const supabase = createClient();
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user?.id) {
-          setStoreLabel('未ログイン');
-          return;
-        }
+        const context = await getGarageUiContext();
+        setRole(context.role);
+        setStoreLabel(context.storeLabel);
+        setStores(context.stores);
+        setActiveStoreId(context.stores.find((item) => item.isCurrent)?.id ?? context.storeId);
 
-        const { data: member } = await supabase
-          .from<StoreMemberRow>('store_members')
-          .select('store_id, role')
-          .eq('user_id', userData.user.id)
-          .single();
-
-        if (!member?.store_id) {
-          setStoreLabel('店舗未登録');
-          return;
-        }
-
-        setRole(member.role ?? 'viewer');
-
-        const { data: store } = await supabase
-          .from<StoreRow>('stores')
-          .select('name')
-          .eq('id', member.store_id)
-          .single();
-
-        setStoreLabel(store?.name?.trim() || '店舗');
-        const { data: accessibleStores } = await supabase.rpc('list_accessible_garage_stores', {});
-        const nextStores = (accessibleStores as AccessibleStore[] | null) ?? [];
-        setStores(nextStores);
-        setActiveStoreId(nextStores.find((item) => item.is_current)?.id ?? member.store_id);
-
-        const { onboardingCompleted } = await fetchStoreOnboardingStatus(
-          supabase,
-          member.store_id
-        );
-
-        if (!onboardingCompleted && pathname !== '/onboarding') {
+        if (!context.onboardingCompleted && pathname !== '/onboarding') {
           router.replace('/onboarding');
         }
       } catch {
@@ -108,6 +68,7 @@ export default function AppShell({
       const supabase = createClient();
       const { error } = await supabase.rpc('switch_active_garage_store', { p_store_id: storeId });
       if (error) throw error;
+      invalidateGarageUiContext();
       window.location.reload();
     } catch {
       setIsSwitchingStore(false);
@@ -138,7 +99,7 @@ export default function AppShell({
                       className="max-w-[220px] bg-transparent outline-none disabled:opacity-60"
                     >
                       {stores.map((item) => (
-                        <option key={item.id} value={item.id}>{item.name || item.company_name || '店舗'}</option>
+                        <option key={item.id} value={item.id}>{item.name || item.companyName || '店舗'}</option>
                       ))}
                     </select>
                   </label>

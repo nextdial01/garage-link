@@ -11,18 +11,13 @@ import {
   type ChartDatum,
 } from '@/components/dashboard/DashboardCharts';
 import { buildTodayActionItems, getTodayActionToneClass, type AttentionTone, type TodayActionItem } from '@/lib/dashboard/todayActions';
+import { getGarageUiContext } from '@/lib/store/garageUiContext';
 import { createClient } from '@/lib/supabase/client';
 import {
   SALES_RECOGNITION_OPTIONS,
   type SalesRecognitionBasis,
   type PurchaseRecognitionBasis,
 } from '@/lib/store/uiPreferences';
-
-type StoreMemberRow = {
-  store_id: string;
-  role: string | null;
-  display_name: string | null;
-};
 
 type StoreRow = {
   long_stay_threshold_days: number | null;
@@ -524,26 +519,13 @@ export default function DashboardPage() {
 
       try {
         const supabase = createClient();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+        const context = await getGarageUiContext();
+        if (!context.storeId) throw new Error('所属店舗が見つかりません。');
 
-        if (userError || !userData.user?.id) {
-          throw new Error(userError?.message ?? 'ログイン情報を取得できませんでした。');
-        }
+        setRole(context.role);
+        setMemberDisplayName(context.displayName);
 
-        const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
-          .select('store_id, role, display_name')
-          .eq('user_id', userData.user.id)
-          .single();
-
-        if (memberError || !member?.store_id) {
-          throw new Error(memberError?.message ?? '所属店舗が見つかりません。');
-        }
-
-        setRole(member.role ?? '');
-        setMemberDisplayName(member.display_name ?? '');
-
-        const isManagementRole = member.role === 'owner' || member.role === 'admin';
+        const isManagementRole = context.role === 'owner' || context.role === 'admin';
 
         const [
           vehicles,
@@ -559,43 +541,43 @@ export default function DashboardPage() {
           supabase
             .from<VehicleRow>('vehicles')
             .select('id, management_no, maker, model_name, status, location_name, total_price, listing_price, purchase_price, direct_cost_special, direct_cost_accessories, direct_cost_agency, direct_cost_legal, purchase_date, sale_price, sold_date, market_value, market_source, market_checked_at, created_at, is_archived, deleted_at')
-            .eq('store_id', member.store_id)
+            .eq('store_id', context.storeId)
             .order('created_at', { ascending: false }),
           supabase
             .from<DealRow>('deals')
             .select('id, deal_no, title, status, assigned_user_name, next_action_at, created_at, vehicle_id')
-            .eq('store_id', member.store_id)
+            .eq('store_id', context.storeId)
             .order('created_at', { ascending: false }),
           isManagementRole
             ? supabase
                 .from<InvoiceRow>('invoices')
                 .select('id, vehicle_id, issue_date, issue_status, total_amount')
-                .eq('store_id', member.store_id)
+                .eq('store_id', context.storeId)
                 .order('created_at', { ascending: false })
             : Promise.resolve({ data: [], error: null }),
           supabase
             .from<MaintenanceRow>('maintenance_jobs')
             .select('id, reception_no, vehicle_id, job_type, status, scheduled_delivery_at, assigned_user_name')
-            .eq('store_id', member.store_id)
+            .eq('store_id', context.storeId)
             .order('scheduled_delivery_at', { ascending: true }),
           supabase
             .from<AppointmentRow>('appointments')
             .select('id, customer_id, vehicle_id, appointment_type, scheduled_at, status, assigned_user_name')
-            .eq('store_id', member.store_id)
+            .eq('store_id', context.storeId)
             .order('scheduled_at', { ascending: true }),
           supabase
             .from<InquiryRow>('line_form_responses')
             .select('id, customer_id, deal_id, answers, submitted_at, source_route, response_status, assigned_user_name, next_action_at')
-            .eq('store_id', member.store_id)
+            .eq('store_id', context.storeId)
             .order('submitted_at', { ascending: false }),
           supabase
             .from<CustomerRow>('customers')
             .select('id, name, next_action_date')
-            .eq('store_id', member.store_id),
+            .eq('store_id', context.storeId),
           supabase
             .from<ListingStatusRow>('vehicle_listing_statuses')
             .select('vehicle_id, channel, status')
-            .eq('store_id', member.store_id),
+            .eq('store_id', context.storeId),
           supabase
             .from<StoreRow>('stores')
             .select(
@@ -603,7 +585,7 @@ export default function DashboardPage() {
                 ? 'long_stay_threshold_days, management_target_gross_profit_yen, l_link_onboarding_completed_at, sales_recognition_basis, purchase_recognition_basis, business_type'
                 : 'long_stay_threshold_days, l_link_onboarding_completed_at, business_type',
             )
-            .eq('id', member.store_id)
+            .eq('id', context.storeId)
             .single(),
         ]);
 

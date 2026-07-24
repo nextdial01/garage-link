@@ -3,9 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import { getGarageUiContext } from '@/lib/store/garageUiContext';
 import { createClient } from '@/lib/supabase/client';
-
-type StoreMemberRow = { store_id: string };
 
 type VehicleRow = {
   id: string;
@@ -273,16 +272,9 @@ export default function AnalyticsPage() {
         setIsLoading(true);
         setErrorMessage('');
         const supabase = createClient();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
-
-        const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
-          .select('store_id')
-          .eq('user_id', userData.user.id)
-          .single();
-        if (memberError || !member?.store_id) throw new Error('所属店舗が見つかりません。');
-        const storeId = member.store_id;
+        const context = await getGarageUiContext();
+        if (!context.storeId) throw new Error('所属店舗が見つかりません。');
+        const storeId = context.storeId;
 
         async function safeRows<T extends { id: string }>(table: string, columns: string): Promise<T[]> {
           const { data, error } = await supabase.from<T>(table).select(columns).eq('store_id', storeId);

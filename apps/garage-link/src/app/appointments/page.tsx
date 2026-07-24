@@ -5,9 +5,9 @@ import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import ContextHelp from '@/components/ContextHelp';
 import ResponsiveDetailPanel from '@/components/ResponsiveDetailPanel';
+import { getGarageUiContext } from '@/lib/store/garageUiContext';
 import { createClient } from '@/lib/supabase/client';
 
-type Member = { store_id: string };
 type Appointment = {
   id: string;
   customer_id: string | null;
@@ -54,15 +54,13 @@ export default function AppointmentsPage() {
     try {
       setIsLoading(true);
       const supabase = createClient();
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user?.id) throw new Error('ログインが必要です。');
-      const { data: member, error: memberError } = await supabase.from<Member>('store_members').select('store_id').eq('user_id', user.user.id).single();
-      if (memberError || !member) throw new Error('所属店舗が見つかりません。');
-      setStoreId(member.store_id);
+      const context = await getGarageUiContext();
+      if (!context.storeId) throw new Error('所属店舗が見つかりません。');
+      setStoreId(context.storeId);
       const [appointmentResult, customerResult, vehicleResult] = await Promise.all([
-        supabase.from<Appointment>('appointments').select('id, customer_id, vehicle_id, appointment_type, scheduled_at, status, assigned_user_name, note, no_show_reason, completed_at, updated_at').eq('store_id', member.store_id).order('scheduled_at', { ascending: true }),
-        supabase.from<Customer>('customers').select('id, name').eq('store_id', member.store_id),
-        supabase.from<Vehicle>('vehicles').select('id, maker, model_name, management_no').eq('store_id', member.store_id),
+        supabase.from<Appointment>('appointments').select('id, customer_id, vehicle_id, appointment_type, scheduled_at, status, assigned_user_name, note, no_show_reason, completed_at, updated_at').eq('store_id', context.storeId).order('scheduled_at', { ascending: true }),
+        supabase.from<Customer>('customers').select('id, name').eq('store_id', context.storeId),
+        supabase.from<Vehicle>('vehicles').select('id, maker, model_name, management_no').eq('store_id', context.storeId),
       ]);
       if (appointmentResult.error) throw new Error('予約データを取得できませんでした。');
       setAppointments(appointmentResult.data ?? []);

@@ -6,68 +6,12 @@ import { useEffect, useMemo, useState } from 'react';
 import BrandLogo from './BrandLogo';
 import ContextHelp from './ContextHelp';
 import { getRoleLabel } from '@/lib/auth/permissions';
-import { createClient } from '@/lib/supabase/client';
+import { getGarageUiContext } from '@/lib/store/garageUiContext';
 import { DEFAULT_PRIMARY_TABS, PRIMARY_TAB_OPTIONS, filterMenuGroupsByRole, getPrimaryTabMeta, resolvePrimaryTabs, type PrimaryTabKey } from '@/lib/store/uiPreferences';
 
 interface AppSidebarProps {
   activeLabel: string;
 }
-
-type StoreMemberRow = {
-  store_id: string;
-  role: string | null;
-};
-
-type StoreRow = {
-  name: string | null;
-  primary_navigation_tabs: string[] | null;
-  long_stay_threshold_days: number | null;
-};
-
-type VehicleRow = {
-  id: string;
-  status: string | null;
-  purchase_date: string | null;
-  created_at: string | null;
-  market_value: number | null;
-  market_source: string | null;
-  market_checked_at: string | null;
-  deleted_at?: string | null;
-  is_archived?: boolean | null;
-};
-
-type ListingStatusRow = {
-  vehicle_id: string;
-  status: string;
-};
-
-type DealRow = {
-  status: string | null;
-  next_action_at: string | null;
-  deleted_at?: string | null;
-  is_archived?: boolean | null;
-};
-
-type CustomerRow = {
-  customer_status: string | null;
-  next_action_date: string | null;
-  deleted_at?: string | null;
-  is_archived?: boolean | null;
-};
-
-type AppointmentRow = {
-  status: string;
-  scheduled_at: string;
-};
-
-type MaintenanceRow = {
-  status: string | null;
-  scheduled_delivery_at: string | null;
-};
-
-type InquiryRow = {
-  response_status: 'unhandled' | 'in_progress' | 'completed';
-};
 
 type CountChip = {
   tone: 'red' | 'amber' | 'blue';
@@ -87,12 +31,6 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function daysSince(dateLike: string | null | undefined) {
-  if (!dateLike) return null;
-  const ms = Date.now() - new Date(`${dateLike.slice(0, 10)}T00:00:00+09:00`).getTime();
-  return Math.max(0, Math.floor(ms / 86400000));
-}
-
 function toneClass(tone: CountChip['tone']) {
   switch (tone) {
     case 'red':
@@ -102,10 +40,6 @@ function toneClass(tone: CountChip['tone']) {
     default:
       return 'bg-blue-50 text-blue-700 ring-blue-200';
   }
-}
-
-function toDateKey(value: string | null | undefined) {
-  return value ? value.slice(0, 10) : null;
 }
 
 function buildMenuCounts(primaryTabs: PrimaryTabKey[], baseCounts: CountMap): CountChip[] {
@@ -179,129 +113,32 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
   useEffect(() => {
     async function loadSidebar() {
       try {
-        const supabase = createClient();
-        const { data: userData } = await supabase.auth.getUser();
-
-        if (!userData.user?.id) {
-          setMenuReady(true);
-          return;
-        }
-
-        const { data: member } = await supabase
-          .from<StoreMemberRow>('store_members')
-          .select('store_id, role')
-          .eq('user_id', userData.user.id)
-          .single();
-
-        if (!member?.store_id) {
-          setMenuReady(true);
-          return;
-        }
-
-        setRole(member.role ?? 'viewer');
-
-        const { data: store } = await supabase
-          .from<StoreRow>('stores')
-          .select('name, primary_navigation_tabs, long_stay_threshold_days')
-          .eq('id', member.store_id)
-          .single();
-
-        const nextPrimaryTabs = resolvePrimaryTabs(store?.primary_navigation_tabs);
+        const context = await getGarageUiContext();
+        const nextPrimaryTabs = resolvePrimaryTabs(context.primaryNavigationTabs);
         setPrimaryTabs(nextPrimaryTabs);
-        setStoreLabel(store?.name?.trim() || '店舗');
-
-        const todayKey = new Date().toISOString().slice(0, 10);
-        const longStayThreshold = store?.long_stay_threshold_days ?? 90;
-
-        const [vehicleResult, listingResult, dealResult, customerResult, appointmentResult, maintenanceResult, inquiryResult] = await Promise.all([
-          supabase
-            .from<VehicleRow>('vehicles')
-            .select('id, status, purchase_date, created_at, market_value, market_source, market_checked_at, deleted_at, is_archived')
-            .eq('store_id', member.store_id),
-          supabase
-            .from<ListingStatusRow>('vehicle_listing_statuses')
-            .select('vehicle_id, status')
-            .eq('store_id', member.store_id),
-          supabase
-            .from<DealRow>('deals')
-            .select('status, next_action_at, deleted_at, is_archived')
-            .eq('store_id', member.store_id),
-          supabase
-            .from<CustomerRow>('customers')
-            .select('customer_status, next_action_date, deleted_at, is_archived')
-            .eq('store_id', member.store_id),
-          supabase
-            .from<AppointmentRow>('appointments')
-            .select('status, scheduled_at')
-            .eq('store_id', member.store_id),
-          supabase
-            .from<MaintenanceRow>('maintenance_jobs')
-            .select('status, scheduled_delivery_at')
-            .eq('store_id', member.store_id),
-          supabase
-            .from<InquiryRow>('line_form_responses')
-            .select('response_status')
-            .eq('store_id', member.store_id),
-        ]);
-
-        const listingMap = new Map<string, ListingStatusRow[]>();
-        for (const item of listingResult.data ?? []) {
-          listingMap.set(item.vehicle_id, [...(listingMap.get(item.vehicle_id) ?? []), item]);
-        }
-
-        const activeVehicles = (vehicleResult.data ?? []).filter((vehicle: VehicleRow) => !vehicle.deleted_at && vehicle.is_archived !== true);
-        const activeDeals = (dealResult.data ?? []).filter((deal: DealRow) => !deal.deleted_at && deal.is_archived !== true);
-        const activeCustomers = (customerResult.data ?? []).filter((customer: CustomerRow) => !customer.deleted_at && customer.is_archived !== true);
-
-        const vehicleAttentionCount = activeVehicles.filter((vehicle: VehicleRow) => {
-          const statuses = listingMap.get(vehicle.id) ?? [];
-          const hasListingError = statuses.some((item) => item.status === 'エラー');
-          const publishedAfterSale = ['売約済み', '納車済み'].includes(vehicle.status ?? '') && statuses.some((item) => item.status === '掲載中');
-          const marketMissing = vehicle.market_value == null || !vehicle.market_source || !vehicle.market_checked_at;
-          const days = daysSince(vehicle.purchase_date ?? vehicle.created_at);
-          const isLongStay = days !== null && days > longStayThreshold;
-          return hasListingError || publishedAfterSale || marketMissing || isLongStay;
-        }).length;
-
-        const dealsToday = activeDeals.filter((deal: DealRow) => toDateKey(deal.next_action_at) === todayKey && !['成約', '失注'].includes(deal.status ?? '')).length;
-        const dealsOverdue = activeDeals.filter((deal: DealRow) => {
-          const key = toDateKey(deal.next_action_at);
-          return key !== null && key < todayKey && !['成約', '失注'].includes(deal.status ?? '');
-        }).length;
-
-        const customersToday = activeCustomers.filter((customer: CustomerRow) => customer.next_action_date === todayKey && customer.customer_status !== '対応不要').length;
-        const customersOverdue = activeCustomers.filter((customer: CustomerRow) => customer.next_action_date !== null && customer.next_action_date < todayKey && customer.customer_status !== '対応不要').length;
-
-        const appointmentsToday = (appointmentResult.data ?? []).filter((appointment: AppointmentRow) => toDateKey(appointment.scheduled_at) === todayKey && ['予約済み', '確認済み'].includes(appointment.status)).length;
-        const appointmentsOpen = (appointmentResult.data ?? []).filter((appointment: AppointmentRow) => ['予約済み', '確認済み'].includes(appointment.status)).length;
-
-        const maintenanceToday = (maintenanceResult.data ?? []).filter((job: MaintenanceRow) => toDateKey(job.scheduled_delivery_at) === todayKey && job.status !== '完了').length;
-        const maintenanceOverdue = (maintenanceResult.data ?? []).filter((job: MaintenanceRow) => {
-          const key = toDateKey(job.scheduled_delivery_at);
-          return key !== null && key < todayKey && job.status !== '完了';
-        }).length;
-
-        const inquiryPending = (inquiryResult.data ?? []).filter((row: InquiryRow) => row.response_status !== 'completed').length;
+        setRole(context.role);
+        setStoreLabel(context.storeLabel);
+        const uiCounts = context.counts;
 
         const nextCounts: CountMap = {
-          vehicles: vehicleAttentionCount > 0 ? [{ tone: 'red', label: '要確認', value: vehicleAttentionCount }] : [],
+          vehicles: uiCounts.vehicleAttention > 0 ? [{ tone: 'red', label: '要確認', value: uiCounts.vehicleAttention }] : [],
           deals: [
-            ...(dealsOverdue > 0 ? [{ tone: 'red' as const, label: '期限超過', value: dealsOverdue }] : []),
-            ...(dealsToday > 0 ? [{ tone: 'amber' as const, label: '今日', value: dealsToday }] : []),
+            ...(uiCounts.dealsOverdue > 0 ? [{ tone: 'red' as const, label: '期限超過', value: uiCounts.dealsOverdue }] : []),
+            ...(uiCounts.dealsToday > 0 ? [{ tone: 'amber' as const, label: '今日', value: uiCounts.dealsToday }] : []),
           ].slice(0, 2),
           customers: [
-            ...(customersOverdue > 0 ? [{ tone: 'red' as const, label: '期限超過', value: customersOverdue }] : []),
-            ...(customersToday > 0 ? [{ tone: 'amber' as const, label: '今日', value: customersToday }] : []),
+            ...(uiCounts.customersOverdue > 0 ? [{ tone: 'red' as const, label: '期限超過', value: uiCounts.customersOverdue }] : []),
+            ...(uiCounts.customersToday > 0 ? [{ tone: 'amber' as const, label: '今日', value: uiCounts.customersToday }] : []),
           ].slice(0, 2),
           maintenance: [
-            ...(maintenanceOverdue > 0 ? [{ tone: 'red' as const, label: '期限超過', value: maintenanceOverdue }] : []),
-            ...(maintenanceToday > 0 ? [{ tone: 'amber' as const, label: '今日', value: maintenanceToday }] : []),
+            ...(uiCounts.maintenanceOverdue > 0 ? [{ tone: 'red' as const, label: '期限超過', value: uiCounts.maintenanceOverdue }] : []),
+            ...(uiCounts.maintenanceToday > 0 ? [{ tone: 'amber' as const, label: '今日', value: uiCounts.maintenanceToday }] : []),
           ].slice(0, 2),
           appointments: [
-            ...(appointmentsToday > 0 ? [{ tone: 'amber' as const, label: '今日', value: appointmentsToday }] : []),
-            ...(appointmentsOpen > 0 ? [{ tone: 'blue' as const, label: '未完了', value: appointmentsOpen }] : []),
+            ...(uiCounts.appointmentsToday > 0 ? [{ tone: 'amber' as const, label: '今日', value: uiCounts.appointmentsToday }] : []),
+            ...(uiCounts.appointmentsOpen > 0 ? [{ tone: 'blue' as const, label: '未完了', value: uiCounts.appointmentsOpen }] : []),
           ].slice(0, 2),
-          inquiries: inquiryPending > 0 ? [{ tone: 'amber', label: '未完了', value: inquiryPending }] : [],
+          inquiries: uiCounts.inquiryPending > 0 ? [{ tone: 'amber', label: '未完了', value: uiCounts.inquiryPending }] : [],
         };
 
         nextCounts.menu = buildMenuCounts(nextPrimaryTabs, nextCounts);

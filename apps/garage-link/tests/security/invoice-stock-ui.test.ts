@@ -53,7 +53,7 @@ test.describe('長期滞留 閾値 設定UI', () => {
 
   test('車両一覧は保存された閾値を使う（ハードコードしない）', async () => {
     const src = await readFile('src/app/vehicles/page.tsx', 'utf8');
-    expect(src).toContain('long_stay_threshold_days');
+    expect(src).toContain('context.longStayThresholdDays');
     expect(src).toContain('longStayThreshold');
     // 旧定数名が残っていないこと
     expect(src).not.toContain('LONG_STAY_DAYS');
