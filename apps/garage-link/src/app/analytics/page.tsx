@@ -20,9 +20,6 @@ type VehicleRow = {
 type CustomerRow = {
   id: string;
   name: string | null;
-  phone: string | null;
-  email: string | null;
-  line_user_id: string | null;
   line_display_name: string | null;
   line_friend_status: string | null;
   delivery_permission: string | boolean | null;
@@ -79,7 +76,6 @@ type LineFriendRow = {
 type LineLogRow = {
   id: string;
   customer_id: string | null;
-  line_user_id: string | null;
   line_display_name: string | null;
   message_type: string | null;
   title: string | null;
@@ -90,6 +86,43 @@ type LineLogRow = {
 };
 
 type IdRow = { id: string };
+
+type AnalyticsPayload = {
+  vehicles: VehicleRow[];
+  customers: CustomerRow[];
+  deals: DealRow[];
+  quotes: QuoteRow[];
+  invoices: InvoiceRow[];
+  maintenance_jobs: MaintenanceRow[];
+  line_friends: LineFriendRow[];
+  line_message_logs: LineLogRow[];
+  line_tags: IdRow[];
+  line_templates: IdRow[];
+  line_steps: IdRow[];
+  line_campaigns: IdRow[];
+};
+
+function normalizeAnalyticsPayload(value: unknown): AnalyticsPayload {
+  const payload = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const rows = <T,>(key: string): T[] => Array.isArray(payload[key]) ? payload[key] as T[] : [];
+
+  return {
+    vehicles: rows<VehicleRow>('vehicles'),
+    customers: rows<CustomerRow>('customers'),
+    deals: rows<DealRow>('deals'),
+    quotes: rows<QuoteRow>('quotes'),
+    invoices: rows<InvoiceRow>('invoices'),
+    maintenance_jobs: rows<MaintenanceRow>('maintenance_jobs'),
+    line_friends: rows<LineFriendRow>('line_friends'),
+    line_message_logs: rows<LineLogRow>('line_message_logs'),
+    line_tags: rows<IdRow>('line_tags'),
+    line_templates: rows<IdRow>('line_templates'),
+    line_steps: rows<IdRow>('line_steps'),
+    line_campaigns: rows<IdRow>('line_campaigns'),
+  };
+}
 
 const statusLabels: Record<string, string> = {
   draft: '下書き',
@@ -274,54 +307,22 @@ export default function AnalyticsPage() {
         const supabase = createClient();
         const context = await getGarageUiContext();
         if (!context.storeId) throw new Error('所属店舗が見つかりません。');
-        const storeId = context.storeId;
+        const { data, error } = await supabase.rpc('get_garage_analytics_payload', {});
+        if (error) throw new Error(error.message);
+        const payload = normalizeAnalyticsPayload(data);
 
-        async function safeRows<T extends { id: string }>(table: string, columns: string): Promise<T[]> {
-          const { data, error } = await supabase.from<T>(table).select(columns).eq('store_id', storeId);
-          if (error) return [];
-          return data ?? [];
-        }
-
-        const [
-          vehicleRows,
-          customerRows,
-          dealRows,
-          quoteRows,
-          invoiceRows,
-          maintenanceRows,
-          lineFriendRows,
-          lineLogRows,
-          lineTagRows,
-          lineTemplateRows,
-          lineStepRows,
-          lineCampaignRows,
-        ] = await Promise.all([
-          safeRows<VehicleRow>('vehicles', 'id, management_no, maker, model_name, base_price, total_price, status, location_name'),
-          safeRows<CustomerRow>('customers', 'id, name, phone, email, line_user_id, line_display_name, line_friend_status, delivery_permission'),
-          safeRows<DealRow>('deals', 'id, customer_id, vehicle_id, title, status, probability, source, next_action_at, assigned_user_name'),
-          safeRows<QuoteRow>('quotes', 'id, status, issue_status, total_amount'),
-          safeRows<InvoiceRow>('invoices', 'id, status, issue_status, total_amount, unpaid_amount'),
-          safeRows<MaintenanceRow>('maintenance_jobs', 'id, customer_id, vehicle_id, job_no, job_type, status, scheduled_delivery_at, next_inspection_date, assigned_user_name'),
-          safeRows<LineFriendRow>('line_friends', 'id, customer_id, line_display_name, friend_status, delivery_permission, tag_names'),
-          safeRows<LineLogRow>('line_message_logs', 'id, customer_id, line_user_id, line_display_name, message_type, title, send_status, error_message, sent_at, created_at'),
-          safeRows<IdRow>('line_tags', 'id'),
-          safeRows<IdRow>('line_templates', 'id'),
-          safeRows<IdRow>('line_steps', 'id'),
-          safeRows<IdRow>('line_campaigns', 'id'),
-        ]);
-
-        setVehicles(vehicleRows);
-        setCustomers(customerRows);
-        setDeals(dealRows);
-        setQuotes(quoteRows);
-        setInvoices(invoiceRows);
-        setMaintenance(maintenanceRows);
-        setLineFriends(lineFriendRows);
-        setLineLogs(lineLogRows);
-        setLineTags(lineTagRows);
-        setLineTemplates(lineTemplateRows);
-        setLineSteps(lineStepRows);
-        setLineCampaigns(lineCampaignRows);
+        setVehicles(payload.vehicles);
+        setCustomers(payload.customers);
+        setDeals(payload.deals);
+        setQuotes(payload.quotes);
+        setInvoices(payload.invoices);
+        setMaintenance(payload.maintenance_jobs);
+        setLineFriends(payload.line_friends);
+        setLineLogs(payload.line_message_logs);
+        setLineTags(payload.line_tags);
+        setLineTemplates(payload.line_templates);
+        setLineSteps(payload.line_steps);
+        setLineCampaigns(payload.line_campaigns);
       } catch (error) {
         setErrorMessage(error instanceof Error ? error.message : '分析データの取得に失敗しました。');
       } finally {
@@ -373,7 +374,7 @@ export default function AnalyticsPage() {
     { label: '売約済み車両数', value: vehicles.filter((vehicle) => vehicle.status === '売約済み').length },
     { label: '整備中車両数', value: vehicles.filter((vehicle) => vehicle.status === '整備中').length },
     { label: '顧客数', value: customers.length },
-    { label: 'LINE連携済み顧客数', value: customers.filter((customer) => customer.line_user_id || customer.line_display_name).length },
+    { label: 'LINE連携済み顧客数', value: customers.filter((customer) => customer.line_display_name).length },
     { label: '配信許可顧客数', value: customers.filter((customer) => isDeliveryAllowed(customer.delivery_permission)).length },
     { label: '商談数', value: deals.length },
     { label: '新規商談数', value: deals.filter((deal) => deal.status === '新規').length },

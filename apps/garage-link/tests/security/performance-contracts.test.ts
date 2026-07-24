@@ -67,6 +67,21 @@ test.describe('共通UIコンテキストの実装契約', () => {
     expect(sql).toContain("v_role in ('owner', 'admin')");
   });
 
+  test('分析画面の業務データは1つのRPCで取得し、未使用の個人情報を取得しない', async () => {
+    const analytics = await readFile('src/app/analytics/page.tsx', 'utf8');
+    const sql = await readFile(
+      'supabase/migrations/20260724000300_garage_analytics_payload.sql',
+      'utf8',
+    );
+
+    expect(analytics).toContain("rpc('get_garage_analytics_payload'");
+    expect(analytics).not.toContain('safeRows<');
+    expect(analytics).not.toContain('phone: string | null');
+    expect(analytics).not.toContain('line_user_id: string | null');
+    expect(sql).toContain('create or replace function public.get_garage_analytics_payload()');
+    expect(sql).toContain('auth.uid()');
+  });
+
   test('サイドバーとシェルは業務テーブルを直接取得せず共通ローダーを使う', async () => {
     const [sidebar, shell] = await Promise.all([
       readFile('src/components/AppSidebar.tsx', 'utf8'),
