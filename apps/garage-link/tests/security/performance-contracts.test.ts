@@ -45,6 +45,14 @@ test.describe('共通UIコンテキスト', () => {
 });
 
 test.describe('共通UIコンテキストの実装契約', () => {
+  test('ダッシュボードの日時依存表示はハイドレーション完了後に描画する', async () => {
+    const dashboard = await readFile('src/app/dashboard/page.tsx', 'utf8');
+
+    expect(dashboard).toContain('const [isHydrated, setIsHydrated] = useState(false)');
+    expect(dashboard).toContain('setIsHydrated(true)');
+    expect(dashboard).toContain("data-testid=\"dashboard-hydration-fallback\"");
+  });
+
   test('サイドバーとシェルは業務テーブルを直接取得せず共通ローダーを使う', async () => {
     const [sidebar, shell] = await Promise.all([
       readFile('src/components/AppSidebar.tsx', 'utf8'),

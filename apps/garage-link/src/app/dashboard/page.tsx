@@ -509,7 +509,13 @@ export default function DashboardPage() {
   const [memberDisplayName, setMemberDisplayName] = useState('');
   const [storeInfo, setStoreInfo] = useState<StoreRow | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<PeriodKey>('this_month');
+  const [isHydrated, setIsHydrated] = useState(false);
   const todayKey = todayKeyJst();
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setIsHydrated(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     async function loadSummary() {
@@ -946,7 +952,12 @@ export default function DashboardPage() {
         </Link>
       }
     >
-      <div className="space-y-6">
+      {!isHydrated ? (
+        <div data-testid="dashboard-hydration-fallback" className="rounded-2xl border border-slate-200 bg-white p-6 text-sm font-bold text-slate-500 shadow-sm">
+          ダッシュボードを読み込んでいます...
+        </div>
+      ) : (
+        <div className="space-y-6">
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
           <h2 className="text-xl font-black text-slate-950">本日の状況</h2>
           <div className="flex items-center gap-3 text-sm font-bold text-slate-600">
@@ -1140,7 +1151,8 @@ export default function DashboardPage() {
           </section>
         )}
 
-      </div>
+        </div>
+      )}
     </AppShell>
   );
 }
