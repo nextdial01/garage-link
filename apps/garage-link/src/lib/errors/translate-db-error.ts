@@ -16,6 +16,10 @@ const DB_ERROR_PATTERNS: Array<{ pattern: RegExp; message: string }> = [
     message: '必要なデータベーステーブルが見つかりません。管理者にお問い合わせください。',
   },
   {
+    pattern: /column .* does not exist/i,
+    message: '必要なデータ項目が見つかりません。管理者にお問い合わせください。',
+  },
+  {
     pattern: /JWT expired/i,
     message: 'ログインの有効期限が切れました。再度ログインしてください。',
   },

@@ -98,7 +98,7 @@ begin
       from (
         select
           job.id,
-          job.reception_no,
+          job.job_no as reception_no,
           job.vehicle_id,
           job.job_type,
           job.status,

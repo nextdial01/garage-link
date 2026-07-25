@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import ContextHelp from '@/components/ContextHelp';
+import { translateDbError } from '@/lib/errors/translate-db-error';
 import {
   InventoryAgeDonut,
   ManagementTrendChart,
@@ -581,7 +582,9 @@ export default function DashboardPage() {
         });
         setStoreInfo(payload.store_info);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'ダッシュボードの取得に失敗しました。');
+        setErrorMessage(translateDbError(
+          error instanceof Error ? error.message : 'ダッシュボードの取得に失敗しました。',
+        ));
       } finally {
         setIsLoading(false);
       }

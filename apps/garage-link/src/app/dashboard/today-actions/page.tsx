@@ -210,7 +210,7 @@ function TodayActionsPageContent() {
           .order('created_at', { ascending: false }),
         supabase
           .from<MaintenanceRow>('maintenance_jobs')
-          .select('id, reception_no, vehicle_id, job_type, status, scheduled_delivery_at, assigned_user_name, updated_at')
+          .select('id, reception_no:job_no, vehicle_id, job_type, status, scheduled_delivery_at, assigned_user_name, updated_at')
           .eq('store_id', member.store_id)
           .order('scheduled_delivery_at', { ascending: true }),
         supabase
@@ -419,7 +419,7 @@ function TodayActionsPageContent() {
           .eq('store_id', storeId)
           .eq('id', selectedMaintenance.id)
           .eq('updated_at', selectedMaintenance.updated_at ?? '')
-          .select('id, reception_no, vehicle_id, job_type, status, scheduled_delivery_at, assigned_user_name, updated_at')
+          .select('id, reception_no:job_no, vehicle_id, job_type, status, scheduled_delivery_at, assigned_user_name, updated_at')
           .maybeSingle();
         if (error) throw new Error(error.message);
         if (!data) {
