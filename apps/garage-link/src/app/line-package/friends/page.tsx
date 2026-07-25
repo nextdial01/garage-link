@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { useEffect, useState } from 'react';
 import LinePageHeader from '@/components/line/shared/LinePageHeader';
 import LinePackageShell from '@/components/line-package/LinePackageShell';
@@ -63,7 +65,7 @@ export default function LinePackageFriendsPage() {
         const adapter = createLinePackageAdapter(supabase);
         setFriends(await adapter.listFriends(context));
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'LINE友だち一覧の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, 'LINE友だち一覧の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }

@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { useEffect, useMemo, useState } from 'react';
 import LineMetricCard from '@/components/line-package/LineMetricCard';
 import LinePackageShell from '@/components/line-package/LinePackageShell';
@@ -117,7 +119,7 @@ export default function LinePackageDashboardPage() {
         setDeliveryLogs(deliveryLogsResult.error ? [] : (deliveryLogsResult.data ?? []).slice(0, 5));
         setWebhookEvents(webhookEventsResult.error ? [] : (webhookEventsResult.data ?? []).slice(0, 5));
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'LINE単体ダッシュボードの取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, 'LINE単体ダッシュボードの取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }

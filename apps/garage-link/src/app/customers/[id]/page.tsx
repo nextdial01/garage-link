@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -144,7 +146,7 @@ export default function CustomerDetailPage() {
         const ownedIds = new Set((dealResult.data ?? []).map((d) => d.vehicle_id).filter((v): v is string => !!v));
         setOwnedVehicles(((ownedResult.data ?? []) as OwnedVehicleRow[]).filter((v) => ownedIds.has(v.id)));
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '顧客詳細の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '顧客詳細の取得に失敗しました。'));
       } finally { setIsLoading(false); }
     }
     void loadCustomer();
@@ -167,7 +169,7 @@ export default function CustomerDetailPage() {
       if (error) throw new Error(error.message);
       setSuccessMessage('顧客情報を保存しました。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '顧客情報の保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '顧客情報の保存に失敗しました。'));
     } finally { setIsSaving(false); }
   }
 
@@ -207,7 +209,7 @@ export default function CustomerDetailPage() {
           <Section title="請求履歴"><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left text-sm"><thead className="bg-slate-50 text-xs font-bold text-slate-500"><tr>{['作成日','請求番号','タイトル','ステータス','合計','詳細'].map((h)=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{invoices.length === 0 ? <tr><td colSpan={6} className="px-4 py-4 text-slate-500">データがありません</td></tr> : invoices.map((iv)=><tr key={iv.id}><td className="px-4 py-3">{formatDateTime(iv.created_at)}</td><td className="px-4 py-3">{displayValue(iv.invoice_no)}</td><td className="px-4 py-3 font-semibold">{displayValue(iv.title)}</td><td className="px-4 py-3">{displayValue(iv.status)}</td><td className="px-4 py-3 text-right">{iv.total_amount?.toLocaleString() ?? '-'}</td><td className="px-4 py-3"><Link href={`/invoices/${iv.id}`} className="font-bold text-blue-700 hover:underline">詳細</Link></td></tr>)}</tbody></table></div></Section>
           <Section title="保有・購入車両"><div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-slate-50 text-xs font-bold text-slate-500"><tr>{['管理番号','車両','車検満了日','納車日'].map((h)=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{ownedVehicles.length === 0 ? <tr><td colSpan={4} className="px-4 py-4 text-slate-500">データがありません</td></tr> : ownedVehicles.map((v)=><tr key={v.id}><td className="px-4 py-3">{displayValue(v.management_no)}</td><td className="px-4 py-3 font-semibold">{`${v.maker ?? ''} ${v.model_name ?? ''}`.trim() || '-'}</td><td className="px-4 py-3">{displayValue(v.inspection_expiry_date)}</td><td className="px-4 py-3">{displayValue(v.sold_date)}</td></tr>)}</tbody></table></div></Section>
           <Section title="関連整備・車検"><div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-slate-50 text-xs font-bold text-slate-500"><tr>{['受付番号','対象車両','種別','ステータス','詳細'].map((h)=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{maintenance.length === 0 ? <tr><td colSpan={5} className="px-4 py-4 text-slate-500">データがありません</td></tr> : maintenance.map((job)=><tr key={job.id}><td className="px-4 py-3">{displayValue(job.job_no)}</td><td className="px-4 py-3">{vehicleLabel(vehicleMap.get(job.vehicle_id ?? ''))}</td><td className="px-4 py-3">{displayValue(job.job_type)}</td><td className="px-4 py-3">{displayValue(job.status)}</td><td className="px-4 py-3"><Link href={`/maintenance/${job.id}`} className="font-bold text-blue-700 hover:underline">詳細</Link></td></tr>)}</tbody></table></div></Section>
-          <Section title="LINE送信履歴"><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-slate-50 text-xs font-bold text-slate-500"><tr>{['送信日時','メッセージ種別','タイトル','送信状態','エラー'].map((h)=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{lineLogs.length === 0 ? <tr><td colSpan={5} className="px-4 py-4 text-slate-500">データがありません</td></tr> : lineLogs.map((log)=><tr key={log.id}><td className="px-4 py-3">{formatDateTime(log.sent_at ?? log.created_at)}</td><td className="px-4 py-3">{displayValue(log.message_type)}</td><td className="px-4 py-3">{displayValue(log.title)}</td><td className="px-4 py-3">{displayValue(log.send_status)}</td><td className="px-4 py-3 text-red-700">{displayValue(log.error_message)}</td></tr>)}</tbody></table></div></Section>
+          <Section title="LINE送信履歴"><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-slate-50 text-xs font-bold text-slate-500"><tr>{['送信日時','メッセージ種別','タイトル','送信状態','エラー'].map((h)=><th key={h} className="px-4 py-3">{h}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{lineLogs.length === 0 ? <tr><td colSpan={5} className="px-4 py-4 text-slate-500">データがありません</td></tr> : lineLogs.map((log)=><tr key={log.id}><td className="px-4 py-3">{formatDateTime(log.sent_at ?? log.created_at)}</td><td className="px-4 py-3">{displayValue(log.message_type)}</td><td className="px-4 py-3">{displayValue(log.title)}</td><td className="px-4 py-3">{displayValue(log.send_status)}</td><td className="px-4 py-3 text-red-700">{log.error_message ? toUserErrorMessage(log.error_message, '送信に失敗しました。') : '-'}</td></tr>)}</tbody></table></div></Section>
           <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-6"><Link href={`/deals/new?customerId=${customerId}`} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-700">この顧客で商談を作成</Link><Link href="/deals" className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50">LINE案内を作成</Link><Link href="/customers" className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50">顧客一覧に戻る</Link></div>
         </div>
       )}

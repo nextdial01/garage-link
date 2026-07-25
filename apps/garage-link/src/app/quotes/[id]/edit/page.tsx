@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
@@ -401,7 +403,7 @@ export default function EditQuotePage() {
         setCustomers(customerResult.data ?? []);
         setVehicles(vehicleResult.data ?? []);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '見積書の読み込みに失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '見積書の読み込みに失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -581,7 +583,7 @@ export default function EditQuotePage() {
       sessionStorage.setItem('flash_quotes', '見積書を更新しました。');
       router.push('/quotes');
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : '見積書の更新に失敗しました。');
+      setSaveError(toUserErrorMessage(error, '見積書の更新に失敗しました。'));
       setIsSaving(false);
     }
   }

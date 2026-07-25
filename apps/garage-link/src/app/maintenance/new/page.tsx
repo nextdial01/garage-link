@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -128,7 +130,7 @@ export default function NewMaintenancePage() {
         setCustomers(customerResult.data ?? []);
         setVehicles(vehicleResult.data ?? []);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '選択肢の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '選択肢の取得に失敗しました。'));
       }
     }
 
@@ -215,7 +217,7 @@ export default function NewMaintenancePage() {
       sessionStorage.setItem('flash_maintenance', '整備案件を登録しました。');
       router.push('/maintenance');
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : '保存に失敗しました。');
+      setSaveError(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }

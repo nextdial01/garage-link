@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -300,7 +302,7 @@ export default function LineRecordDetailPage({
           setRelatedRows(questions ?? []);
         }
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '詳細の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '詳細の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -339,7 +341,7 @@ export default function LineRecordDetailPage({
         router.push(listPath);
       }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }
@@ -400,7 +402,7 @@ export default function LineRecordDetailPage({
 
       router.push(listPath);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '削除に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '削除に失敗しました。'));
     } finally {
       setIsSaving(false);
     }

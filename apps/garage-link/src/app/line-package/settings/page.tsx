@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import LineSecretField from '@/components/line/shared/LineSecretField';
 import LinePackageShell from '@/components/line-package/LinePackageShell';
@@ -56,7 +58,7 @@ export default function LinePackageSettingsPage() {
         if (!response.ok || !data.ok) throw new Error(data.error ?? 'LINE設定の取得に失敗しました。');
         setSettings(data.settings ?? emptySettings);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'LINE設定の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, 'LINE設定の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -92,7 +94,7 @@ export default function LinePackageSettingsPage() {
       if (tokenRef.current) tokenRef.current.value = '';
       setSuccessMessage('LINE設定を保存しました。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'LINE設定の保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'LINE設定の保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }

@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
@@ -422,7 +424,7 @@ export default function NewVehiclePage() {
 
       router.push('/vehicles');
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : '車両登録に失敗しました。');
+      setSaveError(toUserErrorMessage(error, '車両登録に失敗しました。'));
       setIsSaving(false);
     }
   }

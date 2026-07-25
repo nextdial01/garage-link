@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -128,7 +130,7 @@ export default function QuotesPage() {
 
         setQuotes(data ?? []);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '見積書一覧の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '見積書一覧の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }

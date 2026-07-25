@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { createClient } from '@/lib/supabase/client';
 
 type StoreMemberRow = {
@@ -342,7 +343,7 @@ export default function LinePage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-black text-slate-950">{log.title ?? log.message_type ?? 'LINEメッセージ'}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-500">{formatDateTime(log.sent_at)} / {log.error_message ?? 'エラーなし'}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-500">{formatDateTime(log.sent_at)} / {log.error_message ? toUserErrorMessage(log.error_message, '送信に失敗しました。') : 'エラーなし'}</p>
                     </div>
                     <StatusBadge value={log.send_status} />
                   </div>

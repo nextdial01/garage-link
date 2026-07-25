@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -130,7 +132,7 @@ export default function InvoicesPage() {
 
         setInvoices(data ?? []);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '請求書一覧の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '請求書一覧の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }

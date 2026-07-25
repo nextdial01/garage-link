@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -131,7 +133,7 @@ export default function VehiclesPage() {
 
         setLongStayThreshold(context.longStayThresholdDays);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '車両一覧の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '車両一覧の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }

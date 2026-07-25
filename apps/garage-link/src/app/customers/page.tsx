@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -71,7 +73,7 @@ export default function CustomersPage() {
       if (error) throw new Error(error.message);
       setCustomers((data ?? []).filter((customer) => !customer.deleted_at && customer.is_archived !== true));
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '顧客一覧の取得に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '顧客一覧の取得に失敗しました。'));
     } finally {
       setIsLoading(false);
     }
@@ -129,7 +131,7 @@ export default function CustomersPage() {
       setConflictMessage('');
       setPendingRefresh(false);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSavingPanel(false);
     }

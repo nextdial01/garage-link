@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -103,7 +105,7 @@ export default function SoftDeleteButton({
 
       router.push(redirectHref);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : '削除に失敗しました。');
+      window.alert(toUserErrorMessage(error, '削除に失敗しました。'));
     } finally {
       setIsDeleting(false);
     }

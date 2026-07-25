@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -111,7 +113,7 @@ export default function AccountingExportSettingsPage() {
       if (error) throw new Error(error.message);
       setMessage('勘定科目名を保存しました。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }
@@ -139,7 +141,7 @@ export default function AccountingExportSettingsPage() {
       URL.revokeObjectURL(url);
       setMessage('CSVをダウンロードしました。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '出力に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '出力に失敗しました。'));
     } finally {
       setIsExporting(false);
     }

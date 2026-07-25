@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -194,7 +196,7 @@ export default function VehicleDetailPage() {
         setMaintenance(maintenanceResult.data ?? []);
         setListingStatuses(listingResult.data ?? []);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '車両詳細の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '車両詳細の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -220,7 +222,7 @@ export default function VehicleDetailPage() {
       if (error) throw new Error(error.message);
       setSuccessMessage('車両情報を保存しました。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '車両情報の保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '車両情報の保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }
@@ -242,7 +244,7 @@ export default function VehicleDetailPage() {
       setListingStatuses((items) => [...items.filter((item) => item.channel !== channel), data]);
       setSuccessMessage(`${channel}の掲載状態を保存しました。`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '掲載状態の保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '掲載状態の保存に失敗しました。'));
     }
   }
 

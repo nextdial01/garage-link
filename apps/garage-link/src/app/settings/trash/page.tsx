@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AppShell from '@/components/AppShell';
@@ -187,7 +189,7 @@ export default function TrashPage() {
 
         setItems(sortTrashItems(rowsByTarget.flat()));
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'ゴミ箱の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, 'ゴミ箱の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -253,7 +255,7 @@ export default function TrashPage() {
       setItems((current) => current.filter((currentItem) => !(currentItem.tableName === item.tableName && currentItem.id === item.id)));
       setMessage(`${item.typeLabel}「${item.label}」を復元しました。`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '復元に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '復元に失敗しました。'));
     } finally {
       setIsSavingId('');
     }

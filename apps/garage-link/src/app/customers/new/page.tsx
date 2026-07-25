@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
@@ -653,7 +655,7 @@ export default function NewCustomerPage() {
 
       router.push('/customers');
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : '顧客登録に失敗しました。');
+      setSaveError(toUserErrorMessage(error, '顧客登録に失敗しました。'));
       setIsSaving(false);
     }
   }

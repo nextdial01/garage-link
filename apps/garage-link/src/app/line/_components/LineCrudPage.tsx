@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -365,7 +367,7 @@ export function LineCrudPage({
 
         setRows((data ?? []).filter((row) => !row.deleted_at && row.is_archived !== true));
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'データの取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, 'データの取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -461,7 +463,7 @@ export function LineCrudPage({
       setShowForm(false);
       setReloadKey((current) => current + 1);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }
@@ -517,7 +519,7 @@ export function LineCrudPage({
       setMessage('アーカイブしました。ゴミ箱 / アーカイブから復元できます。');
       setReloadKey((current) => current + 1);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '削除に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '削除に失敗しました。'));
     } finally {
       setIsSaving(false);
     }

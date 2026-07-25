@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { translateDbError } from '../../src/lib/errors/translate-db-error';
+import { toUserErrorMessage } from '../../src/lib/errors/user-error';
 
 test.describe('ダッシュボードのエラー回帰', () => {
   test('整備案件番号は実在するjob_no列から取得する', async () => {
@@ -19,7 +19,7 @@ test.describe('ダッシュボードのエラー回帰', () => {
   });
 
   test('存在しない列のDBエラーを利用者向け日本語へ変換する', () => {
-    expect(translateDbError('column job.reception_no does not exist')).toBe(
+    expect(toUserErrorMessage('column job.reception_no does not exist', 'ダッシュボードの取得に失敗しました。')).toBe(
       '必要なデータ項目が見つかりません。管理者にお問い合わせください。',
     );
   });
@@ -27,7 +27,7 @@ test.describe('ダッシュボードのエラー回帰', () => {
   test('ダッシュボードはDBエラーをそのまま画面へ出さない', async () => {
     const dashboard = await readFile('src/app/dashboard/page.tsx', 'utf8');
 
-    expect(dashboard).toContain('translateDbError');
-    expect(dashboard).toContain("setErrorMessage(translateDbError(");
+    expect(dashboard).toContain('toUserErrorMessage');
+    expect(dashboard).toContain("setErrorMessage(toUserErrorMessage(");
   });
 });

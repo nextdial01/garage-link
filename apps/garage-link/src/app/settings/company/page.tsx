@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -263,7 +265,7 @@ export default function CompanySettingsPage() {
         setFormState(nextForm);
         await setImageUrls(nextForm);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '会社情報の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '会社情報の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -318,7 +320,7 @@ export default function CompanySettingsPage() {
       await setImageUrls(nextForm);
       setSuccessMessage('画像をアップロードしました。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '画像アップロードに失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '画像アップロードに失敗しました。'));
     } finally {
       setIsUploading(false);
     }
@@ -350,7 +352,7 @@ export default function CompanySettingsPage() {
       setImageUrls(formState);
       setSuccessMessage('会社情報・帳票設定を保存しました。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }

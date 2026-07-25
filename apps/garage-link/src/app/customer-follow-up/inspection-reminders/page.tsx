@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
@@ -95,7 +97,7 @@ export default function InspectionReminderHistoryPage() {
       setRows(data.rows ?? []);
       setTotal(data.total ?? 0);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '履歴の取得に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '履歴の取得に失敗しました。'));
       setRows([]);
       setTotal(0);
     } finally {
@@ -129,7 +131,7 @@ export default function InspectionReminderHistoryPage() {
       if (error) throw new Error(error.message);
       await load();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'スキップに失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'スキップに失敗しました。'));
     }
   }
 
@@ -218,7 +220,7 @@ export default function InspectionReminderHistoryPage() {
                               <div>車種: <span className="font-semibold text-slate-800">{row.model_name || '-'}</span></div>
                               <div>登録番号: <span className="font-semibold text-slate-800">{row.registration_no || '-'}</span></div>
                               <div>外部連携先ID: <span className="font-semibold text-slate-800">{row.external_reference_id || '未連携'}</span></div>
-                              <div className="sm:col-span-2 lg:col-span-3">エラー内容: <span className="font-semibold text-slate-800">{row.error_detail || 'なし'}</span></div>
+                              <div className="sm:col-span-2 lg:col-span-3">エラー内容: <span className="font-semibold text-slate-800">{row.error_detail ? toUserErrorMessage(row.error_detail, '処理に失敗しました。') : 'なし'}</span></div>
                             </div>
                             {canManage && row.status === 'pending' && (
                               <button type="button" onClick={() => void skipEvent(row.id)} className="mt-3 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50">

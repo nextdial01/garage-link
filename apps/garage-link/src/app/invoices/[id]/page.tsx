@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useRef, useState } from 'react';
@@ -158,7 +160,7 @@ export default function InvoiceDetailPage() {
         }
         setItemPartQty(agg);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '請求書の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '請求書の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -221,7 +223,7 @@ export default function InvoiceDetailPage() {
       sessionStorage.setItem('flash_invoices', '請求書を更新しました。');
       router.push('/invoices');
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : '保存に失敗しました。');
+      setSaveError(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }
@@ -255,7 +257,7 @@ export default function InvoiceDetailPage() {
       setStockMessage(res.skipped ? '整備案件に紐付くため、在庫は整備案件側で管理されます。' : '請求を確定し、在庫を減算しました。');
       await reloadInvoice();
     } catch (e) {
-      setStockError(e instanceof Error ? e.message : '請求確定に失敗しました。');
+      setStockError(toUserErrorMessage(e, '請求確定に失敗しました。'));
     } finally {
       setStockBusy('idle');
     }
@@ -275,7 +277,7 @@ export default function InvoiceDetailPage() {
       setStockMessage(res.skipped ? '在庫は調整されていません（変更なし）。' : '請求確定を解除し、在庫を復元しました。');
       await reloadInvoice();
     } catch (e) {
-      setStockError(e instanceof Error ? e.message : '取消に失敗しました。');
+      setStockError(toUserErrorMessage(e, '取消に失敗しました。'));
     } finally {
       setStockBusy('idle');
     }

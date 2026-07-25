@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
@@ -567,7 +569,7 @@ export default function DealLineMessageNewPage() {
           })
         );
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'LINE案内情報の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, 'LINE案内情報の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -708,7 +710,7 @@ export default function DealLineMessageNewPage() {
       }
       setSuccessMessage('LINE案内文を下書き保存しました。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'LINE案内文の保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'LINE案内文の保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }
@@ -757,7 +759,7 @@ export default function DealLineMessageNewPage() {
 
       router.push('/line/drafts');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'LINEメッセージの送信に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'LINEメッセージの送信に失敗しました。'));
     } finally {
       setIsSendingNow(false);
     }

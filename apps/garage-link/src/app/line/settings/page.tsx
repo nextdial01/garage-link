@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -180,7 +182,7 @@ export default function LineSettingsPage() {
           updated_at: data.settings?.updated_at ?? null,
         });
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'LINE設定の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, 'LINE設定の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -271,7 +273,7 @@ export default function LineSettingsPage() {
       if (channelAccessTokenRef.current) channelAccessTokenRef.current.value = '';
       setSuccessMessage('LINE設定を保存しました。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'LINE設定の保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'LINE設定の保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }
@@ -290,9 +292,7 @@ export default function LineSettingsPage() {
           : 'Webhook疎通確認に失敗しました。'
       );
     } catch (error) {
-      setWebhookTestMessage(
-        error instanceof Error ? error.message : 'Webhook疎通確認に失敗しました。'
-      );
+      setWebhookTestMessage(toUserErrorMessage(error, 'Webhook疎通確認に失敗しました。'));
     } finally {
       setIsTestingWebhook(false);
     }

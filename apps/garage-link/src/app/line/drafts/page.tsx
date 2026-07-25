@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -168,7 +170,7 @@ export default function LineDraftsPage() {
         setDrafts(draftResult.data ?? []);
         setCustomerNames(nameMap);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'LINE下書き一覧の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, 'LINE下書き一覧の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -211,7 +213,7 @@ export default function LineDraftsPage() {
       setSuccessMessage(result.message ?? 'LINE配信操作を完了しました。');
       setReloadKey((current) => current + 1);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'LINEメッセージの送信に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'LINEメッセージの送信に失敗しました。'));
     } finally {
       setSendingDraftId('');
     }

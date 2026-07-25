@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useRef, useState } from 'react';
@@ -126,7 +128,7 @@ export default function PartDetailPage() {
         setPart(data);
         setForm(toPartForm(data));
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '部品の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '部品の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -198,7 +200,7 @@ export default function PartDetailPage() {
       sessionStorage.setItem('flash_parts', '部品情報を更新しました。');
       router.push('/parts');
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : '保存に失敗しました。');
+      setSaveError(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }

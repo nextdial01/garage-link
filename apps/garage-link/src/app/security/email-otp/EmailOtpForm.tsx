@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 
 export function EmailOtpForm({ returnPath }: { returnPath: string }) {
   const router = useRouter();
@@ -18,7 +19,7 @@ export function EmailOtpForm({ returnPath }: { returnPath: string }) {
     const result = await response.json().catch(() => ({})) as { maskedEmail?: string; retryAfter?: number; error?: string };
     if (!response.ok) {
       setMessage('');
-      setError(result.error ?? '確認コードを送信できませんでした。');
+      setError(toUserErrorMessage(result.error, '確認コードを送信できませんでした。'));
       if (response.status === 429) setCooldown(60);
       return;
     }
@@ -44,7 +45,7 @@ export function EmailOtpForm({ returnPath }: { returnPath: string }) {
     const response = await fetch('/api/auth/admin-email-otp/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
     const result = await response.json().catch(() => ({})) as { error?: string };
     if (!response.ok) {
-      setError(result.error ?? '確認コードを確認できませんでした。');
+      setError(toUserErrorMessage(result.error, '確認コードを確認できませんでした。'));
       setLoading(false);
       return;
     }
@@ -75,4 +76,3 @@ export function EmailOtpForm({ returnPath }: { returnPath: string }) {
     </form>
   );
 }
-

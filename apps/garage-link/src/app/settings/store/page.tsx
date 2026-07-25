@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -77,7 +79,7 @@ export default function StoreSettingsPage() {
           setPurchaseBasis(storeRow.purchase_recognition_basis ?? 'purchase_confirmed');
         }
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '店舗設定の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '店舗設定の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -110,7 +112,7 @@ export default function StoreSettingsPage() {
       setThresholdSaved(n);
       setThresholdMessage('長期滞留の閾値を保存しました。');
     } catch (e) {
-      setThresholdError(e instanceof Error ? e.message : '保存に失敗しました。');
+      setThresholdError(toUserErrorMessage(e, '保存に失敗しました。'));
     } finally {
       setIsSavingThreshold(false);
     }
@@ -165,7 +167,7 @@ export default function StoreSettingsPage() {
       setPrimaryTabs(sanitizedTabs);
       setPreferenceMessage('主タブと集計基準を保存しました。');
     } catch (error) {
-      setPreferenceError(error instanceof Error ? error.message : '保存に失敗しました。');
+      setPreferenceError(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSavingPreferences(false);
     }

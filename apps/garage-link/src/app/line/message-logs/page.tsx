@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -151,7 +153,7 @@ export default function LineMessageLogsPage() {
         setLogs(logResult.data ?? []);
         setCustomerNames(nameMap);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'LINE送信ログ一覧の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, 'LINE送信ログ一覧の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -259,7 +261,7 @@ export default function LineMessageLogsPage() {
                           {statusLabel(log.send_status)}
                         </span>
                       </td>
-                      <td className="max-w-[300px] truncate px-5 py-4">{displayValue(log.error_message)}</td>
+                      <td className="max-w-[300px] truncate px-5 py-4">{log.error_message ? toUserErrorMessage(log.error_message, '送信に失敗しました。') : '-'}</td>
                       <td className="px-5 py-4">
                         {log.deal_id ? (
                           <Link

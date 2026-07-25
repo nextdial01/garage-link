@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -222,7 +224,7 @@ export default function MemberSettingsPage() {
       if (error) throw new Error(error.message);
       setMembers((data ?? []).map(mapMember));
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'メンバー情報の取得に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'メンバー情報の取得に失敗しました。'));
     } finally {
       setIsLoading(false);
     }
@@ -288,7 +290,7 @@ export default function MemberSettingsPage() {
       setSuccessMessage('メンバー予定者を追加しました。招待メール送信は次工程で実装します。');
       await loadMembers();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'メンバー追加に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'メンバー追加に失敗しました。'));
     } finally {
       setIsSaving(false);
     }
@@ -350,7 +352,7 @@ export default function MemberSettingsPage() {
       setSuccessMessage('メンバー情報を保存しました。');
       await loadMembers();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'メンバー情報の保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'メンバー情報の保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }

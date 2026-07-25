@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
@@ -513,7 +515,7 @@ export default function InventoryCountDetailPage() {
         setItems((itemRows ?? []).filter((item) => !item.deleted_at && item.is_archived !== true).map(mapItemToForm));
         setNotFound(false);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '棚卸しの取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '棚卸しの取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -639,7 +641,7 @@ export default function InventoryCountDetailPage() {
       setItems((current) => current.filter((item) => !item.deleted));
       setSuccessMessage('棚卸し情報を保存しました。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '棚卸し情報の保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '棚卸し情報の保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }

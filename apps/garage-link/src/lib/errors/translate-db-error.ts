@@ -29,7 +29,7 @@ const DB_ERROR_PATTERNS: Array<{ pattern: RegExp; message: string }> = [
   },
 ];
 
-export function translateDbError(message: string): string {
+export function translateDbError(message: string, fallback = '処理に失敗しました。時間をおいて再度お試しください。'): string {
   const trimmed = message.trim();
   if (!trimmed) {
     return '処理に失敗しました。';
@@ -42,7 +42,7 @@ export function translateDbError(message: string): string {
   }
 
   if (/^[a-z0-9_.\s-]+$/i.test(trimmed) && /[a-z_]{3,}/i.test(trimmed) && !/[\u3040-\u30ff\u4e00-\u9faf]/.test(trimmed)) {
-    return '処理に失敗しました。時間をおいて再度お試しください。';
+    return fallback;
   }
 
   return trimmed;

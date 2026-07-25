@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -448,7 +450,7 @@ export default function LaunchChecklistPage() {
           counts: Object.fromEntries(countEntries),
         });
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '本番前チェックリストを取得できませんでした。');
+        setErrorMessage(toUserErrorMessage(error, '本番前チェックリストを取得できませんでした。'));
       } finally {
         setIsLoading(false);
       }

@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -91,7 +93,7 @@ export default function MaintenancePage() {
       setCustomers((customerResult.data ?? []).filter((row) => !row.deleted_at && row.is_archived !== true).reduce<Record<string, string>>((map, row) => ({ ...map, [row.id]: row.name ?? '-' }), {}));
       setVehicles((vehicleResult.data ?? []).filter((row) => !row.deleted_at && row.is_archived !== true).reduce<Record<string, string>>((map, row) => ({ ...map, [row.id]: [row.management_no, row.maker, row.model_name].filter(Boolean).join(' / ') || '-' }), {}));
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '整備・車検一覧の取得に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '整備・車検一覧の取得に失敗しました。'));
     } finally {
       setIsLoading(false);
     }
@@ -131,7 +133,7 @@ export default function MaintenancePage() {
       setConflictMessage('');
       setPendingRefresh(false);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }

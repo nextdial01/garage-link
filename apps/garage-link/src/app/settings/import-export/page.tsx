@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AppShell from '@/components/AppShell';
@@ -420,7 +422,7 @@ export default function SettingsImportExportPage() {
       });
       setMessage('設定テンプレートJSONをダウンロードしました。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'エクスポートに失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'エクスポートに失敗しました。'));
     } finally {
       setIsExporting(false);
     }
@@ -442,7 +444,7 @@ export default function SettingsImportExportPage() {
       setMessage('JSONを読み込みました。内容を確認してインポートしてください。');
     } catch (error) {
       setImportPayload(null);
-      setErrorMessage(error instanceof Error ? error.message : 'JSONの読み込みに失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'JSONの読み込みに失敗しました。'));
     }
   }
 
@@ -652,7 +654,7 @@ export default function SettingsImportExportPage() {
         },
       });
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'インポートに失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'インポートに失敗しました。'));
     } finally {
       setIsImporting(false);
     }
@@ -682,7 +684,7 @@ export default function SettingsImportExportPage() {
       URL.revokeObjectURL(url);
       setMessage(`${target.label}CSVをダウンロードしました。`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'CSV出力に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'CSV出力に失敗しました。'));
     } finally {
       setIsCsvExporting(false);
     }
@@ -732,7 +734,7 @@ export default function SettingsImportExportPage() {
       setCsvPreviewCount(payload.rowCount ?? payload.rows.length);
       setMessage('CSVプレビューを作成しました。内容を確認してから取り込みを確定してください。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'CSVプレビューに失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'CSVプレビューに失敗しました。'));
     } finally {
       setIsCsvPreviewing(false);
     }
@@ -774,7 +776,7 @@ export default function SettingsImportExportPage() {
       resetCsvPreview();
       setMessage(`${target.label}CSVを${payload.insertedCount ?? 0}件取り込みました。`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'CSV取り込みに失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'CSV取り込みに失敗しました。'));
     } finally {
       setIsCsvCommitting(false);
     }

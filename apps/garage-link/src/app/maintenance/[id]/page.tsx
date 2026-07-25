@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -377,7 +379,7 @@ export default function MaintenanceDetailPage() {
         setCustomer(customerResult.data ?? null);
         setVehicle(vehicleResult.data ?? null);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '整備・車検詳細の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '整備・車検詳細の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -559,7 +561,7 @@ export default function MaintenanceDetailPage() {
       sessionStorage.setItem('flash_maintenance', '整備案件を保存しました。');
       router.push('/maintenance');
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : '保存に失敗しました。');
+      setSaveError(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }
@@ -603,7 +605,7 @@ export default function MaintenanceDetailPage() {
       sessionStorage.setItem('flash_maintenance', '整備案件を完了にしました。');
       router.push('/maintenance');
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : '完了処理に失敗しました。');
+      setSaveError(toUserErrorMessage(error, '完了処理に失敗しました。'));
       setIsCompleting(false);
     }
   }

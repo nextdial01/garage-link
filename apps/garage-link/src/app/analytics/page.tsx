@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -324,7 +326,7 @@ export default function AnalyticsPage() {
         setLineSteps(payload.line_steps);
         setLineCampaigns(payload.line_campaigns);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '分析データの取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '分析データの取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -492,7 +494,7 @@ export default function AnalyticsPage() {
                 <td className="px-4 py-3">{displayValue(log.line_display_name)}</td>
                 <td className="px-4 py-3">{displayValue(log.message_type)}</td>
                 <td className="px-4 py-3">{labelValue(log.send_status)}</td>
-                <td className="px-4 py-3 text-red-700">{displayValue(log.error_message)}</td>
+                <td className="px-4 py-3 text-red-700">{log.error_message ? toUserErrorMessage(log.error_message, '送信に失敗しました。') : '-'}</td>
               </tr>
             ))}
           </DataTable>

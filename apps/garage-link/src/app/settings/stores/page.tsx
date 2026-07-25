@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -47,7 +49,7 @@ export default function StoreManagementPage() {
       const billing = (await billingResponse.json()) as { subscription?: GarageSubscriptionLike };
       setSubscription(billing.subscription ?? null);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '店舗情報を取得できませんでした。');
+      setErrorMessage(toUserErrorMessage(error, '店舗情報を取得できませんでした。'));
     } finally {
       setIsLoading(false);
     }
@@ -76,7 +78,7 @@ export default function StoreManagementPage() {
       setMessage('店舗を追加しました。新しい店舗へ切り替えます。');
       window.setTimeout(() => window.location.assign('/onboarding'), 800);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '店舗を追加できませんでした。');
+      setErrorMessage(toUserErrorMessage(error, '店舗を追加できませんでした。'));
     } finally {
       setIsSaving(false);
     }

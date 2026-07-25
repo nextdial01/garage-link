@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -173,7 +175,7 @@ export default function LineFriendsPage() {
         setFriends(friendResult.data ?? []);
         setCustomers(customerResult.data ?? []);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'LINE友だち一覧の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, 'LINE友だち一覧の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -269,7 +271,7 @@ export default function LineFriendsPage() {
       setShowAddForm(false);
       setReloadKey((current) => current + 1);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'LINE友だちの追加に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'LINE友だちの追加に失敗しました。'));
     } finally {
       setIsSaving(false);
     }

@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -84,7 +86,7 @@ export default function InquiriesPage() {
       setVehicles(vehicleResult.data ?? []);
       setDeals(dealResult.data ?? []);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '問い合わせの取得に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '問い合わせの取得に失敗しました。'));
     } finally {
       setIsLoading(false);
     }
@@ -163,7 +165,7 @@ export default function InquiriesPage() {
       setConflictMessage('');
       setPendingRefresh(false);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '対応状況を保存できませんでした。');
+      setErrorMessage(toUserErrorMessage(error, '対応状況を保存できませんでした。'));
     } finally {
       setIsSavingResponse(false);
     }

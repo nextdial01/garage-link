@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AppShell from '@/components/AppShell';
@@ -92,7 +94,7 @@ export default function EnvCheckPage() {
 
         setItems(payload.items ?? []);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '環境変数の設定状態を取得できませんでした。');
+        setErrorMessage(toUserErrorMessage(error, '環境変数の設定状態を取得できませんでした。'));
       } finally {
         setIsLoading(false);
       }

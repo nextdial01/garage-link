@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -135,7 +137,7 @@ export default function QuoteDetailPage() {
         setLinkedInvoiceId(invoiceCheckResult.data?.[0]?.id ?? null);
         setQuoteItems(itemResult.data ?? []);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '見積書の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '見積書の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }

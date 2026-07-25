@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
@@ -242,7 +244,7 @@ export default function LineFriendDetailPage() {
         setDeliveryPermission(friendData.delivery_permission === false ? 'false' : 'true');
         setFriendStatus(friendData.friend_status ?? 'friend');
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'LINE友だち詳細の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, 'LINE友だち詳細の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -321,7 +323,7 @@ export default function LineFriendDetailPage() {
       setSuccessMessage(customerId ? '顧客を紐付けました。' : '紐付けを解除しました。');
       setReloadKey((current) => current + 1);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '顧客紐付けの保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '顧客紐付けの保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }
@@ -357,7 +359,7 @@ export default function LineFriendDetailPage() {
       setSuccessMessage('LINE友だち情報を保存しました。');
       setReloadKey((current) => current + 1);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'LINE友だち情報の保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'LINE友だち情報の保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }

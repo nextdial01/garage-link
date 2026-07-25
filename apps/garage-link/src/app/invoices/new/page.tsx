@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
@@ -436,7 +438,7 @@ export default function NewInvoicePage() {
           if (newItems.length > 0) setPartLineItems(newItems);
         }
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '選択肢の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '選択肢の取得に失敗しました。'));
       } finally {
         setIsLoadingOptions(false);
       }
@@ -684,7 +686,7 @@ export default function NewInvoicePage() {
       sessionStorage.setItem('flash_invoices', '請求書を保存しました。');
       router.push('/invoices');
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : '請求書の保存に失敗しました。');
+      setSaveError(toUserErrorMessage(error, '請求書の保存に失敗しました。'));
       setIsSaving(false);
     }
   }

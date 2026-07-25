@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useRef, useState } from 'react';
@@ -113,7 +115,7 @@ export default function NewPartPage() {
 
       router.push('/parts');
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : '部品の登録に失敗しました。');
+      setSaveError(toUserErrorMessage(error, '部品の登録に失敗しました。'));
     } finally {
       setIsSubmitting(false);
     }

@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChangeEvent, FormEvent, Suspense, useEffect, useMemo, useRef, useState } from 'react';
@@ -944,7 +946,7 @@ function NewDealPageContent() {
           });
         }
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '選択肢の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '選択肢の取得に失敗しました。'));
       } finally {
         setIsLoadingOptions(false);
       }
@@ -1002,7 +1004,7 @@ function NewDealPageContent() {
 
       router.push('/deals');
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : '商談登録に失敗しました。');
+      setSaveError(toUserErrorMessage(error, '商談登録に失敗しました。'));
       setIsSaving(false);
     }
   }

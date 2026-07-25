@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AppShell from '@/components/AppShell';
@@ -116,7 +118,7 @@ export default function SecurityCheckPage() {
 
         setResult(payload);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'セキュリティチェックを取得できませんでした。');
+        setErrorMessage(toUserErrorMessage(error, 'セキュリティチェックを取得できませんでした。'));
       } finally {
         setIsLoading(false);
       }

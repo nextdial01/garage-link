@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import LineDeliveryConfirmPanel from '@/components/line/shared/LineDeliveryConfirmPanel';
@@ -90,7 +92,7 @@ export default function LinePackageMessagesPage() {
         if (error) throw new Error(error.message);
         setDrafts(data ?? []);
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'メッセージ一覧の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, 'メッセージ一覧の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -135,7 +137,7 @@ export default function LinePackageMessagesPage() {
       setSuccessMessage(result.message ?? 'LINE配信操作を完了しました。');
       setReloadKey((current) => current + 1);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'LINEメッセージの送信に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, 'LINEメッセージの送信に失敗しました。'));
     } finally {
       setSendingDraftId('');
     }

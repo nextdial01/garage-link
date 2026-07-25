@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -67,7 +69,7 @@ export default function LLinkIntegrationPage() {
         const subscriptionData = await getActiveCompanySubscription(supabase, member.store_id);
         setSubscription(subscriptionData ?? { plan: 'free', status: 'active', updated_at: null });
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'L-Link連携状態の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, 'L-Link連携状態の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }

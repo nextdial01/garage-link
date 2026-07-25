@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -86,7 +88,7 @@ export default function DealsPage() {
       setVehicles(nextVehicles);
       return { deals: nextDeals, customers: nextCustomers, vehicles: nextVehicles };
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '商談一覧の取得に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '商談一覧の取得に失敗しました。'));
     } finally {
       setIsLoading(false);
     }
@@ -157,7 +159,7 @@ export default function DealsPage() {
       setConflictMessage('');
       setPendingRefresh(false);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSavingPanel(false);
     }

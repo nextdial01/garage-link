@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { REMINDER_STATUS_LABELS, REMINDER_STATUSES, type ReminderStatus } from '@/lib/inspection-reminders/shared';
@@ -56,7 +58,7 @@ export default function DeliveryCandidatesPage() {
       setRows(data.rows ?? []);
       setTotal(data.total ?? 0);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '配信候補の取得に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '配信候補の取得に失敗しました。'));
       setRows([]);
       setTotal(0);
     } finally {

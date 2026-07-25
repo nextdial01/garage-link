@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -233,7 +235,7 @@ function TodayActionsPageContent() {
       });
       setLongStayThreshold(storeResult.data?.long_stay_threshold_days ?? 90);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '今日やること一覧の取得に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '今日やること一覧の取得に失敗しました。'));
     } finally {
       if (!preserveLoading) setIsLoading(false);
     }
@@ -431,7 +433,7 @@ function TodayActionsPageContent() {
 
       await loadSummary(true);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }

@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import PartPickerModal, { type PickedPart } from './PartPickerModal';
@@ -179,7 +181,7 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
       notifyTotal(newParts);
       openEditRow(data);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : '部品の追加に失敗しました。');
+      setErrorMessage(toUserErrorMessage(err, '部品の追加に失敗しました。'));
     }
   }
 
@@ -225,7 +227,7 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
       setEditingId(null);
       setEditState(null);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : '更新に失敗しました。');
+      setErrorMessage(toUserErrorMessage(err, '更新に失敗しました。'));
     }
   }
 
@@ -263,7 +265,7 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
         ),
       );
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : '在庫確定に失敗しました。');
+      setErrorMessage(toUserErrorMessage(err, '在庫確定に失敗しました。'));
     } finally {
       setBusyIds((prev) => {
         const next = new Set(prev);
@@ -304,7 +306,7 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
         setEditState(null);
       }
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : '削除に失敗しました。');
+      setErrorMessage(toUserErrorMessage(err, '削除に失敗しました。'));
     } finally {
       setBusyIds((prev) => {
         const next = new Set(prev);

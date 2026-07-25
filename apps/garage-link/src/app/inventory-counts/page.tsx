@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -77,7 +79,7 @@ export default function InventoryCountsPage() {
         if (error) throw new Error(error.message);
         setCounts((data ?? []).filter((count) => !count.deleted_at && count.is_archived !== true));
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '棚卸し一覧の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '棚卸し一覧の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }

@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -443,7 +445,7 @@ export default function DealDetailPage() {
         setLineDrafts(draftsResult.error ? [] : (draftsResult.data ?? []).slice(0, 5));
         setLineLogs(logsResult.error ? [] : (logsResult.data ?? []).slice(0, 5));
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '商談詳細の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '商談詳細の取得に失敗しました。'));
       } finally {
         setIsLoading(false);
       }
@@ -500,7 +502,7 @@ export default function DealDetailPage() {
       setDeal({ ...deal, ...payload } as DealRow);
       setSuccessMessage('商談情報を保存しました。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '商談情報の保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '商談情報の保存に失敗しました。'));
     } finally {
       setIsSavingDeal(false);
     }
@@ -541,7 +543,7 @@ export default function DealDetailPage() {
       });
       setShowVehicleSearch(false);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '車両の差し替えに失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '車両の差し替えに失敗しました。'));
     } finally {
       setIsUpdatingVehicle(false);
     }
@@ -597,7 +599,7 @@ export default function DealDetailPage() {
 
       setReloadKey((current) => current + 1);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '帳票の取消に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '帳票の取消に失敗しました。'));
     }
   }
 
@@ -907,7 +909,7 @@ export default function DealDetailPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {lineLogs.map((log) => (
-                            <tr key={log.id}><td className="px-4 py-3">{displayValue((log.sent_at ?? log.created_at)?.replace('T', ' ').slice(0, 16))}</td><td className="px-4 py-3">{displayValue(log.message_type)}</td><td className="px-4 py-3">{displayValue(log.title)}</td><td className="px-4 py-3">{displayValue(log.send_status)}</td><td className="px-4 py-3 text-red-700">{displayValue(log.error_message)}</td></tr>
+                            <tr key={log.id}><td className="px-4 py-3">{displayValue((log.sent_at ?? log.created_at)?.replace('T', ' ').slice(0, 16))}</td><td className="px-4 py-3">{displayValue(log.message_type)}</td><td className="px-4 py-3">{displayValue(log.title)}</td><td className="px-4 py-3">{displayValue(log.send_status)}</td><td className="px-4 py-3 text-red-700">{log.error_message ? toUserErrorMessage(log.error_message, '送信に失敗しました。') : '-'}</td></tr>
                           ))}
                         </tbody>
                       </table>

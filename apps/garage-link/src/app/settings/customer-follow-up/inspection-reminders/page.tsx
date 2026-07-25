@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -232,7 +234,7 @@ export default function InspectionReminderSettingsPage() {
       if (response.ok && data.ok && data.summary) {
         setEligibility(data.summary);
       } else {
-        setEligibilityError(data.error ?? '対象診断の取得に失敗しました。');
+        setEligibilityError(toUserErrorMessage(data.error, '対象診断の取得に失敗しました。'));
       }
     } catch {
       setEligibilityError('対象診断の取得に失敗しました。');
@@ -321,7 +323,7 @@ export default function InspectionReminderSettingsPage() {
       if (data.settings) setSettings(data.settings);
       setSuccessMessage('車検案内設定を保存しました。');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '保存に失敗しました。'));
     } finally {
       setIsSaving(false);
     }
@@ -348,7 +350,7 @@ export default function InspectionReminderSettingsPage() {
       const warning = data.partial_errors ? ' ※一部の生成処理でエラーが発生しました。管理者にご確認ください。' : '';
       setSuccessMessage(`案内対象の判定を実行しました。新規イベント: ${data.created ?? 0} 件${detail}${warning}`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '実行に失敗しました。');
+      setErrorMessage(toUserErrorMessage(error, '実行に失敗しました。'));
     } finally {
       setIsRunning(false);
     }

@@ -1,5 +1,7 @@
 'use client';
 
+
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
@@ -582,7 +584,7 @@ export default function NewQuotePage() {
           }
         }
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : '選択肢の取得に失敗しました。');
+        setErrorMessage(toUserErrorMessage(error, '選択肢の取得に失敗しました。'));
       } finally {
         setIsLoadingOptions(false);
       }
@@ -823,7 +825,7 @@ export default function NewQuotePage() {
       sessionStorage.setItem('flash_quotes', '見積書を保存しました。');
       router.push('/quotes');
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : '見積書の保存に失敗しました。');
+      setSaveError(toUserErrorMessage(error, '見積書の保存に失敗しました。'));
       setIsSaving(false);
     }
   }
