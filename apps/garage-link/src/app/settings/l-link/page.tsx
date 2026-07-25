@@ -29,7 +29,7 @@ type StoreRow = {
   company_name: string | null;
 };
 
-const lLinkAppUrl = process.env.NEXT_PUBLIC_L_LINK_APP_URL ?? 'http://localhost:3001';
+const lLinkAppUrl = process.env.NEXT_PUBLIC_L_LINK_APP_URL ?? 'https://llink.tech';
 
 function availabilityText(enabled: boolean) {
   return enabled ? 'L-Link連携可' : 'L-Link連携不可';

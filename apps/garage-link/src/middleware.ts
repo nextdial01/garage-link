@@ -36,6 +36,8 @@ function isPublicPath(pathname: string) {
   // L-LINK からのサーバー間通信は各ルートで HMAC 署名・timestamp・nonce を検証する。
   // Supabase セッションを持たないため、ログイン画面へ転送せずルート自身の認証へ渡す。
   if (pathname.startsWith('/api/s2s/line-link/')) return true;
+  // Stripe webhookはSupabaseセッションを持たないため、ルート内の署名検証へ直接渡す。
+  if (pathname === '/api/billing/webhook') return true;
   // Google向け在庫フィードはBearerトークン/クエリトークンで自前認証するため、
   // セッションCookieを持たないクローラーからのアクセスをここで弾かない。
   if (pathname === '/api/vehicles/google-feed') return true;

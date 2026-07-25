@@ -169,12 +169,15 @@ test.describe('GARAGE LINK billing and plan safety', () => {
 
     expect(`${billingPage}\n${lLinkPage}`).not.toContain('LINE基本連携');
     expect(lLinkPage).toContain('L-Link連携はStandard以上で利用できます。');
+    expect(lLinkPage).toContain("process.env.NEXT_PUBLIC_L_LINK_APP_URL ?? 'https://llink.tech'");
+    expect(lLinkPage).not.toContain("process.env.NEXT_PUBLIC_L_LINK_APP_URL ?? 'http://localhost:3001'");
   });
 
   test('Stripe Checkout API と migration が存在する', async () => {
     const checkoutRoute = await readFile('src/app/api/billing/checkout/route.ts', 'utf8');
     const subscriptionRoute = await readFile('src/app/api/billing/subscription/route.ts', 'utf8');
     const webhookRoute = await readFile('src/app/api/billing/webhook/route.ts', 'utf8');
+    const middleware = await readFile('src/middleware.ts', 'utf8');
     const stripeClient = await readFile('src/lib/stripe/client.ts', 'utf8');
     const webhookIdempotency = await readFile(
       'supabase/migrations/20260723000200_stripe_webhook_idempotency.sql',
@@ -197,6 +200,7 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(checkoutRoute).toContain('integration_identifier');
     expect(stripeClient).toContain("apiVersion: '2026-06-24.dahlia'");
     expect(webhookRoute).toContain('checkout.session.completed');
+    expect(middleware).toContain("pathname === '/api/billing/webhook'");
     expect(webhookRoute).toContain('claimStripeEvent');
     expect(webhookRoute).toContain("status: 'failed'");
     expect(webhookIdempotency).toContain('stripe_event_id text not null unique');
