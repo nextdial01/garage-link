@@ -252,3 +252,14 @@
 - `CRON-001` Medium/P1: automationのservice-role store列挙がCurrent ACLと不整合。automation guard中のため外部処理は未起動。
 - 新規Critical **0件**、未解消High **2件**。Current ledger 50、Current write/migration 0、追加commit/push/deploy 0、外部送信0。
 - Production GateはFAIL。既存Preview `16df90b`をProductionへ昇格しない。詳細は`evidence/release-full-discovery.json`。
+
+## AUTH/BILL Batch・Preview・Production完了後の再集計（2026-07-28・最終）
+
+- AUTH-004: canonical membershipを照合するservice-only helper、Preview限定OTP sink、trusted-session invalidationで解消。Production sinkは利用不能。
+- BILL-003: service-only tenant/store scope RPCへ置換し、quota/webhook/idempotency/reconciliationを維持して解消。
+- CRON-001: eligible-store RPCへ置換し、外部処理はfail-closedを維持。
+- Current migration `20260728000200`をCOMMITし、ledgerは50→51。想定外変更0、外部送信0。
+- Security 244、API、L-LINK mock、問い合わせ管理、lint、typecheck、production build、Preview role/route回帰PASS。
+- Preview `dpl_CFA9...`、Production `dpl_CHxK...` はREADY。Production主要9 route、runtime error 0。
+- 未解消Critical **0件**、未解消High **0件**。rollback実行なし。
+- アプリ/DBの正式公開GateはPASS。Stripe live、LINE/L-LINK、メール/Push、Cron/worker解禁は別Gateであり、現在0件を維持。

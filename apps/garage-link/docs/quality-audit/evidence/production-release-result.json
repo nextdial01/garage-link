@@ -1,40 +1,40 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-07-28T14:50:10+09:00",
-  "overall": "BLOCKED",
-  "blockedAt": "auth_004_current_migration_required",
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-28T17:05:00+09:00",
+  "overall": "PASS_WITH_EXTERNAL_SENDS_DISABLED",
+  "sourceCommit": "96c28052e8e2ff505588c3f26144c4bd3383335a",
   "currentDatabase": {
-    "migrationLedger": 50,
+    "migrationLedger": 51,
     "unexpectedChanges": 0,
-    "additionalMigrationsApplied": 0
+    "crossTenant": 0,
+    "crossStore": 0,
+    "orphan": 0
   },
-  "staging": {
-    "mode": "current_backed_preview",
-    "dedicatedSupabaseProjectRequired": false,
-    "sourceCommit": "16df90b846b278e9e03878e8efb077e8bcf027c8",
-    "sourcePushed": true,
-    "sourcePushBlocker": null,
-    "deploymentCreated": true,
-    "deploymentUrl": "https://garage-link-73urei69j-altos-projects-fa55063c.vercel.app",
-    "deploymentState": "READY",
-    "publicAndUnauthenticatedSmoke": "PASS",
-    "runtimeRegression": "BLOCKED_AUTH_004_DB_BOOTSTRAP_CYCLE"
+  "preview": {
+    "deploymentId": "dpl_CFA9yj5ZgnnfSRvbAcfeNVD3TXWK",
+    "url": "https://garage-link-jrtxe33gk-altos-projects-fa55063c.vercel.app",
+    "state": "READY",
+    "fullRegression": "PASS"
   },
   "production": {
-    "deploymentCreated": false,
-    "smoke": "NOT_RUN",
-    "publicRelease": false
+    "deploymentId": "dpl_CHxKMKxdRGuwNayP4F2ezZy8cmTY",
+    "deploymentUrl": "https://garage-link-oure5b7do-altos-projects-fa55063c.vercel.app",
+    "publicUrl": "https://garage-link.tech",
+    "state": "READY",
+    "aliasError": null,
+    "smoke": "PASS",
+    "runtimeErrors": 0
   },
   "safety": {
-    "vercelEnvironmentChanges": 3,
-    "existingSupabaseProjectsPausedOrDeleted": 0,
-    "currentDatabaseWrites": "approved_qa_fixture_only",
     "externalSends": 0,
+    "stripeLiveEnabled": false,
+    "previewOtpInProduction": false,
+    "cronWorkersEnabled": false,
     "rollbackRequired": false
   },
   "remaining": {
     "productCritical": 0,
-    "productHigh": 2,
-    "operationsBlocker": "AUTH-004 requires a forward-only Current migration; BILL-003 remains app-remediatable"
+    "productHigh": 0,
+    "externalSendEnablement": "SEPARATE_GATE"
   }
 }

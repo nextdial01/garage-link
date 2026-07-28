@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-07-28T16:30:00+09:00",
+  "generatedAt": "2026-07-28T16:55:00+09:00",
   "environment": "vercel-preview-current-test-data-only",
   "project": "garage-link",
-  "deploymentId": "dpl_6HhqbkJLB3ZyZBYWCte7rCsexwRG",
-  "deploymentUrl": "https://garage-link-3nve15udn-altos-projects-fa55063c.vercel.app",
-  "commit": "97ffe58308371cfd24e2a8840f0ff597e68d6e9c",
+  "deploymentId": "dpl_CFA9yj5ZgnnfSRvbAcfeNVD3TXWK",
+  "deploymentUrl": "https://garage-link-jrtxe33gk-altos-projects-fa55063c.vercel.app",
+  "commit": "96c28052e8e2ff505588c3f26144c4bd3383335a",
   "currentMigrationLedger": 51,
   "externalSends": 0,
   "environmentControls": {
@@ -34,9 +34,10 @@
     "staff": "PASS",
     "viewer": "PASS",
     "previewOtpSink": "PASS",
-    "majorAuthenticatedRoutes": "10/10 PASS",
+    "ownerMajorRoutes": "10/10 PASS",
+    "staffMajorRoutes": "7/7 PASS",
     "runtimeErrors": 0,
     "rateLimitObserved": true
   },
-  "status": "ENVIRONMENT_REDEPLOY_REQUIRED"
+  "status": "PASS"
 }
