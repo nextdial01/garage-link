@@ -1,8 +1,8 @@
 # GARAGE LINK final production deploy checklist
 
 - [ ] 再現可能なdeploy commit SHAを固定
-- [ ] staging SupabaseがCurrentと異なるfingerprint
-- [ ] staging backup／restore PASS
+- [x] Current-backed Preview方式をオーナー承認（test-only期間限定）
+- [x] Current ledger 50・backup/restore Gate PASS
 - [ ] Vercel PreviewのSupabase credentialを専用化
 - [ ] Stripe test mode／test webhook PASS
 - [ ] email／LINE／L-LINK／Pushの外部送信0
@@ -16,4 +16,4 @@
 - [ ] 外部送信開始の別承認
 - [ ] 正式公開判定
 
-現在はSupabase Free project上限により専用staging DBを作成できず、staging environment separationがFAILのため、production deploy／正式公開は不可。既存projectのpause/delete/流用は行わない。
+現在はrelease commit `0cbae3f`まで作成済み。GitHub `nextdial01/garage-link`への292ファイルのpushが外部共有の明示承認不足で拒否され、Preview deploy前のためproduction deploy／正式公開は不可。

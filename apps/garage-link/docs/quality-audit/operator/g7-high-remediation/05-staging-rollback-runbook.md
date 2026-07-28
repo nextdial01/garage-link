@@ -25,5 +25,4 @@
 
 ## 今回の結果
 
-deploy前停止のためrollback実行なし。Current DB、Vercel deployment、環境変数の変更0件。
-
+source push／deploy前停止のためrollback実行なし。Current DBとVercel deploymentの変更0件。Vercelへ追加した3つのsafety variableは新deploymentまで既存runtimeへ影響せず、そのまま維持する。

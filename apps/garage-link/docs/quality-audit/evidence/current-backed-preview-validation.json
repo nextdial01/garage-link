@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-28T13:00:00+09:00",
+  "overall": "BLOCKED",
+  "blockedAt": "git_source_publication",
+  "environment": {
+    "databaseMode": "current_controlled_test",
+    "dedicatedStagingRequired": false,
+    "currentLedger": 50,
+    "unexpectedCurrentChanges": 0,
+    "realCustomerData": 0,
+    "realSendTargets": 0
+  },
+  "safetyVariables": {
+    "garageExternalSendsDisabled": "configured_production_and_preview",
+    "garageAutomationDisabled": "configured_production_and_preview",
+    "garageStripeTestModeRequired": "configured_production_and_preview",
+    "effectiveOnExistingDeployment": false,
+    "requiresNewDeployment": true
+  },
+  "source": {
+    "branch": "codex/garage-link-release-20260728",
+    "commit": "0cbae3faabecbdfe47cba395af273995287a2a31",
+    "committedFiles": 292,
+    "worktreeClean": true,
+    "pushes": 0,
+    "pushResult": "rejected_external_sharing_requires_explicit_approval"
+  },
+  "quality": {
+    "security": { "passed": 240, "failed": 0 },
+    "apiSmoke": "PASS",
+    "lLinkMock": "PASS",
+    "inquiryManagement": "PASS",
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "productionBuild": "PASS"
+  },
+  "runtime": {
+    "previewDeployments": 0,
+    "previewUrl": null,
+    "browserRegression": "BLOCKED",
+    "productionDeployments": 0,
+    "externalSends": 0
+  }
+}

@@ -1,18 +1,19 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-28T12:33:23+09:00",
+  "generatedAt": "2026-07-28T13:00:00+09:00",
   "overall": "BLOCKED",
-  "blockedAt": "staging_environment_provisioning",
+  "blockedAt": "git_source_publication",
   "currentDatabase": {
     "migrationLedger": 50,
     "unexpectedChanges": 0,
     "additionalMigrationsApplied": 0
   },
   "staging": {
-    "organization": "KANNAGI Staging",
-    "organizationPlan": "Free",
-    "projectCreated": false,
-    "projectCreationBlocker": "administrator_free_project_limit_2_reached",
+    "mode": "current_backed_preview",
+    "dedicatedSupabaseProjectRequired": false,
+    "sourceCommit": "0cbae3faabecbdfe47cba395af273995287a2a31",
+    "sourcePushed": false,
+    "sourcePushBlocker": "explicit_external_sharing_approval_required",
     "deploymentCreated": false,
     "runtimeRegression": "BLOCKED"
   },
@@ -22,7 +23,7 @@
     "publicRelease": false
   },
   "safety": {
-    "vercelEnvironmentChanges": 0,
+    "vercelEnvironmentChanges": 3,
     "existingSupabaseProjectsPausedOrDeleted": 0,
     "currentDatabaseWrites": 0,
     "externalSends": 0,
@@ -31,6 +32,6 @@
   "remaining": {
     "productCritical": 0,
     "productHigh": 0,
-    "operationsBlocker": "OPS-004"
+    "operationsBlocker": "release_source_push"
   }
 }
