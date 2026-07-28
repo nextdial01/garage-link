@@ -475,7 +475,7 @@ export default function BillingSettingsPage() {
                 {getGaragePlan(subscription.pending_plan).name}への変更を予約済みです。{formatInvoiceDate(subscription.pending_plan_effective_at)}から機能と契約内容を切り替えます。
               </p>
             )}
-            {subscription?.stripe_customer_id && (
+            {subscription?.stripe_customer_id ? (
               <button
                 type="button"
                 onClick={() => void handleStripePortal()}
@@ -484,6 +484,10 @@ export default function BillingSettingsPage() {
               >
                 {isStripePortalLoading ? '契約管理を開いています...' : '支払方法・契約を管理'}
               </button>
+            ) : (
+              <p className="mt-4 text-sm font-semibold text-slate-600">
+                Stripeの契約情報が未連携のため、支払方法の管理はまだ利用できません。契約手続きの完了後に利用できます。
+              </p>
             )}
           </section>
 

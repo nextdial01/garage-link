@@ -227,6 +227,7 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(portalRoute).not.toContain(".from('store_members')");
     expect(billingPage).toContain("fetch('/api/billing/portal', { method: 'POST' })");
     expect(billingPage).toContain('支払方法・契約を管理');
+    expect(billingPage).toContain('Stripeの契約情報が未連携のため、支払方法の管理はまだ利用できません。');
     expect(stripeClient).toContain("url: 'https://example.invalid/garage-link/stripe-test/portal'");
   });
 
