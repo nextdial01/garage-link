@@ -43,9 +43,9 @@ test.describe('Stripe security controls', () => {
     expect(middleware.indexOf('shouldCheckAdminSecurity')).toBeLessThan(
       middleware.indexOf('const postAuthPath'),
     );
-    expect(middleware.indexOf("from('store_members')")).toBeLessThan(
-      middleware.indexOf("from('memberships')"),
-    );
+    expect(middleware).toContain("service.rpc('admin_email_otp_bootstrap_context'");
+    expect(middleware).not.toContain("from('store_members')");
+    expect(middleware).not.toContain("from('memberships')");
 
     expect(otpForm).toContain("fetch('/api/auth/admin-email-otp/request'");
     expect(otpForm).toContain("fetch('/api/auth/admin-email-otp/verify'");

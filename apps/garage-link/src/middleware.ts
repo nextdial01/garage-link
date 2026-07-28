@@ -66,20 +66,26 @@ function redirectWithSessionCookies(url: URL, source: NextResponse) {
 }
 
 async function requiresAdminSecurity(
-  supabase: ReturnType<typeof createServerClient>,
-  userId: string
+  userId: string,
+  sessionId: string
 ) {
-  const tenantScope = await supabase.rpc('current_user_tenant_ids', {});
-  if (tenantScope.error || !Array.isArray(tenantScope.data) || tenantScope.data.length === 0) return false;
-  const membershipRole = await supabase
-    .from('memberships')
-    .select('role')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .in('tenant_id', tenantScope.data)
-    .limit(10);
-  if (membershipRole.error) return true;
-  return hasEffectiveAdminRole(membershipRole.data ?? [], []);
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+  if (!url || !key) return true;
+  const service = createServiceClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data, error } = await service.rpc('admin_email_otp_bootstrap_context', {
+    p_user_id: userId,
+    // The helper uses this argument as a non-null bootstrap contract. A real
+    // administrator without a JWT session_id is still blocked below because
+    // hasTrustedAdminDevice is never called with this sentinel.
+    p_session_id: sessionId || '00000000-0000-0000-0000-000000000000',
+  });
+  if (error) return true;
+  const context = data && typeof data === 'object' && !Array.isArray(data)
+    ? data as { role?: string }
+    : null;
+  if (!context) return false;
+  return hasEffectiveAdminRole([{ role: context.role ?? '' }], []);
 }
 
 async function hasTrustedAdminDevice(request: NextRequest, userId: string, sessionId: string) {
@@ -149,10 +155,10 @@ export async function middleware(request: NextRequest) {
     const shouldCheckAdminSecurity = isAuthEntry || (!isPublicPath(pathname) && !isSecurityGate(pathname));
 
     if (shouldCheckAdminSecurity) {
-      const adminSecurityRequired = await requiresAdminSecurity(supabase, user.id);
+      const sessionId = typeof claimData?.claims?.session_id === 'string' ? claimData.claims.session_id : '';
+      const adminSecurityRequired = await requiresAdminSecurity(user.id, sessionId);
       if (adminSecurityRequired) {
         const returnPath = isAuthEntry ? '/dashboard' : `${pathname}${request.nextUrl.search}`;
-        const sessionId = typeof claimData?.claims?.session_id === 'string' ? claimData.claims.session_id : '';
         if (!sessionId || !await hasTrustedAdminDevice(request, user.id, sessionId)) {
           const verificationUrl = new URL('/security/email-otp', request.url);
           verificationUrl.searchParams.set('from', returnPath);

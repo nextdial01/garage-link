@@ -5,10 +5,11 @@ const MIGRATION = 'supabase/migrations/20260728000200_auth_billing_release_block
 
 test.describe('AUTH-004 / BILL-003 / CRON-001 release contracts', () => {
   test('OTP bootstrap is canonical, service-only, preview-only and revocable', async () => {
-    const [sql, context, requestRoute] = await Promise.all([
+    const [sql, context, requestRoute, middleware] = await Promise.all([
       readFile(MIGRATION, 'utf8'),
       readFile('src/lib/security/adminEmailOtpServer.ts', 'utf8'),
       readFile('src/app/api/auth/admin-email-otp/request/route.ts', 'utf8'),
+      readFile('src/middleware.ts', 'utf8'),
     ]);
 
     expect(sql).toContain('admin_email_otp_bootstrap_context');
@@ -31,6 +32,9 @@ test.describe('AUTH-004 / BILL-003 / CRON-001 release contracts', () => {
     expect(context).not.toContain("supabase.rpc('current_user_tenant_ids'");
     expect(requestRoute).toContain('getPreviewOtpSinkContext');
     expect(requestRoute).toContain('previewOtp');
+    expect(middleware).toContain("service.rpc('admin_email_otp_bootstrap_context'");
+    expect(middleware).not.toContain(".from('memberships')");
+    expect(middleware).not.toContain("supabase.rpc('current_user_tenant_ids'");
   });
 
   test('service store scope is RPC-only for billing and automation', async () => {

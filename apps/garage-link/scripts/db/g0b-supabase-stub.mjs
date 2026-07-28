@@ -15,7 +15,14 @@ const usedNonces = new Set();
 const activeStores = new Map();
 
 const server = http.createServer((request, response) => {
-  const token = (request.headers.authorization ?? '').replace(/^Bearer /, '');
+  const rawToken = (request.headers.authorization ?? '').replace(/^Bearer /, '');
+  let token = rawToken;
+  if (rawToken.includes('.')) {
+    try {
+      const payload = JSON.parse(Buffer.from(rawToken.split('.')[1], 'base64url').toString('utf8'));
+      token = payload.fixture_token ?? rawToken;
+    } catch {}
+  }
   console.log(`${request.method} ${request.url}`);
   response.setHeader('content-type', 'application/json');
   response.setHeader('access-control-allow-origin', 'http://127.0.0.1:3012');
@@ -41,6 +48,31 @@ const server = http.createServer((request, response) => {
       try { body = JSON.parse(raw || '{}'); } catch {}
       if (request.url.endsWith('/current_user_tenant_ids')) {
         response.end(JSON.stringify([]));
+        return;
+      }
+      if (request.url.endsWith('/admin_email_otp_bootstrap_context')) {
+        // G0-B exercises API/RPC outcomes, not the separate administrator OTP
+        // browser gate. Use non-admin canonical roles here so those requests
+        // reach the route under test without fabricating a trusted device.
+        const roleByUser = {
+          '50000000-0000-0000-0000-000000000001': 'staff',
+          '50000000-0000-0000-0000-000000000004': 'staff',
+          '50000000-0000-0000-0000-000000000005': 'viewer',
+          '50000000-0000-0000-0000-000000000008': 'staff',
+        };
+        if (!body.p_session_id || body.p_user_id === '50000000-0000-0000-0000-000000000006') {
+          response.end('null');
+          return;
+        }
+        response.end(JSON.stringify({
+          tenant_id: '51000000-0000-4000-8000-000000000001',
+          store_id: '51100000-0000-4000-8000-000000000001',
+          role: roleByUser[body.p_user_id] ?? 'viewer',
+          membership_id: '51200000-0000-4000-8000-000000000001',
+          membership_updated_at: '2026-07-28T00:00:00Z',
+          assignment_updated_at: null,
+          store_status: 'active',
+        }));
         return;
       }
       if (request.url.endsWith('/current_user_store_ids')) {

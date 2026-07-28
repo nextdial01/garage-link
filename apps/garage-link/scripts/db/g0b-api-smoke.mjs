@@ -3,13 +3,33 @@ import crypto from 'node:crypto';
 const base = 'http://127.0.0.1:3012/api/deals/fixture-deal/sale';
 
 function cookie(token) {
+  const userId = {
+    'owner-token': '50000000-0000-0000-0000-000000000001',
+    'viewer-token': '50000000-0000-0000-0000-000000000005',
+    'staff-token': '50000000-0000-0000-0000-000000000004',
+    'inactive-token': '50000000-0000-0000-0000-000000000006',
+    'other-tenant-token': '50000000-0000-0000-0000-000000000008',
+    'other-store-token': '50000000-0000-0000-0000-000000000004',
+    'dbfail-token': '50000000-0000-0000-0000-000000000001',
+  }[token];
+  const jwt = [
+    Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url'),
+    Buffer.from(JSON.stringify({
+      sub: userId,
+      role: 'authenticated',
+      session_id: `g0b-${token}-session`,
+      fixture_token: token,
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    })).toString('base64url'),
+    'g0b-fixture-signature',
+  ].join('.');
   const session = {
-    access_token: token,
+    access_token: jwt,
     refresh_token: `${token}-refresh`,
     token_type: 'bearer',
     expires_in: 3600,
     expires_at: Math.floor(Date.now() / 1000) + 3600,
-    user: { id: '50000000-0000-0000-0000-000000000001', aud: 'authenticated', role: 'authenticated' },
+    user: { id: userId, aud: 'authenticated', role: 'authenticated' },
   };
   return `sb-127-auth-token=base64-${Buffer.from(JSON.stringify(session)).toString('base64url')}`;
 }
