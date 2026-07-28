@@ -1,62 +1,42 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-07-28T14:50:10+09:00",
-  "overall": "BLOCKED",
-  "blockedAt": "auth_004_admin_otp_bootstrap_requires_current_migration",
-  "environment": {
-    "databaseMode": "current_controlled_test",
-    "dedicatedStagingRequired": false,
-    "currentLedger": 50,
-    "unexpectedCurrentChanges": 0,
-    "realCustomerData": 0,
-    "realSendTargets": 0
+  "generatedAt": "2026-07-28T16:30:00+09:00",
+  "environment": "vercel-preview-current-test-data-only",
+  "project": "garage-link",
+  "deploymentId": "dpl_6HhqbkJLB3ZyZBYWCte7rCsexwRG",
+  "deploymentUrl": "https://garage-link-3nve15udn-altos-projects-fa55063c.vercel.app",
+  "commit": "97ffe58308371cfd24e2a8840f0ff597e68d6e9c",
+  "currentMigrationLedger": 51,
+  "externalSends": 0,
+  "environmentControls": {
+    "externalSendsDisabled": true,
+    "previewOtpSink": "preview-only",
+    "stripe": "preview-mock",
+    "resendCredential": "production-only",
+    "securityFromEmail": "production-only",
+    "line": "disabled",
+    "lLink": "mock-only",
+    "cron": "fail-closed"
   },
-  "safetyVariables": {
-    "garageExternalSendsDisabled": "configured_production_and_preview",
-    "garageAutomationDisabled": "configured_production_and_preview",
-    "garageStripeTestModeRequired": "configured_production_and_preview",
-    "effectiveOnExistingDeployment": true,
-    "requiresNewDeployment": false
-  },
-  "source": {
-    "branch": "codex/garage-link-release-20260728",
-    "implementationCommit": "0cbae3faabecbdfe47cba395af273995287a2a31",
-    "commit": "16df90b846b278e9e03878e8efb077e8bcf027c8",
-    "committedFiles": 292,
-    "worktreeClean": true,
-    "pushes": 1,
-    "pushResult": "PASS"
-  },
-  "quality": {
-    "security": { "passed": 240, "failed": 0 },
+  "localRegression": {
+    "security": "244/244 PASS",
     "apiSmoke": "PASS",
-    "lLinkMock": "PASS",
+    "lineLinkMock": "PASS",
     "inquiryManagement": "PASS",
     "lint": "PASS",
     "typecheck": "PASS",
-    "productionBuild": "PASS"
+    "productionBuild": "PASS (130 routes)"
   },
-  "runtime": {
-    "previewDeployments": 1,
-    "previewUrl": "https://garage-link-73urei69j-altos-projects-fa55063c.vercel.app",
-    "previewState": "READY",
+  "browser": {
     "publicRoutes": "PASS",
-    "unauthenticatedRouteRejection": "PASS",
-    "buildErrors": 0,
+    "owner": "PASS",
+    "admin": "PASS",
+    "implementer": "PASS",
+    "staff": "PASS",
+    "viewer": "PASS",
+    "previewOtpSink": "PASS",
+    "majorAuthenticatedRoutes": "10/10 PASS",
     "runtimeErrors": 0,
-    "browserRegression": "BLOCKED_AUTH_004_DB_BOOTSTRAP_CYCLE",
-    "qaFixture": {"users":1,"tenants":1,"stores":1,"canonicalMemberships":1,"assignments":1,"subscriptions":1,"cleanup":"BLOCKED_BY_LEAST_PRIVILEGE_ACL"},
-    "productionDeployments": 0,
-    "externalSends": 0
+    "rateLimitObserved": true
   },
-  "fullDiscovery": {
-    "checked": 164,
-    "pass": 127,
-    "remediatable": 24,
-    "operatorRequired": 2,
-    "releaseBlocker": 11,
-    "newCritical": 0,
-    "newHigh": 2,
-    "issues": ["AUTH-004", "BILL-003", "OPS-008", "CRON-001"]
-  }
+  "status": "ENVIRONMENT_REDEPLOY_REQUIRED"
 }
