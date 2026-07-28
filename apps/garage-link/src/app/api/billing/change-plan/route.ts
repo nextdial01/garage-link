@@ -11,8 +11,7 @@ import { assertStripePriceId, getStripeClient } from '@/lib/stripe/client';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
-type MemberRow = { store_id: string; role: string | null };
-type StoreRow = { tenant_id: string | null };
+type MemberRow = { tenant_id: string; store_id: string; role: string | null };
 type SubscriptionRow = {
   id: string;
   company_id: string;
@@ -43,7 +42,7 @@ export async function POST(request: Request) {
 
   const { data: member } = await supabase
     .from<MemberRow>('current_user_active_store_membership')
-    .select('store_id, role')
+    .select('tenant_id, store_id, role')
     .eq('user_id', userData.user.id)
     .eq('status', 'active')
     .single();
@@ -60,8 +59,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'Freeプランへの変更はできません。' }, { status: 400 });
   }
 
-  const { data: store } = await admin.from('stores').select('tenant_id').eq('id', member.store_id).single();
-  const tenantId = (store as StoreRow | null)?.tenant_id;
+  const tenantId = member.tenant_id;
   if (!tenantId) {
     return NextResponse.json({ ok: false, error: '契約会社を特定できません。' }, { status: 400 });
   }

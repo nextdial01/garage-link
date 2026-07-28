@@ -66,9 +66,7 @@ export async function applyGaragePlanFromStripe(input: {
   });
 
   const { data: companyStore, error: storeError } = await admin
-    .from('stores')
-    .select('tenant_id')
-    .eq('id', input.companyId)
+    .rpc('service_resolve_garage_store_scope', { p_store_id: input.companyId })
     .single();
   if (storeError) return { ok: false, reason: 'subscription_store_lookup_failed' };
   const tenantId = (companyStore as { tenant_id: string | null } | null)?.tenant_id ?? null;
@@ -114,9 +112,7 @@ export async function recordStripeCheckoutCompletion(input: {
   }
 
   const { data: companyStore, error: storeError } = await admin
-    .from('stores')
-    .select('tenant_id')
-    .eq('id', input.companyId)
+    .rpc('service_resolve_garage_store_scope', { p_store_id: input.companyId })
     .single();
   if (storeError || !companyStore) throw new Error('checkout_store_lookup_failed');
 

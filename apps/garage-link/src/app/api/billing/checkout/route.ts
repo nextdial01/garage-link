@@ -10,6 +10,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 type StoreMemberRow = {
+  tenant_id: string;
   store_id: string;
   role: string | null;
 };
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
 
   const { data: member, error: memberError } = await supabase
     .from<StoreMemberRow>('current_user_active_store_membership')
-    .select('store_id, role')
+    .select('tenant_id, store_id, role')
     .eq('user_id', userData.user.id)
     .eq('status', 'active')
     .single();
@@ -84,12 +85,10 @@ export async function POST(request: Request) {
   let stripeCustomerId: string | null = null;
   const admin = createAdminClient();
   if (admin) {
-    const { data: activeStore } = await admin.from('stores').select('tenant_id').eq('id', member.store_id).single();
-    const tenantId = (activeStore as { tenant_id: string | null } | null)?.tenant_id;
     const { data: subscriptionRow } = await admin
       .from('company_subscriptions')
       .select('stripe_customer_id, stripe_subscription_id, plan')
-      .eq('tenant_id', tenantId)
+      .eq('tenant_id', member.tenant_id)
       .eq('status', 'active')
       .maybeSingle();
     const existing = subscriptionRow as {
@@ -112,7 +111,7 @@ export async function POST(request: Request) {
         customer_email: userData.user.email ?? undefined,
       };
 
-  const baseUrl = getAppBaseUrl();
+  const baseUrl = getAppBaseUrl(request.url);
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -183,7 +182,7 @@ export async function GET(request: Request) {
 
     const { data: member } = await supabase
       .from<StoreMemberRow>('current_user_active_store_membership')
-      .select('store_id, role')
+      .select('tenant_id, store_id, role')
       .eq('user_id', userData.user.id)
       .eq('status', 'active')
       .eq('store_id', companyId)

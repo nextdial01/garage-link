@@ -6,7 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 type OptionType = 'add_staff' | 'add_store' | 'add_storage';
-type MemberRow = { store_id: string; role: string | null };
+type MemberRow = { tenant_id: string; store_id: string; role: string | null };
 type SubscriptionRow = {
   id: string;
   company_id: string;
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user?.id) return NextResponse.json({ ok: false, error: 'ログインが必要です。' }, { status: 401 });
-  const { data: member } = await supabase.from<MemberRow>('current_user_active_store_membership').select('store_id, role').eq('user_id', userData.user.id).eq('status', 'active').single();
+  const { data: member } = await supabase.from<MemberRow>('current_user_active_store_membership').select('tenant_id, store_id, role').eq('user_id', userData.user.id).eq('status', 'active').single();
   if (!member?.store_id || !['owner', 'admin'].includes(member.role ?? '')) {
     return NextResponse.json({ ok: false, error: '契約を変更する権限がありません。' }, { status: 403 });
   }
@@ -51,8 +51,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'ストレージは10GB単位で追加してください。' }, { status: 400 });
   }
 
-  const { data: store } = await admin.from('stores').select('tenant_id').eq('id', member.store_id).single();
-  const tenantId = (store as { tenant_id: string | null } | null)?.tenant_id;
+  const tenantId = member.tenant_id;
   if (!tenantId) return NextResponse.json({ ok: false, error: '契約会社を特定できません。' }, { status: 400 });
   const { data } = await admin
     .from('company_subscriptions')

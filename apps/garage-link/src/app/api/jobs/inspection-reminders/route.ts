@@ -89,17 +89,15 @@ export async function GET(request: Request) {
   }
   try {
     const { data: storeRows, error: storesError } = await service
-      .from('stores')
-      .select('id, tenant_id')
-      .eq('status', 'active')
-      .not('tenant_id', 'is', null)
-      .order('tenant_id')
-      .order('id');
+      .rpc('service_list_eligible_garage_stores');
     if (storesError) throw new Error('STORE_SCOPE_ENUMERATION_FAILED');
 
     const breakdown: JobBreakdown = { inspection_reminder: 0, followup_candidates: 0 };
     const errors: string[] = [];
-    for (const row of (storeRows ?? []) as StoreScopeRow[]) {
+    for (const row of ((storeRows ?? []) as Array<{ store_id: string; tenant_id: string }>).map((item) => ({
+      id: (item as { store_id: string }).store_id,
+      tenant_id: (item as { tenant_id: string }).tenant_id,
+    })) as StoreScopeRow[]) {
       if (!row.tenant_id) continue;
       const context: GarageTenantContext = await resolveStoreTenantContext(service, {
         expectedTenantId: row.tenant_id,

@@ -14,6 +14,13 @@ export function isStripeTestModeRequired() {
   return enabled('GARAGE_STRIPE_TEST_MODE_REQUIRED');
 }
 
+export function isPreviewStripeMockEnabled() {
+  return process.env.VERCEL_ENV === 'preview'
+    && process.env.NODE_ENV === 'production'
+    && areExternalSendsDisabled()
+    && enabled('GARAGE_STRIPE_MOCK_MODE');
+}
+
 export function isAllowedStripeSecretKey(secretKey: string | undefined) {
   if (!secretKey) return false;
   return !isStripeTestModeRequired() || secretKey.startsWith('sk_test_');

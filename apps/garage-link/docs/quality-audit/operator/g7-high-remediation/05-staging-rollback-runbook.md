@@ -26,3 +26,5 @@
 ## 今回の結果
 
 source push／deploy前停止のためrollback実行なし。Current DBとVercel deploymentの変更0件。Vercelへ追加した3つのsafety variableは新deploymentまで既存runtimeへ影響せず、そのまま維持する。
+
+Full Discovery時点ではPreview `16df90b`がREADY、Productionは`f45b0e9...`を維持しrollback候補deploymentも存在する。追加deployは行っていないためrollback不要。AUTH-004解消後も、DBはforward-onlyを維持し、アプリrollbackでOTP enforcementやcanonical membership保護を外さない。

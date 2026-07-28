@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-28T14:50:10+09:00",
+  "overall": "RELEASE_BLOCKER",
+  "scope": "full_release_discovery_A_to_H",
+  "totals": {
+    "checked": 164,
+    "pass": 127,
+    "remediatable": 24,
+    "operatorRequired": 2,
+    "releaseBlocker": 11
+  },
+  "categories": {
+    "gitAndArtifacts": 17,
+    "vercelEnvironment": 24,
+    "supabaseAndAuth": 27,
+    "previewAuthenticatedFeasibility": 20,
+    "externalSends": 26,
+    "previewRoutes": 17,
+    "productionPrerequisites": 18,
+    "crossCutting": 15
+  },
+  "identity": {
+    "repository": "nextdial01/garage-link",
+    "branch": "codex/garage-link-release-20260728",
+    "localHead": "16df90b846b278e9e03878e8efb077e8bcf027c8",
+    "remoteHead": "16df90b846b278e9e03878e8efb077e8bcf027c8",
+    "previewDeployment": "dpl_7ibhMh1FbTTYrd6wSKffGwAAPtvN",
+    "previewState": "READY",
+    "currentLedger": 50
+  },
+  "blockers": [
+    {
+      "id": "AUTH-004",
+      "severity": "High",
+      "classification": "RELEASE_BLOCKER",
+      "summary": "Canonical admin context lookup is blocked by the OTP pre-request hook before a trusted session can be created.",
+      "requiresCurrentMigration": true
+    },
+    {
+      "id": "BILL-003",
+      "severity": "High",
+      "classification": "REMEDIATABLE",
+      "summary": "Stripe server routes directly select stores with a service identity that lacks that ACL."
+    },
+    {
+      "id": "OPS-008",
+      "severity": "Medium",
+      "classification": "REMEDIATABLE",
+      "summary": "Preview redirect, app URL, test webhook, credential scope and fixture cleanup contracts are incomplete."
+    },
+    {
+      "id": "CRON-001",
+      "severity": "Medium",
+      "classification": "REMEDIATABLE",
+      "summary": "Automation store enumeration uses a service-role direct table read not permitted by Current ACL."
+    }
+  ],
+  "releaseBlockingChecks": [
+    "AUTH-004 canonical admin OTP bootstrap cycle",
+    "Preview-only OTP sink cannot be authorized safely without AUTH-004 helper",
+    "Supabase Preview callback URL is not allowlisted",
+    "Preview NEXT_PUBLIC_APP_URL contract is missing",
+    "Preview Stripe webhook secret/test endpoint contract is incomplete",
+    "Preview email provider credential scope is broader than required",
+    "Role fixture set and least-privilege cleanup are incomplete",
+    "Legacy QA provisioning script writes store_members instead of canonical memberships",
+    "Production authenticated smoke account flow is not established",
+    "BILL-003 service-role stores read conflicts with Current ACL",
+    "CRON-001 automation store enumeration conflicts with Current ACL"
+  ],
+  "safety": {
+    "currentDatabaseWrites": 0,
+    "currentMigrations": 0,
+    "newCommits": 0,
+    "newPushes": 0,
+    "newDeployments": 0,
+    "externalSends": 0,
+    "productionOtpSinkEnabled": false,
+    "rollbackRequired": false
+  },
+  "nextOperatorAction": "Approve one forward-only Current migration batch for a service-role-only canonical admin OTP bootstrap helper and privileged-session revocation; include the scoped automation helper, then run the consolidated app remediation and full regression."
+}

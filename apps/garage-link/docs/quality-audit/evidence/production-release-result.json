@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-28T13:00:00+09:00",
+  "generatedAt": "2026-07-28T14:50:10+09:00",
   "overall": "BLOCKED",
-  "blockedAt": "git_source_publication",
+  "blockedAt": "auth_004_current_migration_required",
   "currentDatabase": {
     "migrationLedger": 50,
     "unexpectedChanges": 0,
@@ -11,11 +11,14 @@
   "staging": {
     "mode": "current_backed_preview",
     "dedicatedSupabaseProjectRequired": false,
-    "sourceCommit": "0cbae3faabecbdfe47cba395af273995287a2a31",
-    "sourcePushed": false,
-    "sourcePushBlocker": "explicit_external_sharing_approval_required",
-    "deploymentCreated": false,
-    "runtimeRegression": "BLOCKED"
+    "sourceCommit": "16df90b846b278e9e03878e8efb077e8bcf027c8",
+    "sourcePushed": true,
+    "sourcePushBlocker": null,
+    "deploymentCreated": true,
+    "deploymentUrl": "https://garage-link-73urei69j-altos-projects-fa55063c.vercel.app",
+    "deploymentState": "READY",
+    "publicAndUnauthenticatedSmoke": "PASS",
+    "runtimeRegression": "BLOCKED_AUTH_004_DB_BOOTSTRAP_CYCLE"
   },
   "production": {
     "deploymentCreated": false,
@@ -25,13 +28,13 @@
   "safety": {
     "vercelEnvironmentChanges": 3,
     "existingSupabaseProjectsPausedOrDeleted": 0,
-    "currentDatabaseWrites": 0,
+    "currentDatabaseWrites": "approved_qa_fixture_only",
     "externalSends": 0,
     "rollbackRequired": false
   },
   "remaining": {
     "productCritical": 0,
-    "productHigh": 0,
-    "operationsBlocker": "release_source_push"
+    "productHigh": 2,
+    "operationsBlocker": "AUTH-004 requires a forward-only Current migration; BILL-003 remains app-remediatable"
   }
 }

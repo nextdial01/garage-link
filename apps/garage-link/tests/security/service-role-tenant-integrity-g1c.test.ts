@@ -72,7 +72,8 @@ test.describe('G1-C service role and tenant/store integrity', () => {
     const reminder = await readFile('src/app/api/jobs/inspection-reminders/route.ts', 'utf8');
     const purge = await readFile('src/app/api/cron/purge-expired-store-data/route.ts', 'utf8');
     expect(reminder).not.toContain('runGenerationJobs(service, null)');
-    expect(reminder).toContain(".select('id, tenant_id')");
+    expect(reminder).toContain(".rpc('service_list_eligible_garage_stores')");
+    expect(reminder).not.toMatch(/\.from\(['"]stores['"]\)/);
     expect(purge).toContain('purge_expired_store_data_for_tenant');
     expect(purge).not.toContain("rpc('purge_expired_store_data')");
   });

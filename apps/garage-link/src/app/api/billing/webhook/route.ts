@@ -140,13 +140,14 @@ async function applyScheduledPlanIfDue(subscriptionId: string, event: Stripe.Eve
 
   const { data, error } = await admin
     .from('company_subscriptions')
-    .select('id, company_id, pending_plan, pending_plan_effective_at, stripe_customer_id')
+    .select('id, tenant_id, company_id, pending_plan, pending_plan_effective_at, stripe_customer_id')
     .eq('stripe_subscription_id', subscriptionId)
     .eq('status', 'active')
     .maybeSingle();
   if (error) throw new Error(error.message);
   const row = data as {
     id: string;
+    tenant_id: string;
     company_id: string;
     pending_plan: string | null;
     pending_plan_effective_at: string | null;
@@ -180,17 +181,10 @@ async function applyScheduledPlanIfDue(subscriptionId: string, event: Stripe.Eve
     .eq('id', row.id);
   if (subscriptionUpdateError) throw new Error(subscriptionUpdateError.message);
 
-  const { data: store, error: storeError } = await admin
-    .from('stores')
-    .select('tenant_id')
-    .eq('id', row.company_id)
-    .single();
-  if (storeError || !store?.tenant_id) throw new Error(storeError?.message ?? 'tenant_not_found');
-
   const { error: requestUpdateError } = await admin
     .from('plan_change_requests')
     .update({ status: 'completed', completed_at: new Date().toISOString() })
-    .eq('tenant_id', store.tenant_id)
+    .eq('tenant_id', row.tenant_id)
     .eq('request_type', 'plan_change')
     .eq('requested_plan', row.pending_plan)
     .eq('status', 'approved');

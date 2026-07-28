@@ -65,6 +65,7 @@ psql_file "$FRESH" "$APP_ROOT/supabase/tests/g4b_delivered_sale_correction_regre
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g1c_tenant_integrity_regression.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g1c_relation_contract_assertions.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g7_high_remediation_regression.sql"
+psql_file "$FRESH" "$APP_ROOT/supabase/tests/release_blocker_batch_regression.sql"
 "$APP_ROOT/scripts/db/run-g1d-concurrency.sh" "$FRESH"
 "$APP_ROOT/scripts/db/run-g1d-process-kill.sh" "$FRESH"
 "$APP_ROOT/scripts/db/run-g4a-concurrency.sh" "$FRESH"
@@ -98,6 +99,7 @@ psql_file "$FRESH" "$APP_ROOT/supabase/tests/g4b_delivered_sale_correction_regre
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g1c_tenant_integrity_regression.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g1c_relation_contract_assertions.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g7_high_remediation_regression.sql"
+psql_file "$FRESH" "$APP_ROOT/supabase/tests/release_blocker_batch_regression.sql"
 
 echo '[g0b] upgrade path'
 start_db "$UPGRADE"
@@ -111,6 +113,7 @@ psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/g1c_relation_contract_assertions.
 psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/g1a_fixture.sql"
 psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/g1d_active_store_regression.sql"
 psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/g7_high_remediation_regression.sql"
+psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/release_blocker_batch_regression.sql"
 
 echo '[g0b] backup and restore integrity'
 docker exec "$FRESH" pg_dump -U supabase_admin -d postgres -Fc -n public -n supabase_migrations > "$TMP_DIR/app.dump"
@@ -131,6 +134,7 @@ psql_file "$RESTORE" "$APP_ROOT/supabase/tests/g4b_delivered_sale_correction_reg
 psql_file "$RESTORE" "$APP_ROOT/supabase/tests/g1c_tenant_integrity_regression.sql"
 psql_file "$RESTORE" "$APP_ROOT/supabase/tests/g1c_relation_contract_assertions.sql"
 psql_file "$RESTORE" "$APP_ROOT/supabase/tests/g7_high_remediation_regression.sql"
+psql_file "$RESTORE" "$APP_ROOT/supabase/tests/release_blocker_batch_regression.sql"
 
 for name in "$FRESH" "$RESTORE"; do
   docker exec "$name" psql -X -Atq -U postgres -d postgres -f - < "$APP_ROOT/supabase/tests/g0b_catalog_fingerprint.sql" > "$TMP_DIR/${name}.fingerprint"

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-28T13:00:00+09:00",
+  "generatedAt": "2026-07-28T14:50:10+09:00",
   "overall": "BLOCKED",
-  "blockedAt": "git_source_publication",
+  "blockedAt": "auth_004_admin_otp_bootstrap_requires_current_migration",
   "environment": {
     "databaseMode": "current_controlled_test",
     "dedicatedStagingRequired": false,
@@ -15,16 +15,17 @@
     "garageExternalSendsDisabled": "configured_production_and_preview",
     "garageAutomationDisabled": "configured_production_and_preview",
     "garageStripeTestModeRequired": "configured_production_and_preview",
-    "effectiveOnExistingDeployment": false,
-    "requiresNewDeployment": true
+    "effectiveOnExistingDeployment": true,
+    "requiresNewDeployment": false
   },
   "source": {
     "branch": "codex/garage-link-release-20260728",
-    "commit": "0cbae3faabecbdfe47cba395af273995287a2a31",
+    "implementationCommit": "0cbae3faabecbdfe47cba395af273995287a2a31",
+    "commit": "16df90b846b278e9e03878e8efb077e8bcf027c8",
     "committedFiles": 292,
     "worktreeClean": true,
-    "pushes": 0,
-    "pushResult": "rejected_external_sharing_requires_explicit_approval"
+    "pushes": 1,
+    "pushResult": "PASS"
   },
   "quality": {
     "security": { "passed": 240, "failed": 0 },
@@ -36,10 +37,26 @@
     "productionBuild": "PASS"
   },
   "runtime": {
-    "previewDeployments": 0,
-    "previewUrl": null,
-    "browserRegression": "BLOCKED",
+    "previewDeployments": 1,
+    "previewUrl": "https://garage-link-73urei69j-altos-projects-fa55063c.vercel.app",
+    "previewState": "READY",
+    "publicRoutes": "PASS",
+    "unauthenticatedRouteRejection": "PASS",
+    "buildErrors": 0,
+    "runtimeErrors": 0,
+    "browserRegression": "BLOCKED_AUTH_004_DB_BOOTSTRAP_CYCLE",
+    "qaFixture": {"users":1,"tenants":1,"stores":1,"canonicalMemberships":1,"assignments":1,"subscriptions":1,"cleanup":"BLOCKED_BY_LEAST_PRIVILEGE_ACL"},
     "productionDeployments": 0,
     "externalSends": 0
+  },
+  "fullDiscovery": {
+    "checked": 164,
+    "pass": 127,
+    "remediatable": 24,
+    "operatorRequired": 2,
+    "releaseBlocker": 11,
+    "newCritical": 0,
+    "newHigh": 2,
+    "issues": ["AUTH-004", "BILL-003", "OPS-008", "CRON-001"]
   }
 }

@@ -14,6 +14,10 @@
 4. release commit前にsecret/backup除外、全品質検査、working tree cleanを機械確認する。
 5. Preview fixtureは明確なtest命名とcleanup runbookを持ち、実顧客投入前のCurrentだけで使用する。
 6. 外部送信解禁はproduction smokeとmonitoring後の別Gateにする。
+7. 管理者OTPは「認可context取得→challenge作成→trusted session」のbootstrap契約をDB/API/Previewの統合fixtureでrelease前に検証する。
+8. service roleのtable直接参照を静的検査とCurrent ACL contractで照合し、許可されない参照をCIでFAILにする。
+9. Auth redirect、Preview app URL、webhook secret、credential scopeをenvironment contractとして機械検査し、Preview作成前に不足を列挙する。
+10. release discoveryはGit、environment、Auth、外部送信、全route、rollbackまで横断してから修正Batchへ入る。最初の症状だけを局所修正しない。
 
 ## 今回の安全成果
 
@@ -22,3 +26,7 @@
 - Production/L-LINK既存projectのpause/delete/流用0
 - Stripe/LINE/L-LINK/email/Push送信0
 - rollback不要
+
+## Full Discoveryで得た追加反省
+
+管理者OTPが「配送手段不足」だけに見えていたが、実際はDB pre-request enforcementがcanonical admin context取得を先に拒否するbootstrap循環だった。sinkのUI/APIだけを実装していれば認可を弱める危険な回避へ進むところだった。また、service roleを安全の同義語として扱わずACLを実環境と照合したことで、StripeとCronの直接`stores`参照もProduction直前に発見できた。今後は機能テストPASSに加え、runtime identityごとのDB grant contractをrelease Gateへ固定する。

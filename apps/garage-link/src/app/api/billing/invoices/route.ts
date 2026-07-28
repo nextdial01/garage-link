@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 type StoreMemberRow = {
+  tenant_id: string;
   store_id: string;
   role: string | null;
 };
@@ -18,7 +19,7 @@ export async function GET() {
 
   const { data: member, error: memberError } = await supabase
     .from<StoreMemberRow>('current_user_active_store_membership')
-    .select('store_id, role')
+    .select('tenant_id, store_id, role')
     .eq('user_id', userData.user.id)
     .eq('status', 'active')
     .single();
@@ -36,12 +37,7 @@ export async function GET() {
     return NextResponse.json({ ok: true, invoices: [], state: 'not_configured' });
   }
 
-  const { data: activeStore } = await admin
-    .from('stores')
-    .select('tenant_id')
-    .eq('id', member.store_id)
-    .single();
-  const tenantId = (activeStore as { tenant_id: string | null } | null)?.tenant_id;
+  const tenantId = member.tenant_id;
   if (!tenantId) {
     return NextResponse.json({ ok: false, error: '契約会社を特定できません。' }, { status: 500 });
   }

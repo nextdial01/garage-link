@@ -3,22 +3,21 @@ import { getStripeClient } from '@/lib/stripe/client';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
-type StoreMemberRow = { store_id: string; role: string | null };
+type StoreMemberRow = { tenant_id: string; store_id: string; role: string | null };
 
 export async function GET(request: Request, context: { params: Promise<{ invoiceId: string }> }) {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user?.id) return Response.json({ error: 'ログインが必要です。' }, { status: 401 });
 
-  const { data: member } = await supabase.from<StoreMemberRow>('current_user_active_store_membership').select('store_id, role').eq('user_id', userData.user.id).eq('status', 'active').single();
+  const { data: member } = await supabase.from<StoreMemberRow>('current_user_active_store_membership').select('tenant_id, store_id, role').eq('user_id', userData.user.id).eq('status', 'active').single();
   if (!member?.store_id || (member.role !== 'owner' && member.role !== 'admin')) return Response.json({ error: '権限がありません。' }, { status: 403 });
 
   const admin = createAdminClient();
   const stripe = getStripeClient();
   if (!admin || !stripe) return Response.json({ error: '請求機能が設定されていません。' }, { status: 503 });
 
-  const { data: activeStore } = await admin.from('stores').select('tenant_id').eq('id', member.store_id).single();
-  const tenantId = (activeStore as { tenant_id: string | null } | null)?.tenant_id;
+  const tenantId = member.tenant_id;
   if (!tenantId) return Response.json({ error: '契約会社を特定できません。' }, { status: 500 });
   const { data: subscription } = await admin.from('company_subscriptions').select('stripe_customer_id').eq('tenant_id', tenantId).order('updated_at', { ascending: false }).limit(1).maybeSingle();
   const customerId = (subscription as { stripe_customer_id?: string | null } | null)?.stripe_customer_id;

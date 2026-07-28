@@ -439,6 +439,19 @@
         "20260728000050"
       ],
       "checksum": "5a24e58c397f585055fbe52242b8e45cc58dea1dcd9882e8ce81e00d93434166"
+    },
+    {
+      "version": "20260728000200",
+      "name": "auth_billing_release_blocker_batch",
+      "file": "../migrations/20260728000200_auth_billing_release_blocker_batch.sql",
+      "kind": "incremental",
+      "dependsOn": [
+        "20260726000100",
+        "20260726000200",
+        "20260727000100",
+        "20260728000100"
+      ],
+      "checksum": "2960b3884000d37e8027a37c48bc66dafeb85c829e1faab190720379576398b6"
     }
   ],
   "excluded": [
@@ -459,6 +472,11 @@
     }
   ],
   "rollbacks": [
+    {
+      "version": "20260728000200",
+      "file": "../rollback/20260728000200_auth_billing_release_blocker_batch.down.sql",
+      "checksum": "6cf781bf25bdc4688429f504038121f83a7bc1dc288026627b877ddce4029497"
+    },
     {
       "version": "20260728000100",
       "file": "../rollback/20260728000100_high_remediation_batch.down.sql",

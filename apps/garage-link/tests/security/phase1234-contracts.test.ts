@@ -78,7 +78,8 @@ test.describe('Phase 4 ジョブ配線: generate_followup_candidate_events の�
   test('GET/POSTともに共通ヘルパー経由でstore_idスコープを渡す', async () => {
     const src = await readFile('src/app/api/jobs/inspection-reminders/route.ts', 'utf8');
     expect(src).not.toContain('runGenerationJobs(service, null)');
-    expect(src).toContain(".select('id, tenant_id')");
+    expect(src).toContain(".rpc('service_list_eligible_garage_stores')");
+    expect(src).not.toMatch(/\.from\(['"]stores['"]\)/);
     expect(src).toContain('expectedTenantId: member.tenant_id');
     expect(src).toContain('runGenerationJobs(service, context)');
   });
