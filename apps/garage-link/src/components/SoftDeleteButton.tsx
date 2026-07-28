@@ -66,7 +66,7 @@ export default function SoftDeleteButton({
       }
 
       const { data: member } = await supabase
-        .from<StoreMemberRow>('store_members')
+        .from<StoreMemberRow>('memberships')
         .select('store_id, role, display_name, email')
         .eq('user_id', userData.user.id)
         .single();

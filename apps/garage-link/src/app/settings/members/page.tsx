@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/client';
 
 type StoreMemberRow = {
   id: string;
+  tenant_id: string;
   store_id: string;
   user_id: string | null;
   role: string | null;
@@ -45,29 +46,9 @@ type NewMemberForm = {
   memo: string;
 };
 
-type MemberInsert = {
-  store_id: string;
-  user_id: string | null;
-  email: string | null;
-  display_name: string | null;
-  role: string;
-  status: string;
-  invited_at: string;
-  memo: string | null;
-};
-
-type MemberUpdate = {
-  display_name: string | null;
-  role: string;
-  status: string;
-  memo: string | null;
-};
-
 const allowedViewRoles = ['owner', 'admin'];
 const editableRoles = ['owner', 'admin'];
 const roleOptions = ['owner', 'admin', 'implementer', 'staff', 'viewer'];
-const addRoleOptions = ['admin', 'implementer', 'staff', 'viewer'];
-const statusOptions = ['active', 'invited', 'suspended'];
 
 const roleLabels: Record<string, string> = {
   owner: 'オーナー',
@@ -81,6 +62,8 @@ const statusLabels: Record<string, string> = {
   active: '有効',
   invited: '招待中',
   suspended: '停止中',
+  inactive: '無効',
+  cancelled: '取消済み',
 };
 
 const roleDescriptions = [
@@ -157,6 +140,7 @@ function mapMember(row: StoreMemberRow): MemberFormRow {
 }
 
 export default function MemberSettingsPage() {
+  const [tenantId, setTenantId] = useState('');
   const [storeId, setStoreId] = useState('');
   const [currentUserId, setCurrentUserId] = useState('');
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
@@ -170,9 +154,11 @@ export default function MemberSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [inviteLink, setInviteLink] = useState('');
 
   const canView = allowedViewRoles.includes(currentRole);
   const canEdit = editableRoles.includes(currentRole);
+  const addRoleOptions = currentRole === 'owner' ? roleOptions : ['staff', 'viewer'];
   const activeCount = useMemo(() => members.filter((member) => member.status === 'active').length, [members]);
   const invitedCount = useMemo(() => members.filter((member) => member.status === 'invited').length, [members]);
 
@@ -194,13 +180,24 @@ export default function MemberSettingsPage() {
       setCurrentUserId(userData.user.id);
       setCurrentUserEmail(userData.user.email ?? null);
 
-      const { data: currentMember, error: currentMemberError } = await supabase
-        .from<StoreMemberRow>('store_members')
-        .select('id, store_id, user_id, role, display_name, email, status, invited_at, joined_at, last_login_at, memo')
-        .eq('user_id', userData.user.id)
-        .single();
-      if (currentMemberError || !currentMember?.store_id) throw new Error('所属店舗が見つかりません。');
+      const { data: accessibleTenantIds, error: scopeError } = await supabase.rpc('current_user_tenant_ids', {});
+      if (scopeError || !Array.isArray(accessibleTenantIds) || accessibleTenantIds.length === 0) {
+        throw new Error('有効な所属が見つかりません。');
+      }
 
+      const { data: currentMember, error: currentMemberError } = await supabase
+        .from<StoreMemberRow>('current_user_active_store_membership')
+        .select('id, tenant_id, store_id, user_id, role, display_name, email, status, invited_at, joined_at, last_login_at, memo')
+        .eq('user_id', userData.user.id)
+        .eq('status', 'active')
+        .single();
+      if (
+        currentMemberError
+        || !currentMember?.store_id
+        || !accessibleTenantIds.includes(currentMember.tenant_id)
+      ) throw new Error('所属店舗が見つかりません。');
+
+      setTenantId(currentMember.tenant_id);
       setStoreId(currentMember.store_id);
       setCurrentRole(currentMember.role ?? '');
       setCurrentDisplayName(currentMember.display_name);
@@ -217,9 +214,9 @@ export default function MemberSettingsPage() {
       }
 
       const { data, error } = await supabase
-        .from<StoreMemberRow>('store_members')
-        .select('id, store_id, user_id, role, display_name, email, status, invited_at, joined_at, last_login_at, memo')
-        .eq('store_id', currentMember.store_id)
+        .from<StoreMemberRow>('memberships')
+        .select('id, tenant_id, store_id, user_id, role, display_name, email, status, invited_at, joined_at, last_login_at, memo')
+        .eq('tenant_id', currentMember.tenant_id)
         .order('created_at', { ascending: true });
       if (error) throw new Error(error.message);
       setMembers((data ?? []).map(mapMember));
@@ -243,8 +240,9 @@ export default function MemberSettingsPage() {
       setIsSaving(true);
       setErrorMessage('');
       setSuccessMessage('');
+      setInviteLink('');
       if (!canEdit) throw new Error('メンバーを追加する権限がありません。');
-      if (!storeId) throw new Error('所属店舗が見つかりません。');
+      if (!tenantId || !storeId) throw new Error('所属店舗が見つかりません。');
       if (!newMember.email.trim()) throw new Error('メールアドレスを入力してください。');
       if (!canAddStaff(subscription)) {
         throw new Error('Freeプランではスタッフ追加はできません。プラン変更をご検討ください。');
@@ -255,18 +253,24 @@ export default function MemberSettingsPage() {
       }
 
       const supabase = createClient();
-      const payload: MemberInsert = {
-        store_id: storeId,
-        user_id: null,
-        email: newMember.email.trim(),
-        display_name: toNullableText(newMember.display_name),
-        role: newMember.role,
-        status: 'invited',
-        invited_at: new Date().toISOString(),
-        memo: toNullableText(newMember.memo),
-      };
-      const { error } = await supabase.from<MemberInsert>('store_members').insert(payload);
+      const { data: inviteData, error } = await supabase.rpc('invite_membership', {
+        p_tenant_id: tenantId,
+        p_store_id: storeId,
+        p_email: newMember.email.trim(),
+        p_role: newMember.role,
+        p_display_name: toNullableText(newMember.display_name),
+        p_memo: toNullableText(newMember.memo),
+      });
       if (error) throw new Error(error.message);
+      const inviteResult = (Array.isArray(inviteData) ? inviteData[0] : inviteData) as {
+        membership_id?: string;
+        invite_token?: string | null;
+      } | null;
+      if (!inviteResult?.membership_id || !inviteResult.invite_token) {
+        throw new Error('招待リンクを発行できませんでした。再招待を実行してください。');
+      }
+      const inviteUrl = `${window.location.origin}/membership/accept#membership=${encodeURIComponent(inviteResult.membership_id)}&token=${encodeURIComponent(inviteResult.invite_token)}`;
+      setInviteLink(inviteUrl);
 
       await logAudit({
         supabase,
@@ -277,17 +281,16 @@ export default function MemberSettingsPage() {
         userDisplayName: currentDisplayName,
         action: 'create',
         targetType: 'store_member',
-        targetLabel: newMember.email.trim(),
+        targetId: inviteResult.membership_id,
+        targetLabel: 'membership_invitation',
         afterData: {
-          email: newMember.email.trim(),
-          display_name: newMember.display_name,
           role: newMember.role,
           status: 'invited',
         },
       });
 
       setNewMember(emptyNewMember);
-      setSuccessMessage('メンバー予定者を追加しました。招待メール送信は次工程で実装します。');
+      setSuccessMessage('招待を作成しました。下のリンクを対象者へ安全な方法で共有してください。');
       await loadMembers();
     } catch (error) {
       setErrorMessage(toUserErrorMessage(error, 'メンバー追加に失敗しました。'));
@@ -302,27 +305,25 @@ export default function MemberSettingsPage() {
       setErrorMessage('');
       setSuccessMessage('');
       if (!canEdit) throw new Error('メンバーを編集する権限がありません。');
-      if (member.user_id === currentUserId && currentRole === 'owner' && member.role !== 'owner') {
-        throw new Error('オーナー自身の権限はこの画面では下げられません。');
-      }
-      if (member.role === 'viewer' && member.user_id === currentUserId) {
-        throw new Error('自分自身の権限を閲覧のみに変更することはできません。');
-      }
-
       const supabase = createClient();
       const beforeMember = members.find((item) => item.id === member.id);
-      const payload: MemberUpdate = {
-        display_name: toNullableText(member.display_name),
-        role: member.role,
-        status: member.status,
-        memo: toNullableText(member.memo),
-      };
-      const { error } = await supabase
-        .from<MemberUpdate>('store_members')
-        .update(payload)
-        .eq('id', member.id)
-        .eq('store_id', storeId);
-      if (error) throw new Error(error.message);
+      if (!beforeMember) throw new Error('更新対象が見つかりません。');
+
+      if (member.role !== beforeMember.role) {
+        const { error } = await supabase.rpc('change_membership_role', {
+          p_membership_id: member.id,
+          p_role: member.role,
+        });
+        if (error) throw new Error(error.message);
+      }
+
+      if (member.status !== beforeMember.status) {
+        const rpcName = beforeMember.status === 'invited'
+          ? 'cancel_membership_invite'
+          : 'deactivate_membership';
+        const { error } = await supabase.rpc(rpcName, { p_membership_id: member.id });
+        if (error) throw new Error(error.message);
+      }
 
       await logAudit({
         supabase,
@@ -334,18 +335,14 @@ export default function MemberSettingsPage() {
         action: 'change_role',
         targetType: 'store_member',
         targetId: member.id,
-        targetLabel: member.email || member.display_name,
+        targetLabel: 'membership',
         beforeData: beforeMember ? {
-          display_name: beforeMember.display_name,
           role: beforeMember.role,
           status: beforeMember.status,
-          memo: beforeMember.memo,
         } : null,
         afterData: {
-          display_name: member.display_name,
           role: member.role,
           status: member.status,
-          memo: member.memo,
         },
       });
 
@@ -413,7 +410,14 @@ export default function MemberSettingsPage() {
             {canEdit ? (
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                 <h3 className="text-lg font-bold text-slate-950">メンバー追加</h3>
-                <p className="mt-1 text-sm text-slate-500">Supabase Authへの招待メール送信はまだ行わず、店舗内メンバー予定者として登録します。</p>
+                <p className="mt-1 text-sm text-slate-500">招待リンクを発行します。メールの自動送信は行いません。</p>
+                {inviteLink && (
+                  <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+                    <p className="text-sm font-bold text-blue-900">今回だけ表示される招待リンク</p>
+                    <p className="mt-2 break-all text-xs text-blue-800">{inviteLink}</p>
+                    <button type="button" className="mt-3 rounded-lg bg-blue-700 px-3 py-2 text-sm font-bold text-white" onClick={() => void navigator.clipboard.writeText(inviteLink)}>リンクをコピー</button>
+                  </div>
+                )}
                 <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <label>
                     <span className="text-sm font-bold text-slate-700">メールアドレス</span>
@@ -461,14 +465,20 @@ export default function MemberSettingsPage() {
                       <tr><td className="px-3 py-5 text-slate-500" colSpan={9}>メンバーはまだ登録されていません。</td></tr>
                     ) : members.map((member) => {
                       const isCurrentUser = member.user_id === currentUserId;
-                      const isOwner = member.role === 'owner';
-                      const roleSelectOptions = isOwner ? ['owner'] : roleOptions;
+                      const canManageTarget = currentRole === 'owner'
+                        || (currentRole === 'admin' && ['staff', 'viewer'].includes(member.role));
+                      const roleSelectOptions = currentRole === 'admin' ? ['staff', 'viewer'] : roleOptions;
+                      const statusOptions = member.status === 'active'
+                        ? ['active', 'inactive']
+                        : member.status === 'invited'
+                          ? ['invited', 'cancelled']
+                          : [member.status];
                       return (
                         <tr key={member.id} className="hover:bg-slate-50">
-                          <td className="px-3 py-3"><input disabled={!canEdit} className={tableInputClass} value={member.display_name} onChange={(event) => updateMember(member.id, 'display_name', event.target.value)} /></td>
+                          <td className="px-3 py-3"><input disabled className={tableInputClass} value={member.display_name} aria-label="表示名（招待後は変更不可）" /></td>
                           <td className="px-3 py-3 font-semibold text-slate-700">{displayValue(member.email)}</td>
                           <td className="px-3 py-3">
-                            <select disabled={!canEdit || isOwner} className={tableInputClass} value={member.role} onChange={(event) => updateMember(member.id, 'role', event.target.value)}>
+                            <select disabled={!canEdit || !canManageTarget} className={tableInputClass} value={member.role} onChange={(event) => updateMember(member.id, 'role', event.target.value)}>
                               {roleSelectOptions.map((role) => <option key={role} value={role}>{roleLabels[role]}</option>)}
                             </select>
                             <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset ${roleBadgeClass(member.role)}`}>
@@ -476,7 +486,7 @@ export default function MemberSettingsPage() {
                             </span>
                           </td>
                           <td className="px-3 py-3">
-                            <select disabled={!canEdit} className={tableInputClass} value={member.status} onChange={(event) => updateMember(member.id, 'status', event.target.value)}>
+                            <select disabled={!canEdit || !canManageTarget || !['active', 'invited'].includes(member.status)} className={tableInputClass} value={member.status} onChange={(event) => updateMember(member.id, 'status', event.target.value)}>
                               {statusOptions.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}
                             </select>
                             <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ring-1 ring-inset ${statusBadgeClass(member.status)}`}>
@@ -486,10 +496,10 @@ export default function MemberSettingsPage() {
                           <td className="px-3 py-3">{formatDateTime(member.invited_at)}</td>
                           <td className="px-3 py-3">{formatDateTime(member.joined_at)}</td>
                           <td className="px-3 py-3">{formatDateTime(member.last_login_at)}</td>
-                          <td className="px-3 py-3"><input disabled={!canEdit} className={tableInputClass} value={member.memo} onChange={(event) => updateMember(member.id, 'memo', event.target.value)} /></td>
+                          <td className="px-3 py-3"><input disabled className={tableInputClass} value={member.memo} aria-label="メモ（招待後は変更不可）" /></td>
                           <td className="px-3 py-3">
                             {isCurrentUser && <p className="mb-2 text-xs font-semibold text-amber-700">自分自身の権限変更に注意</p>}
-                            <button type="button" disabled={!canEdit || isSaving} onClick={() => void handleSaveMember(member)} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-700 disabled:bg-slate-300">
+                            <button type="button" disabled={!canEdit || !canManageTarget || isSaving} onClick={() => void handleSaveMember(member)} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-700 disabled:bg-slate-300">
                               保存
                             </button>
                           </td>

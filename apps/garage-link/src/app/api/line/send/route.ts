@@ -262,9 +262,10 @@ export async function POST(request: Request) {
   const currentDraft = draft;
 
   const { data: member, error: memberError } = await supabase
-    .from<StoreMemberRow>('store_members')
+    .from<StoreMemberRow>('current_user_active_store_membership')
     .select('store_id, role, display_name, email')
     .eq('user_id', userData.user.id)
+    .eq('status', 'active')
     .single();
 
   if (memberError || !member?.store_id || member.store_id !== currentDraft.store_id) {

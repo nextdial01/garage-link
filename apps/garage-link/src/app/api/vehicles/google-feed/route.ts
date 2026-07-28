@@ -1,6 +1,10 @@
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { googleVehicleFeedCsv, type FeedVehicle } from '@/lib/vehicles/vehicle-feed';
+import {
+  resolveStoreTenantContext,
+  type GarageTenantContext,
+} from '@/lib/security/garageTenantContext';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +25,20 @@ export async function GET(request: Request) {
   if (!url || !key) return NextResponse.json({ ok: false, error: '在庫フィードのサーバー設定が未完了です。' }, { status: 503 });
   const supabase = createServiceClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   const storeId = process.env.VEHICLE_FEED_STORE_ID;
-  if (!storeId) return NextResponse.json({ ok: false, error: '在庫フィードの店舗設定が未完了です。' }, { status: 503 });
-  const { data: store, error: storeError } = await supabase.from('stores').select('id, name, address').eq('id', storeId).single();
+  const tenantId = process.env.VEHICLE_FEED_TENANT_ID;
+  if (!storeId || !tenantId) return NextResponse.json({ ok: false, error: '在庫フィードの店舗設定が未完了です。' }, { status: 503 });
+  let context: GarageTenantContext;
+  try {
+    context = await resolveStoreTenantContext(supabase, {
+      expectedTenantId: tenantId,
+      storeId,
+      source: 'worker',
+      correlationId: request.headers.get('x-correlation-id')?.slice(0, 80) || crypto.randomUUID(),
+    });
+  } catch {
+    return NextResponse.json({ ok: false, error: '在庫フィードの店舗scopeが一致しません。' }, { status: 403 });
+  }
+  const { data: store, error: storeError } = await supabase.from('stores').select('id, name, address').eq('id', context.storeId!).eq('tenant_id', context.tenantId).single();
   if (storeError || !store) return NextResponse.json({ ok: false, error: '掲載店舗が見つかりません。' }, { status: 404 });
   const { data, error } = await supabase.from('vehicles').select('id, vin, management_no, maker, model_name, grade, model_year, mileage_km, color, total_price, base_price, description, status, location_name, listing_price, updated_at, deleted_at').eq('store_id', store.id).eq('is_archived', false).order('updated_at', { ascending: false });
   if (error) return NextResponse.json({ ok: false, error: 'Google向け在庫フィードを作成できませんでした。' }, { status: 500 });

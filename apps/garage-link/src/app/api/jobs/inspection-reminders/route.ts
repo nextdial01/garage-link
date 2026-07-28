@@ -2,6 +2,12 @@ import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logServerError } from '@/lib/observability/logServerError';
+import {
+  resolveStoreTenantContext,
+  type GarageTenantContext,
+  type GarageTenantRole,
+} from '@/lib/security/garageTenantContext';
+import { isAutomationDisabled } from '@/lib/security/runtimeSafety';
 
 // 顧客フォローイベント生成ジョブ。
 // - cron / バッチ実行: Authorization: Bearer ${CRON_SECRET} を付けると全店舗を処理。
@@ -17,7 +23,8 @@ import { logServerError } from '@/lib/observability/logServerError';
 // 今回は実通信を実装せず、既存 pending の自動 skip も行わない（設計メモのみ）。
 export const dynamic = 'force-dynamic';
 
-type StoreMemberRow = { store_id: string; role: string | null };
+type StoreMemberRow = { tenant_id: string; store_id: string; role: string | null };
+type StoreScopeRow = { id: string; tenant_id: string };
 type JobBreakdown = { inspection_reminder: number; followup_candidates: number };
 
 function serviceSupabase() {
@@ -39,14 +46,15 @@ function isCronRequest(request: Request) {
 // （それぞれ独立したトランザクションのため、部分成功を握り潰さず呼び出し元へ伝える）。
 async function runGenerationJobs(
   service: NonNullable<ReturnType<typeof serviceSupabase>>,
-  storeId: string | null
+  context: GarageTenantContext
 ): Promise<{ breakdown: JobBreakdown; errors: string[] }> {
+  if (!context.storeId) throw new Error('STORE_CONTEXT_REQUIRED');
   const errors: string[] = [];
   const breakdown: JobBreakdown = { inspection_reminder: 0, followup_candidates: 0 };
 
   const { data: inspectionData, error: inspectionError } = await service.rpc(
     'generate_inspection_reminder_events',
-    { p_store_id: storeId }
+    { p_store_id: context.storeId }
   );
   if (inspectionError) {
     errors.push(inspectionError.message);
@@ -56,7 +64,7 @@ async function runGenerationJobs(
 
   const { data: followupData, error: followupError } = await service.rpc(
     'generate_followup_candidate_events',
-    { p_store_id: storeId }
+    { p_store_id: context.storeId }
   );
   if (followupError) {
     errors.push(followupError.message);
@@ -69,6 +77,9 @@ async function runGenerationJobs(
 
 // Vercel Cron は GET で叩く（CRON_SECRET設定時は Authorization: Bearer を自動付与）。全店舗を処理。
 export async function GET(request: Request) {
+  if (isAutomationDisabled()) {
+    return NextResponse.json({ ok: false, error: '自動処理は停止中です。', code: 'automation_disabled' }, { status: 503 });
+  }
   const service = serviceSupabase();
   if (!service) {
     return NextResponse.json({ ok: false, error: 'サーバー設定が未設定です。', code: 'config_missing' }, { status: 500 });
@@ -77,7 +88,30 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: '認証が必要です。', code: 'unauthorized' }, { status: 401 });
   }
   try {
-    const { breakdown, errors } = await runGenerationJobs(service, null);
+    const { data: storeRows, error: storesError } = await service
+      .from('stores')
+      .select('id, tenant_id')
+      .eq('status', 'active')
+      .not('tenant_id', 'is', null)
+      .order('tenant_id')
+      .order('id');
+    if (storesError) throw new Error('STORE_SCOPE_ENUMERATION_FAILED');
+
+    const breakdown: JobBreakdown = { inspection_reminder: 0, followup_candidates: 0 };
+    const errors: string[] = [];
+    for (const row of (storeRows ?? []) as StoreScopeRow[]) {
+      if (!row.tenant_id) continue;
+      const context: GarageTenantContext = await resolveStoreTenantContext(service, {
+        expectedTenantId: row.tenant_id,
+        storeId: row.id,
+        source: 'cron',
+        correlationId: `${crypto.randomUUID()}:${row.id}`,
+      });
+      const result = await runGenerationJobs(service, context);
+      breakdown.inspection_reminder += result.breakdown.inspection_reminder;
+      breakdown.followup_candidates += result.breakdown.followup_candidates;
+      errors.push(...result.errors.map(() => `store:${row.id}:generation_failed`));
+    }
     if (errors.length > 0) {
       // 一部のRPCが未適用（例: 040未適用でfunction不在）でも、成功した分の生成結果は握り潰さない。
       logServerError('inspection_job_partial_failure', { route: '/api/jobs/inspection-reminders', method: 'GET', details: { scope: 'all_stores', errors } }, new Error(errors.join(' / ')));
@@ -108,9 +142,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'ログイン情報を取得できませんでした。', code: 'unauthorized' }, { status: 401 });
   }
   const { data: member, error: memberError } = await supabase
-    .from<StoreMemberRow>('store_members')
-    .select('store_id, role')
+    .from<StoreMemberRow>('current_user_active_store_membership')
+    .select('tenant_id, store_id, role')
     .eq('user_id', userData.user.id)
+    .eq('status', 'active')
     .single();
   if (memberError || !member?.store_id) {
     return NextResponse.json({ ok: false, error: '所属店舗を取得できませんでした。', code: 'forbidden_no_membership' }, { status: 403 });
@@ -120,8 +155,16 @@ export async function POST(request: Request) {
   }
 
   try {
+    const context: GarageTenantContext = await resolveStoreTenantContext(service, {
+      expectedTenantId: member.tenant_id,
+      storeId: member.store_id,
+      actorUserId: userData.user.id,
+      actorRole: member.role as GarageTenantRole,
+      source: 'api',
+      correlationId: request.headers.get('x-correlation-id')?.slice(0, 80) || crypto.randomUUID(),
+    });
     // 自分の store_id のみを渡す（クライアント指定の店舗は受け付けない）。
-    const { breakdown, errors } = await runGenerationJobs(service, member.store_id);
+    const { breakdown, errors } = await runGenerationJobs(service, context);
     if (errors.length > 0) {
       logServerError('inspection_job_partial_failure', { route: '/api/jobs/inspection-reminders', method: 'POST', storeId: member.store_id, details: { errors } }, new Error(errors.join(' / ')));
       if (breakdown.inspection_reminder === 0 && breakdown.followup_candidates === 0 && errors.length === 2) {

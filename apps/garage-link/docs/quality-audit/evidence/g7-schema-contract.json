@@ -1,0 +1,68 @@
+{
+  "formatVersion": 1,
+  "status": "PASS",
+  "source": {
+    "kind": "post-R1 Current backup clone",
+    "backupDirectory": "/Users/ksk/garage-link-backups/pre-g7-20260728-104502",
+    "ledgerRows": 48,
+    "currentAccessed": false
+  },
+  "table": "public.inventory_count_items",
+  "currentAppSchemaFingerprint": "00b70f113fea65db2ea6bc97db253f2021f804ff7277bccc03864f0b92e1681d",
+  "fingerprintExcludes": [
+    "public.inventory_count_items.deleted_at",
+    "public.inventory_count_items.is_archived"
+  ],
+  "currentContract": {
+    "rowCount": 0,
+    "columns": 18,
+    "rlsEnabled": true,
+    "policies": 4,
+    "triggers": 2,
+    "constraints": 6,
+    "indexes": 3,
+    "deletedAtPresent": false,
+    "isArchivedPresent": false,
+    "archiveOrDeleteDistribution": "NO_ROWS"
+  },
+  "canonicalContract": {
+    "deleted_at": {
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "default": null,
+      "generated": false,
+      "existingRowMeaning": "NULL means not deleted"
+    },
+    "is_archived": {
+      "dataType": "boolean",
+      "nullable": true,
+      "default": "false",
+      "generated": false,
+      "existingRowMeaning": "false means not archived"
+    }
+  },
+  "canonicalSources": [
+    "supabase/schema/020_soft_delete_and_security.sql",
+    "supabase/migrations/20260728000100_high_remediation_batch.sql",
+    "src/app/inventory-counts/[id]/page.tsx",
+    "supabase/tests/g7_high_remediation_regression.sql",
+    "tests/security/high-remediation-batch.test.ts"
+  ],
+  "generatedTypes": "NO_DATABASE_GENERATED_TYPE_FOR_INVENTORY_COUNT_ITEMS_FOUND",
+  "g7ReferencedContractComparison": {
+    "missingColumns": [
+      "public.inventory_count_items.deleted_at",
+      "public.inventory_count_items.is_archived"
+    ],
+    "otherMissingColumns": 0,
+    "typeMismatches": 0,
+    "nullabilityMismatches": 0,
+    "defaultMismatches": 0,
+    "proof": "Exact Current backup clone plus canonical compatibility contract accepts the unmodified G7 migration body"
+  },
+  "backfill": {
+    "businessRowUpdates": 0,
+    "safe": true,
+    "reason": "Current table has 0 rows; ADD COLUMN default false also defines existing-row semantics without UPDATE"
+  }
+}

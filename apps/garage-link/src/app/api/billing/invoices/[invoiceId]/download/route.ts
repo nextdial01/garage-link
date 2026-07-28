@@ -10,7 +10,7 @@ export async function GET(request: Request, context: { params: Promise<{ invoice
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user?.id) return Response.json({ error: 'ログインが必要です。' }, { status: 401 });
 
-  const { data: member } = await supabase.from<StoreMemberRow>('store_members').select('store_id, role').eq('user_id', userData.user.id).single();
+  const { data: member } = await supabase.from<StoreMemberRow>('current_user_active_store_membership').select('store_id, role').eq('user_id', userData.user.id).eq('status', 'active').single();
   if (!member?.store_id || (member.role !== 'owner' && member.role !== 'admin')) return Response.json({ error: '権限がありません。' }, { status: 403 });
 
   const admin = createAdminClient();

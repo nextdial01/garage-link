@@ -7,13 +7,6 @@ export type CurrentStoreMember = {
   email: string | null;
 };
 
-type StoreMemberRow = {
-  store_id: string;
-  role: string | null;
-  display_name: string | null;
-  email: string | null;
-};
-
 export const roleLabels: Record<string, string> = {
   owner: 'オーナー',
   admin: '管理者',
@@ -37,24 +30,15 @@ export async function getCurrentUser() {
 }
 
 export async function getCurrentStoreMember(): Promise<CurrentStoreMember> {
-  const { createClient } = await import('@/lib/supabase/client');
-  const supabase = createClient();
+  const { requireActiveGarageStore } = await import('@/lib/store/garageUiContext');
   const user = await getCurrentUser();
-  const { data, error } = await supabase
-    .from<StoreMemberRow>('store_members')
-    .select('store_id, role, display_name, email')
-    .eq('user_id', user.id)
-    .single();
-
-  if (error || !data?.store_id) {
-    throw new Error('所属店舗を取得できませんでした。');
-  }
+  const context = await requireActiveGarageStore();
 
   return {
-    store_id: data.store_id,
-    role: data.role ?? 'viewer',
-    display_name: data.display_name,
-    email: data.email ?? user.email ?? null,
+    store_id: context.storeId,
+    role: context.role,
+    display_name: context.displayName || null,
+    email: user.email ?? null,
   };
 }
 

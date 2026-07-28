@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-28T12:33:23+09:00",
+  "overall": "BLOCKED",
+  "blockedAt": "phase_1_environment_separation",
+  "vercel": {
+    "team": "altos-projects-fa55063c",
+    "project": "garage-link",
+    "productionHostname": "garage-link.tech",
+    "productionCommit": "f45b0e924f611756e9f5d99e5534d73726f4c75a",
+    "previewDeploymentCreated": false,
+    "previewUrl": null
+  },
+  "supabase": {
+    "currentLedger": 50,
+    "localStagingHost": "127.0.0.1",
+    "remoteStagingProjectIdentified": false,
+    "stagingOrganization": "KANNAGI Staging",
+    "stagingOrganizationPlan": "Free",
+    "stagingOrganizationProjectCount": 0,
+    "projectCreationAvailable": false,
+    "projectCreationBlocker": "administrator_free_project_limit_2_reached",
+    "previewSeparatedFromProduction": false,
+    "sharedProductionPreviewVariables": [
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "SUPABASE_SERVICE_ROLE_KEY"
+    ]
+  },
+  "externalServices": {
+    "resendCredentialAvailableToPreview": true,
+    "stripePreviewSecretEntryPresent": true,
+    "stripePreviewTestModeVerified": false,
+    "stripeWebhookPreviewSecretPresent": false,
+    "externalSendsPerformed": 0
+  },
+  "execution": {
+    "deploymentsCreated": 0,
+    "currentMigrationsApplied": 0,
+    "currentDataChanges": 0,
+    "environmentVariableChanges": 0,
+    "commitsCreated": 0,
+    "pushes": 0
+  },
+  "gates": {
+    "environmentSeparation": "FAIL",
+    "stagingDeploy": "BLOCKED",
+    "roleAndTenantRuntime": "BLOCKED",
+    "businessFlows": "BLOCKED",
+    "stripeTest": "BLOCKED",
+    "pii": "BLOCKED",
+    "lLink": "BLOCKED",
+    "browserSmoke": "BLOCKED",
+    "rollbackPlan": "READY_NOT_EXECUTED",
+    "productionDeploy": "BLOCKED"
+  },
+  "stopReasons": [
+    "Vercel Preview and Production share Supabase URL, anon key, and service role variables",
+    "Preview has access to a production-and-preview email sending credential",
+    "No independently identified remote staging Supabase project exists",
+    "Supabase disabled project creation because the administrator has reached the two-active-free-project limit"
+  ]
+}

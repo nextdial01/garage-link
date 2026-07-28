@@ -1,0 +1,9 @@
+{
+  "formatVersion": 1,
+  "relations": [
+    { "name": "payment_items", "expectedState": "required-present", "canonicalSource": "supabase/schema/008_trade_in_and_payments.sql", "createdBy": "20260726000450", "requiredColumns": ["id","store_id","deal_id","quote_id","invoice_id","payment_order","payment_method","amount","scheduled_date","note","created_at","updated_at"] },
+    { "name": "trade_in_vehicles", "expectedState": "required-present", "canonicalSource": "supabase/schema/008_trade_in_and_payments.sql", "createdBy": "20260726000450", "requiredColumns": ["id","store_id","deal_id","customer_id","maker","model_name","grade","model_year","mileage_km","vin","registration_no","inspection_expiry_date","color","condition_status","appraisal_amount","loan_balance","trade_in_amount","memo","created_at","updated_at"] },
+    { "name": "delivery_usage_logs", "expectedState": "required-present", "canonicalSource": "supabase/schema/029_line_plan_billing.sql", "createdBy": "20260726000450", "requiredColumns": ["id","tenant_id","store_id","line_account_id","message_id","delivery_id","delivery_count","billing_month","created_at"] },
+    { "name": "delivery_overage_logs", "expectedState": "required-present", "canonicalSource": "supabase/schema/029_line_plan_billing.sql", "createdBy": "20260726000450", "requiredColumns": ["id","tenant_id","store_id","line_account_id","delivery_id","included_limit","used_before","delivery_count","overage_count","overage_unit","overage_unit_price","estimated_overage_amount","billing_month","status","created_at"] }
+  ]
+}

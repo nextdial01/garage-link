@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { logSecurityEvent } from '@/lib/audit/logSecurityEvent';
 
-export type TenantRole = 'owner' | 'admin' | 'staff' | 'viewer';
+export type TenantRole = 'owner' | 'admin' | 'implementer' | 'staff' | 'viewer';
 
 type AuthUser = {
   id: string;
@@ -21,16 +21,6 @@ type TenantFeatureRow = {
   tenant_id: string;
   feature_code: string;
   enabled: boolean | null;
-};
-
-type StoreMemberFallbackRow = {
-  store_id: string;
-  role: string | null;
-  display_name: string | null;
-  email: string | null;
-  stores: {
-    tenant_id: string | null;
-  } | null;
 };
 
 export class TenantAuthError extends Error {
@@ -53,14 +43,9 @@ export class TenantAuthError extends Error {
 }
 
 function normalizeRole(role: string | null | undefined): TenantRole {
-  if (role === 'owner' || role === 'admin' || role === 'staff' || role === 'viewer') {
+  if (role === 'owner' || role === 'admin' || role === 'implementer' || role === 'staff' || role === 'viewer') {
     return role;
   }
-
-  if (role === 'implementer') {
-    return 'admin';
-  }
-
   return 'viewer';
 }
 
@@ -81,6 +66,18 @@ export async function requireAuthenticatedUser() {
 export async function requireTenantMembership(tenantId: string) {
   const { supabase, user } = await requireAuthenticatedUser();
 
+  const { data: accessibleTenantIds, error: tenantScopeError } = await supabase.rpc(
+    'current_user_tenant_ids',
+    {}
+  );
+  if (
+    tenantScopeError
+    || !Array.isArray(accessibleTenantIds)
+    || !accessibleTenantIds.includes(tenantId)
+  ) {
+    throw new TenantAuthError('tenantへのアクセス権限がありません。', 403, 'tenant_access_denied');
+  }
+
   const { data: membership } = await supabase
     .from<MembershipRow>('memberships')
     .select('tenant_id, store_id, role, status, display_name, email')
@@ -99,26 +96,6 @@ export async function requireTenantMembership(tenantId: string) {
         role: normalizeRole(membership.role),
         display_name: membership.display_name,
         email: membership.email ?? user.email ?? null,
-      },
-    };
-  }
-
-  const { data: fallbackMember } = await supabase
-    .from<StoreMemberFallbackRow>('store_members')
-    .select('store_id, role, display_name, email, stores(tenant_id)')
-    .eq('user_id', user.id)
-    .single();
-
-  if (fallbackMember?.stores?.tenant_id === tenantId) {
-    return {
-      supabase,
-      user,
-      membership: {
-        tenant_id: tenantId,
-        store_id: fallbackMember.store_id,
-        role: normalizeRole(fallbackMember.role),
-        display_name: fallbackMember.display_name,
-        email: fallbackMember.email ?? user.email ?? null,
       },
     };
   }

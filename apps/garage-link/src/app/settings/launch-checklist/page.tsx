@@ -12,6 +12,7 @@ import { getRoleLabel } from '@/lib/auth/permissions';
 type CheckStatus = 'OK' | '要確認' | '未設定' | '未確認';
 
 type StoreMemberRow = {
+  tenant_id: string;
   store_id: string;
   role: string | null;
 };
@@ -275,7 +276,7 @@ function buildSections(data: LaunchData): ChecklistSection[] {
       title: 'C. Supabase',
       items: [
         { label: 'stores テーブル確認', status: store ? 'OK' : '未確認', detail: '所属店舗のstoresレコードを取得できるか確認します。' },
-        { label: 'store_members テーブル確認', status: data.role ? 'OK' : '未確認', detail: 'ログインユーザーの所属店舗とroleを取得できるか確認します。' },
+        { label: 'memberships テーブル確認', status: data.role ? 'OK' : '未確認', detail: 'ログインユーザーの所属店舗とroleを取得できるか確認します。' },
         { label: 'current_user_store_ids() 関数確認', status: rlsOk ? 'OK' : '要確認', detail: 'RLS経由で所属店舗データが取得できる状態か確認します。' },
         { label: 'RLS有効化確認', status: rlsOk ? 'OK' : '要確認', detail: 'Supabase管理画面でのRLS有効化も最終確認してください。' },
         {
@@ -399,8 +400,8 @@ export default function LaunchChecklistPage() {
         }
 
         const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
-          .select('store_id, role')
+          .from<StoreMemberRow>('current_user_active_store_membership')
+          .select('tenant_id, store_id, role')
           .eq('user_id', userData.user.id)
           .single();
 
@@ -421,10 +422,11 @@ export default function LaunchChecklistPage() {
             .eq('id', member.store_id)
             .single(),
           supabase
-            .from<OwnerRow>('store_members')
+            .from<OwnerRow>('memberships')
             .select('id')
-            .eq('store_id', member.store_id)
-            .eq('role', 'owner'),
+            .eq('tenant_id', member.tenant_id)
+            .eq('role', 'owner')
+            .eq('status', 'active'),
           supabase
             .from<LineSettingsRow>('line_settings')
             .select('id, webhook_url, connection_status')

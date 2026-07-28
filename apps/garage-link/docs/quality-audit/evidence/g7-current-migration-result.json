@@ -1,0 +1,91 @@
+{
+  "formatVersion": 2,
+  "createdAt": "2026-07-28T01:45:23.145Z",
+  "status": "BLOCKED",
+  "classification": "operational_backup_access",
+  "productOrCurrentDataDefect": false,
+  "operatorApproval": {
+    "received": true,
+    "scope": "OPS-007 direct PostgreSQL backup, G7 Current migration and regression"
+  },
+  "authentication": {
+    "mode": "database_password_once",
+    "pgpassUsed": false,
+    "passwordPromptDisabled": true,
+    "passwordPersistedOrPrinted": false
+  },
+  "project": {
+    "expectedRef": "wmlpuzuskfiwdipluglz",
+    "expectedFingerprint": "5b41e1af2add",
+    "hostMatchedProjectRef": true,
+    "connectionKind": "session_pooler_password",
+    "lLinkAccessed": false
+  },
+  "canonicalInputs": {
+    "snapshotFingerprint": "80205742d23e48fb24de9785af4797884274b1bd119547fa4ce42334a0324e55",
+    "manifestEntries": 48,
+    "manifestSha256": "75b0353cf7087984ee24ecd48b0e980af2eb6802b03077317a99945dd57408b6",
+    "migrationVersion": "20260728000100",
+    "migrationSha256": "5a24e58c397f585055fbe52242b8e45cc58dea1dcd9882e8ce81e00d93434166",
+    "manifestMatch": true
+  },
+  "runnerValidation": {
+    "staticCheck": "PASS",
+    "isolatedDatabaseFlow": "PASS",
+    "directConnectionUri": "PASS",
+    "sessionPoolerUri": "PASS",
+    "otherProjectRejected": "PASS",
+    "malformedUriRejected": "PASS",
+    "databaseInternalIdentity": "PASS",
+    "identityFailureDatabaseWrites": 0,
+    "temporaryPgpassCleanup": "PASS",
+    "realPsqlPasswordEnvironment": "PASS",
+    "realPgDumpPasswordEnvironment": "PASS",
+    "noPasswordFailsWithoutPrompt": "PASS",
+    "wrongPasswordFailsWithoutPrompt": "PASS",
+    "supabaseManagementApiUsed": false,
+    "secretInArgumentsLogsOrEvidence": false
+  },
+  "backup": {
+    "status": "PASS",
+    "path": "/Users/ksk/garage-link-backups/pre-g7-20260728-104502",
+    "fileCount": 10,
+    "totalBytes": 1277682,
+    "setSha256": "8379a36438609c2d73e39e650b23c8c14f9a1a5d06d81368c8163520893c869f",
+    "checksumVerified": true,
+    "restoreVerified": false,
+    "credentialPersistedOrPrinted": false
+  },
+  "readOnlyPrecheck": {
+    "status": "NOT_RUN",
+    "executionCount": 0
+  },
+  "migration": {
+    "status": "NOT_RUN",
+    "appliedCount": 0,
+    "ledgerBefore": 48,
+    "ledgerAfter": 48,
+    "elapsedSeconds": 0,
+    "lockTimeoutSeconds": 3,
+    "maximumObservedLockSeconds": null,
+    "unexpectedBackfill": 0,
+    "unexpectedBusinessDataChanges": 0
+  },
+  "currentRegression": {
+    "status": "NOT_RUN",
+    "nonOwnerFixtureStrategy": "Current read-only ACL mapping plus isolated dynamic fixtures"
+  },
+  "quality": {
+    "status": "NOT_RUN"
+  },
+  "external": {
+    "sends": 0,
+    "deploys": 0
+  },
+  "stoppedAt": "backup_restore_check",
+  "operatorCommand": null,
+  "stagingDeploy": {
+    "allowed": false,
+    "reason": "runner stopped at backup_restore_check"
+  }
+}

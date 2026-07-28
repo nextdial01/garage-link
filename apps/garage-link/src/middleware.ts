@@ -11,7 +11,9 @@ const PUBLIC_PATHS = [
   '/forgot-password',
   '/auth/callback',
   '/auth/reset-password',
+  '/membership/accept',
   '/api/auth/password-login',
+  '/api/health',
   '/help',
   '/logout',
   '/legal/terms',
@@ -64,26 +66,17 @@ function redirectWithSessionCookies(url: URL, source: NextResponse) {
 }
 
 async function requiresAdminSecurity(
+  supabase: ReturnType<typeof createServerClient>,
   userId: string
 ) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-  if (!url || !key) return true;
-  const supabase = createServiceClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-  const storeRole = await supabase
-    .from('store_members')
-    .select('role')
-    .eq('user_id', userId)
-    .in('status', ['active', 'member'])
-    .limit(10);
-  if (storeRole.error) return true;
-  if ((storeRole.data ?? []).length > 0) return hasEffectiveAdminRole([], storeRole.data ?? []);
-
+  const tenantScope = await supabase.rpc('current_user_tenant_ids', {});
+  if (tenantScope.error || !Array.isArray(tenantScope.data) || tenantScope.data.length === 0) return false;
   const membershipRole = await supabase
     .from('memberships')
     .select('role')
     .eq('user_id', userId)
     .eq('status', 'active')
+    .in('tenant_id', tenantScope.data)
     .limit(10);
   if (membershipRole.error) return true;
   return hasEffectiveAdminRole(membershipRole.data ?? [], []);
@@ -142,6 +135,9 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (!user && !isPublicPath(pathname)) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    }
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     loginUrl.searchParams.set('next', pathname);
@@ -153,7 +149,7 @@ export async function middleware(request: NextRequest) {
     const shouldCheckAdminSecurity = isAuthEntry || (!isPublicPath(pathname) && !isSecurityGate(pathname));
 
     if (shouldCheckAdminSecurity) {
-      const adminSecurityRequired = await requiresAdminSecurity(user.id);
+      const adminSecurityRequired = await requiresAdminSecurity(supabase, user.id);
       if (adminSecurityRequired) {
         const returnPath = isAuthEntry ? '/dashboard' : `${pathname}${request.nextUrl.search}`;
         const sessionId = typeof claimData?.claims?.session_id === 'string' ? claimData.claims.session_id : '';
@@ -172,6 +168,9 @@ export async function middleware(request: NextRequest) {
         });
 
     if (pathname === '/login' || pathname === '/signup') {
+      if (postAuthPath.split('?')[0] === pathname) {
+        return response;
+      }
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = postAuthPath.split('?')[0] ?? postAuthPath;
       redirectUrl.search = postAuthPath.includes('?')
@@ -192,6 +191,9 @@ export async function middleware(request: NextRequest) {
       pathname !== '/onboarding' &&
       (postAuthPath.startsWith('/onboarding') || postAuthPath.startsWith('/signup'))
     ) {
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+      }
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = postAuthPath.split('?')[0] ?? postAuthPath;
       redirectUrl.search = postAuthPath.includes('?')
@@ -224,6 +226,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|_vercel|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

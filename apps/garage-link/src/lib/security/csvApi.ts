@@ -10,13 +10,11 @@ export const CSV_MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 export type CsvTarget = 'customers' | 'vehicles' | 'line_friends';
 
 type StoreMemberRow = {
+  tenant_id: string;
   store_id: string;
   role: string | null;
   display_name: string | null;
   email: string | null;
-  stores: {
-    tenant_id: string | null;
-  } | null;
 };
 
 export function clientIp(request: Request) {
@@ -51,9 +49,10 @@ export async function getCsvAuthContext(request: Request) {
   }
 
   const { data: member, error: memberError } = await supabase
-    .from<StoreMemberRow>('store_members')
-    .select('store_id, role, display_name, email, stores(tenant_id)')
+    .from<StoreMemberRow>('current_user_active_store_membership')
+    .select('tenant_id, store_id, role, display_name, email')
     .eq('user_id', userData.user.id)
+    .eq('status', 'active')
     .single();
 
   if (memberError || !member?.store_id) {
@@ -69,7 +68,7 @@ export async function getCsvAuthContext(request: Request) {
     user: userData.user,
     member: {
       storeId: member.store_id,
-      tenantId: member.stores?.tenant_id ?? null,
+      tenantId: member.tenant_id,
       role: member.role ?? 'viewer',
       displayName: member.display_name,
       email: member.email ?? userData.user.email ?? null,

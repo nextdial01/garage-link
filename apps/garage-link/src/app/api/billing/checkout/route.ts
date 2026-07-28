@@ -42,9 +42,10 @@ export async function POST(request: Request) {
   }
 
   const { data: member, error: memberError } = await supabase
-    .from<StoreMemberRow>('store_members')
+    .from<StoreMemberRow>('current_user_active_store_membership')
     .select('store_id, role')
     .eq('user_id', userData.user.id)
+    .eq('status', 'active')
     .single();
 
   if (memberError || !member?.store_id) {
@@ -76,11 +77,8 @@ export async function POST(request: Request) {
   let priceId: string;
   try {
     priceId = assertStripePriceId(planCode);
-  } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : 'Price ID が未設定です。' },
-      { status: 503 },
-    );
+  } catch {
+    return NextResponse.json({ ok: false, error: '料金設定を確認できませんでした。' }, { status: 503 });
   }
 
   let stripeCustomerId: string | null = null;
@@ -144,11 +142,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ ok: true, url: session.url, sessionId: session.id });
-  } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : 'Checkout 作成に失敗しました。' },
-      { status: 500 },
-    );
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Checkout 作成に失敗しました。' }, { status: 500 });
   }
 }
 
@@ -187,9 +182,10 @@ export async function GET(request: Request) {
     }
 
     const { data: member } = await supabase
-      .from<StoreMemberRow>('store_members')
+      .from<StoreMemberRow>('current_user_active_store_membership')
       .select('store_id, role')
       .eq('user_id', userData.user.id)
+      .eq('status', 'active')
       .eq('store_id', companyId)
       .maybeSingle();
 
@@ -221,10 +217,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ ok: true, plan: result.plan, companyId: result.companyId });
-  } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : 'セッション確認に失敗しました。' },
-      { status: 500 },
-    );
+  } catch {
+    return NextResponse.json({ ok: false, error: 'セッション確認に失敗しました。' }, { status: 500 });
   }
 }

@@ -3,8 +3,14 @@ import { NextResponse } from 'next/server';
 import { logAudit } from '@/lib/audit/logAudit';
 import { encryptSecret, getLast4 } from '@/lib/security/encryption';
 import { createClient } from '@/lib/supabase/server';
+import {
+  resolveStoreTenantContext,
+  type GarageTenantContext,
+  type GarageTenantRole,
+} from '@/lib/security/garageTenantContext';
 
 type StoreMemberRow = {
+  tenant_id: string;
   store_id: string;
   role: string | null;
   display_name: string | null;
@@ -67,9 +73,10 @@ export async function POST(request: Request) {
   }
 
   const { data: member, error: memberError } = await supabase
-    .from<StoreMemberRow>('store_members')
-    .select('store_id, role, display_name, email')
+    .from<StoreMemberRow>('current_user_active_store_membership')
+    .select('tenant_id, store_id, role, display_name, email')
     .eq('user_id', userData.user.id)
+    .eq('status', 'active')
     .single();
 
   if (memberError || !member?.store_id) {
@@ -85,10 +92,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'サーバー側の移行設定が未設定です。' }, { status: 500 });
   }
 
+  let tenantContext: GarageTenantContext;
+  try {
+    tenantContext = await resolveStoreTenantContext(service, {
+      expectedTenantId: member.tenant_id,
+      storeId: member.store_id,
+      actorUserId: userData.user.id,
+      actorRole: member.role as GarageTenantRole,
+      source: 'api',
+      correlationId: request.headers.get('x-correlation-id')?.slice(0, 80) || crypto.randomUUID(),
+    });
+  } catch {
+    return NextResponse.json({ ok: false, error: '店舗scopeを確認できませんでした。' }, { status: 403 });
+  }
+
   const { data: settings, error } = await service
     .from('line_settings')
     .select('id, store_id, channel_secret, channel_access_token, channel_secret_encrypted, channel_access_token_encrypted')
-    .eq('store_id', member.store_id)
+    .eq('store_id', tenantContext.storeId!)
     .maybeSingle();
 
   if (error) {
@@ -134,7 +155,7 @@ export async function POST(request: Request) {
   const { error: updateError } = await service
     .from('line_settings')
     .update(update)
-    .eq('store_id', member.store_id);
+    .eq('store_id', tenantContext.storeId!);
 
   if (updateError) {
     return NextResponse.json({ ok: false, error: 'LINE Secretの移行に失敗しました。' }, { status: 500 });

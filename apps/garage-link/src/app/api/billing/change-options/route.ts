@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user?.id) return NextResponse.json({ ok: false, error: 'ログインが必要です。' }, { status: 401 });
-  const { data: member } = await supabase.from<MemberRow>('store_members').select('store_id, role').eq('user_id', userData.user.id).single();
+  const { data: member } = await supabase.from<MemberRow>('current_user_active_store_membership').select('store_id, role').eq('user_id', userData.user.id).eq('status', 'active').single();
   if (!member?.store_id || !['owner', 'admin'].includes(member.role ?? '')) {
     return NextResponse.json({ ok: false, error: '契約を変更する権限がありません。' }, { status: 403 });
   }
@@ -119,10 +119,7 @@ export async function POST(request: Request) {
       completed_at: new Date().toISOString(),
     });
     return NextResponse.json({ ok: true, message: '追加枠を反映しました。追加料金は次回請求からです。' });
-  } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : '追加オプションの反映に失敗しました。' },
-      { status: 502 },
-    );
+  } catch {
+    return NextResponse.json({ ok: false, error: '追加オプションの反映に失敗しました。' }, { status: 502 });
   }
 }

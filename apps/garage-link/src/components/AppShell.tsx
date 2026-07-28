@@ -6,8 +6,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import AppSidebar from './AppSidebar';
 import ContextHelp from './ContextHelp';
 import { getRoleLabel } from '@/lib/auth/permissions';
-import { getGarageUiContext, invalidateGarageUiContext } from '@/lib/store/garageUiContext';
-import { createClient } from '@/lib/supabase/client';
+import {
+  getGarageUiContext,
+  invalidateGarageUiContext,
+  notifyGarageStoreSwitch,
+  subscribeGarageStoreSwitch,
+} from '@/lib/store/garageUiContext';
+import { toUserErrorMessage } from '@/lib/errors/user-error';
 
 interface AppShellProps {
   activeLabel: string;
@@ -19,6 +24,7 @@ interface AppShellProps {
 
 type AccessibleStore = {
   id: string;
+  tenantId: string;
   name: string | null;
   companyName: string | null;
   isCurrent: boolean;
@@ -37,7 +43,9 @@ export default function AppShell({
   const [role, setRole] = useState('viewer');
   const [stores, setStores] = useState<AccessibleStore[]>([]);
   const [activeStoreId, setActiveStoreId] = useState('');
+  const [storeContextState, setStoreContextState] = useState<'loading' | 'active' | 'selection_required' | 'no_access'>('loading');
   const [isSwitchingStore, setIsSwitchingStore] = useState(false);
+  const [storeSwitchError, setStoreSwitchError] = useState('');
   const shellBackground = 'bg-[#F6F8FC]';
   const headerBorderClass = 'border-blue-100';
 
@@ -46,31 +54,48 @@ export default function AppShell({
       try {
         const context = await getGarageUiContext();
         setRole(context.role);
+        setStoreContextState(context.state);
         setStoreLabel(context.storeLabel);
         setStores(context.stores);
         setActiveStoreId(context.stores.find((item) => item.isCurrent)?.id ?? context.storeId);
 
-        if (!context.onboardingCompleted && pathname !== '/onboarding') {
+        if (context.state === 'active' && !context.onboardingCompleted && pathname !== '/onboarding') {
           router.replace('/onboarding');
         }
       } catch {
         setStoreLabel('店舗');
+        setStoreContextState('no_access');
       }
     }
 
     void loadStoreContext();
   }, [pathname, router]);
 
+  useEffect(() => subscribeGarageStoreSwitch(() => {
+    invalidateGarageUiContext();
+    window.location.reload();
+  }), []);
+
   async function switchStore(storeId: string) {
-    if (!storeId || storeId === activeStoreId) return;
+    if (!storeId || storeId === activeStoreId || isSwitchingStore) return;
+    const selectedStore = stores.find((store) => store.id === storeId);
+    if (!selectedStore?.tenantId) return;
     try {
       setIsSwitchingStore(true);
-      const supabase = createClient();
-      const { error } = await supabase.rpc('switch_active_garage_store', { p_store_id: storeId });
-      if (error) throw error;
+      setStoreSwitchError('');
+      const response = await fetch('/api/stores/active', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tenantId: selectedStore.tenantId, storeId }),
+      });
+      const result = await response.json() as { error?: string; version?: number };
+      if (!response.ok) throw new Error(result.error || '店舗を切り替えられませんでした。');
       invalidateGarageUiContext();
-      window.location.reload();
-    } catch {
+      notifyGarageStoreSwitch({ tenantId: selectedStore.tenantId, storeId, version: result.version });
+      setActiveStoreId(storeId);
+      window.location.replace(pathname);
+    } catch (error) {
+      setStoreSwitchError(toUserErrorMessage(error, '店舗を切り替えられませんでした。'));
       setIsSwitchingStore(false);
     }
   }
@@ -89,7 +114,7 @@ export default function AppShell({
                 <div className="rounded-xl bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 ring-1 ring-inset ring-blue-100">
                   権限: {getRoleLabel(role)}
                 </div>
-                {stores.length > 1 ? (
+                    {stores.length > 1 || !activeStoreId ? (
                   <label className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-600">
                     <span className="sr-only">表示店舗</span>
                     <select
@@ -97,10 +122,15 @@ export default function AppShell({
                       disabled={isSwitchingStore}
                       onChange={(event) => void switchStore(event.target.value)}
                       className="max-w-[220px] bg-transparent outline-none disabled:opacity-60"
-                    >
-                      {stores.map((item) => (
-                        <option key={item.id} value={item.id}>{item.name || item.companyName || '店舗'}</option>
-                      ))}
+                        >
+                          {!activeStoreId && <option value="">操作する店舗を選択</option>}
+                          {Array.from(new Set(stores.map((item) => item.tenantId))).map((tenantId) => (
+                            <optgroup key={tenantId} label={stores.find((item) => item.tenantId === tenantId)?.companyName || '契約内の店舗'}>
+                              {stores.filter((item) => item.tenantId === tenantId).map((item) => (
+                                <option key={item.id} value={item.id}>{item.name || item.companyName || '店舗'}</option>
+                              ))}
+                            </optgroup>
+                          ))}
                     </select>
                   </label>
                 ) : (
@@ -125,9 +155,36 @@ export default function AppShell({
               )}
             </div>
           </div>
-        </header>
+            </header>
 
-        <div className="mx-auto max-w-[1440px] p-4 sm:p-6 lg:p-8">{children}</div>
+            {storeSwitchError && (
+              <p role="alert" className="mx-4 mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 sm:mx-6 lg:mx-8">
+                {storeSwitchError}
+              </p>
+            )}
+
+            <div className="relative mx-auto max-w-[1440px] p-4 sm:p-6 lg:p-8">
+              {isSwitchingStore && (
+                <div className="absolute inset-0 z-30 flex min-h-40 items-center justify-center rounded-2xl bg-white/95 text-sm font-black text-blue-800" aria-live="polite">
+                  店舗を切り替えています...
+                </div>
+              )}
+              {storeContextState === 'selection_required' ? (
+                <section className="rounded-2xl border border-blue-200 bg-white p-8 text-center shadow-sm">
+                  <h2 className="text-lg font-black text-slate-950">操作する店舗を選択してください</h2>
+                  <p className="mt-2 text-sm font-semibold text-slate-600">画面右上の店舗一覧には、現在利用できる店舗だけが表示されます。</p>
+                </section>
+              ) : storeContextState === 'no_access' ? (
+                <section className="rounded-2xl border border-amber-200 bg-white p-8 text-center shadow-sm">
+                  <h2 className="text-lg font-black text-slate-950">利用可能な店舗がありません</h2>
+                  <p className="mt-2 text-sm font-semibold text-slate-600">店舗への所属状態を管理者へ確認してください。</p>
+                </section>
+              ) : storeContextState === 'loading' ? (
+                <section className="rounded-2xl bg-white p-8 text-center text-sm font-bold text-slate-500 shadow-sm">店舗情報を確認しています...</section>
+              ) : (
+                <div aria-hidden={isSwitchingStore}>{children}</div>
+              )}
+            </div>
       </section>
     </main>
   );

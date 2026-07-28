@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
+import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 
 type FieldType =
   | 'text'
@@ -64,10 +65,6 @@ type CustomerFormState = {
   assigned_user_name: string;
   next_action_date: string;
   memo: string;
-};
-
-type StoreMemberRow = {
-  store_id: string;
 };
 
 type CustomerInsert = {
@@ -586,24 +583,7 @@ export default function NewCustomerPage() {
   }
 
   async function getCurrentStoreId() {
-    const supabase = createClient();
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !userData.user?.id) {
-      throw new Error(userError?.message ?? 'ログイン情報を取得できませんでした。');
-    }
-
-    const { data: member, error: memberError } = await supabase
-      .from<StoreMemberRow>('store_members')
-      .select('store_id')
-      .eq('user_id', userData.user.id)
-      .single();
-
-    if (memberError || !member?.store_id) {
-      throw new Error(memberError?.message ?? '所属店舗が見つかりません。');
-    }
-
-    return member.store_id;
+    return (await requireActiveGarageStore({ force: true })).storeId;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

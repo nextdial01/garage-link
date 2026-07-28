@@ -17,9 +17,18 @@
     "test:inquiry-response-management": "node scripts/check-inquiry-response-management.mjs",
     "test:line-link-s2s-ack": "node scripts/check-line-link-s2s-ack.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:local-chrome": "node scripts/run-local-browser-smoke.mjs",
     "qa:provision": "node scripts/provision-qa-account.mjs",
     "test:qa:mobile-logout": "node scripts/run-mobile-logout-qa.mjs",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:db:runner": "node --test tests/db/migration-runner.test.mjs",
+    "test:db:g1c-contract": "node --test tests/db/g1c-relation-contract.test.mjs",
+    "test:db:fresh": "bash scripts/db/run-g0b-ci.sh",
+    "test:db:db003": "bash scripts/db/run-db003-relation-compatibility.sh",
+    "test:g1c:static": "node scripts/check-g1c-service-scope.mjs",
+    "test:api:g0b": "bash scripts/db/run-g0b-api-smoke.sh",
+    "verify:g0b": "bash scripts/db/run-g0b-full-ci.sh",
+    "evidence:g7": "node scripts/generate-g7-high-remediation-evidence.mjs"
   },
   "dependencies": {
     "@garage-link/auth": "workspace:*",

@@ -6,12 +6,14 @@ import path from 'node:path';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (relativePath) => readFile(path.join(root, relativePath), 'utf8');
 
-const [migration, inquiriesPage, dashboardPage, sidebar, inquiryApi] = await Promise.all([
+const [migration, inquiriesPage, dashboardPage, sidebar, inquiryApi, garageUiMigration, garageUiContext] = await Promise.all([
   read('supabase/migrations/20260718000300_inquiry_response_management.sql'),
   read('src/app/inquiries/page.tsx'),
   read('src/app/dashboard/page.tsx'),
   read('src/components/AppSidebar.tsx'),
   read('src/app/api/s2s/line-link/inquiries/route.ts'),
+  read('supabase/migrations/20260724000100_garage_ui_context.sql'),
+  read('src/lib/store/garageUiContextCore.ts'),
 ]);
 
 for (const field of ['response_status', 'assigned_user_name', 'next_action_at']) {
@@ -25,7 +27,9 @@ assert.match(inquiriesPage, /対応状況を保存/, 'detail panel must expose r
 assert.match(inquiriesPage, /onInput=.*setEditingNextActionAt/, 'datetime input must update reliably across browsers');
 assert.match(inquiriesPage, /\.eq\('updated_at'/, 'response updates must retain optimistic conflict protection');
 assert.match(dashboardPage, /openInquiryPreview/, 'dashboard must show unresolved inquiry rows');
-assert.match(sidebar, /response_status !== 'completed'/, 'sidebar count must be based on unfinished responses');
+assert.match(garageUiMigration, /inquiry\.response_status <> 'completed'/, 'UI context must count unfinished responses');
+assert.match(garageUiContext, /inquiryPending: asCount\(rawCounts\.inquiry_pending\)/, 'UI context must map the pending inquiry count');
+assert.match(sidebar, /uiCounts\.inquiryPending/, 'sidebar must display the pending inquiry count');
 assert.match(inquiryApi, /markLLinkConnected/, 'successful L-LINK sync must mark the store as connected');
 
 console.log('問い合わせ対応管理の静的チェックに合格しました。');

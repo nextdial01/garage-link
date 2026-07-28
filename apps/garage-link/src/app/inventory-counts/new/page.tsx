@@ -7,8 +7,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
+import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 
-type StoreMemberRow = { store_id: string };
 
 const inputClass =
   'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100';
@@ -53,10 +53,6 @@ const initialItems = [
   { item_type: 'vehicle', vehicle_id: '', part_sku: '', management_no: '', item_name: '', location_name: '', system_quantity: '1', actual_quantity: '', difference_quantity: '', check_status: 'unchecked', memo: '' },
 ];
 
-function toNumber(value: string) {
-  return value === '' ? 0 : Number(value);
-}
-
 function toArray(value: string) {
   return value.split(',').map((item) => item.trim()).filter(Boolean);
 }
@@ -77,12 +73,7 @@ export default function NewInventoryCountPage() {
   }
 
   async function getStoreId() {
-    const supabase = createClient();
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
-    const { data: member, error: memberError } = await supabase.from<StoreMemberRow>('store_members').select('store_id').eq('user_id', userData.user.id).single();
-    if (memberError || !member?.store_id) throw new Error('所属店舗を取得できませんでした。');
-    return member.store_id;
+    return (await requireActiveGarageStore({ force: true })).storeId;
   }
 
   async function handleSave() {
@@ -94,21 +85,32 @@ export default function NewInventoryCountPage() {
       const supabase = createClient();
       const storeId = await getStoreId();
 
-      const { data: countData, error: countError } = await supabase
-        .from<{ id: string }>('inventory_counts')
-        .insert({
-          store_id: storeId,
+      const itemRows = items
+        .filter((item) => item.item_name || item.management_no || item.part_sku)
+        .map((item) => ({
+          item_type: item.item_type,
+          vehicle_id: item.vehicle_id || null,
+          part_sku: item.part_sku || null,
+          management_no: item.management_no || null,
+          item_name: item.item_name || null,
+          location_name: item.location_name || null,
+          actual_quantity: item.actual_quantity === '' ? null : Number(item.actual_quantity),
+          memo: item.memo || null,
+        }));
+
+      const { data: countData, error: countError } = await supabase.rpc('create_inventory_count', {
+        p_store_id: storeId,
+        p_idempotency_key: crypto.randomUUID(),
+        p_count: {
           count_no: form.count_no,
           name: form.name,
           count_type: form.count_type,
           count_category: form.count_category,
-          status: form.status,
           scheduled_date: form.scheduled_date || null,
           target_inventory: form.target_inventory,
           target_vehicle_statuses: toArray(form.target_vehicle_statuses),
           target_part_categories: toArray(form.target_part_categories),
           target_condition_memo: form.target_condition_memo || null,
-          target_store_name: form.target_store_name || null,
           target_locations: toArray(form.target_locations),
           shelf_area: form.shelf_area || null,
           location_memo: form.location_memo || null,
@@ -116,49 +118,14 @@ export default function NewInventoryCountPage() {
           device_type: form.device_type,
           barcode_usage: form.barcode_usage,
           unread_handling: form.unread_handling,
-          difference_count: toNumber(form.difference_count),
-          unchecked_count: toNumber(form.unchecked_count),
-          adjustment_target_count: toNumber(form.adjustment_target_count),
-          adjustment_reason: form.adjustment_reason || null,
-          adjustment_policy: form.adjustment_policy || null,
-          difference_memo: form.difference_memo || null,
-          counted_by: form.counted_by || null,
-          checked_by: form.checked_by || null,
-          approved_by: form.approved_by || null,
-          approval_status: form.approval_status,
-          approved_at: form.approved_at || null,
-          approval_comment: form.approval_comment || null,
           internal_memo: form.internal_memo || null,
           caution_note: form.caution_note || null,
-          next_improvement: form.next_improvement || null,
-        })
-        .select('id')
-        .single();
+        },
+        p_items: itemRows,
+      });
 
-      if (countError || !countData?.id) throw new Error(countError?.message ?? '棚卸しの保存に失敗しました。');
-
-      const itemRows = items
-        .filter((item) => item.item_name || item.management_no || item.part_sku)
-        .map((item) => ({
-          store_id: storeId,
-          inventory_count_id: countData.id,
-          item_type: item.item_type,
-          vehicle_id: item.vehicle_id || null,
-          part_sku: item.part_sku || null,
-          management_no: item.management_no || null,
-          item_name: item.item_name || null,
-          location_name: item.location_name || null,
-          system_quantity: toNumber(item.system_quantity),
-          actual_quantity: item.actual_quantity === '' ? null : Number(item.actual_quantity),
-          difference_quantity: item.difference_quantity === '' ? null : Number(item.difference_quantity),
-          check_status: item.check_status,
-          memo: item.memo || null,
-        }));
-
-      if (itemRows.length > 0) {
-        const { error: itemError } = await supabase.from('inventory_count_items').insert(itemRows);
-        if (itemError) throw new Error(itemError.message);
-      }
+      const result = countData as { ok?: boolean; inventory_count_id?: string } | null;
+      if (countError || !result?.ok || !result.inventory_count_id) throw new Error(countError?.message ?? '棚卸しの保存に失敗しました。');
 
       router.push('/inventory-counts');
     } catch (error) {

@@ -1,6 +1,7 @@
 import 'server-only';
 import crypto from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import type { GarageTenantContext } from '@/lib/security/garageTenantContext';
 
 // L-LINK → GARAGE LINK S2S リクエストの認証ユーティリティ。
 // - HMAC-SHA256 署名を timing-safe に検証
@@ -15,6 +16,8 @@ export type S2SAuthSuccess = {
   ok: true;
   keyId: string;
   storeId: string;
+  tenantId: string;
+  context: GarageTenantContext;
   timestamp: number;
   nonce: string;
 };
@@ -144,9 +147,29 @@ export async function verifyLLinkS2SRequest(opts: VerifyOptions): Promise<S2SAut
   const store = createNonceStore();
   if (!store) return fail('server_misconfigured', 500);
 
+  // key_id は単なるsecret名ではなく、DB上でactiveなtenant/storeへ固定する。
+  // 署名されたstore IDだけではscopeの正本にならないため、対応が無い・停止済み・不一致はfail-closed。
+  const { data: connection, error: connectionError } = await store
+    .from('line_link_connections')
+    .select('tenant_id, store_id')
+    .eq('key_id', keyId)
+    .eq('store_id', storeId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (connectionError) return fail('internal_error', 500);
+  if (!connection?.tenant_id || connection.store_id !== storeId) return fail('invalid_key_id', 403);
+
+  const correlationId = crypto.createHash('sha256').update(nonce).digest('hex').slice(0, 24);
+  const context: GarageTenantContext = Object.freeze({
+    tenantId: connection.tenant_id,
+    storeId,
+    source: 'llink',
+    correlationId,
+  });
+
   const { error: insertError } = await store
     .from('line_link_inbound_nonces')
-    .insert({ nonce, store_id: storeId, key_id: keyId });
+    .insert({ nonce, tenant_id: context.tenantId, store_id: storeId, key_id: keyId });
 
   if (insertError) {
     if ((insertError as { code?: string }).code === '23505') return fail('replayed_nonce', 401);
@@ -159,7 +182,7 @@ export async function verifyLLinkS2SRequest(opts: VerifyOptions): Promise<S2SAut
     .delete()
     .lt('seen_at', new Date(Date.now() - NONCE_TTL_MIN * 60 * 1000).toISOString());
 
-  return { ok: true, keyId, storeId, timestamp, nonce };
+  return { ok: true, keyId, storeId, tenantId: context.tenantId, timestamp, nonce, context };
 }
 
 // テスト・運用診断用: 署名生成も export（外部 secret を渡される側のみ使用）。

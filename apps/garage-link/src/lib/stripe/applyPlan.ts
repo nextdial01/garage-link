@@ -12,10 +12,28 @@ export async function applyGaragePlanFromStripe(input: {
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
   status?: 'active' | 'past_due' | 'cancelled' | 'trialing' | 'suspended';
+  stripeEvent?: { id: string; created: number };
 }): Promise<ApplyResult> {
   const admin = createAdminClient();
   if (!admin) {
     return { ok: false, reason: 'admin_client_unavailable' };
+  }
+
+  const orderedPlan = parseGaragePlanCodeFromStripeMetadata(input.planCode) ?? 'starter';
+  if (input.stripeEvent) {
+    const { data, error } = await admin.rpc('apply_ordered_stripe_subscription_event', {
+      p_company_id: input.companyId,
+      p_plan: orderedPlan,
+      p_status: input.status ?? 'active',
+      p_customer_id: input.stripeCustomerId ?? null,
+      p_subscription_id: input.stripeSubscriptionId ?? null,
+      p_event_id: input.stripeEvent.id,
+      p_event_created: input.stripeEvent.created,
+    });
+    if (error) return { ok: false, reason: error.message };
+    const applied = data as { ok?: boolean } | null;
+    if (!applied?.ok) return { ok: false, reason: 'ordered_subscription_apply_failed' };
+    return { ok: true, companyId: input.companyId, plan: orderedPlan };
   }
 
   if (input.status === 'cancelled') {
@@ -27,8 +45,7 @@ export async function applyGaragePlanFromStripe(input: {
       return { ok: false, reason: error.message };
     }
 
-    const plan = parseGaragePlanCodeFromStripeMetadata(input.planCode) ?? 'starter';
-    return { ok: true, companyId: input.companyId, plan };
+    return { ok: true, companyId: input.companyId, plan: orderedPlan };
   }
 
   const plan = parseGaragePlanCodeFromStripeMetadata(input.planCode);
@@ -37,9 +54,10 @@ export async function applyGaragePlanFromStripe(input: {
     return { ok: false, reason: 'invalid_plan' };
   }
 
-  await admin.rpc('reactivate_company_subscription', {
+  const { error: reactivateError } = await admin.rpc('reactivate_company_subscription', {
     p_company_id: input.companyId,
   });
+  if (reactivateError) return { ok: false, reason: 'subscription_reactivation_failed' };
 
   const patch = buildGaragePlanSubscriptionUpdate(plan, {
     stripeCustomerId: input.stripeCustomerId,
@@ -47,20 +65,22 @@ export async function applyGaragePlanFromStripe(input: {
     status: input.status,
   });
 
-  const { data: companyStore } = await admin
+  const { data: companyStore, error: storeError } = await admin
     .from('stores')
     .select('tenant_id')
     .eq('id', input.companyId)
     .single();
+  if (storeError) return { ok: false, reason: 'subscription_store_lookup_failed' };
   const tenantId = (companyStore as { tenant_id: string | null } | null)?.tenant_id ?? null;
 
-  const { data: existing } = await admin
+  const { data: existing, error: existingError } = await admin
     .from('company_subscriptions')
     .select('id')
     .eq(tenantId ? 'tenant_id' : 'company_id', tenantId ?? input.companyId)
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (existingError) return { ok: false, reason: 'subscription_lookup_failed' };
 
   if (existing?.id) {
     const { error } = await admin.from('company_subscriptions').update(patch).eq('id', existing.id);
@@ -90,16 +110,17 @@ export async function recordStripeCheckoutCompletion(input: {
 }) {
   const admin = createAdminClient();
   if (!admin) {
-    return;
+    throw new Error('admin_client_unavailable');
   }
 
-  const { data: companyStore } = await admin
+  const { data: companyStore, error: storeError } = await admin
     .from('stores')
     .select('tenant_id')
     .eq('id', input.companyId)
     .single();
+  if (storeError || !companyStore) throw new Error('checkout_store_lookup_failed');
 
-  await admin.from('plan_change_requests').insert({
+  const { error: insertError } = await admin.from('plan_change_requests').upsert({
     company_id: input.companyId,
     tenant_id: (companyStore as { tenant_id: string | null } | null)?.tenant_id ?? null,
     requested_by: input.requestedBy,
@@ -107,7 +128,9 @@ export async function recordStripeCheckoutCompletion(input: {
     current_plan: null,
     requested_plan: input.planCode,
     message: `Stripe Checkout 完了 (${input.stripeSessionId})`,
+    stripe_session_id: input.stripeSessionId,
     status: 'completed',
     completed_at: new Date().toISOString(),
-  });
+  }, { onConflict: 'stripe_session_id', ignoreDuplicates: true });
+  if (insertError) throw new Error('checkout_completion_record_failed');
 }

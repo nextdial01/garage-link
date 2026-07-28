@@ -309,7 +309,7 @@ export default function AnalyticsPage() {
         const supabase = createClient();
         const context = await getGarageUiContext();
         if (!context.storeId) throw new Error('所属店舗が見つかりません。');
-        const { data, error } = await supabase.rpc('get_garage_analytics_payload', {});
+        const { data, error } = await supabase.rpc('get_garage_analytics_payload_v2', {});
         if (error) throw new Error(error.message);
         const payload = normalizeAnalyticsPayload(data);
 

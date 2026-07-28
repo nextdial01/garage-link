@@ -142,7 +142,7 @@ export default function TrashPage() {
         }
 
         const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
+          .from<StoreMemberRow>('current_user_active_store_membership')
           .select('store_id, role, display_name, email')
           .eq('user_id', userData.user.id)
           .single();

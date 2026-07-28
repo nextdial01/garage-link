@@ -1,12 +1,13 @@
 import Stripe from 'stripe';
 import { GARAGE_PLAN_ORDER, type GaragePlanCode } from '@/lib/billing/garagePlans';
+import { isAllowedStripeSecretKey } from '@/lib/security/runtimeSafety';
 
 let stripeClient: Stripe | null = null;
 
 export function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY;
 
-  if (!secretKey) {
+  if (!secretKey || !isAllowedStripeSecretKey(secretKey)) {
     return null;
   }
 
@@ -20,7 +21,7 @@ export function getStripeClient() {
 }
 
 export function isStripeConfigured() {
-  return Boolean(process.env.STRIPE_SECRET_KEY);
+  return isAllowedStripeSecretKey(process.env.STRIPE_SECRET_KEY);
 }
 
 export function getStripePriceId(planCode: GaragePlanCode): string | null {

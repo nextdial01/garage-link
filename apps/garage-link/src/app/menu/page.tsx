@@ -54,7 +54,7 @@ export default function MenuPage() {
         }
 
         const { data: member } = await supabase
-          .from<StoreMemberRow>('store_members')
+          .from<StoreMemberRow>('memberships')
           .select('role')
           .eq('user_id', userData.user.id)
           .single();

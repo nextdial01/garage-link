@@ -333,7 +333,7 @@ export default function MaintenanceDetailPage() {
         if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
 
         const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
+          .from<StoreMemberRow>('current_user_active_store_membership')
           .select('store_id, role')
           .eq('user_id', userData.user.id)
           .single();
@@ -394,52 +394,6 @@ export default function MaintenanceDetailPage() {
     }
   }, [saveError]);
 
-  async function revertStockForCancelledJob(supabase: ReturnType<typeof createClient>): Promise<{ revertedCount: number; errors: string[] }> {
-    const { data: adjustedParts, error: fetchError } = await supabase
-      .from('maintenance_job_parts')
-      .select('id, part_id, quantity, name')
-      .eq('job_id', maintenanceId)
-      .eq('store_id', storeId);
-    if (fetchError) throw new Error(fetchError.message);
-
-    let revertedCount = 0;
-    const errors: string[] = [];
-    for (const part of adjustedParts ?? []) {
-      const row = part as { id: string; part_id: string | null; quantity: number; name: string | null };
-      if (!row.part_id) continue;
-      const adjustResult = await supabase.rpc('adjust_repair_part_stock', {
-        p_part_id: row.part_id,
-        p_store_id: storeId,
-        p_delta: row.quantity,
-      });
-      if (adjustResult.error) {
-        errors.push(`${row.name ?? row.id}: ${adjustResult.error.message}`);
-        continue;
-      }
-      const data = adjustResult.data as { ok: boolean; error?: string } | null;
-      if (!data?.ok) {
-        errors.push(`${row.name ?? row.id}: ${data?.error ?? '在庫返却に失敗'}`);
-        continue;
-      }
-      await supabase
-        .from('maintenance_job_parts')
-        .update({ stock_adjusted: false, stock_adjusted_at: null })
-        .eq('id', row.id)
-        .eq('store_id', storeId);
-      await logAudit({
-        supabase,
-        storeId,
-        action: 'update',
-        targetType: 'repair_part',
-        targetId: row.part_id,
-        targetLabel: row.name ?? null,
-        metadata: { reason: 'maintenance_job_cancelled', job_id: maintenanceId, delta: row.quantity },
-      });
-      revertedCount += 1;
-    }
-    return { revertedCount, errors };
-  }
-
   function updateField(name: keyof MaintenanceFormState, value: string) {
     setForm((current) => (current[name] === value ? current : { ...current, [name]: value }));
   }
@@ -477,23 +431,19 @@ export default function MaintenanceDetailPage() {
 
       let cancelledPatch: { cancelled_at?: string; cancelled_by_user_name?: string | null } = {};
       if (form.status === 'cancelled' && previousStatus !== 'cancelled') {
-        const { revertedCount, errors } = await revertStockForCancelledJob(supabase);
-        if (errors.length > 0) {
-          throw new Error(`在庫返却に失敗した部品があります: ${errors.join(' / ')}`);
-        }
+        const operationId = crypto.randomUUID();
+        const { data: cancellation, error: cancellationError } = await supabase.rpc('cancel_maintenance_job', {
+          p_job_id: maintenanceId,
+          p_reason: form.work_memo || '画面から整備案件を取消',
+          p_idempotency_key: operationId,
+        });
+        if (cancellationError) throw new Error(cancellationError.message);
+        const result = cancellation as { ok?: boolean; restored_part_count?: number } | null;
+        if (!result?.ok) throw new Error('整備取消を完了できませんでした。');
         cancelledPatch = {
           cancelled_at: new Date().toISOString(),
           cancelled_by_user_name: form.assigned_user_name || null,
         };
-        await logAudit({
-          supabase,
-          storeId,
-          action: 'update',
-          targetType: 'maintenance_job',
-          targetId: maintenanceId,
-          targetLabel: form.job_no,
-          metadata: { event: 'cancelled', reverted_part_count: revertedCount },
-        });
       }
 
       const { error } = await supabase
@@ -501,7 +451,7 @@ export default function MaintenanceDetailPage() {
         .update({
           job_no: form.job_no,
           job_type: form.job_type,
-          status: form.status,
+          ...(form.status === 'cancelled' && previousStatus !== 'cancelled' ? {} : { status: form.status }),
           ...cancelledPatch,
           priority: form.priority,
           reception_date: form.reception_date || null,

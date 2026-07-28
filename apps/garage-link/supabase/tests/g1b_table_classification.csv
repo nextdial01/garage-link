@@ -1,0 +1,66 @@
+table,scope,classification,authenticated_write_roles,notes
+accounting_export_settings,store,store scoped,"owner|admin|implementer",explicit import/export capability
+admin_access_credentials,global,service-only,none,administrative credential material
+admin_email_otp_challenges,user,service-only,none,server-managed authentication state
+admin_trusted_sessions,user,service-only,none,server-managed authentication state
+appointments,store,store scoped,"owner|admin|staff",normal business data
+audit_logs,store,audit append-only,"owner|admin|implementer|staff",insert only
+auth_login_attempts,user,service-only,none,server-managed security state
+company_subscriptions,tenant,service-only,none,billing state
+customers,store,store scoped,"owner|admin|staff",viewer read-only
+data_export_logs,store,audit append-only,"owner|admin|implementer|staff",insert only
+data_import_logs,store,audit append-only,"owner|admin|implementer|staff",insert only
+deals,store,store scoped,"owner|admin|staff",viewer read-only
+delivery_overage_logs,store,audit append-only,"owner|admin",billing metering from authorized delivery
+delivery_usage_logs,store,audit append-only,"owner|admin",billing metering from authorized delivery
+inspection_reminder_events,store,service-only,none,generated event state
+inspection_reminder_settings,store,store scoped,"owner|admin",store setting
+inspection_reminder_timings,store,store scoped,"owner|admin",store setting
+inventory_count_items,store,store scoped,"owner|admin|staff",finalization remains owner/admin at application boundary
+inventory_counts,store,store scoped,"owner|admin|staff",finalization remains owner/admin at application boundary
+invoice_items,store,store scoped,"owner|admin|staff",parent scope required
+invoices,store,store scoped,"owner|admin|staff",dangerous confirmation remains owner/admin at RPC boundary
+line_auto_replies,store,store scoped,"owner|admin|implementer",LINE content capability
+line_campaign_targets,store,store scoped,"owner|admin|implementer",LINE content capability
+line_campaigns,store,store scoped,"owner|admin|implementer",LINE content capability
+line_delivery_logs,store,audit append-only,"owner|admin",delivery result log
+line_form_questions,store,store scoped,"owner|admin|implementer",LINE content capability
+line_form_responses,store,store scoped,"owner|admin|staff",update-only inquiry management
+line_forms,store,store scoped,"owner|admin|implementer",LINE content capability
+line_friends,store,service-only,none,external synchronized PII
+line_link_inbound_nonces,global,service-only,none,replay protection
+line_message_drafts,store,store scoped,"owner|admin|implementer",LINE content capability
+line_message_logs,store,audit append-only,"owner|admin",delivery history
+line_rich_menus,store,store scoped,"owner|admin|implementer",LINE content capability
+line_routes,store,store scoped,"owner|admin|implementer",LINE content capability
+line_settings,store,store scoped,"owner|admin|implementer",explicit LINE settings capability
+line_step_messages,store,store scoped,"owner|admin|implementer",LINE content capability
+line_steps,store,store scoped,"owner|admin|implementer",LINE content capability
+line_tags,store,store scoped,"owner|admin|implementer",LINE content capability
+line_templates,store,store scoped,"owner|admin|implementer",LINE content capability
+line_test_delivery_logs,store,audit append-only,"owner|admin|implementer|staff",test delivery result log
+line_webhook_events,store,service-only,none,inbound webhook state
+ll_friend_info_fields,store,legacy compatibility,none,L-LINK compatibility
+ll_friend_info_folders,store,legacy compatibility,none,L-LINK compatibility
+ll_friend_info_values,store,legacy compatibility,none,L-LINK compatibility
+ll_subscriptions,store,legacy compatibility,none,L-LINK compatibility
+maintenance_job_parts,store,store scoped,"owner|admin|staff",stock adjustment remains owner/admin RPC
+maintenance_jobs,store,store scoped,"owner|admin|staff",viewer read-only
+memberships,tenant,legacy compatibility,none,G1-A RPC-only source of truth
+payment_items,store,store scoped,"owner|admin",high-risk payment operation
+plan_change_requests,tenant,service-only,none,billing server-only completion
+quote_items,store,store scoped,"owner|admin|staff",parent scope required
+quotes,store,store scoped,"owner|admin|staff",dangerous issue or cancellation remains owner/admin boundary
+repair_part_stock_movements,store,audit append-only,"owner|admin",stock RPC only
+repair_parts,store,store scoped,"owner|admin|staff",stock confirmation remains owner/admin RPC
+security_events,store,audit append-only,"owner|admin|implementer|staff",insert only
+store_members,store,legacy compatibility,none,no authorization and no user-facing write
+stores,tenant,tenant scoped,"owner|admin",store settings
+stripe_webhook_events,global,service-only,none,webhook idempotency
+tenant_features,tenant,service-only,none,billing feature projection
+tenant_subscriptions,tenant,service-only,none,billing subscription projection
+tenants,tenant,tenant scoped,"owner|admin",tenant settings
+trade_in_vehicles,store,store scoped,"owner|admin|staff",normal business data
+uploaded_files,store,store scoped,"owner|admin|staff",business file metadata
+vehicle_listing_statuses,store,store scoped,"owner|admin|staff",normal vehicle operation
+vehicles,store,store scoped,"owner|admin|staff",viewer read-only

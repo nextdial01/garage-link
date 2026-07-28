@@ -6,10 +6,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
-
-type StoreMemberRow = {
-  store_id: string;
-};
+import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 
 type QuoteRow = {
   id: string;
@@ -100,28 +97,14 @@ export default function QuotesPage() {
 
       try {
         const supabase = createClient();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-
-        if (userError || !userData.user?.id) {
-          throw new Error(userError?.message ?? 'ログイン情報を取得できませんでした。');
-        }
-
-        const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
-          .select('store_id')
-          .eq('user_id', userData.user.id)
-          .single();
-
-        if (memberError || !member?.store_id) {
-          throw new Error(memberError?.message ?? '所属店舗が見つかりません。');
-        }
+        const activeStoreId = (await requireActiveGarageStore()).storeId;
 
         const { data, error } = await supabase
           .from<QuoteRow>('quotes')
           .select(
             'id, deal_id, quote_no, customer_name, vehicle_label, status, issue_status, issue_date, expiry_date, total_amount, assigned_user_name'
           )
-          .eq('store_id', member.store_id)
+          .eq('store_id', activeStoreId)
           .order('created_at', { ascending: false });
 
         if (error) {

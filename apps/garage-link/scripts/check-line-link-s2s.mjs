@@ -37,6 +37,9 @@ assert(/x-ll-timestamp/.test(s2s), 'must read X-LL-Timestamp header');
 assert(/x-ll-nonce/.test(s2s), 'must read X-LL-Nonce header');
 assert(/x-ll-store-id/.test(s2s), 'must read X-LL-Store-Id header');
 assert(/LL_INBOUND_S2S_SECRET__/.test(s2s), 'secret env var pattern must follow contract');
+assert(/\.from\('line_link_connections'\)/.test(s2s), 'key id must be bound to a database tenant/store connection');
+assert(/\.eq\('key_id', keyId\)/.test(s2s) && /\.eq\('store_id', storeId\)/.test(s2s), 'credential lookup must bind key and store');
+assert(/tenant_id: context\.tenantId/.test(s2s), 'nonce must persist the verified tenant scope');
 function stripComments(src) {
   return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
 }
@@ -54,7 +57,7 @@ const routeCode = stripComments(route);
 assert(/verifyLLinkS2SRequest/.test(routeCode), 'route must verify S2S signature');
 assert(/SUPABASE_SERVICE_ROLE_KEY/.test(route), 'route must use service role key');
 assert(!/NEXT_PUBLIC_SUPABASE_ANON_KEY/.test(route), 'route must not use anon key');
-assert(/\.eq\('store_id', auth\.storeId\)/.test(routeCode), 'route must scope by signed storeId');
+assert(/\.eq\('store_id', context\.storeId!\)/.test(routeCode), 'route must scope by the credential-bound store context');
 assert(/\.eq\('status', 'pending'\)/.test(routeCode), 'route must select pending only');
 assert(!/api\.line\.me|messages\/push|messages\/multicast|messages\/broadcast/.test(routeCode), 'route must not call LINE');
 assert(!/line_user_id/.test(routeCode), 'route response code must NOT include line_user_id');

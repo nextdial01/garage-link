@@ -77,7 +77,7 @@ export default function InspectionReminderHistoryPage() {
         const supabase = createClient();
         const { data: userData } = await supabase.auth.getUser();
         if (userData.user?.id) {
-          const { data: member } = await supabase.from<{ role: string | null }>('store_members').select('role').eq('user_id', userData.user.id).single();
+          const { data: member } = await supabase.from<{ role: string | null }>('memberships').select('role').eq('user_id', userData.user.id).single();
           setRole(member?.role ?? '');
         }
       }

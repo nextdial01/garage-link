@@ -17,6 +17,10 @@ async function claimStripeEvent(event: Stripe.Event): Promise<EventClaim> {
     event_type: event.type,
     status: 'processing',
     error_message: null,
+    stripe_created: event.created,
+    object_id: typeof event.data.object === 'object' && event.data.object && 'id' in event.data.object
+      ? String(event.data.object.id)
+      : null,
   });
 
   if (!insertError) return 'claimed';
@@ -60,14 +64,16 @@ async function finishStripeEvent(eventId: string) {
 async function failStripeEvent(eventId: string, error: unknown) {
   const admin = createAdminClient();
   if (!admin) return;
-  const message = error instanceof Error ? error.message : 'unknown_webhook_error';
+  const message = error instanceof Error && /^[a-z0-9_]+$/i.test(error.message)
+    ? error.message
+    : 'webhook_processing_failed';
   await admin
     .from('stripe_webhook_events')
     .update({ status: 'failed', error_message: message.slice(0, 500) })
     .eq('stripe_event_id', eventId);
 }
 
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session, event: Stripe.Event) {
   const companyId = session.metadata?.company_id ?? session.client_reference_id;
   const planCode = session.metadata?.plan_code;
   const requestedBy = session.metadata?.requested_by;
@@ -84,6 +90,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     planCode,
     stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer?.id,
     stripeSubscriptionId: subscriptionId,
+    stripeEvent: { id: event.id, created: event.created },
   });
 
   if (!result.ok) throw new Error(result.reason);
@@ -98,7 +105,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 }
 
-async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription, event: Stripe.Event) {
   const companyId = subscription.metadata?.company_id;
   const planCode = subscription.metadata?.plan_code;
 
@@ -121,11 +128,12 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     stripeCustomerId: typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id,
     stripeSubscriptionId: subscription.id,
     status,
+    stripeEvent: { id: event.id, created: event.created },
   });
   if (!result.ok) throw new Error(result.reason);
 }
 
-async function applyScheduledPlanIfDue(subscriptionId: string) {
+async function applyScheduledPlanIfDue(subscriptionId: string, event: Stripe.Event) {
   const admin = createAdminClient();
   const stripe = getStripeClient();
   if (!admin || !stripe) throw new Error('billing_client_unavailable');
@@ -162,6 +170,7 @@ async function applyScheduledPlanIfDue(subscriptionId: string) {
     stripeCustomerId: row.stripe_customer_id,
     stripeSubscriptionId: subscriptionId,
     status: 'active',
+    stripeEvent: { id: event.id, created: event.created },
   });
   if (!result.ok) throw new Error(result.reason);
 
@@ -217,9 +226,9 @@ export async function POST(request: Request) {
     } else {
       return NextResponse.json({ ok: false, error: 'Webhook secret が未設定です。' }, { status: 400 });
     }
-  } catch (error) {
+  } catch {
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : 'Webhook 署名検証に失敗しました。' },
+      { ok: false, error: 'Webhook 署名検証に失敗しました。' },
       { status: 400 },
     );
   }
@@ -227,9 +236,9 @@ export async function POST(request: Request) {
   let claim: EventClaim;
   try {
     claim = await claimStripeEvent(event);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : 'Webhook受付に失敗しました。' },
+      { ok: false, error: 'Webhook受付に失敗しました。' },
       { status: 500 },
     );
   }
@@ -244,20 +253,20 @@ export async function POST(request: Request) {
   try {
     switch (event.type) {
       case 'checkout.session.completed':
-        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session, event);
         break;
       case 'customer.subscription.updated':
-        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription, event);
         break;
       case 'customer.subscription.deleted':
         await handleSubscriptionUpdated({
           ...(event.data.object as Stripe.Subscription),
           status: 'canceled',
-        });
+        }, event);
         break;
       case 'invoice.paid': {
         const subscriptionId = invoiceSubscriptionId(event.data.object as Stripe.Invoice);
-        if (subscriptionId) await applyScheduledPlanIfDue(subscriptionId);
+        if (subscriptionId) await applyScheduledPlanIfDue(subscriptionId, event);
         break;
       }
       default:
@@ -268,7 +277,7 @@ export async function POST(request: Request) {
   } catch (error) {
     await failStripeEvent(event.id, error);
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : 'Webhook処理に失敗しました。' },
+      { ok: false, error: 'Webhook処理に失敗しました。' },
       { status: 500 },
     );
   }

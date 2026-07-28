@@ -14,25 +14,17 @@ export async function getAuthenticatedAdminContext(request: NextRequest) {
   const user = userData.user;
   const sessionId = typeof claimsData?.claims?.session_id === 'string' ? claimsData.claims.session_id : '';
   if (!user?.id || !user.email || !sessionId) return null;
-  const storeRoles = await service
-    .from('store_members')
+  const tenantScope = await supabase.rpc('current_user_tenant_ids', {});
+  if (tenantScope.error || !Array.isArray(tenantScope.data) || tenantScope.data.length === 0) return null;
+  const membershipRoles = await supabase
+    .from('memberships')
     .select('role')
     .eq('user_id', user.id)
-    .in('status', ['active', 'member'])
+    .eq('status', 'active')
+    .in('tenant_id', tenantScope.data)
     .limit(10);
-  if (storeRoles.error) return null;
-
-  let isAdmin = hasEffectiveAdminRole([], storeRoles.data ?? []);
-  if ((storeRoles.data ?? []).length === 0) {
-    const membershipRoles = await service
-      .from('memberships')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('status', 'active')
-      .limit(10);
-    if (membershipRoles.error) return null;
-    isAdmin = hasEffectiveAdminRole(membershipRoles.data ?? [], []);
-  }
+  if (membershipRoles.error) return null;
+  const isAdmin = hasEffectiveAdminRole(membershipRoles.data ?? [], []);
   if (!isAdmin) return null;
   return { userId: user.id, email: user.email, sessionId, service, supabase };
 }

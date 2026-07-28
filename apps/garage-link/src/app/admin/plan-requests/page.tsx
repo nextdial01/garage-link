@@ -11,6 +11,7 @@ import { getRoleLabel } from '@/lib/auth/permissions';
 import { createClient } from '@/lib/supabase/client';
 
 type StoreMemberRow = {
+  tenant_id: string;
   store_id: string;
   user_id: string | null;
   role: string | null;
@@ -83,8 +84,8 @@ export default function AdminPlanRequestsPage() {
       if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
 
       const { data: member, error: memberError } = await supabase
-        .from<StoreMemberRow>('store_members')
-        .select('store_id, role, display_name, email')
+        .from<StoreMemberRow>('current_user_active_store_membership')
+        .select('tenant_id, store_id, role, display_name, email')
         .eq('user_id', userData.user.id)
         .single();
       if (memberError || !member?.store_id) throw new Error('所属店舗が見つかりません。');
@@ -102,15 +103,11 @@ export default function AdminPlanRequestsPage() {
         return;
       }
 
-      const { data: tenantStores } = storeData?.tenant_id
-        ? await supabase.from<{ id: string }>('stores').select('id').eq('tenant_id', storeData.tenant_id)
-        : { data: [{ id: member.store_id }] };
-      const storeIds = (tenantStores ?? []).map((item) => item.id);
       const [membersResult, requestsResult] = await Promise.all([
         supabase
-          .from<StoreMemberRow>('store_members')
-          .select('store_id, user_id, role, display_name, email')
-          .in('store_id', storeIds),
+          .from<StoreMemberRow>('memberships')
+          .select('tenant_id, store_id, user_id, role, display_name, email')
+          .eq('tenant_id', member.tenant_id),
         supabase
           .from<PlanChangeRequestRow>('plan_change_requests')
           .select('id, company_id, requested_by, request_type, current_plan, requested_plan, requested_extra_staff_count, requested_extra_store_count, requested_extra_storage_gb, support_hours, message, status, admin_note, completed_at, created_at')

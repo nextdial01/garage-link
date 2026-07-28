@@ -1,0 +1,76 @@
+{
+  "createdAt": "2026-07-27T23:40:00+09:00",
+  "status": "PASS",
+  "project": {
+    "ref": "wmlpuzuskfiwdipluglz",
+    "fingerprint": "5b41e1af2add",
+    "dashboardProject": "garage-link",
+    "llinkProject": false
+  },
+  "snapshot": {
+    "path": "docs/quality-audit/db006-current-supabase-c6-snapshot-manifest.json",
+    "fingerprint": "9e786d4c29ba9ff9bdb94c88df33cb525eed265c4a2f9ceda4d7e1e3b4258a21",
+    "fileSha256": "b06fd0fabb8c3201d4f0a800c704045759518f2ab76f7055fcc4990963ea3653"
+  },
+  "backup": {
+    "path": "/Users/ksk/garage-link-backups/post-r1-20260727-214232",
+    "exists": true,
+    "checksumFileSha256": "f88c814c8bb1253f15c635ced14637874fb54872dfdcf001da704240653eec00",
+    "verifiedFiles": 5,
+    "checksumMismatch": 0,
+    "permissions": "700/600"
+  },
+  "localRegression": {
+    "status": "PASS",
+    "command": "pnpm verify:g0b",
+    "securityTests": 234,
+    "db006Fixtures": 9,
+    "fresh": "PASS",
+    "upgrade": "PASS",
+    "rollbackReapply": "PASS",
+    "api": "PASS",
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "build": "PASS"
+  },
+  "targetedCurrentPrecheck": {
+    "status": "PASS",
+    "tenantFingerprint": "b24a1a657ea6",
+    "targetTenantCount": 1,
+    "tenantStatus": "active",
+    "canonicalActiveOwnerCount": 1,
+    "canonicalOwnerScopeIssues": 0,
+    "canonicalOwnerIneligibleStore": 0,
+    "legacyMismatchCount": 1,
+    "legacyOnlyCount": 0,
+    "membershipScopeIssues": 0,
+    "unexpectedIntegrityIssues": 0
+  },
+  "migration": {
+    "currentLedgerCount": 39,
+    "manifestEntryCount": 47,
+    "manifestSha256": "fcd990a8e9ff135fa897f5d1f017e8d962c3ed3b4e0c5813cc75851c41dcc677",
+    "targetCount": 9,
+    "targetAlreadyApplied": 0,
+    "migrationManifestMatches": 9,
+    "migrationManifestMismatch": 0,
+    "runbookMatches": 9
+  },
+  "runtime": {
+    "externalWorker": "stopped",
+    "cron": "stopped_or_absent",
+    "externalRuntime": "stopped",
+    "externalDelivery": "disabled"
+  },
+  "checks": {
+    "projectMatch": "PASS",
+    "backup": "PASS",
+    "localRegression": "PASS",
+    "targetedCurrentPrecheck": "PASS",
+    "ledger": "PASS",
+    "manifest": "PASS",
+    "targetMigrations": "PASS",
+    "externalRuntime": "PASS",
+    "unexpectedDataChangeSinceC5": "PASS"
+  }
+}

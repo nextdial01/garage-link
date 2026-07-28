@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 type StoreMemberRow = {
+  tenant_id: string;
   store_id: string;
   role: string | null;
 };
@@ -80,9 +81,10 @@ export async function GET() {
   }
 
   const { data: member, error: memberError } = await supabase
-    .from<StoreMemberRow>('store_members')
-    .select('store_id, role')
+    .from<StoreMemberRow>('current_user_active_store_membership')
+    .select('tenant_id, store_id, role')
     .eq('user_id', userData.user.id)
+    .eq('status', 'active')
     .single();
 
   if (memberError || !member?.store_id) {
@@ -94,10 +96,11 @@ export async function GET() {
   }
 
   const { data: owners } = await supabase
-    .from<OwnerRow>('store_members')
+    .from<OwnerRow>('memberships')
     .select('id')
-    .eq('store_id', member.store_id)
-    .eq('role', 'owner');
+    .eq('tenant_id', member.tenant_id)
+    .eq('role', 'owner')
+    .eq('status', 'active');
 
   const { data: lineSettings } = await supabase
     .from<LineSettingsRow>('line_settings')

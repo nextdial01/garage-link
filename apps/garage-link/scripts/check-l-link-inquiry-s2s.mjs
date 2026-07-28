@@ -19,6 +19,7 @@ assert(/grant select, insert on table public\.line_form_responses to service_rol
 const route = read('src/app/api/s2s/line-link/inquiries/route.ts');
 const code = codeOnly(route);
 assert(/verifyLLinkS2SRequest/.test(code), 'route must verify HMAC authentication');
+assert(/GarageTenantContext/.test(code) && /auth\.context/.test(code), 'route must use the credential-bound tenant context');
 assert(/MAX_BODY_BYTES = 64 \* 1024/.test(code), 'route must bound request size');
 assert(/\.eq\('store_id', auth\.storeId\)/.test(code), 'lookup must use signed store id');
 assert(/store_id: auth\.storeId/.test(code), 'insert must use signed store id');

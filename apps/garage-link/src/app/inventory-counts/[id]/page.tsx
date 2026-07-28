@@ -8,8 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import SoftDeleteButton from '@/components/SoftDeleteButton';
 import { createClient } from '@/lib/supabase/client';
-
-type StoreMemberRow = { store_id: string };
+import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 
 type InventoryCountRow = {
   id: string;
@@ -464,22 +463,14 @@ export default function InventoryCountDetailPage() {
         setErrorMessage('');
         setSuccessMessage('');
         const supabase = createClient();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
-
-        const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
-          .select('store_id')
-          .eq('user_id', userData.user.id)
-          .single();
-        if (memberError || !member?.store_id) throw new Error('所属店舗が見つかりません。');
-        setStoreId(member.store_id);
+        const activeStoreId = (await requireActiveGarageStore()).storeId;
+        setStoreId(activeStoreId);
 
         const { data: count, error: countError } = await supabase
           .from<InventoryCountRow>('inventory_counts')
           .select('*')
           .eq('id', inventoryCountId)
-          .eq('store_id', member.store_id)
+          .eq('store_id', activeStoreId)
           .single();
         if (countError) {
           if (countError.message.toLowerCase().includes('0 rows')) {
@@ -497,7 +488,7 @@ export default function InventoryCountDetailPage() {
           .from<InventoryItemRow>('inventory_count_items')
           .select('*')
           .eq('inventory_count_id', count.id)
-          .eq('store_id', member.store_id)
+          .eq('store_id', activeStoreId)
           .order('created_at', { ascending: true });
         if (itemError) throw new Error(itemError.message);
 
@@ -506,7 +497,7 @@ export default function InventoryCountDetailPage() {
           const { data: vehicles, error: vehicleError } = await supabase
             .from<VehicleRow>('vehicles')
             .select('id, management_no, registration_no, maker, model_name, status, location_name')
-            .eq('store_id', member.store_id);
+            .eq('store_id', activeStoreId);
           if (vehicleError) throw new Error(vehicleError.message);
           setVehiclesById(Object.fromEntries((vehicles ?? []).filter((vehicle: VehicleRow) => vehicleIds.includes(vehicle.id)).map((vehicle: VehicleRow) => [vehicle.id, vehicle])));
         }
@@ -532,6 +523,7 @@ export default function InventoryCountDetailPage() {
       if (!storeId) throw new Error('所属店舗を取得できませんでした。');
       if (!form.count_no.trim()) throw new Error('棚卸し番号を入力してください。');
       if (!form.name.trim()) throw new Error('棚卸し名を入力してください。');
+      if (form.status === 'cancelled') throw new Error('棚卸し取消は管理者向け専用処理から実行してください。');
 
       const supabase = createClient();
       const { data: saveUserData } = await supabase.auth.getUser();
@@ -547,7 +539,7 @@ export default function InventoryCountDetailPage() {
           name: form.name.trim(),
           count_type: form.count_type,
           count_category: form.count_category,
-          status: form.status,
+          ...(form.status === 'completed' || form.status === 'cancelled' ? {} : { status: form.status }),
           scheduled_date: form.scheduled_date || null,
           started_at: form.started_at || null,
           completed_at: form.completed_at || null,
@@ -601,18 +593,7 @@ export default function InventoryCountDetailPage() {
         if (item.deleted) return;
 
         const payload = {
-          store_id: storeId,
-          inventory_count_id: inventoryCountId,
-          item_type: toNullableText(item.item_type),
-          vehicle_id: item.vehicle_id || null,
-          part_sku: toNullableText(item.part_sku),
-          management_no: toNullableText(item.management_no),
-          item_name: toNullableText(item.item_name),
-          location_name: toNullableText(item.location_name),
-          system_quantity: toNumber(item.system_quantity),
           actual_quantity: toNullableNumber(item.actual_quantity),
-          difference_quantity: toNullableNumber(item.difference_quantity),
-          check_status: item.check_status,
           checked_by: toNullableText(item.checked_by),
           memo: toNullableText(item.memo),
         };
@@ -626,12 +607,19 @@ export default function InventoryCountDetailPage() {
             .eq('inventory_count_id', inventoryCountId);
           if (error) throw new Error(error.message);
         } else if (item.item_name || item.management_no || item.part_sku) {
-          const { error } = await supabase.from<InventoryItemRow>('inventory_count_items').insert(payload);
-          if (error) throw new Error(error.message);
+          throw new Error('棚卸し開始後にsnapshot対象を追加することはできません。新しい棚卸しを開始してください。');
         }
       });
 
       await Promise.all(itemOperations);
+      if (form.status === 'completed') {
+        const { data: finalized, error: finalizeError } = await supabase.rpc('finalize_inventory_count', {
+          p_inventory_count_id: inventoryCountId,
+          p_idempotency_key: crypto.randomUUID(),
+        });
+        const finalizeResult = finalized as { ok?: boolean } | null;
+        if (finalizeError || !finalizeResult?.ok) throw new Error(finalizeError?.message ?? '棚卸しを確定できませんでした。');
+      }
       setForm((current) => ({
         ...current,
         difference_count: String(differenceCount),
@@ -882,8 +870,8 @@ export default function InventoryCountDetailPage() {
                         <td className="px-3 py-3"><input className={compactInputClass} value={item.checked_by} onChange={(event) => updateItem(item.localId, 'checked_by', event.target.value)} /></td>
                         <td className="px-3 py-3"><input className={compactInputClass} value={item.memo} onChange={(event) => updateItem(item.localId, 'memo', event.target.value)} /></td>
                         <td className="px-3 py-3">
-                          <button type="button" onClick={() => removeItem(item.localId)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50">
-                            削除
+                          <button type="button" onClick={() => removeItem(item.localId)} disabled={Boolean(item.id)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 disabled:hover:bg-white" title={item.id ? '開始済み棚卸しのsnapshot行は削除できません。' : undefined}>
+                            {item.id ? '固定' : '削除'}
                           </button>
                         </td>
                       </tr>

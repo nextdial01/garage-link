@@ -251,7 +251,7 @@ export default function InspectionReminderSettingsPage() {
         const { data: userData } = await supabase.auth.getUser();
         let memberRole: string | null = null;
         if (userData.user?.id) {
-          const { data: member } = await supabase.from<{ role: string | null }>('store_members').select('role').eq('user_id', userData.user.id).single();
+          const { data: member } = await supabase.from<{ role: string | null }>('memberships').select('role').eq('user_id', userData.user.id).single();
           memberRole = member?.role ?? null;
           setRole(memberRole ?? '');
         }

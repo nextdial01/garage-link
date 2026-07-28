@@ -54,7 +54,7 @@ export default function StoreSettingsPage() {
         if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
 
         const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
+          .from<StoreMemberRow>('current_user_active_store_membership')
           .select('store_id, role')
           .eq('user_id', userData.user.id)
           .single();

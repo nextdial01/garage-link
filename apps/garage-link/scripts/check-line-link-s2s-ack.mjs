@@ -50,6 +50,7 @@ const routeCode = stripComments(route);
 assert(/export async function POST/.test(routeCode), 'ack route must export POST');
 assert(!/export async function GET/.test(routeCode), 'ack route must not accept GET');
 assert(/verifyLLinkS2SRequest/.test(routeCode), 'ack route must verify S2S signature');
+assert(/GarageTenantContext/.test(routeCode) && /auth\.context/.test(routeCode), 'ack route must use the credential-bound tenant context');
 assert(/auth\.storeId/.test(routeCode), 'ack route must use the HMAC-verified store id');
 assert(/p_store_id:\s*auth\.storeId/.test(routeCode), 'ack route must pass auth.storeId (not a body field) as p_store_id');
 assert(!/body\.store_id|parsedBody\.store_id|acknowledgements\.store_id/i.test(routeCode), 'ack route must never read store_id from the request body');

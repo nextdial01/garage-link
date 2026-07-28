@@ -55,30 +55,24 @@ test.describe('共通UIコンテキストの実装契約', () => {
 
   test('ダッシュボードの業務データは1つのRPCで取得する', async () => {
     const dashboard = await readFile('src/app/dashboard/page.tsx', 'utf8');
-    const sql = await readFile(
-      'supabase/migrations/20260724000200_garage_dashboard_payload.sql',
-      'utf8',
-    );
+    const sql = await readFile('supabase/migrations/20260727000100_active_store_preference.sql', 'utf8');
 
-    expect(dashboard).toContain("rpc('get_garage_dashboard_payload'");
+    expect(dashboard).toContain("rpc('get_garage_dashboard_payload_v2'");
     expect(dashboard).not.toContain(".from<VehicleRow>('vehicles')");
-    expect(sql).toContain('create or replace function public.get_garage_dashboard_payload()');
+    expect(sql).toContain('create or replace function public.get_garage_dashboard_payload_v2()');
     expect(sql).toContain('auth.uid()');
-    expect(sql).toContain("v_role in ('owner', 'admin')");
+    expect(sql).toMatch(/v_role in \('owner',\s*'admin'\)/);
   });
 
   test('分析画面の業務データは1つのRPCで取得し、未使用の個人情報を取得しない', async () => {
     const analytics = await readFile('src/app/analytics/page.tsx', 'utf8');
-    const sql = await readFile(
-      'supabase/migrations/20260724000300_garage_analytics_payload.sql',
-      'utf8',
-    );
+    const sql = await readFile('supabase/migrations/20260727000100_active_store_preference.sql', 'utf8');
 
-    expect(analytics).toContain("rpc('get_garage_analytics_payload'");
+    expect(analytics).toContain("rpc('get_garage_analytics_payload_v2'");
     expect(analytics).not.toContain('safeRows<');
     expect(analytics).not.toContain('phone: string | null');
     expect(analytics).not.toContain('line_user_id: string | null');
-    expect(sql).toContain('create or replace function public.get_garage_analytics_payload()');
+    expect(sql).toContain('create or replace function public.get_garage_analytics_payload_v2()');
     expect(sql).toContain('auth.uid()');
   });
 
