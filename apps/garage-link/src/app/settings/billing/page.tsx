@@ -153,6 +153,7 @@ export default function BillingSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isStripeLoading, setIsStripeLoading] = useState(false);
+  const [isStripePortalLoading, setIsStripePortalLoading] = useState(false);
   const [stripeConfigured, setStripeConfigured] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -393,6 +394,25 @@ export default function BillingSettingsPage() {
     }
   }
 
+  async function handleStripePortal() {
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    try {
+      setIsStripePortalLoading(true);
+      const response = await fetch('/api/billing/portal', { method: 'POST' });
+      const payload = (await response.json()) as { ok?: boolean; url?: string; error?: string };
+      if (!response.ok || !payload.ok || !payload.url) {
+        throw new Error(payload.error ?? '契約管理ページを開けませんでした。');
+      }
+      window.location.assign(payload.url);
+    } catch (error) {
+      setErrorMessage(translateDbError(error instanceof Error ? error.message : '契約管理ページを開けませんでした。'));
+    } finally {
+      setIsStripePortalLoading(false);
+    }
+  }
+
   function planCardSummary(code: GaragePlanCode) {
     const plan = GARAGE_PLANS[code];
     return [
@@ -454,6 +474,16 @@ export default function BillingSettingsPage() {
               <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
                 {getGaragePlan(subscription.pending_plan).name}への変更を予約済みです。{formatInvoiceDate(subscription.pending_plan_effective_at)}から機能と契約内容を切り替えます。
               </p>
+            )}
+            {subscription?.stripe_customer_id && (
+              <button
+                type="button"
+                onClick={() => void handleStripePortal()}
+                disabled={isStripePortalLoading}
+                className="mt-4 inline-flex rounded-xl border border-blue-300 bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isStripePortalLoading ? '契約管理を開いています...' : '支払方法・契約を管理'}
+              </button>
             )}
           </section>
 

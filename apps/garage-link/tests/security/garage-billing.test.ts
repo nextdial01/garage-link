@@ -213,6 +213,23 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(ownerMigration).toContain('owner to postgres');
   });
 
+  test('Stripe Customer Portalはcanonical membershipとtenant境界を必須にする', async () => {
+    const portalRoute = await readFile('src/app/api/billing/portal/route.ts', 'utf8');
+    const billingPage = await readFile('src/app/settings/billing/page.tsx', 'utf8');
+    const stripeClient = await readFile('src/lib/stripe/client.ts', 'utf8');
+
+    expect(portalRoute).toContain("from<StoreMemberRow>('current_user_active_store_membership')");
+    expect(portalRoute).toContain(".eq('status', 'active')");
+    expect(portalRoute).toContain("member.role !== 'owner' && member.role !== 'admin'");
+    expect(portalRoute).toContain(".eq('tenant_id', member.tenant_id)");
+    expect(portalRoute).toContain('stripe.billingPortal.sessions.create');
+    expect(portalRoute).toContain('return_url: `${getAppBaseUrl(request.url)}/settings/billing`');
+    expect(portalRoute).not.toContain(".from('store_members')");
+    expect(billingPage).toContain("fetch('/api/billing/portal', { method: 'POST' })");
+    expect(billingPage).toContain('支払方法・契約を管理');
+    expect(stripeClient).toContain("url: 'https://example.invalid/garage-link/stripe-test/portal'");
+  });
+
   test('10%相当額を含む請求総額を維持し、免税・適格請求書の案内は利用規約だけに記載する', async () => {
     const legalConstants = await readFile('src/lib/legal/constants.ts', 'utf8');
     const billingPage = await readFile('src/app/settings/billing/page.tsx', 'utf8');

@@ -11,6 +11,14 @@ function getPreviewStripeMock() {
   if (previewStripeMock) return previewStripeMock;
   const verifier = new Stripe('sk_test_garage_preview_fixture', { apiVersion: '2026-06-24.dahlia' });
   const mock = {
+    billingPortal: {
+      sessions: {
+        create: async () => ({
+          id: `bps_test_garage_preview_${randomUUID().replaceAll('-', '')}`,
+          url: 'https://example.invalid/garage-link/stripe-test/portal',
+        }),
+      },
+    },
     checkout: {
       sessions: {
         create: async (params: Record<string, unknown>) => {
