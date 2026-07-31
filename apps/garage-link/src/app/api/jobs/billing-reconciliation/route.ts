@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import Stripe from 'stripe';
 import { garageNextRetryAt, isGarageRetryDeadLetter } from '@/lib/billing/garageLifecycle';
-import { normalizeGaragePlanCode } from '@/lib/billing/garagePlans';
+import { GARAGE_PLAN_ORDER, normalizeGaragePlanCode } from '@/lib/billing/garagePlans';
 import { applyAuthoritativeGarageSubscription } from '@/lib/stripe/garageSubscriptionSync';
 import { assertStripePriceId, getStripeClient } from '@/lib/stripe/client';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -16,6 +17,7 @@ type ReconciliationOperation = {
   target_options: {
     price_id?: string;
     expected_quantity?: number;
+    cancel_at_period_end?: boolean;
   } | null;
 };
 
@@ -51,7 +53,8 @@ async function reconcile(request: Request) {
       if (!operation.stripe_subscription_id) throw new Error('stripe_subscription_id_missing');
       const current = await stripe.subscriptions.retrieve(operation.stripe_subscription_id);
       if (operation.operation_type === 'change_plan') {
-        const expectedPrice = assertStripePriceId(normalizeGaragePlanCode(operation.target_plan));
+        const targetPlan = normalizeGaragePlanCode(operation.target_plan);
+        const expectedPrice = assertStripePriceId(targetPlan);
         if (!current.items.data.some((item) => item.price.id === expectedPrice)) {
           await admin.from('billing_sync_operations').update({
             status: 'failed',
@@ -61,6 +64,20 @@ async function reconcile(request: Request) {
           }).eq('id', operation.id).eq('lease_owner', workerId);
           continue;
         }
+        const { data: stored } = await admin.from('company_subscriptions')
+          .select('id, plan').eq('stripe_subscription_id', operation.stripe_subscription_id)
+          .maybeSingle();
+        const storedPlan = normalizeGaragePlanCode(stored?.plan);
+        if (stored && GARAGE_PLAN_ORDER.indexOf(targetPlan) < GARAGE_PLAN_ORDER.indexOf(storedPlan)) {
+          const item = current.items.data[0] as Stripe.SubscriptionItem & { current_period_end?: number };
+          const periodEnd = Number(item?.current_period_end);
+          if (!Number.isFinite(periodEnd)) throw new Error('stripe_billing_period_missing');
+          const { error: scheduleError } = await admin.from('company_subscriptions').update({
+            pending_plan: targetPlan,
+            pending_plan_effective_at: new Date(periodEnd * 1000).toISOString(),
+          }).eq('id', stored.id);
+          if (scheduleError) throw new Error('subscription_schedule_failed');
+        }
       }
       if (operation.operation_type === 'change_option') {
         const priceId = operation.target_options?.price_id;
@@ -69,6 +86,19 @@ async function reconcile(request: Request) {
           .filter((item) => item.price.id === priceId)
           .reduce((sum, item) => sum + (item.quantity ?? 0), 0);
         if (!priceId || !Number.isInteger(expectedQuantity) || actualQuantity !== expectedQuantity) {
+          await admin.from('billing_sync_operations').update({
+            status: 'failed',
+            diagnostic_code: 'stripe_mutation_not_observed',
+            lease_owner: null,
+            lease_expires_at: null,
+          }).eq('id', operation.id).eq('lease_owner', workerId);
+          continue;
+        }
+      }
+      if (operation.operation_type === 'cancel' || operation.operation_type === 'restoration') {
+        const expectedCancellation = operation.target_options?.cancel_at_period_end;
+        if (typeof expectedCancellation !== 'boolean'
+          || current.cancel_at_period_end !== expectedCancellation) {
           await admin.from('billing_sync_operations').update({
             status: 'failed',
             diagnostic_code: 'stripe_mutation_not_observed',
