@@ -55,7 +55,7 @@ TypeScript, SQL and the public plan matrix are checked for drift in CI.
 |---|---|
 | lint | PASS |
 | typecheck | PASS |
-| security tests | PASS, 278/278 |
+| security tests | PASS, 291/291 |
 | build | PASS with the existing Edge-runtime warning |
 | commercial contract drift | PASS |
 | migration fresh / reapply | PASS, 52 migrations |
@@ -63,7 +63,32 @@ TypeScript, SQL and the public plan matrix are checked for drift in CI.
 | rollback / reapply | PASS |
 | schema drift | PASS |
 | quota concurrency | PASS, 2/10/100 workers |
-| local Batch 1B matrix | PASS, 42 named cases |
+| local Batch 1B state matrix | PASS, 32 executable cases |
+
+## Independent review history
+
+The first fixed SHA `72cbd02ac718f8a45ad1716d73acfb24aa6a2d4f`
+failed independent review. It found stale-subscription overwrite, false-positive
+out-of-order/reconciliation/quota tests, incomplete cancellation/add-on/grace
+coverage, missing lease fencing, a process-kill recovery gap and a Vercel
+self-attestation weakness. None was waived.
+
+The follow-up remediation:
+
+- rejects a delayed event from an old Subscription after re-contracting;
+- always prefers metadata from the retrieved current Subscription;
+- fences webhook completion/failure by lease owner;
+- reconciles stale `started` mutations only after verifying Stripe observed the
+  requested target;
+- attests Vercel project/deployment/SHA through the read-only Vercel API;
+- performs an actual two-writer vehicle quota race in staging;
+- requires reconciliation HTTP 200 and uses unique non-duplicate reverse-order
+  webhook fixtures;
+- adds durable scheduled-cancellation/restoration operations, add-on removal,
+  exact restriction with zero-day remote grace and canceled re-contract flows.
+
+The successor SHA must receive a fresh two-axis independent review before any
+remote write.
 
 ## Deliberately pending
 
@@ -71,4 +96,3 @@ No remote test result is claimed. Dedicated Vercel/Supabase staging, inclusive
 Stripe test Prices, Portal configuration, webhook registration, PC/mobile
 browser checks and the 18-step real Stripe lifecycle require the separate
 remote execution gate. Until those pass, all paid plans remain `NOT_READY`.
-

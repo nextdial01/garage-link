@@ -27,9 +27,11 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
     let customerId: string | null = null;
     let subscriptionId: string | null = null;
     let clockId: string | null = null;
+    let quotaStoreId: string | null = null;
+    const quotaPrefix = `E2E-B1B-${required('EXPECTED_RELEASE_SHA').slice(0, 8)}`;
 
     const readDbSubscription = async () => admin.from('company_subscriptions')
-      .select('plan,billing_state,stripe_status,grace_ends_at')
+      .select('company_id,tenant_id,plan,billing_state,stripe_status,grace_ends_at')
       .eq('stripe_subscription_id', subscriptionId!)
       .maybeSingle();
     const waitFor = async (predicate: () => Promise<boolean>) => {
@@ -75,6 +77,18 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
       await page.goto(url);
       await expect(page.getByText(new RegExp(gross.toLocaleString('ja-JP'))).first()).toBeVisible();
     };
+    const completeCheckout = async (url: string) => {
+      await page.goto(url);
+      await page.getByLabel(/メール|Email/i).fill('garage-link-e2e@example.invalid').catch(() => undefined);
+      const cardNumber = page.getByLabel(/カード番号|Card number/i);
+      if (await cardNumber.isVisible().catch(() => false)) {
+        await cardNumber.fill('4242424242424242');
+        await page.getByLabel(/有効期限|Expiration/i).fill('1234');
+        await page.getByLabel(/セキュリティコード|CVC/i).fill('123');
+      }
+      await page.getByRole('button', { name: /申し込む|Subscribe|Pay/i }).click();
+      await page.waitForURL(/checkout=success/);
+    };
 
     try {
       await test.step('1 paid signup', async () => {
@@ -109,13 +123,7 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         sessionId = body.sessionId;
       });
       await test.step('3 payment success', async () => {
-        await page.goto(checkoutUrl);
-        await page.getByLabel(/メール|Email/i).fill('garage-link-e2e@example.invalid').catch(() => undefined);
-        await page.getByLabel(/カード番号|Card number/i).fill('4242424242424242');
-        await page.getByLabel(/有効期限|Expiration/i).fill('1234');
-        await page.getByLabel(/セキュリティコード|CVC/i).fill('123');
-        await page.getByRole('button', { name: /申し込む|Subscribe|Pay/i }).click();
-        await page.waitForURL(/checkout=success/);
+        await completeCheckout(checkoutUrl);
         const session = await stripe.checkout.sessions.retrieve(sessionId);
         expect(session.amount_total).toBe(7480);
         customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null;
@@ -135,9 +143,49 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         expect(body.subscription.billing_state).toBe('active');
       });
       await test.step('7 quota強制', async () => {
-        const { data, error } = await admin.rpc('garage_commercial_e2e_quota_probe', { p_marker: marker });
-        expect(error).toBeNull();
-        expect(data).toMatchObject({ atomic: true, ui_api_db_consistent: true });
+        const current = (await readDbSubscription()).data;
+        quotaStoreId = current?.company_id ?? null;
+        expect(quotaStoreId).toBeTruthy();
+        const { data: contract, error: contractError } = await admin
+          .from('garage_plan_entitlements').select('inventory_limit')
+          .eq('plan', 'starter').single();
+        expect(contractError).toBeNull();
+        expect(contract?.inventory_limit).toBe(50);
+        await admin.from('vehicles').delete().eq('store_id', quotaStoreId!)
+          .like('management_no', `${quotaPrefix}%`);
+        const { data: existingVehicles, error: countError } = await admin.from('vehicles')
+          .select('id,status,deleted_at,is_archived').eq('store_id', quotaStoreId!);
+        expect(countError).toBeNull();
+        const inactive = new Set(['売却済み', '納車済み', 'sold', 'delivered', 'archived', 'deleted']);
+        const activeCount = (existingVehicles ?? []).filter((vehicle) => (
+          !vehicle.deleted_at && !vehicle.is_archived && !inactive.has(String(vehicle.status).toLowerCase())
+        )).length;
+        expect(activeCount).toBeLessThanOrEqual(49);
+        const seedCount = 49 - activeCount;
+        if (seedCount > 0) {
+          const { error } = await admin.from('vehicles').insert(
+            Array.from({ length: seedCount }, (_, index) => ({
+              store_id: quotaStoreId,
+              management_no: `${quotaPrefix}-SEED-${index}`,
+              status: 'in_stock',
+            })),
+          );
+          expect(error).toBeNull();
+        }
+        const attempts = await Promise.all(
+          [1, 2].map((index) => admin.from('vehicles').insert({
+            store_id: quotaStoreId,
+            management_no: `${quotaPrefix}-RACE-${index}`,
+            status: 'in_stock',
+          })),
+        );
+        expect(attempts.filter(({ error }) => !error)).toHaveLength(1);
+        const api = await (await page.request.get('/api/billing/subscription')).json() as {
+          subscription: { plan: string };
+        };
+        expect(api.subscription.plan).toBe('starter');
+        await page.goto(`${baseUrl}/settings/billing`);
+        await expect(page.getByText(/7,480/).first()).toBeVisible();
       });
       await test.step('8 Portal', async () => {
         await expectPortalGross(7480);
@@ -195,6 +243,18 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
             .eq('idempotency_key', `${marker}:addon`).maybeSingle();
           return data?.status === 'completed';
         });
+        await advanceBillingPeriod();
+        await expectLatestPaidGross(8580);
+        const remove = await page.request.post('/api/billing/change-options', {
+          headers: { 'idempotency-key': `${marker}:addon-remove` },
+          data: { type: 'add_staff', action: 'remove', amount: 1, termsAccepted: true },
+        });
+        expect(remove.status()).toBe(202);
+        await waitFor(async () => {
+          const { data } = await admin.from('billing_sync_operations').select('status')
+            .eq('idempotency_key', `${marker}:addon-remove`).maybeSingle();
+          return data?.status === 'completed';
+        });
       });
       await test.step('12 payment failure', async () => {
         const paymentMethod = await stripe.paymentMethods.create({
@@ -211,13 +271,12 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
           const invoice = typeof subscription.latest_invoice === 'string'
             ? await stripe.invoices.retrieve(subscription.latest_invoice)
             : subscription.latest_invoice;
-          return Boolean(invoice && invoice.total === 8580 && invoice.amount_paid === 0);
+          return Boolean(invoice && invoice.total === 7480 && invoice.amount_paid === 0);
         });
       });
       await test.step('13 grace / restriction', async () => {
-        await waitFor(async () => ['grace_period', 'restricted'].includes(
-          (await readDbSubscription()).data?.billing_state ?? '',
-        ));
+        expect(process.env.GARAGE_BILLING_GRACE_DAYS).toBe('0');
+        await waitFor(async () => (await readDbSubscription()).data?.billing_state === 'restricted');
         const paymentMethod = await stripe.paymentMethods.create({
           type: 'card', card: { token: 'tok_visa' }, metadata: { marker },
         });
@@ -230,18 +289,78 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
           : subscription.latest_invoice?.id;
         expect(invoiceId).toBeTruthy();
         const paid = await stripe.invoices.pay(invoiceId!);
-        expect(paid.amount_paid).toBe(8580);
+        expect(paid.amount_paid).toBe(7480);
         await waitFor(async () => (await readDbSubscription()).data?.billing_state === 'active');
       });
       await test.step('14 cancellation', async () => {
-        expect((await stripe.subscriptions.update(subscriptionId!, {
-          cancel_at_period_end: true,
-        })).cancel_at_period_end).toBe(true);
+        const response = await page.request.post('/api/billing/cancellation', {
+          headers: { 'idempotency-key': `${marker}:cancel` },
+          data: { action: 'schedule', termsAccepted: true },
+        });
+        expect(response.status()).toBe(202);
+        await waitFor(async () => (await readDbSubscription()).data?.billing_state === 'cancellation_scheduled');
       });
       await test.step('15 restoration', async () => {
-        expect((await stripe.subscriptions.update(subscriptionId!, {
-          cancel_at_period_end: false,
-        })).cancel_at_period_end).toBe(false);
+        const response = await page.request.post('/api/billing/cancellation', {
+          headers: { 'idempotency-key': `${marker}:restore` },
+          data: { action: 'restore', termsAccepted: true },
+        });
+        expect(response.status()).toBe(202);
+        await waitFor(async () => (await readDbSubscription()).data?.billing_state === 'active');
+        const cancelAgain = await page.request.post('/api/billing/cancellation', {
+          headers: { 'idempotency-key': `${marker}:cancel-final` },
+          data: { action: 'schedule', termsAccepted: true },
+        });
+        expect(cancelAgain.status()).toBe(202);
+        await waitFor(async () => (await readDbSubscription()).data?.billing_state === 'cancellation_scheduled');
+        const previousSubscription = subscriptionId;
+        await advanceBillingPeriod();
+        await waitFor(async () => (await readDbSubscription()).data?.billing_state === 'canceled');
+        const checkout = await page.request.post('/api/billing/checkout', {
+          headers: { 'idempotency-key': `${marker}:resubscribe` },
+          data: { plan: 'standard', termsAccepted: true },
+        });
+        expect(checkout.ok()).toBe(true);
+        const resubscribe = await checkout.json() as { url: string; sessionId: string };
+        await completeCheckout(resubscribe.url);
+        const session = await stripe.checkout.sessions.retrieve(resubscribe.sessionId);
+        subscriptionId = typeof session.subscription === 'string'
+          ? session.subscription
+          : session.subscription?.id ?? null;
+        expect(subscriptionId).not.toBe(previousSubscription);
+        await waitFor(async () => {
+          const current = (await readDbSubscription()).data;
+          return current?.billing_state === 'active' && current.plan === 'standard';
+        });
+        expect(session.amount_total).toBe(16280);
+        await expectLatestPaidGross(16280);
+
+        const cancelStandard = await page.request.post('/api/billing/cancellation', {
+          headers: { 'idempotency-key': `${marker}:cancel-standard` },
+          data: { action: 'schedule', termsAccepted: true },
+        });
+        expect(cancelStandard.status()).toBe(202);
+        await waitFor(async () => (await readDbSubscription()).data?.billing_state === 'cancellation_scheduled');
+        await advanceBillingPeriod();
+        await waitFor(async () => (await readDbSubscription()).data?.billing_state === 'canceled');
+
+        const proCheckout = await page.request.post('/api/billing/checkout', {
+          headers: { 'idempotency-key': `${marker}:resubscribe-pro` },
+          data: { plan: 'pro', termsAccepted: true },
+        });
+        expect(proCheckout.ok()).toBe(true);
+        const proSessionBody = await proCheckout.json() as { url: string; sessionId: string };
+        await completeCheckout(proSessionBody.url);
+        const proSession = await stripe.checkout.sessions.retrieve(proSessionBody.sessionId);
+        subscriptionId = typeof proSession.subscription === 'string'
+          ? proSession.subscription
+          : proSession.subscription?.id ?? null;
+        expect(proSession.amount_total).toBe(32780);
+        await waitFor(async () => {
+          const current = (await readDbSubscription()).data;
+          return current?.billing_state === 'active' && current.plan === 'pro';
+        });
+        await expectLatestPaidGross(32780);
       });
       const replay = async (event: Stripe.Event) => {
         const payload = JSON.stringify(event);
@@ -260,10 +379,17 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         expect((await replay(event)).ok()).toBe(true);
       });
       await test.step('17 out-of-order webhook', async () => {
-        const events = (await stripe.events.list({
+        const templates = (await stripe.events.list({
           limit: 2, types: ['customer.subscription.updated'],
         })).data;
-        for (const event of [...events].reverse()) await replay(event);
+        expect(templates.length).toBeGreaterThanOrEqual(1);
+        const synthetic = [1, 2].map((suffix) => ({
+          ...templates[0],
+          id: `evt_garage_b1b_${crypto.randomUUID().replaceAll('-', '')}_${suffix}`,
+          created: templates[0]!.created - suffix,
+          data: { object: { ...templates[0]!.data.object, id: subscriptionId } },
+        })) as Stripe.Event[];
+        for (const event of synthetic) expect((await replay(event)).ok()).toBe(true);
         expect((await readDbSubscription()).data?.stripe_status)
           .toBe((await stripe.subscriptions.retrieve(subscriptionId!)).status);
       });
@@ -271,12 +397,20 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         const response = await request.post(`${baseUrl}/api/jobs/billing-reconciliation`, {
           headers: { authorization: `Bearer ${required('CRON_SECRET')}` },
         });
-        expect([200, 503]).toContain(response.status());
+        expect(response.status()).toBe(200);
       });
     } finally {
-      if (subscriptionId) await stripe.subscriptions.cancel(subscriptionId).catch(() => undefined);
-      if (customerId) await stripe.customers.del(customerId).catch(() => undefined);
-      if (clockId) await stripe.testHelpers.testClocks.del(clockId).catch(() => undefined);
+      if (quotaStoreId) {
+        const { error } = await admin.from('vehicles').delete().eq('store_id', quotaStoreId)
+          .like('management_no', `${quotaPrefix}%`);
+        if (error) throw new Error('quota_fixture_teardown_failed');
+      }
+      if (subscriptionId) {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        if (subscription.status !== 'canceled') await stripe.subscriptions.cancel(subscriptionId);
+      }
+      if (customerId) await stripe.customers.del(customerId);
+      if (clockId) await stripe.testHelpers.testClocks.del(clockId);
     }
   });
 });

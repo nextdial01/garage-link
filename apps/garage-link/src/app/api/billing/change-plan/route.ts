@@ -149,7 +149,7 @@ export async function POST(request: Request) {
     stripeMutationCompleted = true;
 
     const { error: stripeAppliedError } = await admin.from('billing_sync_operations')
-      .update({ status: 'stripe_applied' }).eq('id', operation.id);
+      .update({ status: 'stripe_applied' }).eq('id', operation.id).eq('status', 'started');
     if (stripeAppliedError) throw new Error('billing_operation_checkpoint_failed');
 
     if (!upgrade) {

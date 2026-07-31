@@ -125,3 +125,16 @@ export const GARAGE_ADDON_CONTRACT_DATA = {
     "unit": "10gb"
   }
 } as const;
+export const GARAGE_BILLING_LIFECYCLE_CONTRACT = {
+  "proration": "none",
+  "upgradeEntitlement": "verified_webhook_after_immediate_subscription_update",
+  "upgradeBilling": "next_billing_cycle",
+  "downgradeEntitlement": "next_billing_cycle",
+  "downgradeBilling": "next_billing_cycle",
+  "cancellation": "cancel_at_period_end",
+  "immediateCancellation": "not_offered",
+  "scheduledCancellationRestoration": "cancel_at_period_end_false",
+  "canceledRestoration": "new_checkout_on_existing_customer",
+  "graceDaysEnvironment": "GARAGE_BILLING_GRACE_DAYS",
+  "graceDaysDefault": 0
+} as const;

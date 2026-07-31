@@ -87,7 +87,7 @@ stable
 set search_path = public, pg_temp
 as $$
   select case
-    when p_restoration_state = 'pending' then 'reconciliation_required'
+    when p_restoration_state in ('pending', 'failed') then 'reconciliation_required'
     when p_stripe_status = 'canceled' or p_cancelled_at is not null then 'canceled'
     when p_stripe_status = 'past_due'
       and p_grace_ends_at is not null
@@ -198,8 +198,8 @@ begin
   where tenant_id = p_tenant_id and idempotency_key = p_idempotency_key;
   if found then
     if v_row.operation_type <> p_operation_type
-      or v_row.target_plan is distinct from p_target_plan
-      or v_row.target_options is distinct from coalesce(p_target_options, '{}'::jsonb) then
+      or v_row.requested_plan is distinct from p_target_plan
+      or v_row.requested_options is distinct from coalesce(p_target_options, '{}'::jsonb) then
       raise exception using errcode = '23505', message = 'idempotency_payload_conflict';
     end if;
     return jsonb_build_object('ok', true, 'duplicate', true, 'id', v_row.id, 'status', v_row.status);
@@ -243,14 +243,15 @@ begin
   return query
   with candidates as (
     select id from public.stripe_webhook_events
-    where (
+    where (p_event_id is null or stripe_event_id = p_event_id)
+    and ((
       status in ('failed', 'retry_scheduled')
       and coalesce(next_retry_at, '-infinity'::timestamptz) <= clock_timestamp()
     ) or (
       status = 'processing' and lease_expires_at <= clock_timestamp()
     ) or (
       p_event_id is not null and stripe_event_id = p_event_id and status = 'dead_letter'
-    )
+    ))
     order by created_at
     for update skip locked
     limit least(greatest(p_limit, 1), 100)
@@ -280,7 +281,14 @@ begin
   return query
   with candidates as (
     select id from public.billing_sync_operations
-    where status in ('stripe_applied','reconciliation_required','retry_scheduled')
+    where (
+        status in ('stripe_applied','reconciliation_required','retry_scheduled')
+        or (
+          status = 'started'
+          and stripe_subscription_id is not null
+          and started_at <= clock_timestamp() - interval '1 minute'
+        )
+      )
       and coalesce(next_retry_at, '-infinity'::timestamptz) <= clock_timestamp()
       and (lease_expires_at is null or lease_expires_at <= clock_timestamp())
     order by created_at for update skip locked
@@ -294,35 +302,6 @@ end $$;
 revoke all on function public.claim_garage_billing_operations(text,integer,integer)
   from public, anon, authenticated;
 grant execute on function public.claim_garage_billing_operations(text,integer,integer) to service_role;
-
-create or replace function public.garage_commercial_e2e_quota_probe(p_marker text)
-returns jsonb
-language plpgsql security definer set search_path = public, pg_temp
-as $$
-declare v_trigger_count integer; v_plan_count integer;
-begin
-  if current_user not in ('service_role','postgres','supabase_admin') then
-    raise exception using errcode='42501',message='service role required';
-  end if;
-  if p_marker not like 'garage-link-commercial-e2e:%' then
-    raise exception using errcode='22023',message='commercial_e2e_marker_required';
-  end if;
-  select count(*) into v_plan_count from public.garage_plan_entitlements;
-  select count(*) into v_trigger_count from pg_trigger
-    where not tgisinternal and tgname in (
-      'guard_vehicle_plan_limit','guard_quote_plan_limit','guard_invoice_plan_limit',
-      'guard_storage_plan_limit','guard_membership_plan_limit','guard_store_plan_limit',
-      'a00_billing_access_vehicle','a00_billing_access_quote','a00_billing_access_invoice',
-      'a00_billing_access_storage','a00_billing_access_membership','a00_billing_access_store'
-    );
-  return jsonb_build_object(
-    'atomic',v_trigger_count=12,
-    'ui_api_db_consistent',v_plan_count=4,
-    'marker_valid',true
-  );
-end $$;
-revoke all on function public.garage_commercial_e2e_quota_probe(text) from public,anon,authenticated;
-grant execute on function public.garage_commercial_e2e_quota_probe(text) to service_role;
 
 create or replace function public.apply_garage_subscription_snapshot_v3(
   p_company_id uuid,
@@ -364,6 +343,14 @@ begin
   perform pg_advisory_xact_lock(hashtextextended(v_tenant::text, 0));
   select * into v_row from public.company_subscriptions
   where tenant_id = v_tenant order by updated_at desc limit 1 for update;
+  if found
+    and v_row.stripe_subscription_id is not null
+    and v_row.stripe_subscription_id <> p_subscription_id
+    and v_row.billing_state <> 'canceled' then
+    return jsonb_build_object(
+      'ok', true, 'applied', false, 'reason', 'superseded_subscription'
+    );
+  end if;
   v_state := public.garage_effective_billing_state(
     p_stripe_status, null, p_grace_ends_at, p_cancel_at_period_end,
     p_current_period_end, case when p_stripe_status = 'canceled' then now() else null end,

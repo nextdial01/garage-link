@@ -2,6 +2,19 @@
   "currency": "jpy",
   "interval": "month",
   "taxPolicy": "customer_gross_tax_inclusive",
+  "billingLifecycle": {
+    "proration": "none",
+    "upgradeEntitlement": "verified_webhook_after_immediate_subscription_update",
+    "upgradeBilling": "next_billing_cycle",
+    "downgradeEntitlement": "next_billing_cycle",
+    "downgradeBilling": "next_billing_cycle",
+    "cancellation": "cancel_at_period_end",
+    "immediateCancellation": "not_offered",
+    "scheduledCancellationRestoration": "cancel_at_period_end_false",
+    "canceledRestoration": "new_checkout_on_existing_customer",
+    "graceDaysEnvironment": "GARAGE_BILLING_GRACE_DAYS",
+    "graceDaysDefault": 0
+  },
   "plans": {
     "free": {
       "code": "free", "name": "Free", "netBasisMonthlyPrice": 0, "monthlyPrice": 0,

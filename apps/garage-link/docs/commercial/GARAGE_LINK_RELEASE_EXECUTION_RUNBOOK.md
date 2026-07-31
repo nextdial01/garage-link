@@ -11,9 +11,12 @@ or advertising.
    fresh/upgrade/rollback/reapply and the independent review.
 3. List the exact Vercel team/project, Supabase ref, Stripe test account,
    Products, old Prices, proposed new Prices, Portal configuration and webhook.
-4. Compare every identifier with the Production/Live denylist.
-5. Compute the staging fingerprint and stop on any mismatch.
-6. Confirm the minimal resource tier and that no additional paid option is
+4. Read the actual Vercel deployment through the Vercel API and verify its
+   project ID, team ID, project name, hostname and Git SHA; never self-compare
+   two manually supplied copies of the same ID.
+5. Compare every identifier with the Production/Live denylist.
+6. Compute the staging fingerprint and stop on any mismatch.
+7. Confirm the minimal resource tier and that no additional paid option is
    selected.
 
 ## 2. Persistent staging resources
@@ -83,4 +86,3 @@ Stop remote writes immediately on Production/Live detection, fingerprint or SHA
 mismatch, dirty worktree, real customer data, wrong gross total/tax behavior,
 unapproved object or migration, non-rollbackable state, secret/PII exposure or
 unexpected recurring cost.
-

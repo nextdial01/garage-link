@@ -1,3 +1,5 @@
+import { GARAGE_PLAN_CONTRACT_DATA } from './garagePlans.generated';
+
 export type GaragePlanCode = 'free' | 'starter' | 'standard' | 'pro';
 
 export type GaragePlan = {
@@ -117,4 +119,3 @@ export function getStorageLimit(subscription: GarageSubscriptionLike | null | un
   const plan = getGaragePlanFromSubscription(subscription);
   return (subscription?.storage_limit_mb ?? plan.storageLimitMb) + (subscription?.extra_storage_gb ?? 0) * 1024;
 }
-import { GARAGE_PLAN_CONTRACT_DATA } from './garagePlans.generated';

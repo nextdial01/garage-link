@@ -15,10 +15,10 @@ function safeDiagnostic(error: unknown) {
     : 'webhook_processing_failed';
 }
 
-export async function finishStripeEvent(eventId: string) {
+export async function finishStripeEvent(eventId: string, leaseOwner: string) {
   const admin = createAdminClient();
   if (!admin) throw new Error('admin_client_unavailable');
-  const { error } = await admin.from('stripe_webhook_events').update({
+  const { data, error } = await admin.from('stripe_webhook_events').update({
     status: 'completed',
     processed_at: new Date().toISOString(),
     error_message: null,
@@ -27,15 +27,16 @@ export async function finishStripeEvent(eventId: string) {
     operator_action_required: false,
     lease_owner: null,
     lease_expires_at: null,
-  }).eq('stripe_event_id', eventId);
-  if (error) throw new Error('stripe_event_finish_failed');
+  }).eq('stripe_event_id', eventId).eq('lease_owner', leaseOwner).select('id').maybeSingle();
+  if (error || !data) throw new Error('stripe_event_lease_lost');
 }
 
-export async function failStripeEvent(eventId: string, error: unknown) {
+export async function failStripeEvent(eventId: string, leaseOwner: string, error: unknown) {
   const admin = createAdminClient();
   if (!admin) return;
   const { data } = await admin.from('stripe_webhook_events')
-    .select('attempt_count').eq('stripe_event_id', eventId).maybeSingle();
+    .select('attempt_count').eq('stripe_event_id', eventId).eq('lease_owner', leaseOwner).maybeSingle();
+  if (!data) return;
   const attemptCount = Number((data as { attempt_count?: number } | null)?.attempt_count ?? 0) + 1;
   const deadLetter = isGarageRetryDeadLetter(attemptCount);
   const diagnostic = safeDiagnostic(error);
@@ -48,7 +49,7 @@ export async function failStripeEvent(eventId: string, error: unknown) {
     next_retry_at: deadLetter ? null : garageNextRetryAt(attemptCount),
     lease_owner: null,
     lease_expires_at: null,
-  }).eq('stripe_event_id', eventId);
+  }).eq('stripe_event_id', eventId).eq('lease_owner', leaseOwner);
 }
 
 async function linkCheckoutOperation(session: Stripe.Checkout.Session, subscriptionId: string) {

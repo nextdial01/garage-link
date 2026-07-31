@@ -75,8 +75,10 @@ export async function applyAuthoritativeGarageSubscription(
       input.subscriptionId,
       input.deletedSnapshot,
     );
-    const companyId = input.companyId ?? subscription.metadata?.company_id;
-    const planCode = input.planCode ?? subscription.metadata?.plan_code;
+    // The retrieved Subscription is authoritative. Event payload metadata is
+    // only a bootstrap fallback for legacy Subscriptions that predate metadata.
+    const companyId = subscription.metadata?.company_id ?? input.companyId;
+    const planCode = subscription.metadata?.plan_code ?? input.planCode;
     if (!companyId || !planCode) throw new Error('subscription_metadata_missing');
 
     const { data: current, error: currentError } = await admin

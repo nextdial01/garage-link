@@ -17,7 +17,8 @@ const contract = JSON.parse(await readFile(contractPath, 'utf8'));
 const plans = Object.values(contract.plans);
 const ts = `// GENERATED. Edit contract/garage-commercial-contract.json and run the generator.\n`
   + `export const GARAGE_PLAN_CONTRACT_DATA = ${JSON.stringify(contract.plans, null, 2)} as const;\n`
-  + `export const GARAGE_ADDON_CONTRACT_DATA = ${JSON.stringify(contract.addons, null, 2)} as const;\n`;
+  + `export const GARAGE_ADDON_CONTRACT_DATA = ${JSON.stringify(contract.addons, null, 2)} as const;\n`
+  + `export const GARAGE_BILLING_LIFECYCLE_CONTRACT = ${JSON.stringify(contract.billingLifecycle, null, 2)} as const;\n`;
 const sqlRows = plans.map((plan) => [
   `'${plan.code}'`, plan.monthlyPrice, plan.netBasisMonthlyPrice, plan.inventoryLimit,
   plan.includedStaffCount, plan.includedStoreCount, plan.storageLimitMb,

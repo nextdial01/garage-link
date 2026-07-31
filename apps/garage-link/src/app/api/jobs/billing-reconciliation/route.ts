@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { garageNextRetryAt, isGarageRetryDeadLetter } from '@/lib/billing/garageLifecycle';
+import { normalizeGaragePlanCode } from '@/lib/billing/garagePlans';
 import { applyAuthoritativeGarageSubscription } from '@/lib/stripe/garageSubscriptionSync';
+import { assertStripePriceId, getStripeClient } from '@/lib/stripe/client';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
@@ -9,6 +11,12 @@ type ReconciliationOperation = {
   id: string;
   stripe_subscription_id: string | null;
   attempt_count: number;
+  operation_type: string;
+  target_plan: string | null;
+  target_options: {
+    price_id?: string;
+    expected_quantity?: number;
+  } | null;
 };
 
 function isAuthorized(request: Request) {
@@ -21,7 +29,8 @@ async function reconcile(request: Request) {
     return NextResponse.json({ ok: false, error: '認可されていません。' }, { status: 401 });
   }
   const admin = createAdminClient();
-  if (!admin) {
+  const stripe = getStripeClient();
+  if (!admin || !stripe) {
     return NextResponse.json({ ok: false, error: '再照合設定が未完了です。' }, { status: 503 });
   }
   const workerId = `reconciliation:${crypto.randomUUID()}`;
@@ -40,6 +49,35 @@ async function reconcile(request: Request) {
   for (const operation of (data ?? []) as ReconciliationOperation[]) {
     try {
       if (!operation.stripe_subscription_id) throw new Error('stripe_subscription_id_missing');
+      const current = await stripe.subscriptions.retrieve(operation.stripe_subscription_id);
+      if (operation.operation_type === 'change_plan') {
+        const expectedPrice = assertStripePriceId(normalizeGaragePlanCode(operation.target_plan));
+        if (!current.items.data.some((item) => item.price.id === expectedPrice)) {
+          await admin.from('billing_sync_operations').update({
+            status: 'failed',
+            diagnostic_code: 'stripe_mutation_not_observed',
+            lease_owner: null,
+            lease_expires_at: null,
+          }).eq('id', operation.id).eq('lease_owner', workerId);
+          continue;
+        }
+      }
+      if (operation.operation_type === 'change_option') {
+        const priceId = operation.target_options?.price_id;
+        const expectedQuantity = operation.target_options?.expected_quantity;
+        const actualQuantity = current.items.data
+          .filter((item) => item.price.id === priceId)
+          .reduce((sum, item) => sum + (item.quantity ?? 0), 0);
+        if (!priceId || !Number.isInteger(expectedQuantity) || actualQuantity !== expectedQuantity) {
+          await admin.from('billing_sync_operations').update({
+            status: 'failed',
+            diagnostic_code: 'stripe_mutation_not_observed',
+            lease_owner: null,
+            lease_expires_at: null,
+          }).eq('id', operation.id).eq('lease_owner', workerId);
+          continue;
+        }
+      }
       await applyAuthoritativeGarageSubscription({
         subscriptionId: operation.stripe_subscription_id,
         event: {

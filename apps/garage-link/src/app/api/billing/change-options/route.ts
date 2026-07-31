@@ -133,6 +133,14 @@ export async function POST(request: Request) {
       await admin.from('billing_sync_operations').update({ status: 'failed', diagnostic_code: 'option_quantity_below_zero' }).eq('id', operation.id);
       return NextResponse.json({ ok: false, error: '現在の追加数を超えて削除できません。' }, { status: 400 });
     }
+    const { error: targetCheckpointError } = await admin.from('billing_sync_operations').update({
+      target_options: {
+        ...requestedOptions,
+        expected_quantity: nextQuantity,
+        price_id: priceId,
+      },
+    }).eq('id', operation.id).eq('status', 'started');
+    if (targetCheckpointError) throw new Error('billing_operation_target_checkpoint_failed');
     await withGarageSubscriptionMutationLease(subscription.stripe_subscription_id, async () => {
       const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id!);
       const existingItem = stripeSubscription.items.data.find((item) => item.price.id === priceId);
@@ -157,7 +165,8 @@ export async function POST(request: Request) {
     const { error: checkpointError } = await admin
       .from('billing_sync_operations')
       .update({ status: 'stripe_applied' })
-      .eq('id', operation.id);
+      .eq('id', operation.id)
+      .eq('status', 'started');
     if (checkpointError) throw new Error('billing_operation_checkpoint_failed');
     const { error: requestInsertError } = await admin.from('plan_change_requests').insert({
       company_id: subscription.company_id,

@@ -24,6 +24,36 @@ begin
   ) <> 'reconciliation_required' then
     raise exception 'BATCH1B_RESTORATION_PENDING_NOT_FAIL_CLOSED';
   end if;
+  if public.garage_effective_billing_state(
+    'active','cancellation_scheduled',null,true,null,null,'none',clock_timestamp()
+  ) <> 'canceled' then
+    raise exception 'BATCH1B_MISSING_PERIOD_END_NOT_FAIL_CLOSED';
+  end if;
+  if public.garage_effective_billing_state(
+    'active','active',null,false,null,null,'failed',clock_timestamp()
+  ) <> 'reconciliation_required' then
+    raise exception 'BATCH1B_RESTORATION_FAILURE_NOT_FAIL_CLOSED';
+  end if;
+end $$;
+
+insert into public.stripe_webhook_events(
+  stripe_event_id,event_type,status,next_retry_at
+) values
+  ('evt_batch1b_manual_target','invoice.payment_failed','dead_letter',null),
+  ('evt_batch1b_manual_other','invoice.paid','retry_scheduled',clock_timestamp()+interval '1 hour');
+
+do $$
+declare v_claimed text;
+begin
+  select stripe_event_id into v_claimed
+  from public.claim_garage_webhook_retry('batch1b_manual_worker',60,1,'evt_batch1b_manual_target');
+  if v_claimed <> 'evt_batch1b_manual_target' then
+    raise exception 'BATCH1B_MANUAL_RETRY_CLAIMED_WRONG_EVENT';
+  end if;
+  if not exists (
+    select 1 from public.stripe_webhook_events
+    where stripe_event_id='evt_batch1b_manual_other' and status='retry_scheduled'
+  ) then raise exception 'BATCH1B_MANUAL_RETRY_CHANGED_OTHER_EVENT'; end if;
 end $$;
 
 do $$
@@ -95,6 +125,32 @@ begin
       and last_stripe_event_id='evt_batch1b_same_second_a'
       and included_staff_count=3 and current_inventory_limit=200
   ) then raise exception 'BATCH1B_AUTHORITATIVE_SNAPSHOT_CONVERGENCE_FAILED'; end if;
+end $$;
+
+select public.apply_garage_subscription_snapshot_v3(
+  '51100000-0000-0000-0000-000000000001','standard','canceled',
+  'cus_batch1b','sub_batch1b','evt_batch1b_old_canceled',
+  clock_timestamp(),null,false,clock_timestamp(),null,2,1,10,'none'
+);
+select public.apply_garage_subscription_snapshot_v3(
+  '51100000-0000-0000-0000-000000000001','starter','active',
+  'cus_batch1b','sub_batch1b_new','evt_batch1b_resubscribed',
+  clock_timestamp(),null,false,clock_timestamp()+interval '30 days',null,0,0,0,'none'
+);
+select public.apply_garage_subscription_snapshot_v3(
+  '51100000-0000-0000-0000-000000000001','standard','canceled',
+  'cus_batch1b','sub_batch1b','evt_batch1b_stale_old',
+  clock_timestamp(),null,false,clock_timestamp(),null,2,1,10,'none'
+);
+
+do $$
+begin
+  if not exists (
+    select 1 from public.company_subscriptions
+    where tenant_id='51000000-0000-0000-0000-000000000001'
+      and stripe_subscription_id='sub_batch1b_new'
+      and plan='starter' and billing_state='active'
+  ) then raise exception 'BATCH1B_STALE_OLD_SUBSCRIPTION_OVERWROTE_RESUBSCRIPTION'; end if;
 end $$;
 
 rollback;

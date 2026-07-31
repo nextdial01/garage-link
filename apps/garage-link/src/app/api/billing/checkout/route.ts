@@ -229,7 +229,8 @@ export async function POST(request: Request) {
         requested_options: { stripe_session_id: session.id },
         stripe_request_id: session.lastResponse?.requestId ?? null,
       })
-      .eq('id', operation.id);
+      .eq('id', operation.id)
+      .eq('status', 'started');
     if (checkpointError) throw new Error('checkout_operation_checkpoint_failed');
 
     return NextResponse.json({ ok: true, url: session.url, sessionId: session.id });

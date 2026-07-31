@@ -45,10 +45,10 @@ async function run(request: Request, manualRetry: string | null) {
     try {
       const event = await stripe.events.retrieve(claim.stripe_event_id);
       await processGarageStripeEvent(event);
-      await finishStripeEvent(event.id);
+      await finishStripeEvent(event.id, workerId);
       completed += 1;
     } catch (caught) {
-      await failStripeEvent(claim.stripe_event_id, caught);
+      await failStripeEvent(claim.stripe_event_id, workerId, caught);
       retryScheduled += 1;
     }
   }

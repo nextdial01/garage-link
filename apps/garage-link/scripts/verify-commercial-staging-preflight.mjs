@@ -7,11 +7,12 @@ const required = [
   'PLAYWRIGHT_BASE_URL',
   'E2E_TEST_SUPABASE_URL',
   'STRIPE_SECRET_KEY',
-  'VERCEL_PROJECT_ID',
-  'VERCEL_TEAM_ID',
+  'VERCEL_ACCESS_TOKEN',
+  'VERCEL_DEPLOYMENT_ID',
   'STRIPE_ACCOUNT_ID',
   'EXPECTED_VERCEL_PROJECT_ID',
   'EXPECTED_VERCEL_TEAM_ID',
+  'EXPECTED_VERCEL_PROJECT_NAME',
   'EXPECTED_STRIPE_ACCOUNT_ID',
 ];
 
@@ -41,11 +42,34 @@ if (supabaseUrl.hostname.includes('wmlpuzuskfiwdipluglz')) {
 if (!secretKey.startsWith('sk_test_')) {
   throw new Error('Only a Stripe test secret key is allowed.');
 }
-if (process.env.VERCEL_PROJECT_ID !== process.env.EXPECTED_VERCEL_PROJECT_ID) {
+const productionProjectId = 'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64';
+if (process.env.EXPECTED_VERCEL_PROJECT_ID === productionProjectId
+  || process.env.EXPECTED_VERCEL_PROJECT_NAME === 'garage-link') {
+  throw new Error('Production Vercel project is denied.');
+}
+const vercelHeaders = { Authorization: `Bearer ${process.env.VERCEL_ACCESS_TOKEN}` };
+const teamQuery = `teamId=${encodeURIComponent(process.env.EXPECTED_VERCEL_TEAM_ID)}`;
+const projectResponse = await fetch(
+  `https://api.vercel.com/v9/projects/${encodeURIComponent(process.env.EXPECTED_VERCEL_PROJECT_ID)}?${teamQuery}`,
+  { headers: vercelHeaders },
+);
+if (!projectResponse.ok) throw new Error('Vercel project attestation failed.');
+const project = await projectResponse.json();
+if (project.id !== process.env.EXPECTED_VERCEL_PROJECT_ID
+  || project.name !== process.env.EXPECTED_VERCEL_PROJECT_NAME
+  || project.accountId !== process.env.EXPECTED_VERCEL_TEAM_ID) {
   throw new Error('Vercel project fingerprint mismatch.');
 }
-if (process.env.VERCEL_TEAM_ID !== process.env.EXPECTED_VERCEL_TEAM_ID) {
-  throw new Error('Vercel team fingerprint mismatch.');
+const deploymentResponse = await fetch(
+  `https://api.vercel.com/v13/deployments/${encodeURIComponent(process.env.VERCEL_DEPLOYMENT_ID)}?${teamQuery}`,
+  { headers: vercelHeaders },
+);
+if (!deploymentResponse.ok) throw new Error('Vercel deployment attestation failed.');
+const deployment = await deploymentResponse.json();
+if (deployment.projectId !== project.id
+  || deployment.url !== baseUrl.hostname
+  || deployment.meta?.githubCommitSha !== actualSha) {
+  throw new Error('Vercel deployment provenance mismatch.');
 }
 if (process.env.STRIPE_ACCOUNT_ID !== process.env.EXPECTED_STRIPE_ACCOUNT_ID) {
   throw new Error('Stripe account fingerprint mismatch.');
@@ -55,8 +79,9 @@ const fingerprint = createHash('sha256')
   .update([
     baseUrl.hostname,
     supabaseUrl.hostname,
-    process.env.VERCEL_PROJECT_ID,
-    process.env.VERCEL_TEAM_ID,
+    project.id,
+    project.accountId,
+    deployment.id,
     process.env.STRIPE_ACCOUNT_ID,
     'stripe:test',
   ].join('|'))
@@ -71,4 +96,5 @@ console.log(JSON.stringify({
   releaseSha: actualSha,
   environmentFingerprint: fingerprint,
   stripeMode: 'test',
+  vercelProject: project.name,
 }));

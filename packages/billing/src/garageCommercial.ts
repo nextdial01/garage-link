@@ -68,7 +68,9 @@ export function resolveGarageBillingState(input: {
   now?: Date;
 }): GarageBillingState {
   const now = (input.now ?? new Date()).getTime();
-  if (input.restorationState === 'pending') return 'reconciliation_required';
+  if (input.restorationState === 'pending' || input.restorationState === 'failed') {
+    return 'reconciliation_required';
+  }
   if (input.stripeStatus === 'canceled' || input.canceledAt) return 'canceled';
   if (input.stripeStatus === 'incomplete') return 'initial_payment_pending';
   if (input.stripeStatus === 'incomplete_expired' || input.stripeStatus === 'unpaid') return 'unpaid';
@@ -81,7 +83,8 @@ export function resolveGarageBillingState(input: {
   }
   if (input.cancelAtPeriodEnd) {
     const periodEnd = input.currentPeriodEnd ? Date.parse(input.currentPeriodEnd) : Number.NaN;
-    return Number.isFinite(periodEnd) && periodEnd <= now ? 'canceled' : 'cancellation_scheduled';
+    if (!Number.isFinite(periodEnd)) return 'canceled';
+    return periodEnd <= now ? 'canceled' : 'cancellation_scheduled';
   }
   return 'active';
 }

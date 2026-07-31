@@ -10,7 +10,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export const runtime = 'nodejs';
 
-type EventClaim = 'claimed' | 'completed' | 'in_progress';
+type EventClaim =
+  | { state: 'claimed'; leaseOwner: string }
+  | { state: 'completed' | 'in_progress'; leaseOwner: null };
 
 async function claimStripeEvent(event: Stripe.Event): Promise<EventClaim> {
   const admin = createAdminClient();
@@ -30,7 +32,7 @@ async function claimStripeEvent(event: Stripe.Event): Promise<EventClaim> {
     lease_expires_at: leaseExpiresAt,
     last_attempt_at: new Date().toISOString(),
   });
-  if (!insertError) return 'claimed';
+  if (!insertError) return { state: 'claimed', leaseOwner: workerId };
   if (insertError.code !== '23505') throw new Error('stripe_event_claim_failed');
 
   const { data, error } = await admin
@@ -40,10 +42,10 @@ async function claimStripeEvent(event: Stripe.Event): Promise<EventClaim> {
     .single();
   if (error || !data) throw new Error('stripe_event_not_found');
   const existing = data as { status: string; lease_expires_at: string | null };
-  if (existing.status === 'completed') return 'completed';
-  if (existing.status === 'dead_letter') return 'in_progress';
+  if (existing.status === 'completed') return { state: 'completed', leaseOwner: null };
+  if (existing.status === 'dead_letter') return { state: 'in_progress', leaseOwner: null };
   if (existing.lease_expires_at && Date.parse(existing.lease_expires_at) > Date.now()) {
-    return 'in_progress';
+    return { state: 'in_progress', leaseOwner: null };
   }
   const { data: claimed, error: retryError } = await admin
     .from('stripe_webhook_events')
@@ -59,7 +61,9 @@ async function claimStripeEvent(event: Stripe.Event): Promise<EventClaim> {
     .select('id')
     .maybeSingle();
   if (retryError) throw new Error('stripe_event_reclaim_failed');
-  return claimed ? 'claimed' : 'in_progress';
+  return claimed
+    ? { state: 'claimed', leaseOwner: workerId }
+    : { state: 'in_progress', leaseOwner: null };
 }
 
 export async function POST(request: Request) {
@@ -78,17 +82,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'Webhook 署名検証に失敗しました。' }, { status: 400 });
   }
 
+  let claimOwner: string | null = null;
   try {
     const claim = await claimStripeEvent(event);
-    if (claim === 'completed') return NextResponse.json({ ok: true, received: true, duplicate: true });
-    if (claim === 'in_progress') {
+    if (claim.state === 'completed') return NextResponse.json({ ok: true, received: true, duplicate: true });
+    if (claim.state === 'in_progress') {
       return NextResponse.json({ ok: false, error: 'Webhookを処理中です。' }, { status: 503 });
     }
+    if (!claim.leaseOwner) throw new Error('stripe_event_lease_missing');
+    claimOwner = claim.leaseOwner;
     await processGarageStripeEvent(event);
-    await finishStripeEvent(event.id);
+    await finishStripeEvent(event.id, claim.leaseOwner);
     return NextResponse.json({ ok: true, received: true });
   } catch (error) {
-    await failStripeEvent(event.id, error);
+    if (claimOwner) await failStripeEvent(event.id, claimOwner, error);
     return NextResponse.json({ ok: false, error: 'Webhook処理に失敗しました。' }, { status: 500 });
   }
 }

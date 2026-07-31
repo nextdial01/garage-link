@@ -26,6 +26,11 @@ async function main() {
   if (account.livemode || process.env.STRIPE_ACCOUNT_ID !== account.id) {
     throw new Error('Stripe test account fingerprint mismatch');
   }
+  const taxSettings = await stripe.tax.settings.retrieve();
+  const activeTaxRegistrations = await stripe.tax.registrations.list({
+    status: 'active',
+    limit: 100,
+  });
   const results = [];
 
   for (const item of expected) {
@@ -72,7 +77,15 @@ async function main() {
     });
   }
 
-  console.log(JSON.stringify({ mode: 'test', results }, null, 2));
+  console.log(JSON.stringify({
+    mode: 'test',
+    account_tax: {
+      status: taxSettings.status,
+      default_tax_behavior: taxSettings.defaults?.tax_behavior ?? null,
+      active_registration_count: activeTaxRegistrations.data.length,
+    },
+    results,
+  }, null, 2));
   if (results.some((result) => !result.pass)) process.exitCode = 1;
 }
 
