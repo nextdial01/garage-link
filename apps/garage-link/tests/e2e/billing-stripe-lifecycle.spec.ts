@@ -11,6 +11,7 @@ const required = (name: string) => {
 
 test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
   test('all commercial lifecycle gates use Stripe test', async ({ page, request }) => {
+    test.setTimeout(40 * 60_000);
     const secret = required('STRIPE_SECRET_KEY');
     if (!secret.startsWith('sk_test_')) throw new Error('Stripe Live is denied');
     if (required('E2E_MARKER') !== 'garage-link-commercial-disposable') {
@@ -23,7 +24,8 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
       required('E2E_TEST_SUPABASE_SERVICE_ROLE_KEY'),
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
-    const marker = `garage-link-commercial-e2e:${required('EXPECTED_RELEASE_SHA')}`;
+    const runNonce = crypto.randomUUID();
+    const marker = `garage-link-commercial-e2e:${required('EXPECTED_RELEASE_SHA').slice(0, 12)}:${runNonce}`;
     let customerId: string | null = null;
     let subscriptionId: string | null = null;
     let clockId: string | null = null;
@@ -92,6 +94,70 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
       }
       await page.getByRole('button', { name: /申し込む|Subscribe|Pay/i }).click();
       await page.waitForURL(/checkout=success/);
+    };
+    const subscriptionUpdateEventIds = async () => new Set(
+      (await stripe.events.list({ limit: 100, types: ['customer.subscription.updated'] })).data
+        .filter((event) => (event.data.object as Stripe.Subscription).id === subscriptionId)
+        .map((event) => event.id),
+    );
+    const runMutationRace = async (
+      label: string,
+      requests: Array<{ idempotencyKey: string; send: () => Promise<{ status(): number }> }>,
+      assertWinnerEvent: (event: Stripe.Event, winnerIndex: number) => void,
+    ) => {
+      const beforeEvents = await subscriptionUpdateEventIds();
+      const responses = await Promise.all(requests.map(({ send }) => send()));
+      const winners = responses
+        .map((response, index) => ({ index, status: response.status() }))
+        .filter(({ status }) => status === 202);
+      expect(winners, `${label}: exactly one request must acquire the mutation gate`).toHaveLength(1);
+      expect(
+        responses.filter((response) => response.status() === 409),
+        `${label}: every losing request must fail closed`,
+      ).toHaveLength(requests.length - 1);
+      const winnerKey = requests[winners[0]!.index]!.idempotencyKey;
+      await waitFor(async () => {
+        const { data } = await admin.from('billing_sync_operations').select('status')
+          .eq('idempotency_key', winnerKey).maybeSingle();
+        return data?.status === 'completed';
+      });
+      const keys = requests.map(({ idempotencyKey }) => idempotencyKey);
+      const { data: operations, error } = await admin.from('billing_sync_operations')
+        .select('id,status,idempotency_key,stripe_request_id').in('idempotency_key', keys);
+      expect(error).toBeNull();
+      expect(operations).toHaveLength(1);
+      expect(operations?.[0]?.status).toBe('completed');
+      const stripeRequestId = operations?.[0]?.stripe_request_id;
+      expect(stripeRequestId).toBeTruthy();
+      await waitFor(async () => {
+        const events = (await stripe.events.list({
+          limit: 100, types: ['customer.subscription.updated'],
+        })).data.filter((event) => (
+          (event.data.object as Stripe.Subscription).id === subscriptionId
+          && event.request?.id === stripeRequestId
+          && !beforeEvents.has(event.id)
+        ));
+        return events.length === 1;
+      });
+      const mutationEvents = (await stripe.events.list({
+        limit: 100, types: ['customer.subscription.updated'],
+      })).data.filter((event) => (
+        (event.data.object as Stripe.Subscription).id === subscriptionId
+        && event.request?.id === stripeRequestId
+        && !beforeEvents.has(event.id)
+      ));
+      expect(mutationEvents, `${label}: winner Stripe request must emit one update`).toHaveLength(1);
+      assertWinnerEvent(mutationEvents[0]!, winners[0]!.index);
+      console.info(JSON.stringify({
+        evidence: 'garage_subscription_mutation_concurrency',
+        label,
+        workers: requests.length,
+        accepted: 1,
+        rejected: requests.length - 1,
+        stripe_subscription_mutations: 1,
+        ledger_rows: 1,
+      }));
+      return winners[0]!.index;
     };
 
     try {
@@ -229,6 +295,126 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         await advanceBillingPeriod();
         await expectLatestPaidGross(32780);
         await expectPortalGross(32780);
+
+        for (const workers of [2, 10, 100]) {
+          const planRequests = Array.from({ length: workers }, (_, index) => {
+            const idempotencyKey = `${marker}:plan-race-${workers}-${index}`;
+            return {
+              idempotencyKey,
+              send: () => page.request.post('/api/billing/change-plan', {
+                headers: { 'idempotency-key': idempotencyKey },
+                data: { plan: 'standard', termsAccepted: true },
+              }),
+            };
+          });
+          await runMutationRace(`plan-vs-plan-${workers}`, planRequests, (event) => {
+            const changed = event.data.object as Stripe.Subscription;
+            expect(changed.items.data[0]?.price.id).toBe(required('STRIPE_PRICE_STANDARD'));
+          });
+
+          const optionRequests = Array.from({ length: workers }, (_, index) => {
+            const idempotencyKey = `${marker}:option-race-${workers}-${index}`;
+            return {
+              idempotencyKey,
+              send: () => page.request.post('/api/billing/change-options', {
+                headers: { 'idempotency-key': idempotencyKey },
+                data: { type: 'add_staff', action: 'add', amount: 1, termsAccepted: true },
+              }),
+            };
+          });
+          await runMutationRace(`option-vs-option-${workers}`, optionRequests, (event) => {
+            const changed = event.data.object as Stripe.Subscription;
+            const option = changed.items.data.find(
+              (item) => item.price.id === required('STRIPE_PRICE_EXTRA_STAFF'),
+            );
+            expect(option?.quantity).toBe(1);
+          });
+          const removeKey = `${marker}:option-race-cleanup-${workers}`;
+          const remove = await page.request.post('/api/billing/change-options', {
+            headers: { 'idempotency-key': removeKey },
+            data: { type: 'add_staff', action: 'remove', amount: 1, termsAccepted: true },
+          });
+          expect(remove.status()).toBe(202);
+          await waitFor(async () => {
+            const { data } = await admin.from('billing_sync_operations').select('status')
+              .eq('idempotency_key', removeKey).maybeSingle();
+            return data?.status === 'completed';
+          });
+
+          const crossRequests = Array.from({ length: workers }, (_, index) => {
+            const idempotencyKey = `${marker}:cross-race-${workers}-${index}`;
+            return index % 2 === 0
+              ? {
+                idempotencyKey,
+                send: () => page.request.post('/api/billing/change-plan', {
+                  headers: { 'idempotency-key': idempotencyKey },
+                  data: { plan: 'starter', termsAccepted: true },
+                }),
+              }
+              : {
+                idempotencyKey,
+                send: () => page.request.post('/api/billing/change-options', {
+                  headers: { 'idempotency-key': idempotencyKey },
+                  data: { type: 'add_staff', action: 'add', amount: 1, termsAccepted: true },
+                }),
+              };
+          });
+          const crossWinner = await runMutationRace(
+            `plan-vs-option-${workers}`,
+            crossRequests,
+            (event, winnerIndex) => {
+              const changed = event.data.object as Stripe.Subscription;
+              if (winnerIndex % 2 === 0) {
+                expect(changed.items.data[0]?.price.id).toBe(required('STRIPE_PRICE_STARTER'));
+              } else {
+                const option = changed.items.data.find(
+                  (item) => item.price.id === required('STRIPE_PRICE_EXTRA_STAFF'),
+                );
+                expect(option?.quantity).toBe(1);
+              }
+            },
+          );
+          if (crossWinner % 2 === 1) {
+            const cleanupKey = `${marker}:cross-race-cleanup-${workers}`;
+            const cleanup = await page.request.post('/api/billing/change-options', {
+              headers: { 'idempotency-key': cleanupKey },
+              data: { type: 'add_staff', action: 'remove', amount: 1, termsAccepted: true },
+            });
+            expect(cleanup.status()).toBe(202);
+            await waitFor(async () => {
+              const { data } = await admin.from('billing_sync_operations').select('status')
+                .eq('idempotency_key', cleanupKey).maybeSingle();
+              return data?.status === 'completed';
+            });
+          }
+        }
+
+        await advanceBillingPeriod();
+        await waitFor(async () => (await readDbSubscription()).data?.plan !== 'pro');
+        const boundarySubscription = await stripe.subscriptions.retrieve(subscriptionId!, {
+          expand: ['latest_invoice'],
+        });
+        const boundaryInvoice = typeof boundarySubscription.latest_invoice === 'string'
+          ? await stripe.invoices.retrieve(boundarySubscription.latest_invoice)
+          : boundarySubscription.latest_invoice;
+        expect(boundaryInvoice?.id).toBeTruthy();
+        invoiceIds.add(boundaryInvoice!.id);
+        expect([7480, 16280]).toContain(boundaryInvoice!.total);
+        expect(boundaryInvoice!.amount_paid).toBe(boundaryInvoice!.total);
+        const restoreKey = `${marker}:concurrency-restore-pro`;
+        const restore = await page.request.post('/api/billing/change-plan', {
+          headers: { 'idempotency-key': restoreKey },
+          data: { plan: 'pro', termsAccepted: true },
+        });
+        expect(restore.status()).toBe(202);
+        await waitFor(async () => {
+          const { data } = await admin.from('billing_sync_operations').select('status')
+            .eq('idempotency_key', restoreKey).maybeSingle();
+          return data?.status === 'completed';
+        });
+        await waitFor(async () => (await readDbSubscription()).data?.plan === 'pro');
+        expect((await stripe.subscriptions.retrieve(subscriptionId!)).items.data[0]?.price.unit_amount)
+          .toBe(32780);
       });
       await test.step('10 downgrade', async () => {
         const response = await page.request.post('/api/billing/change-plan', {

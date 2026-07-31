@@ -117,6 +117,36 @@ test.describe('Batch 1B retry and lease matrix', () => {
 });
 
 test.describe('Batch 1B permanent gates', () => {
+  test('plan/options実並行release testを2・10・100 workerで必須化する', async () => {
+    const [lifecycle, runner, workflow] = await Promise.all([
+      readFile('tests/e2e/billing-stripe-lifecycle.spec.ts', 'utf8'),
+      readFile('scripts/run-billing-e2e.mjs', 'utf8'),
+      readFile('../../.github/workflows/garage-link-commercial-staging.yml', 'utf8'),
+    ]);
+    expect(lifecycle).toContain('const runMutationRace');
+    expect(lifecycle).toContain('test.setTimeout(40 * 60_000)');
+    expect(lifecycle).toContain('const runNonce = crypto.randomUUID()');
+    expect(lifecycle).toContain('for (const workers of [2, 10, 100])');
+    expect(lifecycle).toContain('plan-vs-plan-');
+    expect(lifecycle).toContain('option-vs-option-');
+    expect(lifecycle).toContain('plan-vs-option-');
+    expect(lifecycle).toContain('winner Stripe request must emit one update');
+    expect(lifecycle).toContain('event.request?.id === stripeRequestId');
+    expect(lifecycle).toContain("required('STRIPE_PRICE_STANDARD')");
+    expect(lifecycle).toContain("required('STRIPE_PRICE_STARTER')");
+    expect(lifecycle).toContain("required('STRIPE_PRICE_EXTRA_STAFF')");
+    expect(lifecycle).toContain('expect(option?.quantity).toBe(1)');
+    expect(lifecycle).toContain('stripe_subscription_mutations: 1');
+    expect(lifecycle).toContain('ledger_rows: 1');
+    expect(lifecycle).toContain('concurrency-restore-pro');
+    expect(lifecycle).toContain('invoiceIds.add(boundaryInvoice!.id)');
+    expect(lifecycle).toContain('expect([7480, 16280]).toContain(boundaryInvoice!.total)');
+    expect(runner).toContain('billing-stripe-lifecycle.spec.ts');
+    expect(workflow).toContain('test:commercial-staging:garage-link');
+    expect(workflow).toContain('E2E_REQUIRE_BILLING: "true"');
+    expect(workflow).toContain('E2E_ALLOW_BILLING_MUTATIONS: "true"');
+  });
+
   test('DBとworkerは順序・重複・lease・dead-letterを実装する', async () => {
     const [migration, webhookRoute, webhook, subscriptionSync, retryWorker, reconciliation, cancellation] = await Promise.all([
       readFile('supabase/migrations/20260731000200_commercial_remediation_batch_1b.sql', 'utf8'),
