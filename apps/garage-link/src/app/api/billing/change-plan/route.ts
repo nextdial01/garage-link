@@ -7,6 +7,7 @@ import {
 } from '@/lib/billing/garagePlans';
 import { createTermsConsentMetadata } from '@/lib/legal/termsConsent';
 import { assertStripePriceId, getStripeClient } from '@/lib/stripe/client';
+import { withGarageSubscriptionMutationLease } from '@/lib/stripe/garageSubscriptionSync';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
@@ -100,47 +101,51 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: '契約変更を処理中です。' }, { status: 409 });
     }
 
-    const { data: operation, error: operationError } = await admin.from('billing_sync_operations').insert({
-      tenant_id: tenantId,
-      company_id: subscription.company_id,
-      actor_user_id: userData.user.id,
-      operation_type: 'change_plan',
-      idempotency_key: idempotencyKey,
-      requested_plan: requestedPlan,
-      stripe_subscription_id: subscription.stripe_subscription_id,
-      status: 'started',
-    }).select('id').single();
-    if (operationError?.code === '23505') {
-      return NextResponse.json({ ok: false, error: '契約変更を処理中です。' }, { status: 409 });
+    const { data: beginResult, error: operationError } = await admin.rpc('begin_garage_billing_operation', {
+      p_tenant_id: tenantId,
+      p_company_id: subscription.company_id,
+      p_actor_user_id: userData.user.id,
+      p_operation_type: 'change_plan',
+      p_idempotency_key: idempotencyKey,
+      p_target_plan: requestedPlan,
+      p_target_options: {},
+      p_stripe_subscription_id: subscription.stripe_subscription_id,
+    });
+    if (operationError) throw new Error('billing_operation_create_failed');
+    const begin = beginResult as { ok?: boolean; conflict?: boolean; id?: string };
+    if (begin.conflict) {
+      return NextResponse.json({ ok: false, error: '別の契約変更を処理中です。' }, { status: 409 });
     }
-    if (operationError || !operation) throw new Error('billing_operation_create_failed');
+    if (!begin.ok || !begin.id) throw new Error('billing_operation_create_failed');
+    const operation = { id: begin.id };
 
-    const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
-    const baseItem = stripeSubscription.items.data[0];
-    if (!baseItem) {
-      throw new Error('stripe_subscription_item_missing');
-    }
-    const nextPriceId = assertStripePriceId(requestedPlan);
-    const currentPeriodEnd = Number(
-      (baseItem as typeof baseItem & { current_period_end?: number }).current_period_end ??
-      (stripeSubscription as typeof stripeSubscription & { current_period_end?: number }).current_period_end,
-    );
-    if (!Number.isFinite(currentPeriodEnd)) {
-      throw new Error('stripe_billing_period_missing');
-    }
-
+    let currentPeriodEnd = 0;
     const upgrade = isUpgrade(currentPlan, requestedPlan);
-    await stripe.subscriptions.update(subscription.stripe_subscription_id, {
-      items: [{ id: baseItem.id, price: nextPriceId }],
-      proration_behavior: 'none',
-      metadata: {
-        ...stripeSubscription.metadata,
-        company_id: subscription.company_id,
-        plan_code: upgrade ? requestedPlan : currentPlan,
-        pending_plan: upgrade ? '' : requestedPlan,
-        ...createTermsConsentMetadata(),
-      },
-    }, { idempotencyKey });
+    await withGarageSubscriptionMutationLease(subscription.stripe_subscription_id, async () => {
+      const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id!);
+      const baseItem = stripeSubscription.items.data[0];
+      if (!baseItem) throw new Error('stripe_subscription_item_missing');
+      const nextPriceId = assertStripePriceId(requestedPlan);
+      currentPeriodEnd = Number(
+        (baseItem as typeof baseItem & { current_period_end?: number }).current_period_end ??
+        (stripeSubscription as typeof stripeSubscription & { current_period_end?: number }).current_period_end,
+      );
+      if (!Number.isFinite(currentPeriodEnd)) throw new Error('stripe_billing_period_missing');
+      const updated = await stripe.subscriptions.update(subscription.stripe_subscription_id!, {
+        items: [{ id: baseItem.id, price: nextPriceId }],
+        proration_behavior: 'none',
+        metadata: {
+          ...stripeSubscription.metadata,
+          company_id: subscription.company_id,
+          plan_code: upgrade ? requestedPlan : currentPlan,
+          pending_plan: upgrade ? '' : requestedPlan,
+          ...createTermsConsentMetadata(),
+        },
+      }, { idempotencyKey });
+      await admin.from('billing_sync_operations').update({
+        stripe_request_id: updated.lastResponse?.requestId ?? null,
+      }).eq('id', operation.id);
+    });
     stripeMutationCompleted = true;
 
     const { error: stripeAppliedError } = await admin.from('billing_sync_operations')

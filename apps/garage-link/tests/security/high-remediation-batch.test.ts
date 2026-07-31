@@ -62,21 +62,26 @@ test.describe('G7 unresolved High remediation contracts', () => {
   });
 
   test('STRIPE-001/002 order events and persist reconciliation state', async () => {
-    const [sql, webhook, applyPlan, changePlan] = await Promise.all([
+    const [sql, batch1b, webhookRoute, webhookProcessor, subscriptionSync, applyPlan, changePlan] = await Promise.all([
       readFile(MIGRATION, 'utf8'),
+      readFile('supabase/migrations/20260731000200_commercial_remediation_batch_1b.sql', 'utf8'),
       readFile('src/app/api/billing/webhook/route.ts', 'utf8'),
+      readFile('src/lib/stripe/garageWebhookProcessor.ts', 'utf8'),
+      readFile('src/lib/stripe/garageSubscriptionSync.ts', 'utf8'),
       readFile('src/lib/stripe/applyPlan.ts', 'utf8'),
       readFile('src/app/api/billing/change-plan/route.ts', 'utf8'),
     ]);
+    const webhook = `${webhookRoute}\n${webhookProcessor}`;
     expect(sql).toContain('last_stripe_event_created');
     expect(sql).toContain("'superseded'");
     expect(sql).toContain('create table if not exists public.billing_sync_operations');
     expect(webhook).toContain('stripe_created: event.created');
-    expect(webhook).toContain("admin.rpc('apply_garage_subscription_event_v2'");
+    expect(subscriptionSync).toContain("admin.rpc('apply_garage_subscription_snapshot_v3'");
+    expect(batch1b).toContain('claim_garage_subscription_lease');
     expect(changePlan).toContain("status: 'stripe_applied'");
     expect(changePlan).toContain("'reconciliation_required'");
     expect(changePlan).toContain('{ idempotencyKey }');
-    expect(webhook).toContain('applyScheduledPlanIfDue(subscriptionId)');
+    expect(webhook).toContain('applyScheduledPlanIfDue(subscriptionId');
     expect(applyPlan).toContain("onConflict: 'stripe_session_id'");
     expect(applyPlan).toContain('checkout_completion_record_failed');
   });

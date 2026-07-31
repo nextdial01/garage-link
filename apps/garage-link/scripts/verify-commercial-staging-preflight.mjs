@@ -7,6 +7,12 @@ const required = [
   'PLAYWRIGHT_BASE_URL',
   'E2E_TEST_SUPABASE_URL',
   'STRIPE_SECRET_KEY',
+  'VERCEL_PROJECT_ID',
+  'VERCEL_TEAM_ID',
+  'STRIPE_ACCOUNT_ID',
+  'EXPECTED_VERCEL_PROJECT_ID',
+  'EXPECTED_VERCEL_TEAM_ID',
+  'EXPECTED_STRIPE_ACCOUNT_ID',
 ];
 
 const missing = required.filter((name) => !process.env[name]?.trim());
@@ -35,9 +41,25 @@ if (supabaseUrl.hostname.includes('wmlpuzuskfiwdipluglz')) {
 if (!secretKey.startsWith('sk_test_')) {
   throw new Error('Only a Stripe test secret key is allowed.');
 }
+if (process.env.VERCEL_PROJECT_ID !== process.env.EXPECTED_VERCEL_PROJECT_ID) {
+  throw new Error('Vercel project fingerprint mismatch.');
+}
+if (process.env.VERCEL_TEAM_ID !== process.env.EXPECTED_VERCEL_TEAM_ID) {
+  throw new Error('Vercel team fingerprint mismatch.');
+}
+if (process.env.STRIPE_ACCOUNT_ID !== process.env.EXPECTED_STRIPE_ACCOUNT_ID) {
+  throw new Error('Stripe account fingerprint mismatch.');
+}
 
 const fingerprint = createHash('sha256')
-  .update([baseUrl.hostname, supabaseUrl.hostname, 'stripe:test'].join('|'))
+  .update([
+    baseUrl.hostname,
+    supabaseUrl.hostname,
+    process.env.VERCEL_PROJECT_ID,
+    process.env.VERCEL_TEAM_ID,
+    process.env.STRIPE_ACCOUNT_ID,
+    'stripe:test',
+  ].join('|'))
   .digest('hex');
 
 if (fingerprint !== process.env.EXPECTED_ENVIRONMENT_FINGERPRINT) {

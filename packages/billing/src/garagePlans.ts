@@ -32,84 +32,8 @@ export type GarageSubscriptionLike = {
   l_link_integration_enabled?: boolean | null;
 };
 
-export const GARAGE_PLANS: Record<GaragePlanCode, GaragePlan> = {
-  free: {
-    code: 'free',
-    name: 'Free',
-    netBasisMonthlyPrice: 0,
-    monthlyPrice: 0,
-    inventoryLimit: 5,
-    includedStaffCount: 1,
-    extraStaffPrice: null,
-    includedStoreCount: 1,
-    extraStorePrice: null,
-    storageLimitMb: 500,
-    extraStoragePricePer10Gb: null,
-    quoteInvoiceLimit: 5,
-    lLinkIntegrationEnabled: false,
-    lLinkAvailability: 'unavailable',
-    availableFeatures: ['vehicle_inventory', 'customers', 'deals', 'quotes', 'invoices', 'maintenance'],
-    chatSupportIncluded: true,
-    individualSupportHourlyPrice: 11000,
-  },
-  starter: {
-    code: 'starter',
-    name: 'Starter',
-    netBasisMonthlyPrice: 6800,
-    monthlyPrice: 7480,
-    inventoryLimit: 50,
-    includedStaffCount: 1,
-    extraStaffPrice: 1100,
-    includedStoreCount: 1,
-    extraStorePrice: null,
-    storageLimitMb: 2048,
-    extraStoragePricePer10Gb: 550,
-    quoteInvoiceLimit: 20,
-    lLinkIntegrationEnabled: false,
-    lLinkAvailability: 'unavailable',
-    availableFeatures: ['vehicle_inventory', 'customers', 'deals', 'quotes', 'invoices', 'maintenance'],
-    chatSupportIncluded: true,
-    individualSupportHourlyPrice: 11000,
-  },
-  standard: {
-    code: 'standard',
-    name: 'Standard',
-    netBasisMonthlyPrice: 14800,
-    monthlyPrice: 16280,
-    inventoryLimit: 200,
-    includedStaffCount: 3,
-    extraStaffPrice: 1100,
-    includedStoreCount: 1,
-    extraStorePrice: 5500,
-    storageLimitMb: 10240,
-    extraStoragePricePer10Gb: 550,
-    quoteInvoiceLimit: null,
-    lLinkIntegrationEnabled: false,
-    lLinkAvailability: 'preparing',
-    availableFeatures: ['vehicle_inventory', 'customers', 'deals', 'quotes', 'invoices', 'maintenance', 'analytics'],
-    chatSupportIncluded: true,
-    individualSupportHourlyPrice: 11000,
-  },
-  pro: {
-    code: 'pro',
-    name: 'Pro',
-    netBasisMonthlyPrice: 29800,
-    monthlyPrice: 32780,
-    inventoryLimit: 500,
-    includedStaffCount: 10,
-    extraStaffPrice: 1100,
-    includedStoreCount: 3,
-    extraStorePrice: 5500,
-    storageLimitMb: 51200,
-    extraStoragePricePer10Gb: 550,
-    quoteInvoiceLimit: null,
-    lLinkIntegrationEnabled: false,
-    lLinkAvailability: 'preparing',
-    availableFeatures: ['vehicle_inventory', 'customers', 'deals', 'quotes', 'invoices', 'maintenance', 'analytics', 'multiple_stores'],
-    chatSupportIncluded: true,
-    individualSupportHourlyPrice: 11000,
-  },
-};
+export const GARAGE_PLANS: Record<GaragePlanCode, GaragePlan> =
+  GARAGE_PLAN_CONTRACT_DATA as unknown as Record<GaragePlanCode, GaragePlan>;
 
 export const GARAGE_PLAN_ORDER: GaragePlanCode[] = ['free', 'starter', 'standard', 'pro'];
 
@@ -193,3 +117,4 @@ export function getStorageLimit(subscription: GarageSubscriptionLike | null | un
   const plan = getGaragePlanFromSubscription(subscription);
   return (subscription?.storage_limit_mb ?? plan.storageLimitMb) + (subscription?.extra_storage_gb ?? 0) * 1024;
 }
+import { GARAGE_PLAN_CONTRACT_DATA } from './garagePlans.generated';

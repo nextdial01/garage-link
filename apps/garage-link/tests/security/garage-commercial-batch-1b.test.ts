@@ -1,0 +1,144 @@
+import { expect, test } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
+import {
+  garageNextRetryAt,
+  garageRetryDelayMs,
+  isGarageLeaseClaimable,
+  isGarageRetryDeadLetter,
+} from '../../src/lib/billing/garageLifecycle';
+import {
+  resolveGarageBillingState,
+} from '../../src/lib/billing/garageCommercial';
+import {
+  resolveEffectiveContractAccess,
+  type ContractAccess,
+} from '../../src/lib/billing/contractAccess';
+
+const now = new Date('2026-07-31T12:00:00.000Z');
+
+test.describe('Batch 1B synchronous entitlement matrix', () => {
+  const cases: Array<{
+    name: string;
+    input: Parameters<typeof resolveGarageBillingState>[0];
+    expected: string;
+  }> = [
+    { name: 'grace内', input: { stripeStatus: 'past_due', graceEndsAt: '2026-07-31T12:00:01Z', now }, expected: 'grace_period' },
+    { name: 'grace境界', input: { stripeStatus: 'past_due', graceEndsAt: '2026-07-31T12:00:00Z', now }, expected: 'restricted' },
+    { name: 'grace超過', input: { stripeStatus: 'past_due', graceEndsAt: '2026-07-31T11:59:59Z', now }, expected: 'restricted' },
+    { name: 'grace期限なし', input: { stripeStatus: 'past_due', graceEndsAt: null, now }, expected: 'restricted' },
+    { name: 'worker未実行でも期限超過を拒否', input: { stripeStatus: 'past_due', graceEndsAt: '2026-07-01T00:00:00Z', now }, expected: 'restricted' },
+    { name: 'webhook未着でも期限超過を拒否', input: { stripeStatus: 'past_due', graceEndsAt: '2026-07-30T00:00:00Z', now }, expected: 'restricted' },
+    { name: 'Stripe一時障害中も保存期限で拒否', input: { stripeStatus: 'past_due', graceEndsAt: 'invalid', now }, expected: 'restricted' },
+    { name: 'canceled', input: { stripeStatus: 'canceled', now }, expected: 'canceled' },
+    { name: 'canceled_at優先', input: { stripeStatus: 'active', canceledAt: '2026-07-31T11:00:00Z', now }, expected: 'canceled' },
+    { name: '解約予定期間内', input: { stripeStatus: 'active', cancelAtPeriodEnd: true, currentPeriodEnd: '2026-08-01T00:00:00Z', now }, expected: 'cancellation_scheduled' },
+    { name: '解約予定期間終了', input: { stripeStatus: 'active', cancelAtPeriodEnd: true, currentPeriodEnd: '2026-07-31T12:00:00Z', now }, expected: 'canceled' },
+    { name: '復旧処理中fail closed', input: { stripeStatus: 'active', restorationState: 'pending', now }, expected: 'reconciliation_required' },
+    { name: '復旧完了', input: { stripeStatus: 'active', restorationState: 'restored', now }, expected: 'active' },
+    { name: '初回支払待ち', input: { stripeStatus: 'incomplete', now }, expected: 'initial_payment_pending' },
+    { name: '初回支払期限切れ', input: { stripeStatus: 'incomplete_expired', now }, expected: 'unpaid' },
+    { name: 'unpaid', input: { stripeStatus: 'unpaid', now }, expected: 'unpaid' },
+    { name: 'paused', input: { stripeStatus: 'paused', now }, expected: 'restricted' },
+    { name: 'active', input: { stripeStatus: 'active', now }, expected: 'active' },
+    { name: 'trialing', input: { stripeStatus: 'trialing', now }, expected: 'active' },
+  ];
+
+  for (const entry of cases) {
+    test(entry.name, () => {
+      expect(resolveGarageBillingState(entry.input)).toBe(entry.expected);
+    });
+  }
+
+  test('middleware側でも保存済みgraceを現在時刻で拒否する', () => {
+    const stale: ContractAccess = {
+      state: 'grace_period',
+      graceEndsAt: '2026-07-31T11:59:59Z',
+    };
+    expect(resolveEffectiveContractAccess(stale, now).state).toBe('restricted');
+  });
+
+  test('middleware側でもperiod end境界をcanceledにする', () => {
+    const scheduled: ContractAccess = {
+      state: 'cancellation_scheduled',
+      currentPeriodEnd: '2026-07-31T12:00:00Z',
+    };
+    expect(resolveEffectiveContractAccess(scheduled, now).state).toBe('canceled');
+  });
+});
+
+test.describe('Batch 1B retry and lease matrix', () => {
+  test('指数backoffと上限', () => {
+    expect(garageRetryDelayMs(1)).toBe(120_000);
+    expect(garageRetryDelayMs(2)).toBe(240_000);
+    expect(garageRetryDelayMs(10)).toBe(3_600_000);
+    expect(garageNextRetryAt(1, now)).toBe('2026-07-31T12:02:00.000Z');
+  });
+
+  test('最大回数でdead-letter', () => {
+    expect(isGarageRetryDeadLetter(4)).toBe(false);
+    expect(isGarageRetryDeadLetter(5)).toBe(true);
+  });
+
+  test('1 workerのlease', () => {
+    expect(isGarageLeaseClaimable({ leaseOwner: null, leaseExpiresAt: null }, 'w1', now)).toBe(true);
+  });
+
+  test('2 workerは有効leaseを奪えない', () => {
+    expect(isGarageLeaseClaimable({ leaseOwner: 'w1', leaseExpiresAt: '2026-07-31T12:01:00Z' }, 'w2', now)).toBe(false);
+  });
+
+  test('10 workerでも同一owner以外は有効leaseを奪えない', () => {
+    for (let index = 2; index <= 10; index += 1) {
+      expect(isGarageLeaseClaimable({ leaseOwner: 'w1', leaseExpiresAt: '2026-07-31T12:01:00Z' }, `w${index}`, now)).toBe(false);
+    }
+  });
+
+  test('crash後の期限切れleaseは回収できる', () => {
+    expect(isGarageLeaseClaimable({ leaseOwner: 'dead-worker', leaseExpiresAt: '2026-07-31T12:00:00Z' }, 'w2', now)).toBe(true);
+  });
+});
+
+test.describe('Batch 1B permanent gates', () => {
+  test('DBとworkerは順序・重複・lease・dead-letterを実装する', async () => {
+    const [migration, webhook, subscriptionSync, retryWorker, reconciliation] = await Promise.all([
+      readFile('supabase/migrations/20260731000200_commercial_remediation_batch_1b.sql', 'utf8'),
+      readFile('src/lib/stripe/garageWebhookProcessor.ts', 'utf8'),
+      readFile('src/lib/stripe/garageSubscriptionSync.ts', 'utf8'),
+      readFile('src/app/api/jobs/billing-webhook-retry/route.ts', 'utf8'),
+      readFile('src/app/api/jobs/billing-reconciliation/route.ts', 'utf8'),
+    ]);
+    expect(migration).toContain('garage_effective_billing_state');
+    expect(migration).toContain('claim_garage_webhook_retry');
+    expect(migration).toContain('for update skip locked');
+    expect(migration).toContain('claim_garage_subscription_lease');
+    expect(migration).toContain('begin_garage_billing_operation');
+    expect(migration).toContain('garage_plan_entitlements');
+    expect(webhook).toContain('applyAuthoritativeGarageSubscription');
+    expect(subscriptionSync).toContain('retrieveAuthoritativeSubscription');
+    expect(subscriptionSync).toContain('apply_garage_subscription_snapshot_v3');
+    expect(webhook).not.toContain("coalesce(v_row.last_stripe_event_id, '') >= p_event_id");
+    expect(retryWorker).toContain('claim_garage_webhook_retry');
+    expect(retryWorker).toContain('manualRetry');
+    expect(reconciliation).toContain('claim_garage_billing_operations');
+  });
+
+  test('31ケース以上のローカルmatrixを固定する', async () => {
+    const matrix = JSON.parse(await readFile('tests/fixtures/commercial-batch-1b-matrix.json', 'utf8')) as unknown[];
+    expect(matrix.length).toBeGreaterThanOrEqual(31);
+  });
+
+  test('料金・税・環境fingerprintをfail closedにする', async () => {
+    const [registry, preflight, checkout] = await Promise.all([
+      readFile('scripts/verify-garage-stripe-test-registry.mjs', 'utf8'),
+      readFile('scripts/verify-commercial-staging-preflight.mjs', 'utf8'),
+      readFile('src/app/api/billing/checkout/route.ts', 'utf8'),
+    ]);
+    expect(registry).toContain("tax_behavior === 'inclusive'");
+    expect(registry).toContain('automatic_tax');
+    expect(registry).toContain('default_tax_rates');
+    expect(preflight).toContain('VERCEL_PROJECT_ID');
+    expect(preflight).toContain('VERCEL_TEAM_ID');
+    expect(preflight).toContain('STRIPE_ACCOUNT_ID');
+    expect(checkout).toContain('automatic_tax: { enabled: false }');
+  });
+});

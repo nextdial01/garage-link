@@ -22,18 +22,36 @@ async function main() {
   }
 
   const stripe = new Stripe(secret, { apiVersion: '2026-07-29.dahlia' });
+  const account = await stripe.accounts.retrieve();
+  if (account.livemode || process.env.STRIPE_ACCOUNT_ID !== account.id) {
+    throw new Error('Stripe test account fingerprint mismatch');
+  }
   const results = [];
 
   for (const item of expected) {
     const priceId = required(item.env);
     const price = await stripe.prices.retrieve(priceId, { expand: ['product'] });
     const product = typeof price.product === 'string' ? null : price.product;
+    const subscriptions = await stripe.subscriptions.list({
+      price: price.id,
+      status: 'all',
+      limit: 100,
+    });
+    const automaticTaxEnabled = subscriptions.data.some(
+      (subscription) => subscription.automatic_tax.enabled,
+    );
+    const manualTaxRatesPresent = subscriptions.data.some(
+      (subscription) => subscription.default_tax_rates.length > 0,
+    );
     const valid = price.livemode === false
       && price.active
       && price.currency === 'jpy'
       && price.unit_amount === item.amount
       && price.type === 'recurring'
       && price.recurring?.interval === 'month'
+      && price.tax_behavior === 'inclusive'
+      && !automaticTaxEnabled
+      && !manualTaxRatesPresent
       && Boolean(product && !('deleted' in product && product.deleted) && product.active)
       && (!item.product || product?.id === item.product);
     results.push({
@@ -43,6 +61,9 @@ async function main() {
       currency: price.currency,
       amount: price.unit_amount,
       interval: price.recurring?.interval ?? null,
+      tax_behavior: price.tax_behavior,
+      automatic_tax: automaticTaxEnabled,
+      default_tax_rates: manualTaxRatesPresent,
       product_active: Boolean(product && !('deleted' in product && product.deleted) && product.active),
       product_id: product?.id ?? null,
       expected_product_id: item.product ?? null,

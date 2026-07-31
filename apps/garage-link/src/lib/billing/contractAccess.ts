@@ -16,6 +16,11 @@ export type ContractAccess = {
   state: ContractAccessState;
   storeId?: string;
   plan?: string;
+  stripeStatus?: string | null;
+  graceEndsAt?: string | null;
+  currentPeriodEnd?: string | null;
+  cancelAtPeriodEnd?: boolean;
+  restorationState?: string | null;
   cancelledAt?: string | null;
   dataDeleteScheduledAt?: string | null;
 };
@@ -75,6 +80,11 @@ export function parseContractAccess(value: unknown): ContractAccess {
       state,
       storeId: typeof row.store_id === 'string' ? row.store_id : undefined,
       plan: typeof row.plan === 'string' ? row.plan : undefined,
+      stripeStatus: typeof row.stripe_status === 'string' ? row.stripe_status : null,
+      graceEndsAt: typeof row.grace_ends_at === 'string' ? row.grace_ends_at : null,
+      currentPeriodEnd: typeof row.current_period_end === 'string' ? row.current_period_end : null,
+      cancelAtPeriodEnd: row.cancel_at_period_end === true,
+      restorationState: typeof row.restoration_state === 'string' ? row.restoration_state : null,
       cancelledAt: typeof row.cancelled_at === 'string' ? row.cancelled_at : null,
       dataDeleteScheduledAt:
         typeof row.data_delete_scheduled_at === 'string' ? row.data_delete_scheduled_at : null,
@@ -82,6 +92,31 @@ export function parseContractAccess(value: unknown): ContractAccess {
   }
 
   return { state: 'reconciliation_required' };
+}
+
+export function resolveEffectiveContractAccess(
+  access: ContractAccess,
+  now = new Date(),
+): ContractAccess {
+  if (access.state === 'grace_period') {
+    const deadline = access.graceEndsAt ? Date.parse(access.graceEndsAt) : Number.NaN;
+    if (!Number.isFinite(deadline) || deadline <= now.getTime()) {
+      return { ...access, state: 'restricted' };
+    }
+  }
+  if (access.state === 'cancellation_scheduled') {
+    const periodEnd = access.currentPeriodEnd ? Date.parse(access.currentPeriodEnd) : Number.NaN;
+    if (!Number.isFinite(periodEnd) || periodEnd <= now.getTime()) {
+      return { ...access, state: 'canceled' };
+    }
+  }
+  if (access.restorationState === 'pending') {
+    return { ...access, state: 'reconciliation_required' };
+  }
+  if (access.cancelledAt) {
+    return { ...access, state: 'canceled' };
+  }
+  return access;
 }
 
 export function formatRetentionDeadline(isoDate: string | null | undefined) {

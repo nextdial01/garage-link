@@ -1,0 +1,5 @@
+plan,name,gross_monthly_jpy,net_basis_jpy,inventory,staff,store,storage_mb,quote_invoice,l_link
+free,Free,0,0,5,1,1,500,5,unavailable
+starter,Starter,7480,6800,50,1,1,2048,20,unavailable
+standard,Standard,16280,14800,200,3,1,10240,unlimited,preparing
+pro,Pro,32780,29800,500,10,3,51200,unlimited,preparing

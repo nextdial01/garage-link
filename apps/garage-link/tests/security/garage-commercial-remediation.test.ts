@@ -87,10 +87,11 @@ test.describe('GARAGE LINK commercial contract', () => {
   });
 
   test('Webhook・reconciliation・quotaはCommercial migrationへ結線される', async () => {
-    const [webhook, reconciliation, migration, checkout, middleware, registryCheck, e2eRunner, stagingWorkflow, stagingPreflight] = await Promise.all([
-      readFile('src/app/api/billing/webhook/route.ts', 'utf8'),
+    const [webhook, sync, reconciliation, migration, checkout, middleware, registryCheck, e2eRunner, stagingWorkflow, stagingPreflight] = await Promise.all([
+      readFile('src/lib/stripe/garageWebhookProcessor.ts', 'utf8'),
+      readFile('src/lib/stripe/garageSubscriptionSync.ts', 'utf8'),
       readFile('src/app/api/jobs/billing-reconciliation/route.ts', 'utf8'),
-      readFile('supabase/migrations/20260731000100_commercial_remediation_batch_1.sql', 'utf8'),
+      readFile('supabase/migrations/20260731000200_commercial_remediation_batch_1b.sql', 'utf8'),
       readFile('src/app/api/billing/checkout/route.ts', 'utf8'),
       readFile('src/middleware.ts', 'utf8'),
       readFile('scripts/verify-garage-stripe-test-registry.mjs', 'utf8'),
@@ -108,15 +109,16 @@ test.describe('GARAGE LINK commercial contract', () => {
     ]) {
       expect(webhook).toContain(event);
     }
-    expect(webhook).toContain('apply_garage_subscription_event_v2');
-    expect(reconciliation).toContain('apply_garage_subscription_event_v2');
+    expect(webhook).toContain('applyAuthoritativeGarageSubscription');
+    expect(sync).toContain('apply_garage_subscription_snapshot_v3');
+    expect(reconciliation).toContain('applyAuthoritativeGarageSubscription');
     expect(migration).toContain('pg_advisory_xact_lock');
-    expect(migration).toContain('billing_sync_operations_one_open_checkout_uidx');
-    expect(migration).toContain('a00_billing_access_membership');
+    expect(migration).toContain('billing_sync_operations_one_open_mutation_uidx');
+    expect(migration).toContain('garage_effective_billing_state');
     expect(migration).toContain('billing_access_restricted');
     expect(migration).toContain("'dead_letter'");
     expect(checkout).not.toContain('applyGaragePlanFromStripe');
-    expect(checkout).toContain("operation_type: 'checkout'");
+    expect(checkout).toContain("p_operation_type: 'checkout'");
     expect(checkout).toContain('idempotencyKey: operation.id');
     expect(middleware).toContain('billing_access_restricted');
     expect(registryCheck).toContain("secret.startsWith('sk_test_')");

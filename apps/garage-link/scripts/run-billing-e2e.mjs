@@ -4,6 +4,12 @@ const requiredWhenEnabled = [
   'E2E_EMAIL',
   'E2E_PASSWORD',
   'E2E_TEST_SUPABASE_URL',
+  'E2E_TEST_SUPABASE_SERVICE_ROLE_KEY',
+  'EXPECTED_RELEASE_SHA',
+  'E2E_MARKER',
+  'STRIPE_SECRET_KEY',
+  'STRIPE_WEBHOOK_SECRET',
+  'CRON_SECRET',
 ];
 
 function hasValue(name) {
@@ -49,7 +55,7 @@ async function isAppReachable() {
 function runPlaywright() {
   const child = spawn(
     'pnpm',
-    ['--filter', '@apps/garage-link', 'exec', 'playwright', 'test', 'tests/e2e/billing.spec.ts'],
+    ['--filter', '@apps/garage-link', 'exec', 'playwright', 'test', 'tests/e2e/billing-stripe-lifecycle.spec.ts'],
     {
       stdio: 'inherit',
       shell: process.platform === 'win32',

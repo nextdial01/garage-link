@@ -33,13 +33,13 @@ for workers in 2 10 100; do
   suffix="$(printf '%012d' "$workers")"
   tenant="58000000-0000-0000-0001-$suffix"
   store="58100000-0000-0000-0001-$suffix"
-  psql_sql "begin; set local session_replication_role=replica; insert into public.tenants(id,name,status,plan_code) values('$tenant','G7 quota $workers','active','starter'); insert into public.stores(id,tenant_id,name,status,plan_code) values('$store','$tenant','G7 quota store','active','starter'); insert into public.company_subscriptions(company_id,tenant_id,plan,status,included_staff_count,included_store_count,current_inventory_limit) values('$store','$tenant','starter','active',10,1,1); set local session_replication_role=origin; commit;" >/dev/null
+  psql_sql "begin; set local session_replication_role=replica; insert into public.tenants(id,name,status,plan_code) values('$tenant','G7 quota $workers','active','starter'); insert into public.stores(id,tenant_id,name,status,plan_code) values('$store','$tenant','G7 quota store','active','starter'); insert into public.company_subscriptions(company_id,tenant_id,plan,status,included_staff_count,included_store_count,current_inventory_limit) values('$store','$tenant','starter','active',1,1,50); insert into public.vehicles(store_id,management_no,status) select '$store','G7-SEED-'||g,'in_stock' from generate_series(1,49) g; set local session_replication_role=origin; commit;" >/dev/null
   export QUOTA_STORE="$store" CONTAINER
   success="$(run_parallel "$workers" "quota-$workers" quota_worker)"
   count="$(psql_sql "select count(*) from public.vehicles where store_id='$store' and deleted_at is null;")"
-  [[ "$success" == "1" && "$count" == "1" ]] || { echo "quota concurrency failed workers=$workers success=$success rows=$count" >&2; exit 1; }
+  [[ "$success" == "1" && "$count" == "50" ]] || { echo "quota concurrency failed workers=$workers success=$success rows=$count" >&2; exit 1; }
   psql_sql "begin; set local session_replication_role=replica; delete from public.company_subscriptions where tenant_id='$tenant'; delete from public.vehicles where store_id='$store'; delete from public.stores where id='$store'; delete from public.tenants where id='$tenant'; set local session_replication_role=origin; commit;" >/dev/null
-  echo "quota_workers=$workers success=1 rows=1"
+  echo "quota_workers=$workers success=1 rows=50"
 done
 
 inventory_worker_same() {

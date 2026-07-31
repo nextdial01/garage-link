@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createDefaultFreeSubscription } from '@/lib/billing/garageSubscription';
+import {
+  resolveGarageBillingState,
+  type GarageStripeSubscriptionStatus,
+} from '@/lib/billing/garageCommercial';
 import { translateDbError } from '@/lib/errors/translate-db-error';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -11,7 +15,29 @@ type StoreMemberRow = {
 };
 
 const subscriptionColumns =
-  'id, company_id, tenant_id, plan, status, included_staff_count, extra_staff_count, included_store_count, extra_store_count, storage_limit_mb, extra_storage_gb, current_inventory_limit, l_link_integration_enabled, started_at, updated_at, stripe_customer_id, stripe_subscription_id, pending_plan, pending_plan_effective_at, cancelled_at, data_delete_scheduled_at, data_deleted_at';
+  'id, company_id, tenant_id, plan, status, billing_state, stripe_status, grace_ends_at, cancel_at_period_end, current_period_end, restoration_state, included_staff_count, extra_staff_count, included_store_count, extra_store_count, storage_limit_mb, extra_storage_gb, current_inventory_limit, l_link_integration_enabled, started_at, updated_at, stripe_customer_id, stripe_subscription_id, pending_plan, pending_plan_effective_at, cancelled_at, data_delete_scheduled_at, data_deleted_at';
+
+function withEffectiveBillingState<T extends Record<string, unknown>>(subscription: T) {
+  const stripeStatus = subscription.stripe_status;
+  if (typeof stripeStatus !== 'string') return subscription;
+  return {
+    ...subscription,
+    billing_state: resolveGarageBillingState({
+      stripeStatus: stripeStatus as GarageStripeSubscriptionStatus,
+      graceEndsAt: typeof subscription.grace_ends_at === 'string' ? subscription.grace_ends_at : null,
+      cancelAtPeriodEnd: subscription.cancel_at_period_end === true,
+      currentPeriodEnd: typeof subscription.current_period_end === 'string' ? subscription.current_period_end : null,
+      canceledAt: typeof subscription.cancelled_at === 'string' ? subscription.cancelled_at : null,
+      restorationState: subscription.restoration_state === 'pending'
+        ? 'pending'
+        : subscription.restoration_state === 'restored'
+          ? 'restored'
+          : subscription.restoration_state === 'failed'
+            ? 'failed'
+            : 'none',
+    }),
+  };
+}
 
 export async function GET() {
   const supabase = await createClient();
@@ -48,7 +74,8 @@ export async function GET() {
     .from('company_subscriptions')
     .select(subscriptionColumns)
     .eq('tenant_id', tenantId)
-    .eq('status', 'active')
+    .order('updated_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (readError) {
@@ -56,25 +83,14 @@ export async function GET() {
   }
 
   if (existing) {
-    return NextResponse.json({ ok: true, subscription: existing, source: 'database' });
-  }
-
-  const { data: cancelled, error: cancelledError } = await admin
-    .from('company_subscriptions')
-    .select(subscriptionColumns)
-    .eq('tenant_id', tenantId)
-    .eq('status', 'cancelled')
-    .is('data_deleted_at', null)
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (cancelledError) {
-    return NextResponse.json({ ok: false, error: translateDbError(cancelledError.message) }, { status: 500 });
-  }
-
-  if (cancelled) {
-    return NextResponse.json({ ok: true, subscription: cancelled, source: 'cancelled_retention' });
+    const effective = withEffectiveBillingState(existing as Record<string, unknown>);
+    return NextResponse.json({
+      ok: true,
+      subscription: effective,
+      source: (effective as { billing_state?: string }).billing_state === 'canceled'
+        ? 'cancelled_retention'
+        : 'database',
+    });
   }
 
   const fallback = createDefaultFreeSubscription(member.store_id);

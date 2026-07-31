@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { canAddStaff, canAddStorage, canAddStore } from '@/lib/billing/garagePlans';
 import { getStripeClient } from '@/lib/stripe/client';
+import { withGarageSubscriptionMutationLease } from '@/lib/stripe/garageSubscriptionSync';
 import { createTermsConsentMetadata } from '@/lib/legal/termsConsent';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -102,25 +103,24 @@ export async function POST(request: Request) {
       }
       return NextResponse.json({ ok: false, error: 'オプション変更を処理中です。' }, { status: 409 });
     }
-    const { data: operation, error: operationError } = await admin
-      .from('billing_sync_operations')
-      .insert({
-        tenant_id: tenantId,
-        company_id: subscription.company_id,
-        actor_user_id: userData.user.id,
-        operation_type: 'change_option',
-        idempotency_key: idempotencyKey,
-        requested_plan: subscription.plan,
-        requested_options: requestedOptions,
-        stripe_subscription_id: subscription.stripe_subscription_id,
-        status: 'started',
-      })
-      .select('id')
-      .single();
-    if (operationError || !operation) throw new Error('billing_operation_create_failed');
+    const { data: beginResult, error: operationError } = await admin.rpc('begin_garage_billing_operation', {
+      p_tenant_id: tenantId,
+      p_company_id: subscription.company_id,
+      p_actor_user_id: userData.user.id,
+      p_operation_type: 'change_option',
+      p_idempotency_key: idempotencyKey,
+      p_target_plan: subscription.plan,
+      p_target_options: requestedOptions,
+      p_stripe_subscription_id: subscription.stripe_subscription_id,
+    });
+    if (operationError) throw new Error('billing_operation_create_failed');
+    const begin = beginResult as { ok?: boolean; conflict?: boolean; id?: string };
+    if (begin.conflict) {
+      return NextResponse.json({ ok: false, error: '別の契約変更を処理中です。' }, { status: 409 });
+    }
+    if (!begin.ok || !begin.id) throw new Error('billing_operation_create_failed');
+    const operation = { id: begin.id };
 
-    const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
-    const existingItem = stripeSubscription.items.data.find((item) => item.price.id === priceId);
     const currentQuantity = type === 'add_staff'
       ? subscription.extra_staff_count
       : type === 'add_store'
@@ -133,23 +133,26 @@ export async function POST(request: Request) {
       await admin.from('billing_sync_operations').update({ status: 'failed', diagnostic_code: 'option_quantity_below_zero' }).eq('id', operation.id);
       return NextResponse.json({ ok: false, error: '現在の追加数を超えて削除できません。' }, { status: 400 });
     }
-    if (!existingItem && action === 'remove') {
-      await admin.from('billing_sync_operations').update({ status: 'failed', diagnostic_code: 'option_item_missing' }).eq('id', operation.id);
-      return NextResponse.json({ ok: false, error: '削除対象のオプションがありません。' }, { status: 400 });
-    }
-
-    await stripe.subscriptions.update(subscription.stripe_subscription_id, {
-      items: existingItem
-        ? nextQuantity === 0
-          ? [{ id: existingItem.id, deleted: true }]
-          : [{ id: existingItem.id, quantity: nextQuantity }]
-        : [{ price: priceId, quantity: nextQuantity }],
-      proration_behavior: 'none',
-      metadata: {
-        ...stripeSubscription.metadata,
-        ...createTermsConsentMetadata(),
-      },
-    }, { idempotencyKey });
+    await withGarageSubscriptionMutationLease(subscription.stripe_subscription_id, async () => {
+      const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id!);
+      const existingItem = stripeSubscription.items.data.find((item) => item.price.id === priceId);
+      if (!existingItem && action === 'remove') throw new Error('option_item_missing');
+      const updated = await stripe.subscriptions.update(subscription.stripe_subscription_id!, {
+        items: existingItem
+          ? nextQuantity === 0
+            ? [{ id: existingItem.id, deleted: true }]
+            : [{ id: existingItem.id, quantity: nextQuantity }]
+          : [{ price: priceId, quantity: nextQuantity }],
+        proration_behavior: 'none',
+        metadata: {
+          ...stripeSubscription.metadata,
+          ...createTermsConsentMetadata(),
+        },
+      }, { idempotencyKey });
+      await admin.from('billing_sync_operations').update({
+        stripe_request_id: updated.lastResponse?.requestId ?? null,
+      }).eq('id', operation.id);
+    });
     stripeMutationCompleted = true;
     const { error: checkpointError } = await admin
       .from('billing_sync_operations')

@@ -39,6 +39,8 @@ export type GarageBillingState =
   | 'canceled'
   | 'reconciliation_required';
 
+export type GarageRestorationState = 'none' | 'pending' | 'restored' | 'failed';
+
 export type GarageBillingAccess = {
   state: GarageBillingState;
   paidEntitlementsEnabled: boolean;
@@ -60,19 +62,27 @@ export function resolveGarageBillingState(input: {
   stripeStatus: GarageStripeSubscriptionStatus;
   cancelAtPeriodEnd?: boolean;
   graceEndsAt?: string | null;
+  currentPeriodEnd?: string | null;
+  canceledAt?: string | null;
+  restorationState?: GarageRestorationState;
   now?: Date;
 }): GarageBillingState {
-  if (input.stripeStatus === 'canceled') return 'canceled';
+  const now = (input.now ?? new Date()).getTime();
+  if (input.restorationState === 'pending') return 'reconciliation_required';
+  if (input.stripeStatus === 'canceled' || input.canceledAt) return 'canceled';
   if (input.stripeStatus === 'incomplete') return 'initial_payment_pending';
   if (input.stripeStatus === 'incomplete_expired' || input.stripeStatus === 'unpaid') return 'unpaid';
   if (input.stripeStatus === 'paused') return 'restricted';
   if (input.stripeStatus === 'past_due') {
     const deadline = input.graceEndsAt ? Date.parse(input.graceEndsAt) : Number.NaN;
-    return Number.isFinite(deadline) && deadline > (input.now ?? new Date()).getTime()
+    return Number.isFinite(deadline) && deadline > now
       ? 'grace_period'
       : 'restricted';
   }
-  if (input.cancelAtPeriodEnd) return 'cancellation_scheduled';
+  if (input.cancelAtPeriodEnd) {
+    const periodEnd = input.currentPeriodEnd ? Date.parse(input.currentPeriodEnd) : Number.NaN;
+    return Number.isFinite(periodEnd) && periodEnd <= now ? 'canceled' : 'cancellation_scheduled';
+  }
   return 'active';
 }
 
@@ -107,4 +117,3 @@ export function getGarageBillingAccess(state: GarageBillingState): GarageBilling
 export function expectedGarageStripeAmount(plan: Exclude<GaragePlanCode, 'free'>) {
   return GARAGE_PLANS[plan].monthlyPrice;
 }
-

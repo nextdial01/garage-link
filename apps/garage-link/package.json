@@ -12,6 +12,7 @@
     "test:security": "playwright test -c playwright.security.config.ts",
     "test:billing": "playwright test -c playwright.security.config.ts tests/security/garage-billing.test.ts",
     "test:stripe-registry": "node scripts/verify-garage-stripe-test-registry.mjs",
+    "test:commercial-contract-drift": "node ../../packages/billing/scripts/generate-garage-commercial-contract.mjs --check",
     "test:e2e:billing": "node scripts/run-billing-e2e.mjs",
     "test:line-link-s2s": "node scripts/check-line-link-s2s.mjs",
     "test:l-link-inquiry-s2s": "node scripts/check-l-link-inquiry-s2s.mjs",

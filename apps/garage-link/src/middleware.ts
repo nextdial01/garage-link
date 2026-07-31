@@ -1,7 +1,11 @@
 import { createServerClient } from '@supabase/ssr';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
-import { isBillingRecoveryAllowedPath } from '@/lib/billing/contractAccess';
+import {
+  isBillingRecoveryAllowedPath,
+  parseContractAccess,
+  resolveEffectiveContractAccess,
+} from '@/lib/billing/contractAccess';
 import { resolvePostAuthPath } from '@/lib/auth/post-auth-redirect';
 import { ADMIN_EMAIL_OTP_COOKIE, deviceTokenHash, getAdminEmailOtpSecret, hasEffectiveAdminRole, readTrustedDeviceCookieValue } from '@/lib/security/adminEmailOtp';
 
@@ -211,13 +215,9 @@ export async function middleware(request: NextRequest) {
 
     if (!isPublicPath(pathname)) {
       const { data: contractAccess } = await supabase.rpc('get_member_contract_access', {});
-      const accessState =
-        contractAccess &&
-        typeof contractAccess === 'object' &&
-        'state' in contractAccess &&
-        typeof (contractAccess as { state?: string }).state === 'string'
-          ? (contractAccess as { state: string }).state
-          : 'reconciliation_required';
+      const accessState = resolveEffectiveContractAccess(
+        parseContractAccess(contractAccess),
+      ).state;
 
       if (accessState === 'cancelled_retention' && !isCancelledRetentionAllowedPath(pathname)) {
         const billingUrl = request.nextUrl.clone();

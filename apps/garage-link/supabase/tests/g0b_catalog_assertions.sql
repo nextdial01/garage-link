@@ -22,9 +22,9 @@ begin
   end if;
 
   select count(*) into v_count from supabase_migrations.schema_migrations;
-  if v_count <> 51 then raise exception 'G0B_LEDGER_COUNT: %', v_count; end if;
+  if v_count <> 52 then raise exception 'G0B_LEDGER_COUNT: %', v_count; end if;
   select count(*) into v_count from supabase_migrations.migration_integrity where state='applied';
-  if v_count <> 51 then raise exception 'G0B_INTEGRITY_COUNT: %', v_count; end if;
+  if v_count <> 52 then raise exception 'G0B_INTEGRITY_COUNT: %', v_count; end if;
   if exists (
     select 1 from supabase_migrations.schema_migrations m
     left join supabase_migrations.migration_integrity i using(version)
@@ -32,7 +32,7 @@ begin
   ) then raise exception 'G0B_LEDGER_INTEGRITY_MISSING'; end if;
 
   select count(*) into v_count from pg_tables where schemaname='public';
-  if v_count <> 73 then raise exception 'G0B_PUBLIC_TABLE_COUNT: %', v_count; end if;
+  if v_count <> 75 then raise exception 'G0B_PUBLIC_TABLE_COUNT: %', v_count; end if;
   if exists (
     select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
     where n.nspname='public' and c.relkind='r' and not c.relrowsecurity

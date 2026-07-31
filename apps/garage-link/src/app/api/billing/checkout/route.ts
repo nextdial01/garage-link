@@ -133,36 +133,32 @@ export async function POST(request: Request) {
   const requestIdempotencyKey = request.headers.get('idempotency-key')?.trim() || crypto.randomUUID();
 
   try {
-    const { data: operationData, error: operationError } = await admin
-      .from('billing_sync_operations')
-      .insert({
-        tenant_id: member.tenant_id,
-        company_id: member.store_id,
-        actor_user_id: userData.user.id,
-        operation_type: 'checkout',
-        idempotency_key: requestIdempotencyKey,
-        requested_plan: planCode,
-        status: 'started',
-      })
-      .select('id, requested_plan, requested_options, status')
-      .single();
-
-    let operation = operationData as CheckoutOperation | null;
-    if (operationError?.code === '23505') {
-      const { data: existingData, error: existingError } = await admin
-        .from('billing_sync_operations')
-        .select('id, requested_plan, requested_options, status')
-        .eq('tenant_id', member.tenant_id)
-        .eq('operation_type', 'checkout')
-        .in('status', ['started', 'stripe_applied', 'reconciliation_required', 'retry_scheduled'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (existingError || !existingData) throw new Error('checkout_operation_lookup_failed');
-      operation = existingData as CheckoutOperation;
-    } else if (operationError || !operation) {
-      throw new Error('checkout_operation_create_failed');
+    const { data: beginResult, error: operationError } = await admin.rpc('begin_garage_billing_operation', {
+      p_tenant_id: member.tenant_id,
+      p_company_id: member.store_id,
+      p_actor_user_id: userData.user.id,
+      p_operation_type: 'checkout',
+      p_idempotency_key: requestIdempotencyKey,
+      p_target_plan: planCode,
+      p_target_options: {},
+      p_stripe_subscription_id: null,
+    });
+    if (operationError) throw new Error('checkout_operation_create_failed');
+    const begin = beginResult as { ok?: boolean; conflict?: boolean; id?: string };
+    if (begin.conflict) {
+      return NextResponse.json(
+        { ok: false, error: '別の契約変更または決済を処理中です。' },
+        { status: 409 },
+      );
     }
+    if (!begin.ok || !begin.id) throw new Error('checkout_operation_create_failed');
+    const { data: operationData, error: operationLookupError } = await admin
+      .from('billing_sync_operations')
+      .select('id, requested_plan, requested_options, status')
+      .eq('id', begin.id)
+      .single();
+    if (operationLookupError || !operationData) throw new Error('checkout_operation_lookup_failed');
+    const operation = operationData as CheckoutOperation;
 
     if (operation.requested_plan !== planCode) {
       return NextResponse.json(
@@ -199,6 +195,7 @@ export async function POST(request: Request) {
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
+      automatic_tax: { enabled: false },
       integration_identifier: createIntegrationIdentifier(),
       ...customerParams,
       line_items: [{ price: priceId, quantity: 1 }],
@@ -230,6 +227,7 @@ export async function POST(request: Request) {
       .update({
         status: 'stripe_applied',
         requested_options: { stripe_session_id: session.id },
+        stripe_request_id: session.lastResponse?.requestId ?? null,
       })
       .eq('id', operation.id);
     if (checkpointError) throw new Error('checkout_operation_checkpoint_failed');

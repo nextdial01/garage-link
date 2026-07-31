@@ -29,6 +29,8 @@ jobs:
       E2E_REQUIRE_BILLING: "true"
       E2E_ALLOW_BILLING_MUTATIONS: "true"
       E2E_CONFIRM_TEST_SUPABASE: "true"
+      E2E_MARKER: "garage-link-commercial-disposable"
+      EXPECTED_RELEASE_SHA: ${{ inputs.release_sha }}
       PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
       E2E_EMAIL: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
       E2E_PASSWORD: ${{ secrets.GARAGE_STAGING_E2E_PASSWORD }}
@@ -36,6 +38,11 @@ jobs:
       E2E_TEST_SUPABASE_ANON_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_ANON_KEY }}
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
       STRIPE_SECRET_KEY: ${{ secrets.GARAGE_STAGING_STRIPE_TEST_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.GARAGE_STAGING_STRIPE_WEBHOOK_SECRET }}
+      CRON_SECRET: ${{ secrets.GARAGE_STAGING_CRON_SECRET }}
+      VERCEL_PROJECT_ID: ${{ secrets.GARAGE_STAGING_VERCEL_PROJECT_ID }}
+      VERCEL_TEAM_ID: ${{ secrets.GARAGE_STAGING_VERCEL_TEAM_ID }}
+      STRIPE_ACCOUNT_ID: ${{ secrets.GARAGE_STAGING_STRIPE_TEST_ACCOUNT_ID }}
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.GARAGE_STAGING_STRIPE_TEST_PUBLISHABLE_KEY }}
       STRIPE_PRICE_STARTER: ${{ secrets.GARAGE_STAGING_STRIPE_STARTER_PRICE_ID }}
       STRIPE_PRICE_STANDARD: ${{ secrets.GARAGE_STAGING_STRIPE_STANDARD_PRICE_ID }}
@@ -62,8 +69,12 @@ jobs:
         env:
           EXPECTED_RELEASE_SHA: ${{ inputs.release_sha }}
           EXPECTED_ENVIRONMENT_FINGERPRINT: ${{ inputs.environment_fingerprint }}
+          EXPECTED_VERCEL_PROJECT_ID: ${{ secrets.GARAGE_STAGING_VERCEL_PROJECT_ID }}
+          EXPECTED_VERCEL_TEAM_ID: ${{ secrets.GARAGE_STAGING_VERCEL_TEAM_ID }}
+          EXPECTED_STRIPE_ACCOUNT_ID: ${{ secrets.GARAGE_STAGING_STRIPE_TEST_ACCOUNT_ID }}
 
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @apps/garage-link test:commercial-contract-drift
       - run: pnpm --filter @apps/garage-link exec playwright install --with-deps chromium
       - run: pnpm --filter @apps/garage-link test:stripe-registry
       - run: pnpm test:commercial-staging:garage-link

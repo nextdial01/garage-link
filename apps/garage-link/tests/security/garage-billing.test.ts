@@ -179,6 +179,7 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     const checkoutRoute = await readFile('src/app/api/billing/checkout/route.ts', 'utf8');
     const subscriptionRoute = await readFile('src/app/api/billing/subscription/route.ts', 'utf8');
     const webhookRoute = await readFile('src/app/api/billing/webhook/route.ts', 'utf8');
+    const webhookProcessor = await readFile('src/lib/stripe/garageWebhookProcessor.ts', 'utf8');
     const middleware = await readFile('src/middleware.ts', 'utf8');
     const stripeClient = await readFile('src/lib/stripe/client.ts', 'utf8');
     const webhookIdempotency = await readFile(
@@ -198,13 +199,13 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(billingPage).toContain("Boolean(subscription?.stripe_subscription_id)");
     expect(billingPage).toContain('translateDbError');
     expect(checkoutRoute).not.toContain('payment_method_types');
-    expect(checkoutRoute).not.toContain('automatic_tax');
+    expect(checkoutRoute).toContain('automatic_tax: { enabled: false }');
     expect(checkoutRoute).toContain('integration_identifier');
     expect(stripeClient).toContain("apiVersion: '2026-07-29.dahlia'");
-    expect(webhookRoute).toContain('checkout.session.completed');
+    expect(webhookProcessor).toContain('checkout.session.completed');
     expect(middleware).toContain("pathname === '/api/billing/webhook'");
     expect(webhookRoute).toContain('claimStripeEvent');
-    expect(webhookRoute).toContain("'dead_letter' : 'failed'");
+    expect(webhookProcessor).toContain("'dead_letter' : 'retry_scheduled'");
     expect(webhookIdempotency).toContain('stripe_event_id text not null unique');
     expect(webhookIdempotency).toContain('enable row level security');
     expect(webhookIdempotency).toContain('revoke all on table public.stripe_webhook_events from anon, authenticated');
@@ -240,8 +241,8 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     const publicRouteBody = await readFile('src/components/public-site/GarageRouteBody.tsx', 'utf8');
     const terms = await readFile('src/app/legal/terms/page.tsx', 'utf8');
     const tokusho = await readFile('src/app/legal/tokusho/page.tsx', 'utf8');
-    const planDefinitions = await readFile('../../packages/billing/src/garagePlans.ts', 'utf8');
-    const stripeSetup = await readFile('scripts/setup-stripe-test-products.mjs', 'utf8');
+    const planDefinitions = await readFile('../../packages/billing/src/garagePlans.generated.ts', 'utf8');
+    const stripeSetup = await readFile('../../packages/billing/contract/garage-commercial-contract.json', 'utf8');
     const invoiceVerification = await readFile('scripts/verify-stripe-test-invoice.mjs', 'utf8');
     const sources = `${legalConstants}\n${billingPage}\n${publicPage}\n${publicRouteBody}\n${planDefinitions}\n${stripeSetup}\n${invoiceVerification}`;
 
@@ -253,12 +254,12 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(billingPage).toContain('表示額は10%相当額を含む請求総額です');
     expect(`${legalConstants}\n${billingPage}\n${publicPage}\n${publicRouteBody}\n${tokusho}`).not.toContain('当社は免税事業者であり');
     expect(terms).toContain('当社は免税事業者であり、適格請求書発行事業者ではありません。');
-    expect(planDefinitions).toContain('monthlyPrice: 7480');
-    expect(planDefinitions).toContain('monthlyPrice: 16280');
-    expect(planDefinitions).toContain('monthlyPrice: 32780');
-    expect(stripeSetup).toContain("amount: 7480");
-    expect(stripeSetup).toContain("amount: 16280");
-    expect(stripeSetup).toContain("amount: 32780");
+    expect(planDefinitions).toContain('"monthlyPrice": 7480');
+    expect(planDefinitions).toContain('"monthlyPrice": 16280');
+    expect(planDefinitions).toContain('"monthlyPrice": 32780');
+    expect(stripeSetup).toContain('"monthlyPrice": 7480');
+    expect(stripeSetup).toContain('"monthlyPrice": 16280');
+    expect(stripeSetup).toContain('"monthlyPrice": 32780');
     expect(invoiceVerification).toContain("assert.equal(invoice.total, 16280)");
   });
 
@@ -326,13 +327,13 @@ test.describe('GARAGE LINK billing and plan safety', () => {
   test('有料プラン変更は新規Checkoutを作らず途中精算なしで既存契約を更新する', async () => {
     const checkout = await readFile('src/app/api/billing/checkout/route.ts', 'utf8');
     const changePlan = await readFile('src/app/api/billing/change-plan/route.ts', 'utf8');
-    const webhook = await readFile('src/app/api/billing/webhook/route.ts', 'utf8');
+    const webhook = await readFile('src/lib/stripe/garageWebhookProcessor.ts', 'utf8');
 
     expect(checkout).toContain('use_existing_subscription');
     expect(changePlan).toContain("proration_behavior: 'none'");
     expect(changePlan).toContain('pending_plan_effective_at');
     expect(webhook).toContain('applyScheduledPlanIfDue');
-    expect(webhook).toContain("case 'invoice.paid'");
+    expect(webhook).toContain("event.type === 'invoice.paid'");
   });
 
   test('Stripe決済は利用規約への明示同意を画面とAPIの両方で必須にする', async () => {
