@@ -46,7 +46,10 @@ export async function GET(request: Request) {
   }
   let stripeAccountId: string;
   try {
-    stripeAccountId = (await stripe!.accounts.retrieve(expectedStripeAccountId!)).id;
+    stripeAccountId = (await stripe!.accounts.retrieveCurrent()).id;
+    if (stripeAccountId !== expectedStripeAccountId) {
+      return NextResponse.json({ ok: false }, { status: 503 });
+    }
   } catch {
     return NextResponse.json({ ok: false }, { status: 503 });
   }

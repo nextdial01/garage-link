@@ -176,7 +176,9 @@ test.describe('Batch 1B permanent gates', () => {
     expect(billingPage).toContain("payload.code === 'checkout_session_expired'");
     expect(fingerprint).toContain('GARAGE_COMMERCIAL_STAGING_FINGERPRINT_ENABLED');
     expect(fingerprint).toContain("!stripeKey?.startsWith('sk_test_')");
-    expect(fingerprint).toContain('stripe!.accounts.retrieve(expectedStripeAccountId!)');
+    expect(fingerprint).toContain('stripe!.accounts.retrieveCurrent()');
+    expect(fingerprint).toContain('stripeAccountId !== expectedStripeAccountId');
+    expect(fingerprint).not.toContain('accounts.retrieve(expectedStripeAccountId');
     expect(fingerprint).not.toContain('service_role');
   });
 });
