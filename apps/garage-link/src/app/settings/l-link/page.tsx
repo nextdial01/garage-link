@@ -31,8 +31,8 @@ type StoreRow = {
 
 const lLinkAppUrl = process.env.NEXT_PUBLIC_L_LINK_APP_URL ?? 'https://llink.tech';
 
-function availabilityText(enabled: boolean) {
-  return enabled ? 'L-Link連携可' : 'L-Link連携不可';
+function availabilityText(availability: 'unavailable' | 'preparing') {
+  return availability === 'preparing' ? '提供準備中' : '対象外';
 }
 
 export default function LLinkIntegrationPage() {
@@ -88,7 +88,7 @@ export default function LLinkIntegrationPage() {
         code,
         name: plan.name,
         price: formatGarageYen(plan.monthlyPrice),
-        available: plan.lLinkIntegrationEnabled,
+        availability: plan.lLinkAvailability,
       };
     }),
     [],
@@ -123,7 +123,7 @@ export default function LLinkIntegrationPage() {
                 </p>
               </div>
               <span className={`inline-flex rounded-full px-4 py-2 text-sm font-black ${canUseLLink ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
-                {availabilityText(canUseLLink)}
+                {canUseLLink ? '利用可能' : availabilityText(currentPlan.lLinkAvailability)}
               </span>
             </div>
 
@@ -138,7 +138,7 @@ export default function LLinkIntegrationPage() {
               </div>
               <div className="rounded-2xl bg-slate-50 p-5">
                 <p className="text-sm font-bold text-slate-500">Standard / Pro</p>
-                <p className="mt-2 text-lg font-black text-slate-950">L-Link連携可</p>
+                <p className="mt-2 text-lg font-black text-slate-950">提供準備中</p>
               </div>
             </div>
 
@@ -163,7 +163,7 @@ export default function LLinkIntegrationPage() {
                 <p className="mt-3 text-xs leading-5 text-slate-500">
                   ※ GARAGE LINKがL-Linkへ渡すのは「配信候補」または「配信下書きの作成要求」までです。
                   実際のLINE送信・友だち管理・Webhook処理はL-Link側で行います。
-                  なお、データ連携APIは順次提供予定の機能を含みます（提供状況はL-Link側の案内に従ってください）。
+                  なお、データ連携APIは提供準備中です。Production S2S E2Eが完了するまで販売済み機能として扱いません。
                 </p>
               </div>
 
@@ -177,7 +177,7 @@ export default function LLinkIntegrationPage() {
                 </a>
                 {!canUseLLink && (
                   <>
-                    <p className="w-full text-sm font-bold text-amber-700">L-Link連携はStandard以上で利用できます。</p>
+                    <p className="w-full text-sm font-bold text-amber-700">L-Link連携はStandard / Proで提供準備中です。</p>
                     <Link href="/settings/billing" className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50">
                       プラン・契約を確認
                     </Link>
@@ -206,7 +206,7 @@ export default function LLinkIntegrationPage() {
                     <tr key={row.code} className={row.code === currentPlanCode ? 'bg-blue-50/60' : 'hover:bg-slate-50'}>
                       <td className="px-5 py-4 font-black text-slate-950">{row.name}</td>
                       <td className="px-5 py-4 text-right">{row.price}</td>
-                      <td className="px-5 py-4 text-right font-bold">{availabilityText(row.available)}</td>
+                      <td className="px-5 py-4 text-right font-bold">{availabilityText(row.availability)}</td>
                     </tr>
                   ))}
                 </tbody>

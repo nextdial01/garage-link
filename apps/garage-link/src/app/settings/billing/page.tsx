@@ -660,7 +660,7 @@ export default function BillingSettingsPage() {
                       ['標準店舗', (code: GaragePlanCode) => `${GARAGE_PLANS[code].includedStoreCount}店舗`],
                       ['保存容量', (code: GaragePlanCode) => formatStorage(GARAGE_PLANS[code].storageLimitMb)],
                       ['見積・請求', (code: GaragePlanCode) => (GARAGE_PLANS[code].quoteInvoiceLimit === null ? '無制限' : `月${GARAGE_PLANS[code].quoteInvoiceLimit}件`)],
-                      ['L-LINK連携', (code: GaragePlanCode) => (GARAGE_PLANS[code].lLinkIntegrationEnabled ? '利用可' : '対象外')],
+                      ['L-LINK連携', (code: GaragePlanCode) => GARAGE_PLANS[code].lLinkAvailability === 'preparing' ? '提供準備中' : '対象外'],
                     ].map(([label, formatter]) => (
                       <tr key={label as string} className="hover:bg-slate-50">
                         <td className="px-5 py-4 font-bold text-slate-700">{label as string}</td>

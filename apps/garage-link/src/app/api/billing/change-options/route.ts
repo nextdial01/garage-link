@@ -25,6 +25,8 @@ const optionPriceEnv: Record<OptionType, string> = {
 };
 
 export async function POST(request: Request) {
+  const idempotencyKey = request.headers.get('idempotency-key')?.trim() || crypto.randomUUID();
+  let stripeMutationCompleted = false;
   const stripe = getStripeClient();
   const admin = createAdminClient();
   if (!stripe || !admin) {
@@ -38,13 +40,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: '契約を変更する権限がありません。' }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => null)) as { type?: OptionType; amount?: number; termsAccepted?: boolean } | null;
+  const body = (await request.json().catch(() => null)) as {
+    type?: OptionType;
+    action?: 'add' | 'remove';
+    amount?: number;
+    termsAccepted?: boolean;
+  } | null;
   if (body?.termsAccepted !== true) {
     return NextResponse.json({ ok: false, error: '契約変更には利用規約への同意が必要です。', code: 'terms_not_accepted' }, { status: 400 });
   }
   const type = body?.type;
+  const action = body?.action ?? 'add';
   const amount = Number(body?.amount);
-  if (!type || !Object.hasOwn(optionPriceEnv, type) || !Number.isInteger(amount) || amount <= 0) {
+  if (!type || !Object.hasOwn(optionPriceEnv, type) || !['add', 'remove'].includes(action) || !Number.isInteger(amount) || amount <= 0) {
     return NextResponse.json({ ok: false, error: '追加内容が不正です。' }, { status: 400 });
   }
   if (type === 'add_storage' && amount % 10 !== 0) {
@@ -77,6 +85,40 @@ export async function POST(request: Request) {
   }
 
   try {
+    const requestedOptions = { type, action, amount };
+    const { data: existingOperation, error: lookupError } = await admin
+      .from('billing_sync_operations')
+      .select('status, requested_options')
+      .eq('tenant_id', tenantId)
+      .eq('idempotency_key', idempotencyKey)
+      .maybeSingle();
+    if (lookupError) throw new Error('billing_operation_lookup_failed');
+    if (existingOperation) {
+      if (JSON.stringify(existingOperation.requested_options) !== JSON.stringify(requestedOptions)) {
+        return NextResponse.json({ ok: false, error: '同じ操作IDに異なる内容が指定されました。' }, { status: 409 });
+      }
+      if (existingOperation.status === 'completed') {
+        return NextResponse.json({ ok: true, duplicate: true });
+      }
+      return NextResponse.json({ ok: false, error: 'オプション変更を処理中です。' }, { status: 409 });
+    }
+    const { data: operation, error: operationError } = await admin
+      .from('billing_sync_operations')
+      .insert({
+        tenant_id: tenantId,
+        company_id: subscription.company_id,
+        actor_user_id: userData.user.id,
+        operation_type: 'change_option',
+        idempotency_key: idempotencyKey,
+        requested_plan: subscription.plan,
+        requested_options: requestedOptions,
+        stripe_subscription_id: subscription.stripe_subscription_id,
+        status: 'started',
+      })
+      .select('id')
+      .single();
+    if (operationError || !operation) throw new Error('billing_operation_create_failed');
+
     const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
     const existingItem = stripeSubscription.items.data.find((item) => item.price.id === priceId);
     const currentQuantity = type === 'add_staff'
@@ -85,26 +127,36 @@ export async function POST(request: Request) {
         ? subscription.extra_store_count
         : subscription.extra_storage_gb / 10;
     const addQuantity = type === 'add_storage' ? amount / 10 : amount;
-    const nextQuantity = currentQuantity + addQuantity;
+    const delta = action === 'remove' ? -addQuantity : addQuantity;
+    const nextQuantity = currentQuantity + delta;
+    if (nextQuantity < 0) {
+      await admin.from('billing_sync_operations').update({ status: 'failed', diagnostic_code: 'option_quantity_below_zero' }).eq('id', operation.id);
+      return NextResponse.json({ ok: false, error: '現在の追加数を超えて削除できません。' }, { status: 400 });
+    }
+    if (!existingItem && action === 'remove') {
+      await admin.from('billing_sync_operations').update({ status: 'failed', diagnostic_code: 'option_item_missing' }).eq('id', operation.id);
+      return NextResponse.json({ ok: false, error: '削除対象のオプションがありません。' }, { status: 400 });
+    }
 
     await stripe.subscriptions.update(subscription.stripe_subscription_id, {
       items: existingItem
-        ? [{ id: existingItem.id, quantity: nextQuantity }]
+        ? nextQuantity === 0
+          ? [{ id: existingItem.id, deleted: true }]
+          : [{ id: existingItem.id, quantity: nextQuantity }]
         : [{ price: priceId, quantity: nextQuantity }],
       proration_behavior: 'none',
       metadata: {
         ...stripeSubscription.metadata,
         ...createTermsConsentMetadata(),
       },
-    });
-
-    const patch = type === 'add_staff'
-      ? { extra_staff_count: subscription.extra_staff_count + amount }
-      : type === 'add_store'
-        ? { extra_store_count: subscription.extra_store_count + amount }
-        : { extra_storage_gb: subscription.extra_storage_gb + amount };
-    await admin.from('company_subscriptions').update(patch).eq('id', subscription.id);
-    await admin.from('plan_change_requests').insert({
+    }, { idempotencyKey });
+    stripeMutationCompleted = true;
+    const { error: checkpointError } = await admin
+      .from('billing_sync_operations')
+      .update({ status: 'stripe_applied' })
+      .eq('id', operation.id);
+    if (checkpointError) throw new Error('billing_operation_checkpoint_failed');
+    const { error: requestInsertError } = await admin.from('plan_change_requests').insert({
       company_id: subscription.company_id,
       tenant_id: subscription.tenant_id,
       requested_by: userData.user.id,
@@ -113,12 +165,36 @@ export async function POST(request: Request) {
       requested_extra_staff_count: type === 'add_staff' ? amount : 0,
       requested_extra_store_count: type === 'add_store' ? amount : 0,
       requested_extra_storage_gb: type === 'add_storage' ? amount : 0,
-      message: '追加枠を即時反映。追加料金は次回請求から（途中精算なし）。',
-      status: 'completed',
-      completed_at: new Date().toISOString(),
+      message: `オプション${action === 'add' ? '追加' : '削除'}を受付。検証済みWebhook反映後に有効（途中精算なし）。`,
+      status: 'approved',
+      completed_at: null,
     });
-    return NextResponse.json({ ok: true, message: '追加枠を反映しました。追加料金は次回請求からです。' });
-  } catch {
-    return NextResponse.json({ ok: false, error: '追加オプションの反映に失敗しました。' }, { status: 502 });
+    if (requestInsertError) throw new Error('option_change_request_insert_failed');
+    const { data: operationAfterRequest } = await admin
+      .from('billing_sync_operations')
+      .select('status')
+      .eq('id', operation.id)
+      .single();
+    if (operationAfterRequest?.status === 'completed') {
+      await admin.from('plan_change_requests')
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .eq('tenant_id', tenantId)
+        .eq('request_type', type)
+        .eq('status', 'approved');
+    }
+    return NextResponse.json(
+      { ok: true, pending: true, quantity: nextQuantity, message: '変更を受け付けました。契約反映を確認中です。' },
+      { status: 202 },
+    );
+  } catch (error) {
+    await admin.from('billing_sync_operations').update({
+      status: stripeMutationCompleted ? 'reconciliation_required' : 'failed',
+      diagnostic_code: error instanceof Error && /^[a-z0-9_]+$/i.test(error.message)
+        ? error.message.slice(0, 100)
+        : 'option_sync_failed',
+      operator_action_required: false,
+      next_retry_at: stripeMutationCompleted ? new Date(Date.now() + 60_000).toISOString() : null,
+    }).eq('tenant_id', tenantId).eq('idempotency_key', idempotencyKey).in('status', ['started', 'stripe_applied']);
+    return NextResponse.json({ ok: false, error: '追加オプションの反映に失敗しました。再照合します。' }, { status: 503 });
   }
 }

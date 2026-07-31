@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { randomUUID } from 'node:crypto';
 import { GARAGE_PLAN_ORDER, type GaragePlanCode } from '@/lib/billing/garagePlans';
+import { GARAGE_STRIPE_PRICE_ENV } from '@/lib/billing/garageCommercial';
 import { isAllowedStripeSecretKey, isPreviewStripeMockEnabled } from '@/lib/security/runtimeSafety';
 
 let stripeClient: Stripe | null = null;
@@ -9,7 +10,7 @@ const previewCheckoutSessions = new Map<string, Record<string, unknown>>();
 
 function getPreviewStripeMock() {
   if (previewStripeMock) return previewStripeMock;
-  const verifier = new Stripe('sk_test_garage_preview_fixture', { apiVersion: '2026-06-24.dahlia' });
+  const verifier = new Stripe('sk_test_garage_preview_fixture', { apiVersion: '2026-07-29.dahlia' });
   const mock = {
     billingPortal: {
       sessions: {
@@ -73,7 +74,7 @@ export function getStripeClient() {
 
   if (!stripeClient) {
     stripeClient = new Stripe(secretKey, {
-      apiVersion: '2026-06-24.dahlia',
+      apiVersion: '2026-07-29.dahlia',
     });
   }
 
@@ -89,7 +90,7 @@ export function getStripePriceId(planCode: GaragePlanCode): string | null {
     return null;
   }
 
-  const envName = `STRIPE_PRICE_${planCode.toUpperCase()}` as const;
+  const envName = GARAGE_STRIPE_PRICE_ENV[planCode];
   const value = process.env[envName]?.trim();
   return value || null;
 }

@@ -3,6 +3,7 @@ export type GaragePlanCode = 'free' | 'starter' | 'standard' | 'pro';
 export type GaragePlan = {
   code: GaragePlanCode;
   name: string;
+  netBasisMonthlyPrice: number;
   monthlyPrice: number;
   inventoryLimit: number;
   includedStaffCount: number;
@@ -13,6 +14,8 @@ export type GaragePlan = {
   extraStoragePricePer10Gb: number | null;
   quoteInvoiceLimit: number | null;
   lLinkIntegrationEnabled: boolean;
+  lLinkAvailability: 'unavailable' | 'preparing';
+  availableFeatures: readonly string[];
   chatSupportIncluded: boolean;
   individualSupportHourlyPrice: number;
 };
@@ -33,6 +36,7 @@ export const GARAGE_PLANS: Record<GaragePlanCode, GaragePlan> = {
   free: {
     code: 'free',
     name: 'Free',
+    netBasisMonthlyPrice: 0,
     monthlyPrice: 0,
     inventoryLimit: 5,
     includedStaffCount: 1,
@@ -43,12 +47,15 @@ export const GARAGE_PLANS: Record<GaragePlanCode, GaragePlan> = {
     extraStoragePricePer10Gb: null,
     quoteInvoiceLimit: 5,
     lLinkIntegrationEnabled: false,
+    lLinkAvailability: 'unavailable',
+    availableFeatures: ['vehicle_inventory', 'customers', 'deals', 'quotes', 'invoices', 'maintenance'],
     chatSupportIncluded: true,
     individualSupportHourlyPrice: 11000,
   },
   starter: {
     code: 'starter',
     name: 'Starter',
+    netBasisMonthlyPrice: 6800,
     monthlyPrice: 7480,
     inventoryLimit: 50,
     includedStaffCount: 1,
@@ -59,12 +66,15 @@ export const GARAGE_PLANS: Record<GaragePlanCode, GaragePlan> = {
     extraStoragePricePer10Gb: 550,
     quoteInvoiceLimit: 20,
     lLinkIntegrationEnabled: false,
+    lLinkAvailability: 'unavailable',
+    availableFeatures: ['vehicle_inventory', 'customers', 'deals', 'quotes', 'invoices', 'maintenance'],
     chatSupportIncluded: true,
     individualSupportHourlyPrice: 11000,
   },
   standard: {
     code: 'standard',
     name: 'Standard',
+    netBasisMonthlyPrice: 14800,
     monthlyPrice: 16280,
     inventoryLimit: 200,
     includedStaffCount: 3,
@@ -74,13 +84,16 @@ export const GARAGE_PLANS: Record<GaragePlanCode, GaragePlan> = {
     storageLimitMb: 10240,
     extraStoragePricePer10Gb: 550,
     quoteInvoiceLimit: null,
-    lLinkIntegrationEnabled: true,
+    lLinkIntegrationEnabled: false,
+    lLinkAvailability: 'preparing',
+    availableFeatures: ['vehicle_inventory', 'customers', 'deals', 'quotes', 'invoices', 'maintenance', 'analytics'],
     chatSupportIncluded: true,
     individualSupportHourlyPrice: 11000,
   },
   pro: {
     code: 'pro',
     name: 'Pro',
+    netBasisMonthlyPrice: 29800,
     monthlyPrice: 32780,
     inventoryLimit: 500,
     includedStaffCount: 10,
@@ -90,7 +103,9 @@ export const GARAGE_PLANS: Record<GaragePlanCode, GaragePlan> = {
     storageLimitMb: 51200,
     extraStoragePricePer10Gb: 550,
     quoteInvoiceLimit: null,
-    lLinkIntegrationEnabled: true,
+    lLinkIntegrationEnabled: false,
+    lLinkAvailability: 'preparing',
+    availableFeatures: ['vehicle_inventory', 'customers', 'deals', 'quotes', 'invoices', 'maintenance', 'analytics', 'multiple_stores'],
     chatSupportIncluded: true,
     individualSupportHourlyPrice: 11000,
   },
@@ -127,6 +142,10 @@ export function formatStorage(mb: number) {
   }
 
   return `${mb.toLocaleString('ja-JP')}MB`;
+}
+
+export function formatGarageLLinkAvailability(plan: GaragePlan) {
+  return plan.lLinkAvailability === 'preparing' ? '提供準備中' : '対象外';
 }
 
 export function canAddVehicle(subscription: GarageSubscriptionLike | null | undefined, currentInventoryCount: number) {
@@ -166,7 +185,8 @@ export function canAddStorage(value: string | GarageSubscriptionLike | null | un
 
 export function canUseLLinkIntegration(subscription: GarageSubscriptionLike | null | undefined) {
   const plan = getGaragePlanFromSubscription(subscription);
-  return Boolean(subscription?.l_link_integration_enabled ?? plan.lLinkIntegrationEnabled);
+  return plan.lLinkIntegrationEnabled
+    && Boolean(subscription?.l_link_integration_enabled ?? plan.lLinkIntegrationEnabled);
 }
 
 export function getStorageLimit(subscription: GarageSubscriptionLike | null | undefined) {

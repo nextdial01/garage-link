@@ -1,4 +1,16 @@
-export type ContractAccessState = 'active' | 'cancelled_retention' | 'no_store' | 'anonymous';
+export type ContractAccessState =
+  | 'active'
+  | 'grace_period'
+  | 'cancellation_scheduled'
+  | 'checkout_pending'
+  | 'initial_payment_pending'
+  | 'restricted'
+  | 'unpaid'
+  | 'canceled'
+  | 'cancelled_retention'
+  | 'reconciliation_required'
+  | 'no_store'
+  | 'anonymous';
 
 export type ContractAccess = {
   state: ContractAccessState;
@@ -16,6 +28,15 @@ const CANCELLED_ALLOWED_PATHS = [
   '/legal/tokusho',
 ];
 
+const BILLING_RECOVERY_ALLOWED_PATHS = [
+  ...CANCELLED_ALLOWED_PATHS,
+  '/api/billing/subscription',
+  '/api/billing/checkout',
+  '/api/billing/portal',
+  '/api/billing/status',
+  '/api/auth/logout',
+];
+
 export function isCancelledRetentionAllowedPath(pathname: string) {
   if (CANCELLED_ALLOWED_PATHS.includes(pathname)) {
     return true;
@@ -23,9 +44,14 @@ export function isCancelledRetentionAllowedPath(pathname: string) {
   return pathname.startsWith('/legal/');
 }
 
+export function isBillingRecoveryAllowedPath(pathname: string) {
+  if (BILLING_RECOVERY_ALLOWED_PATHS.includes(pathname)) return true;
+  return pathname.startsWith('/legal/');
+}
+
 export function parseContractAccess(value: unknown): ContractAccess {
   if (!value || typeof value !== 'object') {
-    return { state: 'active' };
+    return { state: 'reconciliation_required' };
   }
 
   const row = value as Record<string, unknown>;
@@ -34,6 +60,14 @@ export function parseContractAccess(value: unknown): ContractAccess {
   if (
     state === 'cancelled_retention' ||
     state === 'active' ||
+    state === 'grace_period' ||
+    state === 'cancellation_scheduled' ||
+    state === 'checkout_pending' ||
+    state === 'initial_payment_pending' ||
+    state === 'restricted' ||
+    state === 'unpaid' ||
+    state === 'canceled' ||
+    state === 'reconciliation_required' ||
     state === 'no_store' ||
     state === 'anonymous'
   ) {
@@ -47,7 +81,7 @@ export function parseContractAccess(value: unknown): ContractAccess {
     };
   }
 
-  return { state: 'active' };
+  return { state: 'reconciliation_required' };
 }
 
 export function formatRetentionDeadline(isoDate: string | null | undefined) {

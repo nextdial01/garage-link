@@ -267,13 +267,13 @@ test.describe.serial('プラン・契約E2E', () => {
       included_store_count: 1,
       storage_limit_mb: 10240,
       current_inventory_limit: 200,
-      l_link_integration_enabled: true,
+      l_link_integration_enabled: false,
     });
 
     await page.goto('/settings/l-link');
     await assertNoAppError(page);
-    await expect(page.getByText('L-Link連携可').first()).toBeVisible();
-    await expect(page.getByRole('link', { name: 'L-Linkアプリへ移動' })).toBeEnabled();
+    await expect(page.getByText('提供準備中').first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'L-Linkアプリへ移動' })).toHaveAttribute('aria-disabled', 'true');
 
     const addStoreRequest = await createRequest(adminClient, storeId, userId, {
       request_type: 'add_store',

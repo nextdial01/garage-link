@@ -109,7 +109,7 @@ export async function POST(request: Request) {
   }
   const context: GarageTenantContext = auth.context;
   if (!(await canStoreUseLLink(context))) {
-    return NextResponse.json({ ok: false, code: 'plan_required', error: 'L-LINK連携はStandard以上の契約が必要です。' }, { status: 403 });
+    return NextResponse.json({ ok: false, code: 'feature_preparing', error: 'L-LINK連携は現在提供準備中です。' }, { status: 403 });
   }
 
   const body = parseBody(bodyText);

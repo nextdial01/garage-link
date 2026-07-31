@@ -14,6 +14,10 @@ function isBillingMutationEnabled() {
   return process.env.E2E_ALLOW_BILLING_MUTATIONS === 'true';
 }
 
+function isReleaseEvidenceRequired() {
+  return process.env.E2E_REQUIRE_BILLING === 'true';
+}
+
 function assertSafeSupabaseUrl() {
   const rawUrl = process.env.E2E_TEST_SUPABASE_URL;
   if (!rawUrl) return;
@@ -60,7 +64,14 @@ function runPlaywright() {
 
 async function main() {
   if (!isBillingMutationEnabled()) {
-    console.log('Skipping GARAGE LINK billing E2E: E2E_ALLOW_BILLING_MUTATIONS is not true.');
+    if (isReleaseEvidenceRequired()) {
+      throw new Error(
+        'Commercial release billing E2E is required, but E2E_ALLOW_BILLING_MUTATIONS is not true.'
+      );
+    }
+    console.log(
+      'GARAGE LINK billing E2E was not run. This local result is not PAID_SALES_READY evidence.'
+    );
     return;
   }
 

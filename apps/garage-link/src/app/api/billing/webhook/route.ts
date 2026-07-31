@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { applyGaragePlanFromStripe, recordStripeCheckoutCompletion } from '@/lib/stripe/applyPlan';
+import { recordStripeCheckoutCompletion } from '@/lib/stripe/applyPlan';
+import {
+  parseGarageGraceDays,
+  resolveGarageBillingState,
+  type GarageStripeSubscriptionStatus,
+} from '@/lib/billing/garageCommercial';
 import { getStripeClient } from '@/lib/stripe/client';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -28,13 +33,14 @@ async function claimStripeEvent(event: Stripe.Event): Promise<EventClaim> {
 
   const { data, error: selectError } = await admin
     .from('stripe_webhook_events')
-    .select('status, updated_at')
+    .select('status, updated_at, attempt_count')
     .eq('stripe_event_id', event.id)
     .single();
   if (selectError || !data) throw new Error(selectError?.message ?? 'stripe_event_not_found');
 
-  const existing = data as { status: string; updated_at: string };
+  const existing = data as { status: string; updated_at: string; attempt_count: number };
   if (existing.status === 'completed') return 'completed';
+  if (existing.status === 'dead_letter') return 'in_progress';
 
   const staleBefore = new Date(Date.now() - 5 * 60_000).toISOString();
   if (existing.status === 'processing' && existing.updated_at > staleBefore) return 'in_progress';
@@ -67,10 +73,100 @@ async function failStripeEvent(eventId: string, error: unknown) {
   const message = error instanceof Error && /^[a-z0-9_]+$/i.test(error.message)
     ? error.message
     : 'webhook_processing_failed';
+  const { data } = await admin
+    .from('stripe_webhook_events')
+    .select('attempt_count')
+    .eq('stripe_event_id', eventId)
+    .maybeSingle();
+  const attemptCount = Number((data as { attempt_count?: number } | null)?.attempt_count ?? 0) + 1;
+  const deadLetter = attemptCount >= 5;
   await admin
     .from('stripe_webhook_events')
-    .update({ status: 'failed', error_message: message.slice(0, 500) })
+    .update({
+      status: deadLetter ? 'dead_letter' : 'failed',
+      attempt_count: attemptCount,
+      error_message: message.slice(0, 500),
+      diagnostic_code: message.slice(0, 100),
+      operator_action_required: deadLetter,
+      next_retry_at: deadLetter ? null : new Date(Date.now() + Math.min(60, 2 ** attemptCount) * 60_000).toISOString(),
+    })
     .eq('stripe_event_id', eventId);
+}
+
+function subscriptionPeriodEnd(subscription: Stripe.Subscription) {
+  const firstItem = subscription.items.data[0] as (Stripe.SubscriptionItem & { current_period_end?: number }) | undefined;
+  const value = firstItem?.current_period_end;
+  return Number.isFinite(value) ? new Date(Number(value) * 1000).toISOString() : null;
+}
+
+async function applyVerifiedSubscriptionSnapshot(input: {
+  subscription: Stripe.Subscription;
+  event: Stripe.Event;
+  companyId?: string | null;
+  planCode?: string | null;
+  customerId?: string | null;
+  invoiceId?: string | null;
+  forceGraceFromFailure?: boolean;
+}) {
+  const admin = createAdminClient();
+  if (!admin) throw new Error('admin_client_unavailable');
+  const companyId = input.companyId ?? input.subscription.metadata?.company_id;
+  const planCode = input.planCode ?? input.subscription.metadata?.plan_code;
+  if (!companyId || !planCode) throw new Error('subscription_metadata_missing');
+
+  const stripeStatus = input.subscription.status as GarageStripeSubscriptionStatus;
+  let graceEndsAt: string | null = null;
+  if (stripeStatus === 'past_due') {
+    if (input.forceGraceFromFailure) {
+      const graceDays = parseGarageGraceDays(process.env.GARAGE_BILLING_GRACE_DAYS);
+      graceEndsAt = graceDays > 0
+        ? new Date((input.event.created + graceDays * 86400) * 1000).toISOString()
+        : null;
+    } else {
+      const { data } = await admin
+        .from('company_subscriptions')
+        .select('grace_ends_at')
+        .eq('stripe_subscription_id', input.subscription.id)
+        .maybeSingle();
+      graceEndsAt = (data as { grace_ends_at?: string | null } | null)?.grace_ends_at ?? null;
+    }
+  }
+  const billingState = resolveGarageBillingState({
+    stripeStatus,
+    cancelAtPeriodEnd: input.subscription.cancel_at_period_end,
+    graceEndsAt,
+  });
+  const optionQuantity = (envName: string) => {
+    const priceId = process.env[envName]?.trim();
+    if (!priceId) return 0;
+    return input.subscription.items.data
+      .filter((item) => item.price.id === priceId)
+      .reduce((sum, item) => sum + (item.quantity ?? 0), 0);
+  };
+
+  const { data, error } = await admin.rpc('apply_garage_subscription_event_v2', {
+    p_company_id: companyId,
+    p_plan: planCode,
+    p_stripe_status: stripeStatus,
+    p_billing_state: billingState,
+    p_customer_id: input.customerId
+      ?? (typeof input.subscription.customer === 'string'
+        ? input.subscription.customer
+        : input.subscription.customer.id),
+    p_subscription_id: input.subscription.id,
+    p_event_id: input.event.id,
+    p_event_created: input.event.created,
+    p_grace_ends_at: graceEndsAt,
+    p_cancel_at_period_end: input.subscription.cancel_at_period_end,
+    p_current_period_end: subscriptionPeriodEnd(input.subscription),
+    p_invoice_id: input.invoiceId ?? null,
+    p_extra_staff_count: optionQuantity('STRIPE_PRICE_EXTRA_STAFF'),
+    p_extra_store_count: optionQuantity('STRIPE_PRICE_EXTRA_STORE'),
+    p_extra_storage_gb: optionQuantity('STRIPE_PRICE_EXTRA_STORAGE_10GB') * 10,
+  });
+  if (error) throw new Error(error.message);
+  if (!(data as { ok?: boolean } | null)?.ok) throw new Error('subscription_snapshot_apply_failed');
+  return { companyId, planCode, billingState };
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session, event: Stripe.Event) {
@@ -85,55 +181,42 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, event: 
   const subscriptionId =
     typeof session.subscription === 'string' ? session.subscription : session.subscription?.id ?? null;
 
-  const result = await applyGaragePlanFromStripe({
+  if (!subscriptionId) throw new Error('checkout_subscription_missing');
+  const admin = createAdminClient();
+  if (!admin) throw new Error('admin_client_unavailable');
+  const { error: operationError } = await admin
+    .from('billing_sync_operations')
+    .update({ stripe_subscription_id: subscriptionId, status: 'stripe_applied' })
+    .eq('operation_type', 'checkout')
+    .contains('requested_options', { stripe_session_id: session.id })
+    .in('status', ['started', 'stripe_applied', 'reconciliation_required', 'retry_scheduled']);
+  if (operationError) throw new Error('checkout_operation_subscription_link_failed');
+  const stripe = getStripeClient();
+  if (!stripe) throw new Error('billing_client_unavailable');
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const result = await applyVerifiedSubscriptionSnapshot({
+    subscription,
+    event,
     companyId,
     planCode,
-    stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer?.id,
-    stripeSubscriptionId: subscriptionId,
-    stripeEvent: { id: event.id, created: event.created },
+    customerId: typeof session.customer === 'string' ? session.customer : session.customer?.id,
   });
-
-  if (!result.ok) throw new Error(result.reason);
 
   if (requestedBy) {
     await recordStripeCheckoutCompletion({
       companyId,
       requestedBy,
-      planCode: result.plan,
+      planCode: result.planCode,
       stripeSessionId: session.id,
     });
   }
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription, event: Stripe.Event) {
-  const companyId = subscription.metadata?.company_id;
-  const planCode = subscription.metadata?.plan_code;
-
-  if (!companyId || !planCode) {
-    throw new Error('subscription_metadata_missing');
-  }
-
-  const status =
-    subscription.status === 'active' || subscription.status === 'trialing'
-      ? subscription.status
-      : subscription.status === 'past_due'
-        ? 'past_due'
-        : subscription.status === 'canceled'
-          ? 'cancelled'
-          : 'suspended';
-
-  const result = await applyGaragePlanFromStripe({
-    companyId,
-    planCode,
-    stripeCustomerId: typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id,
-    stripeSubscriptionId: subscription.id,
-    status,
-    stripeEvent: { id: event.id, created: event.created },
-  });
-  if (!result.ok) throw new Error(result.reason);
+  await applyVerifiedSubscriptionSnapshot({ subscription, event });
 }
 
-async function applyScheduledPlanIfDue(subscriptionId: string, event: Stripe.Event) {
+async function applyScheduledPlanIfDue(subscriptionId: string) {
   const admin = createAdminClient();
   const stripe = getStripeClient();
   if (!admin || !stripe) throw new Error('billing_client_unavailable');
@@ -153,8 +236,8 @@ async function applyScheduledPlanIfDue(subscriptionId: string, event: Stripe.Eve
     pending_plan_effective_at: string | null;
     stripe_customer_id: string | null;
   } | null;
-  if (!row?.pending_plan || !row.pending_plan_effective_at) return;
-  if (Date.parse(row.pending_plan_effective_at) > Date.now() + 60_000) return;
+  if (!row?.pending_plan || !row.pending_plan_effective_at) return null;
+  if (Date.parse(row.pending_plan_effective_at) > Date.now() + 60_000) return null;
 
   const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
   await stripe.subscriptions.update(subscriptionId, {
@@ -165,30 +248,7 @@ async function applyScheduledPlanIfDue(subscriptionId: string, event: Stripe.Eve
       pending_plan: '',
     },
   });
-  const result = await applyGaragePlanFromStripe({
-    companyId: row.company_id,
-    planCode: row.pending_plan,
-    stripeCustomerId: row.stripe_customer_id,
-    stripeSubscriptionId: subscriptionId,
-    status: 'active',
-    stripeEvent: { id: event.id, created: event.created },
-  });
-  if (!result.ok) throw new Error(result.reason);
-
-  const { error: subscriptionUpdateError } = await admin
-    .from('company_subscriptions')
-    .update({ pending_plan: null, pending_plan_effective_at: null })
-    .eq('id', row.id);
-  if (subscriptionUpdateError) throw new Error(subscriptionUpdateError.message);
-
-  const { error: requestUpdateError } = await admin
-    .from('plan_change_requests')
-    .update({ status: 'completed', completed_at: new Date().toISOString() })
-    .eq('tenant_id', row.tenant_id)
-    .eq('request_type', 'plan_change')
-    .eq('requested_plan', row.pending_plan)
-    .eq('status', 'approved');
-  if (requestUpdateError) throw new Error(requestUpdateError.message);
+  return { ...row, planCode: row.pending_plan };
 }
 
 function invoiceSubscriptionId(invoice: Stripe.Invoice) {
@@ -249,6 +309,7 @@ export async function POST(request: Request) {
       case 'checkout.session.completed':
         await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session, event);
         break;
+      case 'customer.subscription.created':
       case 'customer.subscription.updated':
         await handleSubscriptionUpdated(event.data.object as Stripe.Subscription, event);
         break;
@@ -259,8 +320,50 @@ export async function POST(request: Request) {
         }, event);
         break;
       case 'invoice.paid': {
-        const subscriptionId = invoiceSubscriptionId(event.data.object as Stripe.Invoice);
-        if (subscriptionId) await applyScheduledPlanIfDue(subscriptionId, event);
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = invoiceSubscriptionId(invoice);
+        if (subscriptionId) {
+          const scheduled = await applyScheduledPlanIfDue(subscriptionId);
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          await applyVerifiedSubscriptionSnapshot({
+            subscription,
+            event,
+            planCode: scheduled?.planCode,
+            companyId: scheduled?.company_id,
+            customerId: scheduled?.stripe_customer_id,
+            invoiceId: invoice.id,
+          });
+          if (scheduled) {
+            const admin = createAdminClient();
+            if (!admin) throw new Error('admin_client_unavailable');
+            const { error: clearError } = await admin
+              .from('company_subscriptions')
+              .update({ pending_plan: null, pending_plan_effective_at: null })
+              .eq('id', scheduled.id);
+            if (clearError) throw new Error('scheduled_plan_clear_failed');
+            const { error: requestError } = await admin
+              .from('plan_change_requests')
+              .update({ status: 'completed', completed_at: new Date().toISOString() })
+              .eq('tenant_id', scheduled.tenant_id)
+              .eq('request_type', 'plan_change')
+              .eq('requested_plan', scheduled.planCode)
+              .eq('status', 'approved');
+            if (requestError) throw new Error('scheduled_plan_request_complete_failed');
+          }
+        }
+        break;
+      }
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = invoiceSubscriptionId(invoice);
+        if (!subscriptionId) throw new Error('invoice_subscription_missing');
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        await applyVerifiedSubscriptionSnapshot({
+          subscription: { ...subscription, status: 'past_due' },
+          event,
+          invoiceId: invoice.id,
+          forceGraceFromFailure: true,
+        });
         break;
       }
       default:

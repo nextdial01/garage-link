@@ -59,7 +59,7 @@ export async function POST(request: Request) {
   }
   const context: GarageTenantContext = auth.context;
   if (!(await canStoreUseLLink(context))) {
-    return NextResponse.json({ ok: false, error: 'L-LINK連携はStandard以上の契約が必要です。', code: 'plan_required' }, { status: 403 });
+    return NextResponse.json({ ok: false, error: 'L-LINK連携は現在提供準備中です。', code: 'feature_preparing' }, { status: 403 });
   }
 
   // 任意フィルタは body JSON から（type, limit）。未指定でも OK。

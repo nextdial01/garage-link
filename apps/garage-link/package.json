@@ -11,6 +11,7 @@
     "test": "npm run test:security",
     "test:security": "playwright test -c playwright.security.config.ts",
     "test:billing": "playwright test -c playwright.security.config.ts tests/security/garage-billing.test.ts",
+    "test:stripe-registry": "node scripts/verify-garage-stripe-test-registry.mjs",
     "test:e2e:billing": "node scripts/run-billing-e2e.mjs",
     "test:line-link-s2s": "node scripts/check-line-link-s2s.mjs",
     "test:l-link-inquiry-s2s": "node scripts/check-l-link-inquiry-s2s.mjs",
@@ -44,7 +45,7 @@
     "next": "16.2.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "stripe": "^22.3.0"
+    "stripe": "^22.4.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

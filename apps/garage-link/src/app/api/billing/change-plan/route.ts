@@ -5,7 +5,6 @@ import {
   normalizeGaragePlanCode,
   type GaragePlanCode,
 } from '@/lib/billing/garagePlans';
-import { buildGaragePlanSubscriptionUpdate } from '@/lib/stripe/garageBilling';
 import { createTermsConsentMetadata } from '@/lib/legal/termsConsent';
 import { assertStripePriceId, getStripeClient } from '@/lib/stripe/client';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -108,6 +107,7 @@ export async function POST(request: Request) {
       operation_type: 'change_plan',
       idempotency_key: idempotencyKey,
       requested_plan: requestedPlan,
+      stripe_subscription_id: subscription.stripe_subscription_id,
       status: 'started',
     }).select('id').single();
     if (operationError?.code === '23505') {
@@ -147,18 +147,7 @@ export async function POST(request: Request) {
       .update({ status: 'stripe_applied' }).eq('id', operation.id);
     if (stripeAppliedError) throw new Error('billing_operation_checkpoint_failed');
 
-    if (upgrade) {
-      const planPatch = buildGaragePlanSubscriptionUpdate(requestedPlan, {
-        stripeCustomerId: subscription.stripe_customer_id,
-        stripeSubscriptionId: subscription.stripe_subscription_id,
-        status: 'active',
-      });
-      const { error: subscriptionUpdateError } = await admin
-        .from('company_subscriptions')
-        .update({ ...planPatch, pending_plan: null, pending_plan_effective_at: null })
-        .eq('id', subscription.id);
-      if (subscriptionUpdateError) throw new Error('subscription_update_failed');
-    } else {
+    if (!upgrade) {
       const { error: subscriptionUpdateError } = await admin
         .from('company_subscriptions')
         .update({
@@ -179,24 +168,34 @@ export async function POST(request: Request) {
       message: upgrade
         ? '上位プランへ即時変更。次回請求から新料金（途中精算なし）。'
         : '下位プランへ次回請求日から変更（途中精算なし）。',
-      status: upgrade ? 'completed' : 'approved',
-      completed_at: upgrade ? new Date().toISOString() : null,
+      status: 'approved',
+      completed_at: null,
     });
     if (requestInsertError) throw new Error('plan_change_request_insert_failed');
-
-    const { error: operationCompleteError } = await admin.from('billing_sync_operations')
-      .update({ status: 'completed', error_code: null }).eq('id', operation.id);
-    if (operationCompleteError) throw new Error('billing_operation_complete_failed');
+    const { data: operationAfterRequest } = await admin
+      .from('billing_sync_operations')
+      .select('status')
+      .eq('id', operation.id)
+      .single();
+    if (operationAfterRequest?.status === 'completed') {
+      await admin.from('plan_change_requests')
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .eq('tenant_id', tenantId)
+        .eq('request_type', 'plan_change')
+        .eq('requested_plan', requestedPlan)
+        .eq('status', 'approved');
+    }
 
     return NextResponse.json({
       ok: true,
-      change: upgrade ? 'immediate_entitlement' : 'scheduled',
+      pending: true,
+      change: upgrade ? 'webhook_pending' : 'scheduled',
       plan: requestedPlan,
       effectiveAt: upgrade ? new Date().toISOString() : new Date(currentPeriodEnd * 1000).toISOString(),
       message: upgrade
-        ? `${getGaragePlan(requestedPlan).name}の機能を反映しました。新料金は次回請求からです。`
+        ? `${getGaragePlan(requestedPlan).name}への変更を受け付けました。検証済みWebhook反映後に利用できます。`
         : `${getGaragePlan(requestedPlan).name}は次回請求日から反映されます。`,
-    });
+    }, { status: 202 });
   } catch (error) {
     if (tenantId) {
       await admin.from('billing_sync_operations').update({

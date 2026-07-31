@@ -72,11 +72,11 @@ test.describe('G7 unresolved High remediation contracts', () => {
     expect(sql).toContain("'superseded'");
     expect(sql).toContain('create table if not exists public.billing_sync_operations');
     expect(webhook).toContain('stripe_created: event.created');
-    expect(applyPlan).toContain("admin.rpc('apply_ordered_stripe_subscription_event'");
+    expect(webhook).toContain("admin.rpc('apply_garage_subscription_event_v2'");
     expect(changePlan).toContain("status: 'stripe_applied'");
     expect(changePlan).toContain("'reconciliation_required'");
     expect(changePlan).toContain('{ idempotencyKey }');
-    expect(webhook).toContain('applyScheduledPlanIfDue(subscriptionId, event)');
+    expect(webhook).toContain('applyScheduledPlanIfDue(subscriptionId)');
     expect(applyPlan).toContain("onConflict: 'stripe_session_id'");
     expect(applyPlan).toContain('checkout_completion_record_failed');
   });

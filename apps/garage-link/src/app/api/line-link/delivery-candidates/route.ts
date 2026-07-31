@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     correlationId: request.headers.get('x-correlation-id')?.slice(0, 80) || crypto.randomUUID(),
   };
   if (!(await canStoreUseLLink(context))) {
-    return NextResponse.json({ ok: false, error: 'L-LINK連携はStandard以上の契約が必要です。', code: 'plan_required' }, { status: 403 });
+    return NextResponse.json({ ok: false, error: 'L-LINK連携は現在提供準備中です。', code: 'feature_preparing' }, { status: 403 });
   }
 
   const url = new URL(request.url);

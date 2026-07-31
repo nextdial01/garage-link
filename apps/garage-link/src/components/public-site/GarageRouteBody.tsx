@@ -1,14 +1,22 @@
 import Link from "next/link";
 import styles from "./route-layouts.module.css";
+import { GARAGE_PLAN_ORDER, GARAGE_PLANS } from "@/lib/billing/garagePlans";
 
 type RouteKey = "pricing" | "industries/used-car" | "industries/motorcycle" | "industries/maintenance" | "faq";
 
-const plans = [
-  { name: "Free", price: "0", note: "操作を試す", inventory: "5台", staff: "1人", stores: "1店舗", quote: "月5件", featured: false },
-  { name: "Starter", price: "7,480", note: "小規模店舗", inventory: "50台", staff: "1人", stores: "1店舗", quote: "月20件", featured: false },
-  { name: "Standard", price: "16,280", note: "店舗運用", inventory: "200台", staff: "3人", stores: "1店舗", quote: "上限なし", featured: true },
-  { name: "Pro", price: "32,780", note: "複数店舗", inventory: "500台", staff: "10人", stores: "3店舗", quote: "上限なし", featured: false },
-] as const;
+const plans = GARAGE_PLAN_ORDER.map((code) => {
+  const plan = GARAGE_PLANS[code];
+  return {
+    name: plan.name,
+    price: plan.monthlyPrice.toLocaleString("ja-JP"),
+    note: code === "free" ? "操作を試す" : code === "starter" ? "小規模店舗" : code === "standard" ? "店舗運用" : "複数店舗",
+    inventory: `${plan.inventoryLimit}台`,
+    staff: `${plan.includedStaffCount}人`,
+    stores: `${plan.includedStoreCount}店舗`,
+    quote: plan.quoteInvoiceLimit === null ? "上限なし" : `月${plan.quoteInvoiceLimit}件`,
+    featured: code === "standard",
+  };
+});
 
 const faqGroups = [
   { id: "business", title: "対象業種", items: [
@@ -21,7 +29,7 @@ const faqGroups = [
   ] },
   { id: "permission", title: "権限・連携", items: [
     ["スタッフごとに見られる情報を分けられますか？", "はい。店舗内の役割に応じて、閲覧や操作の範囲を分けられます。導入前に現在の担当範囲をご確認ください。"],
-    ["L-LINK連携はどのプランで使えますか？", "L-LINK連携はStandardプランとProプランで利用できます。LINE側の設計・構築支援が必要な場合はL-touringをご案内します。"],
+    ["L-LINK連携はどのプランで使えますか？", "StandardプランとProプランで提供準備中です。Production S2S E2Eが完了するまでは販売済み機能として扱いません。"],
   ] },
 ] as const;
 

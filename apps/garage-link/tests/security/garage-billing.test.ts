@@ -47,7 +47,8 @@ test.describe('GARAGE LINK billing and plan safety', () => {
       includedStoreCount: 1,
       storageLimitMb: 10240,
       quoteInvoiceLimit: null,
-      lLinkIntegrationEnabled: true,
+      lLinkIntegrationEnabled: false,
+      lLinkAvailability: 'preparing',
     });
     expect(GARAGE_PLANS.pro).toMatchObject({
       monthlyPrice: 32780,
@@ -60,7 +61,8 @@ test.describe('GARAGE LINK billing and plan safety', () => {
       includedStoreCount: 3,
       storageLimitMb: 51200,
       quoteInvoiceLimit: null,
-      lLinkIntegrationEnabled: true,
+      lLinkIntegrationEnabled: false,
+      lLinkAvailability: 'preparing',
     });
   });
 
@@ -78,8 +80,8 @@ test.describe('GARAGE LINK billing and plan safety', () => {
 
     expect(canUseLLinkIntegration({ plan: 'free', l_link_integration_enabled: false })).toBeFalsy();
     expect(canUseLLinkIntegration({ plan: 'starter', l_link_integration_enabled: false })).toBeFalsy();
-    expect(canUseLLinkIntegration({ plan: 'standard', l_link_integration_enabled: true })).toBeTruthy();
-    expect(canUseLLinkIntegration({ plan: 'pro', l_link_integration_enabled: true })).toBeTruthy();
+    expect(canUseLLinkIntegration({ plan: 'standard', l_link_integration_enabled: true })).toBeFalsy();
+    expect(canUseLLinkIntegration({ plan: 'pro', l_link_integration_enabled: true })).toBeFalsy();
   });
 
   test('車両登録上限と現在庫対象ステータスを判定できる', () => {
@@ -168,7 +170,7 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(billingPage).toContain('追加するスタッフ数');
 
     expect(`${billingPage}\n${lLinkPage}`).not.toContain('LINE基本連携');
-    expect(lLinkPage).toContain('L-Link連携はStandard以上で利用できます。');
+    expect(lLinkPage).toContain('L-Link連携はStandard / Proで提供準備中です。');
     expect(lLinkPage).toContain("process.env.NEXT_PUBLIC_L_LINK_APP_URL ?? 'https://llink.tech'");
     expect(lLinkPage).not.toContain("process.env.NEXT_PUBLIC_L_LINK_APP_URL ?? 'http://localhost:3001'");
   });
@@ -198,11 +200,11 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(checkoutRoute).not.toContain('payment_method_types');
     expect(checkoutRoute).not.toContain('automatic_tax');
     expect(checkoutRoute).toContain('integration_identifier');
-    expect(stripeClient).toContain("apiVersion: '2026-06-24.dahlia'");
+    expect(stripeClient).toContain("apiVersion: '2026-07-29.dahlia'");
     expect(webhookRoute).toContain('checkout.session.completed');
     expect(middleware).toContain("pathname === '/api/billing/webhook'");
     expect(webhookRoute).toContain('claimStripeEvent');
-    expect(webhookRoute).toContain("status: 'failed'");
+    expect(webhookRoute).toContain("'dead_letter' : 'failed'");
     expect(webhookIdempotency).toContain('stripe_event_id text not null unique');
     expect(webhookIdempotency).toContain('enable row level security');
     expect(webhookIdempotency).toContain('revoke all on table public.stripe_webhook_events from anon, authenticated');
@@ -326,7 +328,7 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     const changePlan = await readFile('src/app/api/billing/change-plan/route.ts', 'utf8');
     const webhook = await readFile('src/app/api/billing/webhook/route.ts', 'utf8');
 
-    expect(checkout).toContain('use_plan_change');
+    expect(checkout).toContain('use_existing_subscription');
     expect(changePlan).toContain("proration_behavior: 'none'");
     expect(changePlan).toContain('pending_plan_effective_at');
     expect(webhook).toContain('applyScheduledPlanIfDue');

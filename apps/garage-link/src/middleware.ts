@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
+import { isBillingRecoveryAllowedPath } from '@/lib/billing/contractAccess';
 import { resolvePostAuthPath } from '@/lib/auth/post-auth-redirect';
 import { ADMIN_EMAIL_OTP_COOKIE, deviceTokenHash, getAdminEmailOtpSecret, hasEffectiveAdminRole, readTrustedDeviceCookieValue } from '@/lib/security/adminEmailOtp';
 
@@ -216,12 +217,25 @@ export async function middleware(request: NextRequest) {
         'state' in contractAccess &&
         typeof (contractAccess as { state?: string }).state === 'string'
           ? (contractAccess as { state: string }).state
-          : 'active';
+          : 'reconciliation_required';
 
       if (accessState === 'cancelled_retention' && !isCancelledRetentionAllowedPath(pathname)) {
         const billingUrl = request.nextUrl.clone();
         billingUrl.pathname = '/settings/billing';
         billingUrl.searchParams.set('contract', 'cancelled');
+        return NextResponse.redirect(billingUrl);
+      }
+
+      if (
+        ['checkout_pending', 'initial_payment_pending', 'restricted', 'unpaid', 'canceled', 'reconciliation_required'].includes(accessState)
+        && !isBillingRecoveryAllowedPath(pathname)
+      ) {
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json({ error: 'billing_access_restricted' }, { status: 402 });
+        }
+        const billingUrl = request.nextUrl.clone();
+        billingUrl.pathname = '/settings/billing';
+        billingUrl.searchParams.set('contract', accessState);
         return NextResponse.redirect(billingUrl);
       }
     }

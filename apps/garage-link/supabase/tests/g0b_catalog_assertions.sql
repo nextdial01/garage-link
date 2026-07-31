@@ -22,9 +22,9 @@ begin
   end if;
 
   select count(*) into v_count from supabase_migrations.schema_migrations;
-  if v_count <> 50 then raise exception 'G0B_LEDGER_COUNT: %', v_count; end if;
+  if v_count <> 51 then raise exception 'G0B_LEDGER_COUNT: %', v_count; end if;
   select count(*) into v_count from supabase_migrations.migration_integrity where state='applied';
-  if v_count <> 50 then raise exception 'G0B_INTEGRITY_COUNT: %', v_count; end if;
+  if v_count <> 51 then raise exception 'G0B_INTEGRITY_COUNT: %', v_count; end if;
   if exists (
     select 1 from supabase_migrations.schema_migrations m
     left join supabase_migrations.migration_integrity i using(version)

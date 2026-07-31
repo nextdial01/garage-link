@@ -3,6 +3,7 @@
  */
 
 import { formatTermsVersionJa } from './termsConsent';
+import { GARAGE_PLAN_ORDER, GARAGE_PLANS } from '@/lib/billing/garagePlans';
 
 /** リーガルチェック時に確定する事業者情報 */
 export const LEGAL_SELLER = {
@@ -30,12 +31,11 @@ export const LEGAL_PRODUCT_DOMAINS = {
 } as const;
 
 /** 月額料金（基準料金に10%相当額を加えた請求総額）。garagePlans.ts と整合 */
-export const LEGAL_PLANS = [
-  { name: 'Free', monthlyPrice: 0, note: '無料プラン' },
-  { name: 'Starter', monthlyPrice: 7480, note: '月額サブスクリプション' },
-  { name: 'Standard', monthlyPrice: 16280, note: '月額サブスクリプション' },
-  { name: 'Pro', monthlyPrice: 32780, note: '月額サブスクリプション' },
-] as const;
+export const LEGAL_PLANS = GARAGE_PLAN_ORDER.map((code) => ({
+  name: GARAGE_PLANS[code].name,
+  monthlyPrice: GARAGE_PLANS[code].monthlyPrice,
+  note: code === 'free' ? '無料プラン' : '月額サブスクリプション',
+}));
 
 export const LEGAL_TAX_NOTE =
   '表示額は、基準料金に10%相当額を加えた請求総額です。';
