@@ -44,11 +44,12 @@ insert into public.stores(id, tenant_id, name, status, plan_code) values
 on conflict (id) do nothing;
 
 insert into public.company_subscriptions(
-  company_id, tenant_id, plan, status, included_staff_count, included_store_count,
+  company_id, tenant_id, plan, status, stripe_status, billing_state,
+  included_staff_count, included_store_count,
   current_inventory_limit
 ) values
-  ('51100000-0000-0000-0000-000000000001', '51000000-0000-0000-0000-000000000001', 'pro', 'active', 100, 10, 100),
-  ('52100000-0000-0000-0000-000000000001', '52000000-0000-0000-0000-000000000001', 'pro', 'active', 100, 10, 100)
+  ('51100000-0000-0000-0000-000000000001', '51000000-0000-0000-0000-000000000001', 'pro', 'active', 'active', 'active', 100, 10, 100),
+  ('52100000-0000-0000-0000-000000000001', '52000000-0000-0000-0000-000000000001', 'pro', 'active', 'active', 'active', 100, 10, 100)
 on conflict do nothing;
 
 insert into public.memberships(

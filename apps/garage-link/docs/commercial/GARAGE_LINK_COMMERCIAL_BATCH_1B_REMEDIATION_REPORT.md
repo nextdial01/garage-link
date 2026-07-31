@@ -24,7 +24,9 @@ automatic tax and every registry Price must be `tax_behavior=inclusive`.
 
 The machine-readable source is
 `packages/billing/contract/garage-commercial-contract.json`. Generated
-TypeScript, SQL and the public plan matrix are checked for drift in CI.
+TypeScript, SQL and the public plan matrix are checked for drift in CI. The
+billing-state policy is also generated from the same contract into TypeScript
+and the SQL migration; unknown Stripe states fail closed.
 
 ## Remediation
 
@@ -44,7 +46,10 @@ TypeScript, SQL and the public plan matrix are checked for drift in CI.
 - DB entitlement and quota checks use the generated entitlement table. The
   quota guard serializes concurrent writers and tests 2, 10 and 100 workers.
 - The staging preflight fingerprints the exact Vercel team/project, Supabase
-  project and Stripe test account and denies Production/Live identifiers.
+  project and Stripe test account and denies Production/Live identifiers. It
+  also reads the deployed application's authenticated, non-secret runtime
+  fingerprint and compares the app's actual Supabase host, Stripe mode/account,
+  Vercel project/deployment and release SHA.
 - The 18-step Stripe test suite uses a Test Clock, verifies gross totals through
   Checkout, Subscription, Invoice, receipt and Portal, exercises failure and
   recovery, and tears down marker-owned disposable Stripe objects only.
@@ -55,7 +60,7 @@ TypeScript, SQL and the public plan matrix are checked for drift in CI.
 |---|---|
 | lint | PASS |
 | typecheck | PASS |
-| security tests | PASS, 291/291 |
+| security tests | PASS, 326/326 |
 | build | PASS with the existing Edge-runtime warning |
 | commercial contract drift | PASS |
 | migration fresh / reapply | PASS, 52 migrations |
@@ -63,7 +68,8 @@ TypeScript, SQL and the public plan matrix are checked for drift in CI.
 | rollback / reapply | PASS |
 | schema drift | PASS |
 | quota concurrency | PASS, 2/10/100 workers |
-| local Batch 1B state matrix | PASS, 32 executable cases |
+| owner-fixed Batch 1B matrix | PASS, 31/31 traced to executable tests/fixtures |
+| local billing-state variations | PASS, 33 executable cases |
 
 ## Independent review history
 
@@ -90,9 +96,22 @@ The follow-up remediation:
 The successor SHA must receive a fresh two-axis independent review before any
 remote write.
 
+The latest local remediation also requires a stable client idempotency key for
+Checkout recovery after a process loss, prevents an unrelated `started`
+operation from being completed by a webhook snapshot, makes reconciliation
+fail when the requested Stripe mutation is not observed, and requires the real
+E2E reconciliation step to claim and complete a forced recovery operation.
+
 ## Deliberately pending
 
 No remote test result is claimed. Dedicated Vercel/Supabase staging, inclusive
 Stripe test Prices, Portal configuration, webhook registration, PC/mobile
 browser checks and the 18-step real Stripe lifecycle require the separate
 remote execution gate. Until those pass, all paid plans remain `NOT_READY`.
+
+Stripe keeps completed Checkout Sessions and finalized/paid test invoices as
+immutable test-mode ledger records. Teardown therefore expires open Sessions,
+deletes draft invoices, cancels every tracked Subscription, deletes the
+marker-owned Customer/Test Clock and verifies zero non-canceled
+Subscriptions. Immutable terminal Sessions/invoices are inventoried by count
+without IDs, PII or payloads; they cannot be deleted through Stripe's API.

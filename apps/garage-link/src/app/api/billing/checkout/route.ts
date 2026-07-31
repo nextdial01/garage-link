@@ -130,7 +130,13 @@ export async function POST(request: Request) {
       };
 
   const baseUrl = getAppBaseUrl(request.url);
-  const requestIdempotencyKey = request.headers.get('idempotency-key')?.trim() || crypto.randomUUID();
+  const requestIdempotencyKey = request.headers.get('idempotency-key')?.trim();
+  if (!requestIdempotencyKey || requestIdempotencyKey.length > 255) {
+    return NextResponse.json(
+      { ok: false, error: '決済再開キーがありません。画面を再読み込みしてお試しください。' },
+      { status: 400 },
+    );
+  }
 
   try {
     const { data: beginResult, error: operationError } = await admin.rpc('begin_garage_billing_operation', {

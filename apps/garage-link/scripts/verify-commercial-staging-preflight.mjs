@@ -14,6 +14,7 @@ const required = [
   'EXPECTED_VERCEL_TEAM_ID',
   'EXPECTED_VERCEL_PROJECT_NAME',
   'EXPECTED_STRIPE_ACCOUNT_ID',
+  'CRON_SECRET',
 ];
 
 const missing = required.filter((name) => !process.env[name]?.trim());
@@ -73,6 +74,24 @@ if (deployment.projectId !== project.id
 }
 if (process.env.STRIPE_ACCOUNT_ID !== process.env.EXPECTED_STRIPE_ACCOUNT_ID) {
   throw new Error('Stripe account fingerprint mismatch.');
+}
+
+const runtimeResponse = await fetch(
+  new URL('/api/commercial-staging-fingerprint', baseUrl),
+  { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } },
+);
+if (!runtimeResponse.ok) throw new Error('Deployed application fingerprint attestation failed.');
+const runtime = await runtimeResponse.json();
+if (runtime.ok !== true
+  || runtime.runtime_host !== baseUrl.hostname
+  || runtime.supabase_host !== supabaseUrl.hostname
+  || runtime.stripe_mode !== 'test'
+  || runtime.stripe_account_id !== process.env.STRIPE_ACCOUNT_ID
+  || runtime.vercel_project_id !== project.id
+  || runtime.vercel_project_name !== project.name
+  || runtime.vercel_deployment_id !== deployment.id
+  || runtime.release_sha !== actualSha) {
+  throw new Error('Deployed application environment fingerprint mismatch.');
 }
 
 const fingerprint = createHash('sha256')

@@ -54,6 +54,7 @@ test.describe('Batch 1B synchronous entitlement matrix', () => {
     { name: 'trialingかつcanceled_at', input: { stripeStatus: 'trialing', canceledAt: '2026-07-31T11:00:00Z', now }, expected: 'canceled' },
     { name: 'active canceled_at不正値もfail closed', input: { stripeStatus: 'active', canceledAt: 'invalid', now }, expected: 'canceled' },
     { name: 'past_due grace clock skew 1ms', input: { stripeStatus: 'past_due', graceEndsAt: '2026-07-31T12:00:00.001Z', now }, expected: 'grace_period' },
+    { name: '未知Stripe状態はfail closed', input: { stripeStatus: 'future_status', now }, expected: 'reconciliation_required' },
   ];
 
   for (const entry of cases) {
@@ -149,10 +150,12 @@ test.describe('Batch 1B permanent gates', () => {
   });
 
   test('料金・税・環境fingerprintをfail closedにする', async () => {
-    const [registry, preflight, checkout] = await Promise.all([
+    const [registry, preflight, checkout, fingerprint, billingPage] = await Promise.all([
       readFile('scripts/verify-garage-stripe-test-registry.mjs', 'utf8'),
       readFile('scripts/verify-commercial-staging-preflight.mjs', 'utf8'),
       readFile('src/app/api/billing/checkout/route.ts', 'utf8'),
+      readFile('src/app/api/commercial-staging-fingerprint/route.ts', 'utf8'),
+      readFile('src/app/settings/billing/page.tsx', 'utf8'),
     ]);
     expect(registry).toContain("tax_behavior === 'inclusive'");
     expect(registry).toContain('automatic_tax');
@@ -162,6 +165,14 @@ test.describe('Batch 1B permanent gates', () => {
     expect(preflight).toContain('api.vercel.com/v13/deployments');
     expect(preflight).toContain('prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64');
     expect(preflight).toContain('STRIPE_ACCOUNT_ID');
+    expect(preflight).toContain('/api/commercial-staging-fingerprint');
+    expect(preflight).toContain('runtime.supabase_host');
     expect(checkout).toContain('automatic_tax: { enabled: false }');
+    expect(checkout).toContain('決済再開キーがありません');
+    expect(billingPage).toContain('window.sessionStorage.getItem');
+    expect(billingPage).toContain("'idempotency-key': idempotencyKey");
+    expect(fingerprint).toContain('GARAGE_COMMERCIAL_STAGING_FINGERPRINT_ENABLED');
+    expect(fingerprint).toContain("!stripeKey?.startsWith('sk_test_')");
+    expect(fingerprint).not.toContain('service_role');
   });
 });

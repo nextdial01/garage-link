@@ -15,8 +15,14 @@ or advertising.
    project ID, team ID, project name, hostname and Git SHA; never self-compare
    two manually supplied copies of the same ID.
 5. Compare every identifier with the Production/Live denylist.
-6. Compute the staging fingerprint and stop on any mismatch.
-7. Confirm the minimal resource tier and that no additional paid option is
+6. Enable the authenticated runtime endpoint with
+   `GARAGE_COMMERCIAL_STAGING_FINGERPRINT_ENABLED=true`; configure the
+   non-secret Vercel project/deployment/SHA and Stripe account identifiers.
+7. Read `/api/commercial-staging-fingerprint` with the cron credential and
+   compare the deployed app's actual Supabase host, Stripe test account,
+   Vercel project/deployment and SHA with the operator inventory.
+8. Compute the staging fingerprint and stop on any mismatch.
+9. Confirm the minimal resource tier and that no additional paid option is
    selected.
 
 ## 2. Persistent staging resources
@@ -73,12 +79,15 @@ change boundaries.
 
 ## 5. Teardown and evidence
 
-Delete only objects carrying the exact disposable marker: test customer,
-Subscription, Checkout Session, invoices where Stripe permits deletion, Test
-Clock and disposable fixtures. Retain the dedicated staging projects, canonical
-test Price registry, Portal configuration and webhook. Record retained resources,
-deleted objects, reference-zero evidence, recurring cost, SHA and fingerprints
-without secrets or PII.
+Delete only objects carrying the exact disposable marker. Cancel all tracked
+Subscriptions; expire open Checkout Sessions; delete draft invoices; delete the
+Customer, Test Clock and disposable DB fixtures; then verify zero active
+Subscriptions. Stripe does not allow completed Checkout Sessions or finalized
+and paid invoices to be deleted. Record those immutable terminal test ledger
+objects by status/count only, without IDs, PII or payloads. Retain the dedicated
+staging projects, canonical test Price registry, Portal configuration and
+webhook. Record retained resources, deleted objects, reference-zero evidence,
+recurring cost, SHA and fingerprints without secrets or PII.
 
 ## Stop conditions
 

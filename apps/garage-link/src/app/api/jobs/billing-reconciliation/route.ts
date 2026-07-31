@@ -48,6 +48,7 @@ async function reconcile(request: Request) {
   let completed = 0;
   let retryScheduled = 0;
   let deadLetter = 0;
+  let failed = 0;
   for (const operation of (data ?? []) as ReconciliationOperation[]) {
     try {
       if (!operation.stripe_subscription_id) throw new Error('stripe_subscription_id_missing');
@@ -62,6 +63,7 @@ async function reconcile(request: Request) {
             lease_owner: null,
             lease_expires_at: null,
           }).eq('id', operation.id).eq('lease_owner', workerId);
+          failed += 1;
           continue;
         }
         const { data: stored } = await admin.from('company_subscriptions')
@@ -92,6 +94,7 @@ async function reconcile(request: Request) {
             lease_owner: null,
             lease_expires_at: null,
           }).eq('id', operation.id).eq('lease_owner', workerId);
+          failed += 1;
           continue;
         }
       }
@@ -105,6 +108,7 @@ async function reconcile(request: Request) {
             lease_owner: null,
             lease_expires_at: null,
           }).eq('id', operation.id).eq('lease_owner', workerId);
+          failed += 1;
           continue;
         }
       }
@@ -149,12 +153,13 @@ async function reconcile(request: Request) {
   }
 
   const diagnostic = {
-    ok: deadLetter === 0 && retryScheduled === 0,
+    ok: deadLetter === 0 && retryScheduled === 0 && failed === 0,
     worker_type: 'garage_billing_reconciliation',
     claimed: (data ?? []).length,
     completed,
     retry_scheduled: retryScheduled,
     dead_letter: deadLetter,
+    failed,
   };
   console.info(JSON.stringify(diagnostic));
   return NextResponse.json(diagnostic, { status: diagnostic.ok ? 200 : 503 });

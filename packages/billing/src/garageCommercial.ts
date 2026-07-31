@@ -2,6 +2,7 @@ import {
   GARAGE_PLANS,
   type GaragePlanCode,
 } from './garagePlans';
+import { resolveGeneratedGarageBillingState } from './garageBillingState.generated';
 
 export const GARAGE_BILLING_CURRENCY = 'jpy' as const;
 export const GARAGE_BILLING_INTERVAL = 'month' as const;
@@ -59,7 +60,7 @@ export function parseGarageGraceDays(value: string | null | undefined) {
 }
 
 export function resolveGarageBillingState(input: {
-  stripeStatus: GarageStripeSubscriptionStatus;
+  stripeStatus: GarageStripeSubscriptionStatus | string;
   cancelAtPeriodEnd?: boolean;
   graceEndsAt?: string | null;
   currentPeriodEnd?: string | null;
@@ -67,26 +68,7 @@ export function resolveGarageBillingState(input: {
   restorationState?: GarageRestorationState;
   now?: Date;
 }): GarageBillingState {
-  const now = (input.now ?? new Date()).getTime();
-  if (input.restorationState === 'pending' || input.restorationState === 'failed') {
-    return 'reconciliation_required';
-  }
-  if (input.stripeStatus === 'canceled' || input.canceledAt) return 'canceled';
-  if (input.stripeStatus === 'incomplete') return 'initial_payment_pending';
-  if (input.stripeStatus === 'incomplete_expired' || input.stripeStatus === 'unpaid') return 'unpaid';
-  if (input.stripeStatus === 'paused') return 'restricted';
-  if (input.stripeStatus === 'past_due') {
-    const deadline = input.graceEndsAt ? Date.parse(input.graceEndsAt) : Number.NaN;
-    return Number.isFinite(deadline) && deadline > now
-      ? 'grace_period'
-      : 'restricted';
-  }
-  if (input.cancelAtPeriodEnd) {
-    const periodEnd = input.currentPeriodEnd ? Date.parse(input.currentPeriodEnd) : Number.NaN;
-    if (!Number.isFinite(periodEnd)) return 'canceled';
-    return periodEnd <= now ? 'canceled' : 'cancellation_scheduled';
-  }
-  return 'active';
+  return resolveGeneratedGarageBillingState(input) as GarageBillingState;
 }
 
 export function getGarageBillingAccess(state: GarageBillingState): GarageBillingAccess {

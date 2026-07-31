@@ -372,9 +372,19 @@ export default function BillingSettingsPage() {
     try {
       setIsStripeLoading(true);
       const hasPaidSubscription = Boolean(subscription?.stripe_subscription_id) && !isCancelledRetention;
-      const response = await fetch(hasPaidSubscription ? '/api/billing/change-plan' : '/api/billing/checkout', {
+      const billingEndpoint = hasPaidSubscription ? '/api/billing/change-plan' : '/api/billing/checkout';
+      const retryKeyName = `garage-billing-operation:${store?.id ?? 'unknown'}:${billingEndpoint}:${targetPlan}`;
+      let idempotencyKey = window.sessionStorage.getItem(retryKeyName);
+      if (!idempotencyKey) {
+        idempotencyKey = crypto.randomUUID();
+        window.sessionStorage.setItem(retryKeyName, idempotencyKey);
+      }
+      const response = await fetch(billingEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'idempotency-key': idempotencyKey,
+        },
         body: JSON.stringify({ plan: targetPlan, termsAccepted: true }),
       });
       const payload = (await response.json()) as { ok?: boolean; url?: string; error?: string; message?: string };
@@ -382,9 +392,11 @@ export default function BillingSettingsPage() {
         throw new Error(payload.error ?? 'プラン変更の開始に失敗しました。');
       }
       if (payload.url) {
+        window.sessionStorage.removeItem(retryKeyName);
         window.location.assign(payload.url);
         return;
       }
+      window.sessionStorage.removeItem(retryKeyName);
       setSuccessMessage(payload.message ?? 'プラン変更を受け付けました。');
       window.setTimeout(() => window.location.reload(), 1200);
     } catch (error) {

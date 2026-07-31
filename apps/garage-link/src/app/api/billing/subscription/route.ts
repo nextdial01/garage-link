@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { createDefaultFreeSubscription } from '@/lib/billing/garageSubscription';
 import {
   resolveGarageBillingState,
-  type GarageStripeSubscriptionStatus,
 } from '@/lib/billing/garageCommercial';
 import { translateDbError } from '@/lib/errors/translate-db-error';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -23,7 +22,7 @@ function withEffectiveBillingState<T extends Record<string, unknown>>(subscripti
   return {
     ...subscription,
     billing_state: resolveGarageBillingState({
-      stripeStatus: stripeStatus as GarageStripeSubscriptionStatus,
+      stripeStatus,
       graceEndsAt: typeof subscription.grace_ends_at === 'string' ? subscription.grace_ends_at : null,
       cancelAtPeriodEnd: subscription.cancel_at_period_end === true,
       currentPeriodEnd: typeof subscription.current_period_end === 'string' ? subscription.current_period_end : null,

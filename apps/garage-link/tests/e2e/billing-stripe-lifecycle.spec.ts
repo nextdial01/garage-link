@@ -28,6 +28,9 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
     let subscriptionId: string | null = null;
     let clockId: string | null = null;
     let quotaStoreId: string | null = null;
+    const checkoutSessionIds = new Set<string>();
+    const subscriptionIds = new Set<string>();
+    const invoiceIds = new Set<string>();
     const quotaPrefix = `E2E-B1B-${required('EXPECTED_RELEASE_SHA').slice(0, 8)}`;
 
     const readDbSubscription = async () => admin.from('company_subscriptions')
@@ -63,6 +66,7 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         const invoice = typeof subscription.latest_invoice === 'string'
           ? await stripe.invoices.retrieve(subscription.latest_invoice)
           : subscription.latest_invoice;
+        if (invoice?.id) invoiceIds.add(invoice.id);
         return Boolean(invoice && invoice.total === gross && invoice.amount_paid === gross);
       });
       const charges = await stripe.charges.list({ customer: customerId!, limit: 1 });
@@ -121,6 +125,7 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         const body = await response.json() as { url: string; sessionId: string };
         checkoutUrl = body.url;
         sessionId = body.sessionId;
+        checkoutSessionIds.add(sessionId);
       });
       await test.step('3 payment success', async () => {
         await completeCheckout(checkoutUrl);
@@ -128,6 +133,7 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         expect(session.amount_total).toBe(7480);
         customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null;
         subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id ?? null;
+        if (subscriptionId) subscriptionIds.add(subscriptionId);
         await expectLatestPaidGross(7480);
       });
       await test.step('4 Webhook', async () => {
@@ -181,11 +187,13 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         );
         expect(attempts.filter(({ error }) => !error)).toHaveLength(1);
         const api = await (await page.request.get('/api/billing/subscription')).json() as {
-          subscription: { plan: string };
+          subscription: { plan: string; current_inventory_limit: number };
         };
         expect(api.subscription.plan).toBe('starter');
+        expect(api.subscription.current_inventory_limit).toBe(contract!.inventory_limit);
         await page.goto(`${baseUrl}/settings/billing`);
         await expect(page.getByText(/7,480/).first()).toBeVisible();
+        await expect(page.getByText(new RegExp(`/\\s*${contract!.inventory_limit}台`)).first()).toBeVisible();
       });
       await test.step('8 Portal', async () => {
         await expectPortalGross(7480);
@@ -288,6 +296,7 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
           ? subscription.latest_invoice
           : subscription.latest_invoice?.id;
         expect(invoiceId).toBeTruthy();
+        invoiceIds.add(invoiceId!);
         const paid = await stripe.invoices.pay(invoiceId!);
         expect(paid.amount_paid).toBe(7480);
         await waitFor(async () => (await readDbSubscription()).data?.billing_state === 'active');
@@ -322,11 +331,13 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         });
         expect(checkout.ok()).toBe(true);
         const resubscribe = await checkout.json() as { url: string; sessionId: string };
+        checkoutSessionIds.add(resubscribe.sessionId);
         await completeCheckout(resubscribe.url);
         const session = await stripe.checkout.sessions.retrieve(resubscribe.sessionId);
         subscriptionId = typeof session.subscription === 'string'
           ? session.subscription
           : session.subscription?.id ?? null;
+        if (subscriptionId) subscriptionIds.add(subscriptionId);
         expect(subscriptionId).not.toBe(previousSubscription);
         await waitFor(async () => {
           const current = (await readDbSubscription()).data;
@@ -350,11 +361,13 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         });
         expect(proCheckout.ok()).toBe(true);
         const proSessionBody = await proCheckout.json() as { url: string; sessionId: string };
+        checkoutSessionIds.add(proSessionBody.sessionId);
         await completeCheckout(proSessionBody.url);
         const proSession = await stripe.checkout.sessions.retrieve(proSessionBody.sessionId);
         subscriptionId = typeof proSession.subscription === 'string'
           ? proSession.subscription
           : proSession.subscription?.id ?? null;
+        if (subscriptionId) subscriptionIds.add(subscriptionId);
         expect(proSession.amount_total).toBe(32780);
         await waitFor(async () => {
           const current = (await readDbSubscription()).data;
@@ -394,10 +407,40 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
           .toBe((await stripe.subscriptions.retrieve(subscriptionId!)).status);
       });
       await test.step('18 reconciliation', async () => {
+        const current = (await readDbSubscription()).data;
+        expect(current?.tenant_id).toBeTruthy();
+        expect(current?.company_id).toBeTruthy();
+        const idempotencyKey = `${marker}:reconciliation-recovery`;
+        const { data: begun, error: beginError } = await admin.rpc('begin_garage_billing_operation', {
+          p_tenant_id: current!.tenant_id,
+          p_company_id: current!.company_id,
+          p_actor_user_id: null,
+          p_operation_type: 'restoration',
+          p_idempotency_key: idempotencyKey,
+          p_target_plan: 'pro',
+          p_target_options: { cancel_at_period_end: false },
+          p_stripe_subscription_id: subscriptionId,
+        });
+        expect(beginError).toBeNull();
+        const operationId = (begun as { id?: string }).id;
+        expect(operationId).toBeTruthy();
+        const { error: recoveryError } = await admin.from('billing_sync_operations').update({
+          status: 'reconciliation_required',
+          diagnostic_code: 'e2e_forced_reconciliation',
+        }).eq('id', operationId!);
+        expect(recoveryError).toBeNull();
         const response = await request.post(`${baseUrl}/api/jobs/billing-reconciliation`, {
           headers: { authorization: `Bearer ${required('CRON_SECRET')}` },
         });
         expect(response.status()).toBe(200);
+        const result = await response.json() as {
+          claimed: number; completed: number; retry_scheduled: number; dead_letter: number; failed: number;
+        };
+        expect(result.claimed).toBeGreaterThanOrEqual(1);
+        expect(result.completed).toBeGreaterThanOrEqual(1);
+        expect(result.retry_scheduled).toBe(0);
+        expect(result.dead_letter).toBe(0);
+        expect(result.failed).toBe(0);
       });
     } finally {
       if (quotaStoreId) {
@@ -405,12 +448,33 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
           .like('management_no', `${quotaPrefix}%`);
         if (error) throw new Error('quota_fixture_teardown_failed');
       }
-      if (subscriptionId) {
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        if (subscription.status !== 'canceled') await stripe.subscriptions.cancel(subscriptionId);
+      for (const trackedSubscriptionId of subscriptionIds) {
+        const subscription = await stripe.subscriptions.retrieve(trackedSubscriptionId);
+        if (subscription.status !== 'canceled') await stripe.subscriptions.cancel(trackedSubscriptionId);
       }
+      for (const trackedSessionId of checkoutSessionIds) {
+        const session = await stripe.checkout.sessions.retrieve(trackedSessionId);
+        if (session.status === 'open') await stripe.checkout.sessions.expire(trackedSessionId);
+        else expect(['complete', 'expired']).toContain(session.status);
+      }
+      for (const trackedInvoiceId of invoiceIds) {
+        const invoice = await stripe.invoices.retrieve(trackedInvoiceId);
+        if (invoice.status === 'draft') await stripe.invoices.del(trackedInvoiceId);
+        else expect(['paid', 'void', 'uncollectible']).toContain(invoice.status);
+      }
+      expect(customerId).toBeTruthy();
+      const remaining = await stripe.subscriptions.list({ customer: customerId!, status: 'all' });
+      expect(remaining.data.filter((subscription) => subscription.status !== 'canceled')).toHaveLength(0);
       if (customerId) await stripe.customers.del(customerId);
       if (clockId) await stripe.testHelpers.testClocks.del(clockId);
+      console.info(JSON.stringify({
+        teardown: 'garage_commercial_marker',
+        active_subscriptions: 0,
+        checkout_sessions_terminal: checkoutSessionIds.size,
+        invoices_terminal_or_deleted: invoiceIds.size,
+        customer_deleted: Boolean(customerId),
+        test_clock_deleted: Boolean(clockId),
+      }));
     }
   });
 });
