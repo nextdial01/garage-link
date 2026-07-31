@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "allowedRoot": "..",
   "baselineMethod": "official-supabase-postgres-bootstrap-plus-manifest",
-  "supabasePostgresImage": "public.ecr.aws/supabase/postgres:17.6.1.136",
+  "supabasePostgresImage": "public.ecr.aws/supabase/postgres:17.6.1.155",
   "database": "postgres",
   "entries": [
     {
@@ -475,6 +475,16 @@
         "20260731000100"
       ],
       "checksum": "36913dc2618722e99dc3a60e77cbbfee68da440507c6a57989e442c574d4abe3"
+    },
+    {
+      "version": "20260731000300",
+      "name": "application_privilege_contract",
+      "file": "../migrations/20260731000300_application_privilege_contract.sql",
+      "kind": "incremental",
+      "dependsOn": [
+        "20260731000200"
+      ],
+      "checksum": "d0253d137192a8d9ede9c0bd9a921b28638c7e709d8851af859db956006b993e"
     }
   ],
   "excluded": [
@@ -495,6 +505,11 @@
     }
   ],
   "rollbacks": [
+    {
+      "version": "20260731000300",
+      "file": "../rollback/20260731000300_application_privilege_contract.down.sql",
+      "checksum": "68fa86afa2504e261e81a8999524acfee7d4aed706f2d78413ee7838ffead90f"
+    },
     {
       "version": "20260731000200",
       "file": "../rollback/20260731000200_commercial_remediation_batch_1b.down.sql",
