@@ -42,6 +42,22 @@ for workers in 2 10 100; do
   echo "quota_workers=$workers success=1 rows=50"
 done
 
+retry_claim_worker() {
+  local i="$1"
+  psql_sql "select count(*) from public.claim_garage_webhook_retry('g7-retry-$RETRY_WORKERS-$i',60,1,null);"
+}
+
+for workers in 1 2 10; do
+  event_id="evt_g7_retry_claim_$workers"
+  psql_sql "delete from public.stripe_webhook_events where stripe_event_id='$event_id'; insert into public.stripe_webhook_events(stripe_event_id,event_type,status,next_retry_at) values('$event_id','invoice.payment_failed','retry_scheduled',clock_timestamp()-interval '1 second');" >/dev/null
+  export RETRY_WORKERS="$workers"
+  success="$(run_parallel "$workers" "retry-claim-$workers" retry_claim_worker)"
+  claimed="$(awk '{ total += $1 } END { print total + 0 }' "$TMP_DIR"/retry-claim-"$workers".*.out)"
+  [[ "$success" == "$workers" && "$claimed" == "1" ]] || { echo "retry claim concurrency failed workers=$workers success=$success claimed=$claimed" >&2; exit 1; }
+  psql_sql "delete from public.stripe_webhook_events where stripe_event_id='$event_id';" >/dev/null
+  echo "retry_claim_workers=$workers claimed=1"
+done
+
 inventory_worker_same() {
   local i="$1"
   auth_sql '50000000-0000-0000-0000-000000000004' "select public.create_inventory_count('51100000-0000-0000-0000-000000000001','{\"count_no\":\"G7-C-SAME\",\"name\":\"same\"}'::jsonb,'[]'::jsonb,'g7-concurrency-same');" >/dev/null

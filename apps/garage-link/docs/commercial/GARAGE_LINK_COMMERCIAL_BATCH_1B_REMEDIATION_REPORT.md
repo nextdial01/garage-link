@@ -38,6 +38,9 @@ and the SQL migration; unknown Stripe states fail closed.
   used to decide the current state.
 - Event ID idempotency, atomic retry claims, leases, exponential backoff,
   dead-letter state, manual retry and reconciliation diagnostics are present.
+  The retry worker is executed against temporary failure/recovery and permanent
+  failure through maximum retry, dead-letter and safe manual replay. Real DB
+  claims are raced with 1, 2 and 10 workers.
 - Subscription mutations use a per-subscription lease and a durable operation
   ledger. A second open mutation is rejected rather than creating a duplicate
   Subscription.
@@ -49,7 +52,9 @@ and the SQL migration; unknown Stripe states fail closed.
   project and Stripe test account and denies Production/Live identifiers. It
   also reads the deployed application's authenticated, non-secret runtime
   fingerprint and compares the app's actual Supabase host, Stripe mode/account,
-  Vercel project/deployment and release SHA.
+  Vercel project/deployment and release SHA. The deployed application calls
+  Stripe `accounts.retrieve` with its own runtime key, so the account ID is not
+  accepted as a self-reported environment value.
 - The 18-step Stripe test suite uses a Test Clock, verifies gross totals through
   Checkout, Subscription, Invoice, receipt and Portal, exercises failure and
   recovery, and tears down marker-owned disposable Stripe objects only.
@@ -101,6 +106,8 @@ Checkout recovery after a process loss, prevents an unrelated `started`
 operation from being completed by a webhook snapshot, makes reconciliation
 fail when the requested Stripe mutation is not observed, and requires the real
 E2E reconciliation step to claim and complete a forced recovery operation.
+The Checkout key is retained across cancellation and navigation interruption,
+and is cleared only after verified completion or an explicitly expired Session.
 
 ## Deliberately pending
 

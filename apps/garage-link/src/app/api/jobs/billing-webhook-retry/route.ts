@@ -4,15 +4,14 @@ import {
   finishStripeEvent,
   processGarageStripeEvent,
 } from '@/lib/stripe/garageWebhookProcessor';
+import {
+  executeGarageWebhookRetryBatch,
+  type GarageWebhookRetryClaim,
+} from '@/lib/stripe/garageWebhookRetryWorker';
 import { getStripeClient } from '@/lib/stripe/client';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
-
-type RetryClaim = {
-  stripe_event_id: string;
-  attempt_count: number;
-};
 
 function isAuthorized(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
@@ -39,32 +38,27 @@ async function run(request: Request, manualRetry: string | null) {
     return NextResponse.json({ ok: false, error: '再処理対象をclaimできませんでした。' }, { status: 503 });
   }
 
-  let completed = 0;
-  let retryScheduled = 0;
-  for (const claim of (data ?? []) as RetryClaim[]) {
-    try {
-      const event = await stripe.events.retrieve(claim.stripe_event_id);
-      await processGarageStripeEvent(event);
-      await finishStripeEvent(event.id, workerId);
-      completed += 1;
-    } catch (caught) {
-      await failStripeEvent(claim.stripe_event_id, workerId, caught);
-      retryScheduled += 1;
-    }
-  }
+  const batch = await executeGarageWebhookRetryBatch({
+    claims: (data ?? []) as GarageWebhookRetryClaim[],
+    workerId,
+    retrieveEvent: (eventId) => stripe.events.retrieve(eventId),
+    processEvent: processGarageStripeEvent,
+    finishEvent: finishStripeEvent,
+    failEvent: failStripeEvent,
+  });
 
   // IDs, payloads, customer data, e-mail and payment details are deliberately
   // absent. This object is safe for structured operational logs/artifacts.
   const diagnostic = {
-    ok: retryScheduled === 0,
+    ok: batch.retryScheduled === 0,
     worker_type: 'garage_billing_webhook_retry',
-    claimed: (data ?? []).length,
-    completed,
-    retry_scheduled: retryScheduled,
+    claimed: batch.claimed,
+    completed: batch.completed,
+    retry_scheduled: batch.retryScheduled,
     manual: Boolean(manualRetry),
   };
   console.info(JSON.stringify(diagnostic));
-  return NextResponse.json(diagnostic, { status: retryScheduled === 0 ? 200 : 503 });
+  return NextResponse.json(diagnostic, { status: batch.retryScheduled === 0 ? 200 : 503 });
 }
 
 export async function GET(request: Request) {

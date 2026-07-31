@@ -194,7 +194,11 @@ export async function POST(request: Request) {
         .update({ status: 'failed', diagnostic_code: 'checkout_session_expired' })
         .eq('id', operation.id);
       return NextResponse.json(
-        { ok: false, error: '決済ページの有効期限が切れました。もう一度お申し込みください。' },
+        {
+          ok: false,
+          code: 'checkout_session_expired',
+          error: '決済ページの有効期限が切れました。もう一度お申し込みください。',
+        },
         { status: 409 },
       );
     }

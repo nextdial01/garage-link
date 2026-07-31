@@ -20,7 +20,9 @@ or advertising.
    non-secret Vercel project/deployment/SHA and Stripe account identifiers.
 7. Read `/api/commercial-staging-fingerprint` with the cron credential and
    compare the deployed app's actual Supabase host, Stripe test account,
-   Vercel project/deployment and SHA with the operator inventory.
+   Vercel project/deployment and SHA with the operator inventory. Require the
+   account ID returned by Stripe `accounts.retrieve` using the deployed app's
+   own runtime key; do not accept a copied environment value alone.
 8. Compute the staging fingerprint and stop on any mismatch.
 9. Confirm the minimal resource tier and that no additional paid option is
    selected.

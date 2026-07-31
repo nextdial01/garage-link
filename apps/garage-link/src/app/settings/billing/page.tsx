@@ -134,6 +134,15 @@ function toNonNegativeNumber(value: string) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
+function clearCheckoutRetryKeys() {
+  for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+    const key = window.sessionStorage.key(index);
+    if (key?.startsWith('garage-billing-operation:') && key.includes(':/api/billing/checkout:')) {
+      window.sessionStorage.removeItem(key);
+    }
+  }
+}
+
 export default function BillingSettingsPage() {
   const [role, setRole] = useState('');
   const [store, setStore] = useState<StoreRow | null>(null);
@@ -242,6 +251,7 @@ export default function BillingSettingsPage() {
           throw new Error(payload.error ?? '決済結果の反映に失敗しました。');
         }
         setSuccessMessage(`Stripe 決済が完了しました。プランを ${payload.plan ?? ''} に更新しました。`);
+        clearCheckoutRetryKeys();
         window.history.replaceState({}, '', '/settings/billing');
         window.location.reload();
       } catch (error) {
@@ -387,12 +397,16 @@ export default function BillingSettingsPage() {
         },
         body: JSON.stringify({ plan: targetPlan, termsAccepted: true }),
       });
-      const payload = (await response.json()) as { ok?: boolean; url?: string; error?: string; message?: string };
+      const payload = (await response.json()) as {
+        ok?: boolean; url?: string; error?: string; message?: string; code?: string;
+      };
       if (!response.ok || !payload.ok) {
+        if (payload.code === 'checkout_session_expired') {
+          window.sessionStorage.removeItem(retryKeyName);
+        }
         throw new Error(payload.error ?? 'プラン変更の開始に失敗しました。');
       }
       if (payload.url) {
-        window.sessionStorage.removeItem(retryKeyName);
         window.location.assign(payload.url);
         return;
       }

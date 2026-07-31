@@ -150,14 +150,6 @@ begin
   if exists (
     select 1 from public.claim_garage_webhook_retry('batch1b_worker_two',60,25,null)
   ) then raise exception 'BATCH1B_RETRY_DOUBLE_CLAIM_ALLOWED'; end if;
-  -- BATCH1B_RETRY_SUCCESS: a successful retry is fenced to the current lease owner.
-  update public.stripe_webhook_events set status='completed', processed_at=now(),
-    lease_owner=null, lease_expires_at=null
-  where stripe_event_id='evt_batch1b_retry_1' and lease_owner='batch1b_worker';
-  if not exists (
-    select 1 from public.stripe_webhook_events
-    where stripe_event_id='evt_batch1b_retry_1' and status='completed'
-  ) then raise exception 'BATCH1B_RETRY_SUCCESS'; end if;
 end $$;
 
 do $$
@@ -218,6 +210,8 @@ update public.company_subscriptions set
   plan='free', stripe_status='active', billing_state='active',
   extra_staff_count=0, extra_store_count=0, extra_storage_gb=0
 where tenant_id='51000000-0000-0000-0000-000000000001';
+-- BATCH1B_DOWNGRADE_OVER_LIMIT_GUARD: existing over-limit rows remain
+-- readable after downgrade, while the next protected write is rejected.
 
 set local session_replication_role=replica;
 insert into public.vehicles(store_id,management_no,status)
@@ -234,6 +228,7 @@ begin
     if sqlerrm='BATCH1B_INVENTORY_LIMIT_NOT_ENFORCED' then raise; end if;
   end;
   -- BATCH1B_INVENTORY_LIMIT_ENFORCED
+  -- BATCH1B_DOWNGRADE_OVER_LIMIT_GUARD
 end $$;
 
 do $$

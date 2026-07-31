@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getStripeClient } from '@/lib/stripe/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,8 @@ export async function GET(request: Request) {
   const projectName = process.env.VERCEL_PROJECT_NAME?.trim();
   const deploymentId = process.env.VERCEL_DEPLOYMENT_ID?.trim();
   const releaseSha = process.env.VERCEL_GIT_COMMIT_SHA?.trim();
-  const stripeAccountId = process.env.STRIPE_ACCOUNT_ID?.trim();
+  const expectedStripeAccountId = process.env.STRIPE_ACCOUNT_ID?.trim();
+  const stripe = getStripeClient();
   const runtimeHost = new URL(request.url).hostname;
   const supabaseHost = supabaseUrl ? new URL(supabaseUrl).hostname : '';
 
@@ -36,9 +38,16 @@ export async function GET(request: Request) {
     || !stripeKey?.startsWith('sk_test_');
 
   const complete = Boolean(
-    supabaseHost && projectId && projectName && deploymentId && releaseSha && stripeAccountId,
+    supabaseHost && projectId && projectName && deploymentId && releaseSha
+      && expectedStripeAccountId && stripe,
   );
   if (denied || !complete) {
+    return NextResponse.json({ ok: false }, { status: 503 });
+  }
+  let stripeAccountId: string;
+  try {
+    stripeAccountId = (await stripe!.accounts.retrieve(expectedStripeAccountId!)).id;
+  } catch {
     return NextResponse.json({ ok: false }, { status: 503 });
   }
 

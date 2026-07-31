@@ -171,8 +171,12 @@ test.describe('Batch 1B permanent gates', () => {
     expect(checkout).toContain('決済再開キーがありません');
     expect(billingPage).toContain('window.sessionStorage.getItem');
     expect(billingPage).toContain("'idempotency-key': idempotencyKey");
+    expect(billingPage).not.toContain("if (payload.url) {\n        window.sessionStorage.removeItem(retryKeyName)");
+    expect(billingPage).toContain('clearCheckoutRetryKeys();');
+    expect(billingPage).toContain("payload.code === 'checkout_session_expired'");
     expect(fingerprint).toContain('GARAGE_COMMERCIAL_STAGING_FINGERPRINT_ENABLED');
     expect(fingerprint).toContain("!stripeKey?.startsWith('sk_test_')");
+    expect(fingerprint).toContain('stripe!.accounts.retrieve(expectedStripeAccountId!)');
     expect(fingerprint).not.toContain('service_role');
   });
 });

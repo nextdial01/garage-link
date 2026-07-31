@@ -13,7 +13,7 @@
   {"id":12,"category":"webhook","name":"same-second events","evidence":"supabase/tests/commercial_remediation_batch_1b_regression.sql","marker":"BATCH1B_SAME_SECOND_AUTHORITATIVE_CONVERGENCE"},
   {"id":13,"category":"webhook","name":"DB transaction failure","evidence":"supabase/tests/commercial_remediation_batch_1b_regression.sql","marker":"BATCH1B_DB_TRANSACTION_FAILURE_ATOMIC"},
   {"id":14,"category":"webhook","name":"Stripe API temporary failure","evidence":"tests/security/garage-commercial-required-matrix.test.ts","marker":"BATCH1B_STRIPE_TEMPORARY_FAILURE"},
-  {"id":15,"category":"webhook","name":"retry success","evidence":"supabase/tests/commercial_remediation_batch_1b_regression.sql","marker":"BATCH1B_RETRY_SUCCESS"},
+  {"id":15,"category":"webhook","name":"retry success","evidence":"tests/security/garage-commercial-required-matrix.test.ts","marker":"BATCH1B_RETRY_SUCCESS"},
   {"id":16,"category":"webhook","name":"dead-letter","evidence":"tests/security/garage-commercial-required-matrix.test.ts","marker":"BATCH1B_DEAD_LETTER"},
   {"id":17,"category":"webhook","name":"manual reconciliation","evidence":"tests/e2e/billing-stripe-lifecycle.spec.ts","marker":"reconciliation-recovery"},
   {"id":18,"category":"concurrent_operation","name":"plan変更の同時実行","evidence":"supabase/tests/commercial_remediation_batch_1b_regression.sql","marker":"BATCH1B_CONCURRENT_PLAN_CHANGE"},
