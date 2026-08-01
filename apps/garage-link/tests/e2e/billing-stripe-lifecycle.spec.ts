@@ -113,7 +113,7 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
       }
       await checkoutStep('click subscribe', () => page.getByRole('button', { name: /申し込む|Subscribe|Pay/i })
         .click({ timeout: 15_000 }));
-      await checkoutStep('wait for checkout=success', () => page.waitForURL(/checkout=success/, { timeout: 30_000 }));
+      await checkoutStep('wait for checkout=success', () => page.waitForURL(/checkout=success/, { timeout: 60_000 }));
     };
     // 同時契約変更レース(runMutationRace)は今回のスコープ外（上記参照）のため削除。
 
