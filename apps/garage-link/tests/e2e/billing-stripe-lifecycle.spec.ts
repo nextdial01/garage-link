@@ -88,20 +88,28 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
       await page.goto(url);
       await expect(page.getByText(new RegExp(gross.toLocaleString('ja-JP'))).first()).toBeVisible();
     };
+    const checkoutStep = async (label: string, action: () => Promise<void>) => {
+      console.info(`[e2e:checkout] ${label} - starting`);
+      await action();
+      console.info(`[e2e:checkout] ${label} - done`);
+    };
     const completeCheckout = async (url: string) => {
-      console.info(`[e2e:checkout] navigating to Stripe Checkout`);
-      await page.goto(url);
-      await page.getByLabel(/メール|Email/i).fill(checkoutEmail).catch(() => undefined);
+      await checkoutStep('goto checkout url', () => page.goto(url).then(() => undefined));
+      await checkoutStep('fill email', () => page.getByLabel(/メール|Email/i)
+        .fill(checkoutEmail, { timeout: 15_000 }).catch(() => undefined));
       const cardNumber = page.getByLabel(/カード番号|Card number/i);
-      if (await cardNumber.isVisible().catch(() => false)) {
-        await cardNumber.fill('4242424242424242');
-        await page.getByLabel(/有効期限|Expiration/i).fill('1234');
-        await page.getByLabel(/セキュリティコード|CVC/i).fill('123');
+      const cardNumberVisible = await cardNumber.isVisible({ timeout: 15_000 }).catch(() => false);
+      console.info(`[e2e:checkout] card number field visible: ${cardNumberVisible}`);
+      if (cardNumberVisible) {
+        await checkoutStep('fill card number', () => cardNumber.fill('4242424242424242', { timeout: 15_000 }));
+        await checkoutStep('fill expiration', () => page.getByLabel(/有効期限|Expiration/i)
+          .fill('1234', { timeout: 15_000 }));
+        await checkoutStep('fill CVC', () => page.getByLabel(/セキュリティコード|CVC/i)
+          .fill('123', { timeout: 15_000 }));
       }
-      console.info(`[e2e:checkout] submitting payment`);
-      await page.getByRole('button', { name: /申し込む|Subscribe|Pay/i }).click();
-      await page.waitForURL(/checkout=success/, { timeout: 30_000 });
-      console.info(`[e2e:checkout] checkout=success reached`);
+      await checkoutStep('click subscribe', () => page.getByRole('button', { name: /申し込む|Subscribe|Pay/i })
+        .click({ timeout: 15_000 }));
+      await checkoutStep('wait for checkout=success', () => page.waitForURL(/checkout=success/, { timeout: 30_000 }));
     };
     // 同時契約変更レース(runMutationRace)は今回のスコープ外（上記参照）のため削除。
 
