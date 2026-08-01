@@ -85,27 +85,44 @@ export async function clickButtonByCandidates(page: Page, candidates: (string | 
 }
 
 const previewOtpPattern = /Preview QA確認コード[:：]\s*(\d{6})/;
+const log = (message: string) => console.info(`[e2e:login] ${message}`);
+
+// waitForLoadState('networkidle') はダッシュボードの継続的なバックグラウンド通信
+// （リアルタイム購読・ポーリング等）がある画面では"idle"に一切到達せず無期限に
+// ハングしうる。代わりにURL遷移を明示的timeout付きで待つ。
+async function waitForNavigationAway(page: Page, fromPathPrefix: string, timeoutMs: number) {
+  await page.waitForURL((url) => !url.pathname.startsWith(fromPathPrefix), { timeout: timeoutMs });
+}
 
 // 管理者メールOTPゲート（/security/email-otp）を通過する。previewOtp はPreview環境の
 // release-QAフィクスチャでのみ返る値で、実メール送信を待たずにE2Eを完走させる。
 // 本番や release-QA 以外のアカウントではこの値は返らず、E2E は明示的に失敗する。
 async function completeAdminEmailOtpIfPresent(page: Page) {
-  if (!/\/security\/email-otp(\?|$)/.test(page.url())) return;
+  if (!/\/security\/email-otp(\?|$)/.test(page.url())) {
+    log('not on the admin email-OTP screen, skipping');
+    return;
+  }
+  log('admin email-OTP screen detected, waiting for previewOtp');
 
-  const codeMatch = await page
-    .locator('body')
-    .innerText()
-    .then((text) => text.match(previewOtpPattern));
+  await expect(async () => {
+    const text = await page.locator('body').innerText();
+    if (!previewOtpPattern.test(text)) throw new Error('previewOtp not visible yet');
+  }).toPass({ timeout: 15_000, intervals: [500] });
+
+  const text = await page.locator('body').innerText();
+  const codeMatch = text.match(previewOtpPattern);
   if (!codeMatch) {
     throw new Error(
       '管理者メールOTP画面でpreviewOtpを取得できませんでした。' +
         'VERCEL_ENV=preview、GARAGE_PREVIEW_OTP_SINK_SECRET、release-QA fixture要件を確認してください。',
     );
   }
+  log(`previewOtp received, submitting code`);
 
   await fillField(page, { labels: ['メールに届いた6桁コード'] }, codeMatch[1]);
   await clickButtonByCandidates(page, [/この端末を承認する/]);
-  await page.waitForLoadState('networkidle');
+  await waitForNavigationAway(page, '/security/email-otp', 20_000);
+  log(`OTP accepted, now at ${page.url()}`);
   await assertNoAppError(page);
 }
 
@@ -114,11 +131,15 @@ export async function login(page: Page) {
     throw new Error('E2E_EMAIL and E2E_PASSWORD are required.');
   }
 
+  log('navigating to /login');
   await page.goto('/login');
   await fillField(page, { labels: ['メールアドレス'], names: ['email'] }, process.env.E2E_EMAIL ?? '');
   await fillField(page, { labels: ['パスワード'], names: ['password'] }, process.env.E2E_PASSWORD ?? '');
+  log('submitting credentials');
   await clickButtonByCandidates(page, [/ログイン/]);
-  await page.waitForLoadState('networkidle');
+  await waitForNavigationAway(page, '/login', 20_000);
+  log(`post-login, now at ${page.url()}`);
   await completeAdminEmailOtpIfPresent(page);
   await assertNoAppError(page);
+  log('login complete');
 }
