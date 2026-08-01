@@ -7,9 +7,6 @@ import PermissionDeniedCard from '@/components/PermissionDeniedCard';
 import {
   GARAGE_PLAN_ORDER,
   GARAGE_PLANS,
-  canAddStaff,
-  canAddStorage,
-  canAddStore,
   formatGarageYen,
   formatStorage,
   getGaragePlan,
@@ -281,9 +278,9 @@ export default function BillingSettingsPage() {
   const isCancelledRetention = subscription?.status === 'cancelled';
 
   const validationMessage = (() => {
-    if (form.request_type === 'add_staff' && !canAddStaff(currentPlanCode)) return 'Freeプランではスタッフ追加はできません。';
-    if (form.request_type === 'add_store' && !canAddStore(currentPlanCode)) return '店舗追加はStandard以上で利用できます。';
-    if (form.request_type === 'add_storage' && !canAddStorage(currentPlanCode)) return 'Freeプランではストレージ追加はできません。';
+    if (form.request_type === 'add_staff' || form.request_type === 'add_store' || form.request_type === 'add_storage') {
+      return 'スタッフ・店舗・保存容量の追加購入は初回販売の対象外です。準備が整い次第あらためてご案内します。';
+    }
     return '';
   })();
 
@@ -705,12 +702,17 @@ export default function BillingSettingsPage() {
                 <label className="block">
                   <span className="mb-2 block text-sm font-bold text-slate-700">申込種別</span>
                   <select className={inputClass} value={form.request_type} onChange={(event) => setForm((current) => ({ ...current, request_type: event.target.value as RequestType }))}>
-                    {Object.entries(requestTypeLabels).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
+                    {Object.entries(requestTypeLabels)
+                      .filter(([value]) => value !== 'add_staff' && value !== 'add_store' && value !== 'add_storage')
+                      .map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
                   </select>
+                  <p className="mt-2 text-xs text-slate-500">
+                    スタッフ・店舗・保存容量の追加購入は初回販売の対象外です。準備が整い次第あらためてご案内します。
+                  </p>
                 </label>
                 <label className="block">
                   <span className="mb-2 block text-sm font-bold text-slate-700">希望プラン</span>
