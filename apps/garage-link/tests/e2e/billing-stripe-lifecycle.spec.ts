@@ -97,14 +97,18 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
       await checkoutStep('goto checkout url', () => page.goto(url).then(() => undefined));
       await checkoutStep('fill email', () => page.getByLabel(/メール|Email/i)
         .fill(checkoutEmail, { timeout: 15_000 }).catch(() => undefined));
-      const cardNumber = page.getByLabel(/カード番号|Card number/i);
+      // Use the standard autocomplete tokens Stripe sets on its real card inputs, not
+      // label-text matching - a nearby CVC icon's aria-label ("Credit or debit card CVC")
+      // also matches getByLabel(/CVC/i), causing a strict-mode violation that (before
+      // these actions had explicit timeouts) retried silently for the full test timeout.
+      const cardNumber = page.locator('input[autocomplete="cc-number"]');
       const cardNumberVisible = await cardNumber.isVisible({ timeout: 15_000 }).catch(() => false);
       console.info(`[e2e:checkout] card number field visible: ${cardNumberVisible}`);
       if (cardNumberVisible) {
         await checkoutStep('fill card number', () => cardNumber.fill('4242424242424242', { timeout: 15_000 }));
-        await checkoutStep('fill expiration', () => page.getByLabel(/有効期限|Expiration/i)
+        await checkoutStep('fill expiration', () => page.locator('input[autocomplete="cc-exp"]')
           .fill('1234', { timeout: 15_000 }));
-        await checkoutStep('fill CVC', () => page.getByLabel(/セキュリティコード|CVC/i)
+        await checkoutStep('fill CVC', () => page.locator('input[autocomplete="cc-csc"]')
           .fill('123', { timeout: 15_000 }));
       }
       await checkoutStep('click subscribe', () => page.getByRole('button', { name: /申し込む|Subscribe|Pay/i })
