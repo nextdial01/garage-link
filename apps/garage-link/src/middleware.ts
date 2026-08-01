@@ -213,15 +213,19 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
 
-    if (!isPublicPath(pathname)) {
+    if (!isPublicPath(pathname) && !isSecurityGate(pathname)) {
+      // security gate は常に billing 制限より優先する。ここを除外しないと、
+      // admin security 必須 かつ billing 制限中のアカウントが
+      // /security/email-otp <-> /settings/billing を無限に往復し、
+      // clone() が前段の from を引き継ぐたびに from が二重エンコードされ続けて
+      // 指数的に肥大化するリダイレクトループになる。
       const { data: contractAccess } = await supabase.rpc('get_member_contract_access', {});
       const accessState = resolveEffectiveContractAccess(
         parseContractAccess(contractAccess),
       ).state;
 
       if (accessState === 'cancelled_retention' && !isCancelledRetentionAllowedPath(pathname)) {
-        const billingUrl = request.nextUrl.clone();
-        billingUrl.pathname = '/settings/billing';
+        const billingUrl = new URL('/settings/billing', request.url);
         billingUrl.searchParams.set('contract', 'cancelled');
         return NextResponse.redirect(billingUrl);
       }
@@ -233,8 +237,7 @@ export async function middleware(request: NextRequest) {
         if (pathname.startsWith('/api/')) {
           return NextResponse.json({ error: 'billing_access_restricted' }, { status: 402 });
         }
-        const billingUrl = request.nextUrl.clone();
-        billingUrl.pathname = '/settings/billing';
+        const billingUrl = new URL('/settings/billing', request.url);
         billingUrl.searchParams.set('contract', accessState);
         return NextResponse.redirect(billingUrl);
       }
