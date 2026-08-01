@@ -49,6 +49,10 @@ function isPublicPath(pathname: string) {
   // Google向け在庫フィードはBearerトークン/クエリトークンで自前認証するため、
   // セッションCookieを持たないクローラーからのアクセスをここで弾かない。
   if (pathname === '/api/vehicles/google-feed') return true;
+  // Vercel Cronジョブ（/api/jobs/*, /api/cron/*）はSupabaseセッションを持たず
+  // CRON_SECRETのBearer認証を各ルート自身で行うため、ここで先に401にしない。
+  if (pathname.startsWith('/api/jobs/')) return true;
+  if (pathname.startsWith('/api/cron/')) return true;
   return false;
 }
 

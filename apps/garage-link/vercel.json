@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/purge-expired-store-data",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/jobs/billing-reconciliation",
+      "schedule": "*/10 * * * *"
     }
   ]
 }
