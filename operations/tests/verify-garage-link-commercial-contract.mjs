@@ -18,6 +18,25 @@ const runnerText = fs.readFileSync(path.join(root, 'operations/scripts/run-garag
 for (const item of graph.checkpoints) {
   if (!new RegExp(`^${item.executor}\\(\\) \\{`, 'm').test(runnerText)) fail(`CHECKPOINT_EXECUTOR_UNDEFINED:${item.id}`);
 }
+for (const required of [
+  "KEYCHAIN_SERVICE='kannagi.garage-link.staging-db-url'",
+  'KEYCHAIN_ACCOUNT="$(id -un)"',
+  "readonly SECURITY_BIN='/usr/bin/security'",
+  'keychain_find_credential()',
+  'keychain_store_credential()',
+  'credential_self_test()',
+  '--reset-credential) RESET_CREDENTIAL=1',
+  'KEYCHAIN_CREDENTIAL_SELF_TEST_PASS',
+]) {
+  if (!runnerText.includes(required)) fail(`KEYCHAIN_CONTRACT_MISSING:${required}`);
+}
+for (const forbidden of ['pb'+'paste', 'vercel env '+'pull', '/private/'+'tmp/', '/'+'tmp/']) {
+  if (runnerText.includes(forbidden)) fail(`KEYCHAIN_FORBIDDEN_SOURCE:${forbidden}`);
+}
+if (/add-generic-password[^\n]*-w\s+["$]/.test(runnerText)) fail('KEYCHAIN_SECRET_COMMAND_ARGUMENT');
+if (!/printf '%s\\n%s\\n' "\$value" "\$value" \| \\\n\s+"\$SECURITY_BIN" add-generic-password -a "\$KEYCHAIN_ACCOUNT" -s "\$KEYCHAIN_SERVICE" -w >\/dev\/null 2>\/dev\/null/.test(runnerText)) fail('KEYCHAIN_INITIAL_CREATE_CONTRACT_MISSING');
+if (!/printf '%s\\n%s\\n' "\$value" "\$value" \| \\\n\s+"\$SECURITY_BIN" add-generic-password -U -a "\$KEYCHAIN_ACCOUNT" -s "\$KEYCHAIN_SERVICE" -w >\/dev\/null 2>\/dev\/null/.test(runnerText)) fail('KEYCHAIN_EXPLICIT_UPDATE_CONTRACT_MISSING');
+if (!runnerText.includes('keychain_store_credential "$CREDENTIAL_INPUT_VALUE" "$reset"')) fail('KEYCHAIN_UPDATE_MODE_NOT_BOUND_TO_RESET');
 for (const required of ['FINGERPRINT_MISMATCH','MISSING_REQUIRED_GRANT','EXCESSIVE_GRANT','UNKNOWN','SECURITY_RELEVANT']) {
   if (!graph.blockingClassifications.includes(required)) fail(`BLOCKING_CLASSIFICATION_MISSING:${required}`);
 }

@@ -23,6 +23,21 @@ CERT_DIR=''
 STATE_DIR_ARG=''
 STOP_AFTER=''
 STATE_BINDING_HASH=''
+RESET_CREDENTIAL=0
+CREDENTIAL_SOURCE=''
+KEYCHAIN_SERVICE='kannagi.garage-link.staging-db-url'
+KEYCHAIN_ACCOUNT="$(id -un)"
+KEYCHAIN_BACKEND='system'
+KEYCHAIN_MEMORY_PRESENT=0
+KEYCHAIN_MEMORY_VALUE=''
+KEYCHAIN_TEST_INPUT=''
+KEYCHAIN_TEST_PROMPTS=0
+KEYCHAIN_TEST_STORES=0
+KEYCHAIN_TEST_LAST_UPDATE=''
+readonly STAGING_PROJECT_REF='gaytoojzwqkpuvfofeql'
+readonly PRODUCTION_PROJECT_REF='wmlpuzuskfiwdipluglz'
+readonly STAGING_DB_HOST="db.${STAGING_PROJECT_REF}.supabase.co"
+readonly SECURITY_BIN='/usr/bin/security'
 
 cleanup() {
   local status=$?
@@ -41,6 +56,199 @@ trap cleanup EXIT INT TERM HUP
 
 die() { printf '%s\n' "$1" >&2; exit 2; }
 need() { command -v "$1" >/dev/null 2>&1 || die "COMMAND_MISSING:$1"; }
+
+validate_staging_db_url() {
+  local value="$1" remainder authority userinfo hostport database
+  [[ -n "$value" && "$value" != *$'\n'* && "$value" != *$'\r'* && "$value" != *$'\t'* && "$value" != *' '* ]] || return 10
+  [[ "$value" != *"$PRODUCTION_PROJECT_REF"* ]] || return 11
+  case "$value" in
+    postgres://*) remainder="${value#postgres://}" ;;
+    postgresql://*) remainder="${value#postgresql://}" ;;
+    *) return 10 ;;
+  esac
+  [[ "$remainder" == */* ]] || return 10
+  authority="${remainder%%/*}"
+  database="${remainder#*/}"
+  database="${database%%\?*}"
+  [[ "$authority" == *@* && "$authority" != "${authority%@*}" ]] || return 10
+  userinfo="${authority%@*}"
+  hostport="${authority##*@}"
+  [[ "$userinfo" == *:* && -n "${userinfo%%:*}" && -n "${userinfo#*:}" ]] || return 10
+  [[ "${userinfo%%:*}" == postgres ]] || return 10
+  [[ "$hostport" == "$STAGING_DB_HOST" || "$hostport" == "$STAGING_DB_HOST:5432" ]] || return 12
+  [[ "$database" == postgres ]] || return 10
+}
+
+credential_validation_code() {
+  case "$1" in
+    10) printf '%s' 'CREDENTIAL_URL_INVALID' ;;
+    11) printf '%s' 'CREDENTIAL_PRODUCTION_REJECTED' ;;
+    12) printf '%s' 'CREDENTIAL_STAGING_REF_MISMATCH' ;;
+    *) printf '%s' 'CREDENTIAL_VALIDATION_FAILED' ;;
+  esac
+}
+
+make_test_db_credential() {
+  local password="$1"
+  local host="$2"
+  local scheme='postgresql'
+  printf '%s://postgres:%s@%s:5432/postgres?sslmode=verify-full' "$scheme" "$password" "$host"
+}
+
+keychain_find_credential() {
+  local value status
+  if [[ "$KEYCHAIN_BACKEND" == memory ]]; then
+    [[ "$KEYCHAIN_MEMORY_PRESENT" == 1 ]] || return 44
+    GARAGE_LINK_STAGING_DB_URL="$KEYCHAIN_MEMORY_VALUE"
+    return 0
+  fi
+  if value="$($SECURITY_BIN find-generic-password -s "$KEYCHAIN_SERVICE" -a "$KEYCHAIN_ACCOUNT" -w 2>/dev/null)"; then
+    GARAGE_LINK_STAGING_DB_URL="$value"
+    unset value
+    return 0
+  else
+    status=$?
+    unset value
+    return "$status"
+  fi
+}
+
+read_credential_once() {
+  if [[ "$KEYCHAIN_BACKEND" == memory ]]; then
+    KEYCHAIN_TEST_PROMPTS=$((KEYCHAIN_TEST_PROMPTS + 1))
+    CREDENTIAL_INPUT_VALUE="$KEYCHAIN_TEST_INPUT"
+    return 0
+  fi
+  [[ -r /dev/tty ]] || { printf '%s\n' 'CREDENTIAL_TERMINAL_UNAVAILABLE' >&2; return 2; }
+  printf '%s' 'GARAGE LINK staging DB URLを入力してください: ' >&2
+  IFS= read -r -s CREDENTIAL_INPUT_VALUE </dev/tty || { printf '\n' >&2; return 2; }
+  printf '\n' >&2
+}
+
+keychain_store_credential() {
+  local value="$1"
+  local update="$2"
+  if [[ "$KEYCHAIN_BACKEND" == memory ]]; then
+    KEYCHAIN_TEST_STORES=$((KEYCHAIN_TEST_STORES + 1))
+    KEYCHAIN_TEST_LAST_UPDATE="$update"
+    KEYCHAIN_MEMORY_VALUE="$value"
+    KEYCHAIN_MEMORY_PRESENT=1
+    return 0
+  fi
+  if [[ "$update" == 1 ]]; then
+    printf '%s\n%s\n' "$value" "$value" | \
+      "$SECURITY_BIN" add-generic-password -U -a "$KEYCHAIN_ACCOUNT" -s "$KEYCHAIN_SERVICE" -w >/dev/null 2>/dev/null
+  else
+    printf '%s\n%s\n' "$value" "$value" | \
+      "$SECURITY_BIN" add-generic-password -a "$KEYCHAIN_ACCOUNT" -s "$KEYCHAIN_SERVICE" -w >/dev/null 2>/dev/null
+  fi
+}
+
+acquire_staging_credential() {
+  local reset="$1" lookup_status validation_status validation_code
+  unset GARAGE_LINK_STAGING_DB_URL CREDENTIAL_INPUT_VALUE
+  if [[ "$reset" != 1 ]]; then
+    if keychain_find_credential; then
+      if validate_staging_db_url "$GARAGE_LINK_STAGING_DB_URL"; then
+        CREDENTIAL_SOURCE='KEYCHAIN_EXISTING'
+        return 0
+      else
+        validation_status=$?
+        validation_code="$(credential_validation_code "$validation_status")"
+        unset GARAGE_LINK_STAGING_DB_URL
+        printf '%s\n' "${validation_code}:USE_--reset-credential" >&2
+        return 2
+      fi
+    else
+      lookup_status=$?
+      [[ "$lookup_status" == 44 ]] || { printf '%s\n' 'KEYCHAIN_READ_FAILED' >&2; return 2; }
+    fi
+  fi
+
+  read_credential_once || return 2
+  if validate_staging_db_url "$CREDENTIAL_INPUT_VALUE"; then
+    :
+  else
+    validation_status=$?
+    validation_code="$(credential_validation_code "$validation_status")"
+    unset CREDENTIAL_INPUT_VALUE
+    printf '%s\n' "$validation_code" >&2
+    return 2
+  fi
+  keychain_store_credential "$CREDENTIAL_INPUT_VALUE" "$reset" || { unset CREDENTIAL_INPUT_VALUE; printf '%s\n' 'KEYCHAIN_WRITE_FAILED' >&2; return 2; }
+  GARAGE_LINK_STAGING_DB_URL="$CREDENTIAL_INPUT_VALUE"
+  unset CREDENTIAL_INPUT_VALUE
+  if [[ "$reset" == 1 ]]; then CREDENTIAL_SOURCE='KEYCHAIN_RESET'; else CREDENTIAL_SOURCE='KEYCHAIN_FIRST_REGISTRATION'; fi
+}
+
+reset_credential_test_state() {
+  KEYCHAIN_BACKEND='memory'
+  KEYCHAIN_MEMORY_PRESENT=0
+  KEYCHAIN_MEMORY_VALUE=''
+  KEYCHAIN_TEST_INPUT=''
+  KEYCHAIN_TEST_PROMPTS=0
+  KEYCHAIN_TEST_STORES=0
+  KEYCHAIN_TEST_LAST_UPDATE=''
+  CREDENTIAL_SOURCE=''
+  unset GARAGE_LINK_STAGING_DB_URL CREDENTIAL_INPUT_VALUE
+}
+
+credential_self_test() {
+  local valid valid_updated invalid production mismatch status output runner_text forbidden_clipboard forbidden_env_pull forbidden_tmp forbidden_private_tmp
+  valid="$(make_test_db_credential 'test-only' "$STAGING_DB_HOST")"
+  valid_updated="$(make_test_db_credential 'updated-test-only' "$STAGING_DB_HOST")"
+  invalid='https://invalid.example.invalid/postgres'
+  production="$(make_test_db_credential 'test-only' "db.${PRODUCTION_PROJECT_REF}.supabase.co")"
+  mismatch="$(make_test_db_credential 'test-only' 'db.not-the-staging-ref.supabase.co')"
+
+  set +e
+  validate_staging_db_url "$invalid"; status=$?; [[ $status -eq 10 ]] || die 'KEYCHAIN_INVALID_URL_CLASSIFICATION_FAILED'
+  validate_staging_db_url "$production"; status=$?; [[ $status -eq 11 ]] || die 'KEYCHAIN_PRODUCTION_CLASSIFICATION_FAILED'
+  validate_staging_db_url "$mismatch"; status=$?; [[ $status -eq 12 ]] || die 'KEYCHAIN_PROJECT_REF_CLASSIFICATION_FAILED'
+  set -e
+
+  reset_credential_test_state
+  KEYCHAIN_TEST_INPUT="$valid"
+  acquire_staging_credential 0
+  [[ "$KEYCHAIN_TEST_PROMPTS" == 1 && "$KEYCHAIN_TEST_STORES" == 1 && "$KEYCHAIN_TEST_LAST_UPDATE" == 0 && "$KEYCHAIN_MEMORY_VALUE" == "$valid" ]] || die 'KEYCHAIN_FIRST_REGISTRATION_TEST_FAILED'
+
+  KEYCHAIN_TEST_PROMPTS=0; KEYCHAIN_TEST_STORES=0; unset GARAGE_LINK_STAGING_DB_URL
+  acquire_staging_credential 0
+  [[ "$KEYCHAIN_TEST_PROMPTS" == 0 && "$KEYCHAIN_TEST_STORES" == 0 && "$GARAGE_LINK_STAGING_DB_URL" == "$valid" ]] || die 'KEYCHAIN_EXISTING_ZERO_PROMPT_TEST_FAILED'
+
+  for test_value in "$invalid" "$production" "$mismatch"; do
+    reset_credential_test_state
+    KEYCHAIN_TEST_INPUT="$test_value"
+    set +e
+    acquire_staging_credential 0 >/dev/null 2>&1
+    status=$?
+    set -e
+    [[ $status -ne 0 && "$KEYCHAIN_TEST_PROMPTS" == 1 && "$KEYCHAIN_TEST_STORES" == 0 && "$KEYCHAIN_MEMORY_PRESENT" == 0 ]] || die 'KEYCHAIN_INVALID_INPUT_REJECTION_FAILED'
+  done
+
+  reset_credential_test_state
+  KEYCHAIN_MEMORY_PRESENT=1; KEYCHAIN_MEMORY_VALUE="$invalid"
+  set +e
+  acquire_staging_credential 0 >/dev/null 2>&1
+  status=$?
+  set -e
+  [[ $status -ne 0 && "$KEYCHAIN_TEST_PROMPTS" == 0 && "$KEYCHAIN_TEST_STORES" == 0 && "$KEYCHAIN_MEMORY_VALUE" == "$invalid" ]] || die 'KEYCHAIN_INVALID_EXISTING_FAIL_CLOSED_TEST_FAILED'
+
+  KEYCHAIN_TEST_INPUT="$valid_updated"
+  acquire_staging_credential 1
+  [[ "$KEYCHAIN_TEST_PROMPTS" == 1 && "$KEYCHAIN_TEST_STORES" == 1 && "$KEYCHAIN_TEST_LAST_UPDATE" == 1 && "$KEYCHAIN_MEMORY_VALUE" == "$valid_updated" && "$CREDENTIAL_SOURCE" == KEYCHAIN_RESET ]] || die 'KEYCHAIN_EXPLICIT_RESET_TEST_FAILED'
+
+  KEYCHAIN_TEST_PROMPTS=0; KEYCHAIN_TEST_STORES=0
+  output="$(acquire_staging_credential 0 2>&1)"
+  [[ -z "$output" && "$output" != *'test-only'* ]] || die 'KEYCHAIN_SECRET_OUTPUT_LEAK'
+  runner_text="$(<"$0")"
+  forbidden_clipboard='pb''paste'; forbidden_env_pull='vercel env ''pull'
+  forbidden_tmp='/''tmp/'; forbidden_private_tmp='/private/''tmp/'
+  [[ "$runner_text" != *"$forbidden_clipboard"* && "$runner_text" != *"$forbidden_env_pull"* && "$runner_text" != *"$forbidden_tmp"* && "$runner_text" != *"$forbidden_private_tmp"* ]] || die 'KEYCHAIN_FORBIDDEN_SOURCE_PRESENT'
+  if printf '%s' "$runner_text" | grep -Eq 'add-generic-password[^\n]*-w[[:space:]]+["$]'; then die 'KEYCHAIN_SECRET_ARGUMENT_PRESENT'; fi
+  [[ -x "$SECURITY_BIN" ]] || die 'MACOS_KEYCHAIN_CLI_MISSING'
+  printf '%s\n' 'KEYCHAIN_CREDENTIAL_SELF_TEST_PASS'
+}
 
 assert_image() {
   local image="$1" digest="$2" repository actual
@@ -285,6 +493,9 @@ assert_fingerprint_matches() {
 }
 
 checkpoint_contract() {
+  [[ -n "${GARAGE_LINK_STAGING_DB_URL:-}" ]] || die 'STAGING_CREDENTIAL_NOT_ACQUIRED'
+  validate_staging_db_url "$GARAGE_LINK_STAGING_DB_URL" || die 'STAGING_CREDENTIAL_CONTRACT_FAILED'
+  printf 'CREDENTIAL_SOURCE=%s\nSTAGING_PROJECT_REF=%s\n' "$CREDENTIAL_SOURCE" "$STAGING_PROJECT_REF" > "$EVIDENCE/A01-credential-contract.txt"
   node "$ROOT/operations/tests/verify-garage-link-commercial-contract.mjs" "$ROOT" > "$EVIDENCE/A01-contract.json"
 }
 
@@ -443,37 +654,62 @@ NODE
 
 self_test() {
   local resume_state first_status tamper_status
+  credential_self_test
   resume_state="$(mktemp -d "$ROOT/.garage-commercial-resume.XXXXXX")"
   set +e
-  "$0" --local --state-dir "$resume_state" --stop-after A02
+  (
+    trap cleanup EXIT INT TERM HUP
+    STATE_DIR_ARG="$resume_state"; STOP_AFTER='A02'
+    KEYCHAIN_BACKEND='memory'; KEYCHAIN_MEMORY_PRESENT=1
+    KEYCHAIN_MEMORY_VALUE="$(make_test_db_credential 'self-test-only' "$STAGING_DB_HOST")"
+    acquire_staging_credential 0
+    run_graph
+  )
   first_status=$?
   set -e
   [[ $first_status -eq 75 ]] || { rm -rf "$resume_state"; die "RESUME_PROBE_FIRST_EXIT:$first_status"; }
   cp "$resume_state/evidence/A02.done" "$resume_state/A02.done.valid"
   printf '%s\n' 'tampered' >> "$resume_state/evidence/A02.done"
   set +e
-  "$0" --local --state-dir "$resume_state" >/dev/null 2>&1
+  (
+    trap cleanup EXIT INT TERM HUP
+    STATE_DIR_ARG="$resume_state"; STOP_AFTER=''
+    KEYCHAIN_BACKEND='memory'; KEYCHAIN_MEMORY_PRESENT=1
+    KEYCHAIN_MEMORY_VALUE="$(make_test_db_credential 'self-test-only' "$STAGING_DB_HOST")"
+    acquire_staging_credential 0
+    run_graph
+  ) >/dev/null 2>&1
   tamper_status=$?
   set -e
   [[ $tamper_status -ne 0 ]] || { rm -rf "$resume_state"; die 'TAMPERED_RESUME_MARKER_ACCEPTED'; }
   mv "$resume_state/A02.done.valid" "$resume_state/evidence/A02.done"
-  "$0" --local --state-dir "$resume_state"
+  (
+    trap cleanup EXIT INT TERM HUP
+    STATE_DIR_ARG="$resume_state"; STOP_AFTER=''
+    KEYCHAIN_BACKEND='memory'; KEYCHAIN_MEMORY_PRESENT=1
+    KEYCHAIN_MEMORY_VALUE="$(make_test_db_credential 'self-test-only' "$STAGING_DB_HOST")"
+    acquire_staging_credential 0
+    run_graph
+  )
   rm -rf "$resume_state"
+  KEYCHAIN_BACKEND='system'; KEYCHAIN_MEMORY_PRESENT=0; KEYCHAIN_MEMORY_VALUE=''; unset GARAGE_LINK_STAGING_DB_URL
   printf '%s\n' 'SELF_TEST_PASS'
 }
 
-MODE="${1:---local}"
-shift || true
+MODE='--local'
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --local|--self-test|--dry-run) MODE="$1"; shift ;;
+    --reset-credential) RESET_CREDENTIAL=1; shift ;;
     --state-dir) STATE_DIR_ARG="${2:?state directory required}"; shift 2 ;;
     --stop-after) STOP_AFTER="${2:?checkpoint required}"; shift 2 ;;
     *) die "UNKNOWN_ARGUMENT:$1" ;;
   esac
 done
+[[ "$RESET_CREDENTIAL" == 0 || "$MODE" == --local ]] || die 'RESET_CREDENTIAL_REQUIRES_LOCAL_MODE'
 case "$MODE" in
   --dry-run) dry_run ;;
   --self-test) self_test ;;
-  --local) run_graph ;;
-  *) printf '%s\n' 'usage: run-garage-link-commercial-gate.sh [--self-test|--dry-run|--local [--state-dir DIR] [--stop-after A01..A07]]' >&2; exit 2 ;;
+  --local) acquire_staging_credential "$RESET_CREDENTIAL"; run_graph ;;
+  *) printf '%s\n' 'usage: run-garage-link-commercial-gate.sh [--self-test|--dry-run|--local] [--reset-credential] [--state-dir DIR] [--stop-after A01..A07]' >&2; exit 2 ;;
 esac

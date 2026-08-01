@@ -2,9 +2,9 @@
 
 Reviewer: independent standards/security review agent (`/root/standards_security_review`)
 Reviewed: 2026-08-01
-Scope-Manifest-SHA256: 1ece7bfa8083bb308522e7d3137664253f3e09455509f979304808d92e1005dd
+Scope-Manifest-SHA256: 557b679a660bd6488d008da50dbff85b66e935e43d50d8c305a716aa48460680
 
-The manifest and all 12 scoped file checksums matched. The review confirmed fail-closed provider and privilege checks, centralized provider identities, graph-driven execution, commit/bundle/evidence-bound HMAC resume markers, checkpoint-chain tamper rejection, final review-scope revalidation, clean worktree enforcement, an unchanged fixed commit across the gate, and safe TLS key handling without `/tmp` dependency.
+The manifest and all 12 scoped file checksums matched. The review confirmed fail-closed provider and privilege checks and the Keychain boundary. The credential is read once from hidden `/dev/tty` only when absent or explicitly reset, passed to `security` through stdin rather than argv, never written to evidence, and suppressed from output. Initial creation omits `-U`, explicit reset alone permits `-U`, and stored invalid values are neither deleted nor retried. Clipboard, Vercel environment pull, plaintext temporary storage, and Production substitution are rejected.
 
 Final: PASS
 Critical: 0
