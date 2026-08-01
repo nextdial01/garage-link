@@ -485,6 +485,17 @@
         "20260731000200"
       ],
       "checksum": "d0253d137192a8d9ede9c0bd9a921b28638c7e709d8851af859db956006b993e"
+    },
+    {
+      "version": "20260801000100",
+      "name": "free_plan_billing_state_fix",
+      "file": "../migrations/20260801000100_free_plan_billing_state_fix.sql",
+      "kind": "repair",
+      "dependsOn": [
+        "20260731000200",
+        "20260731000300"
+      ],
+      "checksum": "64909f8506601f999e8b5f90497937b4f7b8e9f4b6f8d4e2cbb6848551ca468a"
     }
   ],
   "excluded": [
@@ -505,6 +516,11 @@
     }
   ],
   "rollbacks": [
+    {
+      "version": "20260801000100",
+      "file": "../rollback/20260801000100_free_plan_billing_state_fix.down.sql",
+      "checksum": "85f18ce5fdd59cb4f0cd253832774c4199c4394b9c7e18c2d81e2b89aa02a48e"
+    },
     {
       "version": "20260731000300",
       "file": "../rollback/20260731000300_application_privilege_contract.down.sql",
