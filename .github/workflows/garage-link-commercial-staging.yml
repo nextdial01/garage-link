@@ -1,0 +1,92 @@
+name: GARAGE LINK Commercial Staging Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Immutable commit SHA deployed to the dedicated staging project
+        required: true
+        type: string
+      environment_fingerprint:
+        description: Approved non-production environment fingerprint
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: garage-link-commercial-staging
+  cancel-in-progress: false
+
+jobs:
+  commercial-staging:
+    name: Commercial staging prerequisite (not PAID_SALES_READY by itself)
+    runs-on: ubuntu-latest
+    environment: garage-link-commercial-staging
+    timeout-minutes: 45
+    env:
+      E2E_REQUIRE_BILLING: "true"
+      E2E_ALLOW_BILLING_MUTATIONS: "true"
+      E2E_CONFIRM_TEST_SUPABASE: "true"
+      E2E_MARKER: "garage-link-commercial-disposable"
+      GARAGE_BILLING_GRACE_DAYS: "0"
+      EXPECTED_RELEASE_SHA: ${{ inputs.release_sha }}
+      PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
+      E2E_EMAIL: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.GARAGE_STAGING_E2E_PASSWORD }}
+      E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
+      E2E_TEST_SUPABASE_ANON_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_ANON_KEY }}
+      E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      STRIPE_SECRET_KEY: ${{ secrets.GARAGE_STAGING_STRIPE_TEST_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.GARAGE_STAGING_STRIPE_WEBHOOK_SECRET }}
+      CRON_SECRET: ${{ secrets.GARAGE_STAGING_CRON_SECRET }}
+      VERCEL_ACCESS_TOKEN: ${{ secrets.GARAGE_STAGING_VERCEL_READ_TOKEN }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
+      STRIPE_ACCOUNT_ID: ${{ secrets.GARAGE_STAGING_STRIPE_TEST_ACCOUNT_ID }}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.GARAGE_STAGING_STRIPE_TEST_PUBLISHABLE_KEY }}
+      STRIPE_PRICE_STARTER: ${{ secrets.GARAGE_STAGING_STRIPE_STARTER_PRICE_ID }}
+      STRIPE_PRICE_STANDARD: ${{ secrets.GARAGE_STAGING_STRIPE_STANDARD_PRICE_ID }}
+      STRIPE_PRICE_PRO: ${{ secrets.GARAGE_STAGING_STRIPE_PRO_PRICE_ID }}
+      STRIPE_PRICE_EXTRA_STAFF: ${{ secrets.GARAGE_STAGING_STRIPE_EXTRA_STAFF_PRICE_ID }}
+      STRIPE_PRICE_EXTRA_STORE: ${{ secrets.GARAGE_STAGING_STRIPE_EXTRA_STORE_PRICE_ID }}
+      STRIPE_PRICE_EXTRA_STORAGE_10GB: ${{ secrets.GARAGE_STAGING_STRIPE_EXTRA_STORAGE_PRICE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_sha }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Reject an unpinned or production-like target
+        run: node apps/garage-link/scripts/verify-commercial-staging-preflight.mjs
+        env:
+          EXPECTED_RELEASE_SHA: ${{ inputs.release_sha }}
+          EXPECTED_ENVIRONMENT_FINGERPRINT: ${{ inputs.environment_fingerprint }}
+          EXPECTED_VERCEL_PROJECT_ID: ${{ secrets.GARAGE_STAGING_VERCEL_PROJECT_ID }}
+          EXPECTED_VERCEL_TEAM_ID: ${{ secrets.GARAGE_STAGING_VERCEL_TEAM_ID }}
+          EXPECTED_VERCEL_PROJECT_NAME: garage-link-staging
+          EXPECTED_STRIPE_ACCOUNT_ID: ${{ secrets.GARAGE_STAGING_STRIPE_TEST_ACCOUNT_ID }}
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @apps/garage-link test:commercial-contract-drift
+      - run: pnpm --filter @apps/garage-link exec playwright install --with-deps chromium
+      - run: pnpm --filter @apps/garage-link test:stripe-registry
+      - run: pnpm test:commercial-staging:garage-link
+
+      - name: Preserve non-PII evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: garage-link-commercial-staging-${{ inputs.release_sha }}
+          path: |
+            apps/garage-link/playwright-report
+            apps/garage-link/test-results
+          retention-days: 30
