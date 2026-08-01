@@ -110,6 +110,18 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
           .fill('1234', { timeout: 15_000 }));
         await checkoutStep('fill CVC', () => page.locator('input[autocomplete="cc-csc"]')
           .fill('123', { timeout: 15_000 }));
+        // Billing-address fields required by this Checkout configuration - left blank,
+        // clicking Subscribe only triggers client-side validation (highlighted red) and
+        // never calls Stripe's confirm-payment API, which every prior "hang" was actually
+        // silently waiting on forever once each action gained an unbounded default timeout.
+        const cardholderName = page.locator('input[autocomplete="cc-name"]');
+        if (await cardholderName.isVisible({ timeout: 5_000 }).catch(() => false)) {
+          await checkoutStep('fill cardholder name', () => cardholderName.fill('E2E Test', { timeout: 15_000 }));
+        }
+        const postalCode = page.getByLabel(/ZIP|郵便番号/i);
+        if (await postalCode.isVisible({ timeout: 5_000 }).catch(() => false)) {
+          await checkoutStep('fill postal code', () => postalCode.fill('94103', { timeout: 15_000 }));
+        }
       }
       await checkoutStep('click subscribe', () => page.getByRole('button', { name: /申し込む|Subscribe|Pay/i })
         .click({ timeout: 15_000 }));
