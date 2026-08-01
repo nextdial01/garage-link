@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import PermissionDeniedCard from '@/components/PermissionDeniedCard';
-import { canAddStore, formatGarageYen, getGaragePlan } from '@/lib/billing/garagePlans';
+import { canAddStore, formatGarageYen, GARAGE_PLANS, getGaragePlan } from '@/lib/billing/garagePlans';
 import { getActiveCompanySubscription, type CompanySubscriptionRow } from '@/lib/billing/garageSubscription';
 import { createClient } from '@/lib/supabase/client';
 import { DEFAULT_PRIMARY_TABS, PRIMARY_TAB_OPTIONS, PURCHASE_RECOGNITION_OPTIONS, SALES_RECOGNITION_OPTIONS, resolvePrimaryTabs, sanitizePrimaryTabs, type PrimaryTabKey, type PurchaseRecognitionBasis, type SalesRecognitionBasis } from '@/lib/store/uiPreferences';
@@ -346,11 +346,11 @@ export default function StoreSettingsPage() {
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-xs font-bold text-slate-500">追加料金</p>
-                <p className="mt-1 text-xl font-black text-slate-950">{formatGarageYen(5000)}/月・店舗</p>
+                <p className="mt-1 text-xl font-black text-slate-950">{formatGarageYen(GARAGE_PLANS.standard.extraStorePrice ?? 0)}/月・店舗</p>
               </div>
             </div>
             <p className="mt-4 text-sm leading-6 text-slate-500">
-              Free / Starterでは店舗追加はできません。Standard / Proでは追加店舗 {formatGarageYen(5000)}/月・店舗 で申し込めます。
+              Free / Starterでは店舗追加はできません。Standard / Proでは追加店舗 {formatGarageYen(GARAGE_PLANS.standard.extraStorePrice ?? 0)}/月・店舗 で申し込めます。
             </p>
             {!storeAdditionAllowed && (
               <Link href="/settings/billing" className="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700">

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "checkpoints": [
+    { "id": "A01", "name": "contract-target-provider", "executor": "checkpoint_contract" },
+    { "id": "A02", "name": "fresh-migration", "executor": "checkpoint_fresh" },
+    { "id": "A03", "name": "blocking-negative-gates", "executor": "checkpoint_blocking" },
+    { "id": "A04", "name": "rollback-reapply-resume", "executor": "checkpoint_rollback_reapply" },
+    { "id": "A05", "name": "current-like-upgrade", "executor": "checkpoint_upgrade" },
+    { "id": "A06", "name": "backup-restore", "executor": "checkpoint_restore" },
+    { "id": "A07", "name": "schema-pricing-final", "executor": "checkpoint_final" }
+  ],
+  "blockingClassifications": [
+    "FINGERPRINT_MISMATCH",
+    "MISSING_REQUIRED_GRANT",
+    "EXCESSIVE_GRANT",
+    "UNKNOWN",
+    "SECURITY_RELEVANT"
+  ],
+  "providerIdentities": {
+    "postgres": {
+      "image": "public.ecr.aws/supabase/postgres:17.6.1.156",
+      "digest": "sha256:ca7871b587ca2c401ac0f325df6249c9aa0d25647ded34631158efc51176767f"
+    },
+    "gotrue": {
+      "image": "public.ecr.aws/supabase/gotrue:v2.194.0",
+      "digest": "sha256:2b352c02adf11a2025cd5993c246ef85db73743553c39194d2b1862d1cc4d1fd"
+    },
+    "storage": {
+      "image": "public.ecr.aws/supabase/storage-api:v1.60.20",
+      "digest": "sha256:21433097b2b1874671d82df2e328b1752d89af534fbb0aa17c02420c77eb5490"
+    }
+  }
+}

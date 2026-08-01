@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import PermissionDeniedCard from '@/components/PermissionDeniedCard';
 import { logAudit } from '@/lib/audit/logAudit';
-import { canAddStaff, formatGarageYen } from '@/lib/billing/garagePlans';
+import { canAddStaff, formatGarageYen, GARAGE_PLANS } from '@/lib/billing/garagePlans';
 import { getActiveCompanySubscription, type CompanySubscriptionRow } from '@/lib/billing/garageSubscription';
 import { createClient } from '@/lib/supabase/client';
 
@@ -398,7 +398,7 @@ export default function MemberSettingsPage() {
             <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
               <h3 className="text-base font-bold text-slate-950">スタッフ追加のプラン制限</h3>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Freeプランではスタッフ追加はできません。Starter以上では追加スタッフ {formatGarageYen(1000)}/月・名 で申し込めます。
+                Freeプランではスタッフ追加はできません。Starter以上では追加スタッフ {formatGarageYen(GARAGE_PLANS.starter.extraStaffPrice ?? 0)}/月・名 で申し込めます。
               </p>
               {!canAddStaff(subscription) && (
                 <Link href="/settings/billing" className="mt-4 inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700">

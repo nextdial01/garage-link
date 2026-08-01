@@ -91,11 +91,11 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
       },
       {
         title: "追加が必要になったときの料金",
-        description: "スタッフや店舗を増やす場合と、個別支援を依頼する場合の費用です。",
+        description: "スタッフ、店舗、保存容量を増やす場合の月額料金です。",
         items: [
           { title: "追加スタッフ｜月額1,100円／人", body: "追加できる対象プランで、店舗の運用人数に合わせて増やせます。" },
           { title: "追加店舗｜月額5,500円／店舗", body: "Standard・Proで、契約に含まれる店舗数を超える場合に追加できます。" },
-          { title: "個別サポート｜60分11,000円", body: "画面を共有した個別支援の料金です。通常のチャットサポートは各プランに含まれます。" },
+          { title: "追加ストレージ｜月額550円／10GB", body: "Starter・Standard・Proで、必要な保存容量を10GB単位で追加できます。" },
         ],
       },
     ],

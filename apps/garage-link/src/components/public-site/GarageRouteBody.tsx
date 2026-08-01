@@ -59,7 +59,7 @@ function PricingBody() {
         <div className={styles.costRows}>
           <div className={styles.costRow}><strong>追加スタッフ</strong><b>月額1,100円／人</b><p>対象プランで、店舗の利用人数に合わせて追加できます。</p></div>
           <div className={styles.costRow}><strong>追加店舗</strong><b>月額5,500円／店舗</b><p>Standard・Proで、契約に含まれる店舗数を超える場合に追加できます。</p></div>
-          <div className={styles.costRow}><strong>個別サポート</strong><b>60分11,000円</b><p>画面共有による個別支援です。通常のチャットサポートは各プランに含まれます。</p></div>
+          <div className={styles.costRow}><strong>追加ストレージ</strong><b>月額550円／10GB</b><p>Starter・Standard・Proで、必要な保存容量を10GB単位で追加できます。</p></div>
         </div>
       </div></section>
     </div>
