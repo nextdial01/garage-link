@@ -33,6 +33,7 @@ const PUBLIC_PATHS = [
 
 const CANCELLED_RETENTION_ALLOWED = [
   '/settings/billing',
+  '/onboarding',
   '/logout',
 ];
 
