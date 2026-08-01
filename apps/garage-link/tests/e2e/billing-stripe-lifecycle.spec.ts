@@ -26,6 +26,11 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
     );
     const runNonce = crypto.randomUUID();
     const marker = `garage-link-commercial-e2e:${required('EXPECTED_RELEASE_SHA').slice(0, 12)}:${runNonce}`;
+    // Stripe Checkout's Link network recognizes a repeated email address across runs and
+    // offers a saved-card "Pay securely with Link" challenge that a scripted fill+click can
+    // never satisfy, hanging the Subscribe button in "Processing" forever. A per-run unique
+    // email keeps every run a fresh, unrecognized Link identity.
+    const checkoutEmail = `garage-link-e2e+${runNonce}@example.invalid`;
     let customerId: string | null = null;
     let subscriptionId: string | null = null;
     let clockId: string | null = null;
@@ -84,16 +89,19 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
       await expect(page.getByText(new RegExp(gross.toLocaleString('ja-JP'))).first()).toBeVisible();
     };
     const completeCheckout = async (url: string) => {
+      console.info(`[e2e:checkout] navigating to Stripe Checkout`);
       await page.goto(url);
-      await page.getByLabel(/メール|Email/i).fill('garage-link-e2e@example.invalid').catch(() => undefined);
+      await page.getByLabel(/メール|Email/i).fill(checkoutEmail).catch(() => undefined);
       const cardNumber = page.getByLabel(/カード番号|Card number/i);
       if (await cardNumber.isVisible().catch(() => false)) {
         await cardNumber.fill('4242424242424242');
         await page.getByLabel(/有効期限|Expiration/i).fill('1234');
         await page.getByLabel(/セキュリティコード|CVC/i).fill('123');
       }
+      console.info(`[e2e:checkout] submitting payment`);
       await page.getByRole('button', { name: /申し込む|Subscribe|Pay/i }).click();
-      await page.waitForURL(/checkout=success/);
+      await page.waitForURL(/checkout=success/, { timeout: 30_000 });
+      console.info(`[e2e:checkout] checkout=success reached`);
     };
     // 同時契約変更レース(runMutationRace)は今回のスコープ外（上記参照）のため削除。
 
@@ -109,7 +117,7 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         clockId = clock.id;
         const customer = await stripe.customers.create({
           test_clock: clock.id,
-          email: 'garage-link-e2e@example.invalid',
+          email: checkoutEmail,
           metadata: { marker, disposable: 'true' },
         });
         customerId = customer.id;
