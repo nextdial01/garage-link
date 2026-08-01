@@ -122,6 +122,15 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         if (await postalCode.isVisible({ timeout: 5_000 }).catch(() => false)) {
           await checkoutStep('fill postal code', () => postalCode.fill('94103', { timeout: 15_000 }));
         }
+        // While checked (the default), Stripe Link additionally requires a phone number
+        // before Subscribe will submit. Unchecking it removes that requirement entirely -
+        // this is genuinely the blocker (confirmed via screenshot: phone number field was
+        // highlighted red/required), not the earlier disproven theories about Link causing
+        // an unrecoverable client-side hang.
+        const saveForLink = page.getByRole('checkbox', { name: /Save my information for faster checkout|より安全・簡単に購入手続き/i });
+        if (await saveForLink.isChecked({ timeout: 5_000 }).catch(() => false)) {
+          await checkoutStep('uncheck save-for-link', () => saveForLink.uncheck({ timeout: 15_000 }));
+        }
       }
       await checkoutStep('click subscribe', () => page.getByRole('button', { name: /申し込む|Subscribe|Pay/i })
         .click({ timeout: 15_000 }));
