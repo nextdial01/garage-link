@@ -27,6 +27,7 @@ export type ContractAccess = {
 
 const CANCELLED_ALLOWED_PATHS = [
   '/settings/billing',
+  '/onboarding',
   '/logout',
   '/legal/terms',
   '/legal/privacy',
