@@ -76,9 +76,16 @@ if (process.env.STRIPE_ACCOUNT_ID !== process.env.EXPECTED_STRIPE_ACCOUNT_ID) {
   throw new Error('Stripe account fingerprint mismatch.');
 }
 
+const bypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
 const runtimeResponse = await fetch(
   new URL('/api/commercial-staging-fingerprint', baseUrl),
-  { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } },
+  {
+    headers: {
+      Authorization: `Bearer ${process.env.CRON_SECRET}`,
+      // Preview deployments sit behind Vercel SSO Deployment Protection.
+      ...(bypassSecret ? { 'x-vercel-protection-bypass': bypassSecret } : {}),
+    },
+  },
 );
 if (!runtimeResponse.ok) throw new Error('Deployed application fingerprint attestation failed.');
 const runtime = await runtimeResponse.json();
