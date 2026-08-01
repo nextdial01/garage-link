@@ -84,6 +84,31 @@ export async function clickButtonByCandidates(page: Page, candidates: (string | 
   await button.click();
 }
 
+const previewOtpPattern = /Preview QA確認コード[:：]\s*(\d{6})/;
+
+// 管理者メールOTPゲート（/security/email-otp）を通過する。previewOtp はPreview環境の
+// release-QAフィクスチャでのみ返る値で、実メール送信を待たずにE2Eを完走させる。
+// 本番や release-QA 以外のアカウントではこの値は返らず、E2E は明示的に失敗する。
+async function completeAdminEmailOtpIfPresent(page: Page) {
+  if (!/\/security\/email-otp(\?|$)/.test(page.url())) return;
+
+  const codeMatch = await page
+    .locator('body')
+    .innerText()
+    .then((text) => text.match(previewOtpPattern));
+  if (!codeMatch) {
+    throw new Error(
+      '管理者メールOTP画面でpreviewOtpを取得できませんでした。' +
+        'VERCEL_ENV=preview、GARAGE_PREVIEW_OTP_SINK_SECRET、release-QA fixture要件を確認してください。',
+    );
+  }
+
+  await fillField(page, { labels: ['メールに届いた6桁コード'] }, codeMatch[1]);
+  await clickButtonByCandidates(page, [/この端末を承認する/]);
+  await page.waitForLoadState('networkidle');
+  await assertNoAppError(page);
+}
+
 export async function login(page: Page) {
   if (!hasE2ECredentials) {
     throw new Error('E2E_EMAIL and E2E_PASSWORD are required.');
@@ -94,5 +119,6 @@ export async function login(page: Page) {
   await fillField(page, { labels: ['パスワード'], names: ['password'] }, process.env.E2E_PASSWORD ?? '');
   await clickButtonByCandidates(page, [/ログイン/]);
   await page.waitForLoadState('networkidle');
+  await completeAdminEmailOtpIfPresent(page);
   await assertNoAppError(page);
 }
