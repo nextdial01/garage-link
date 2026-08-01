@@ -53,6 +53,9 @@ function isPublicPath(pathname: string) {
   // CRON_SECRETのBearer認証を各ルート自身で行うため、ここで先に401にしない。
   if (pathname.startsWith('/api/jobs/')) return true;
   if (pathname.startsWith('/api/cron/')) return true;
+  // 非本番環境の provenance 確認用。CRON_SECRET のBearer認証をルート自身で行い、
+  // 本番判定時は404を返すため、ここでセッション必須にしない。
+  if (pathname === '/api/commercial-staging-fingerprint') return true;
   return false;
 }
 
