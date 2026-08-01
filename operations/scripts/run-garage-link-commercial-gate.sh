@@ -153,7 +153,7 @@ start_db() {
   fi
   docker run --pull=never --name "$name" -e POSTGRES_PASSWORD="$PASSWORD" -p 127.0.0.1::5432 \
     -v "$CERT_DIR:/garage-cert:ro" --entrypoint sh -d "$POSTGRES_IMAGE" -c \
-    'cp /garage-cert/server.key /tmp/garage-server.key; cp /garage-cert/server.crt /tmp/garage-server.crt; chown postgres:postgres /tmp/garage-server.key /tmp/garage-server.crt; chmod 600 /tmp/garage-server.key; exec docker-entrypoint.sh postgres -D /etc/postgresql -c ssl=on -c ssl_cert_file=/tmp/garage-server.crt -c ssl_key_file=/tmp/garage-server.key' >/dev/null
+    'cp /garage-cert/server.key /var/lib/postgresql/garage-server.key; cp /garage-cert/server.crt /var/lib/postgresql/garage-server.crt; chown postgres:postgres /var/lib/postgresql/garage-server.key /var/lib/postgresql/garage-server.crt; chmod 600 /var/lib/postgresql/garage-server.key; exec docker-entrypoint.sh postgres -D /etc/postgresql -c ssl=on -c ssl_cert_file=/var/lib/postgresql/garage-server.crt -c ssl_key_file=/var/lib/postgresql/garage-server.key' >/dev/null
   for _ in $(seq 1 180); do
     [[ "$(docker inspect "$name" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null)" == healthy ]] && return
     if [[ "$(docker inspect "$name" --format '{{.State.Running}}' 2>/dev/null || true)" == false ]]; then
