@@ -34,6 +34,10 @@ async function main() {
   const results = [];
 
   for (const item of expected) {
+    // add-on (staff/store/storage) prices are out of scope while the add-on
+    // purchase flow is disabled for initial sale (see change-options/route.ts) -
+    // no approved test Price exists to verify against yet.
+    if (item.item.startsWith('extra_') && !process.env[item.env]?.trim()) continue;
     const priceId = required(item.env);
     const price = await stripe.prices.retrieve(priceId, { expand: ['product'] });
     const product = typeof price.product === 'string' ? null : price.product;
