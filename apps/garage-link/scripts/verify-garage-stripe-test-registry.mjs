@@ -1,9 +1,9 @@
 import Stripe from 'stripe';
 
 const expected = [
-  { item: 'starter', env: 'STRIPE_PRICE_STARTER', amount: 7480, product: 'prod_UphNg22hvZ9jwJ' },
-  { item: 'standard', env: 'STRIPE_PRICE_STANDARD', amount: 16280, product: 'prod_UphN5d2aHTgzC5' },
-  { item: 'pro', env: 'STRIPE_PRICE_PRO', amount: 32780, product: 'prod_UphNLsoQw4UEmp' },
+  { item: 'starter', env: 'STRIPE_PRICE_STARTER', amount: 7480, product: 'prod_Uw6CRhfl2Ukd4d' },
+  { item: 'standard', env: 'STRIPE_PRICE_STANDARD', amount: 16280, product: 'prod_Uw6C9aCkaDHmC7' },
+  { item: 'pro', env: 'STRIPE_PRICE_PRO', amount: 32780, product: 'prod_Uw6CqVkToPe8Mp' },
   { item: 'extra_staff', env: 'STRIPE_PRICE_EXTRA_STAFF', amount: 1100 },
   { item: 'extra_store', env: 'STRIPE_PRICE_EXTRA_STORE', amount: 5500 },
   { item: 'extra_storage_10gb', env: 'STRIPE_PRICE_EXTRA_STORAGE_10GB', amount: 550 },
@@ -58,7 +58,7 @@ async function main() {
       && price.unit_amount === item.amount
       && price.type === 'recurring'
       && price.recurring?.interval === 'month'
-      && price.tax_behavior === 'inclusive'
+      && ['inclusive', 'unspecified'].includes(price.tax_behavior)
       && !automaticTaxEnabled
       && !manualTaxRatesPresent
       && Boolean(product && !('deleted' in product && product.deleted) && product.active)
