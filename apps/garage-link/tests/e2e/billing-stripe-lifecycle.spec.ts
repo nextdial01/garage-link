@@ -98,14 +98,6 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         await page.getByLabel(/有効期限|Expiration/i).fill('1234');
         await page.getByLabel(/セキュリティコード|CVC/i).fill('123');
       }
-      // Stripe Link's "save my information" enrollment (checked by default) triggers a
-      // phone/email verification step server-side after Subscribe is clicked, which a
-      // scripted click can never satisfy - the button spins in "Processing" forever.
-      // Unchecking it keeps this a plain card payment with no Link enrollment.
-      const saveForLink = page.getByRole('checkbox', { name: /Save my information for faster checkout|より安全・簡単に購入手続き/i });
-      if (await saveForLink.isChecked().catch(() => false)) {
-        await saveForLink.uncheck().catch(() => undefined);
-      }
       console.info(`[e2e:checkout] submitting payment`);
       await page.getByRole('button', { name: /申し込む|Subscribe|Pay/i }).click();
       await page.waitForURL(/checkout=success/, { timeout: 30_000 });

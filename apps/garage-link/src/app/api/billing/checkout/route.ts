@@ -207,6 +207,11 @@ export async function POST(request: Request) {
       mode: 'subscription',
       automatic_tax: { enabled: false },
       integration_identifier: createIntegrationIdentifier(),
+      // Link was never an explicitly verified purchase path (unlike add-ons, disabled
+      // for the same reason). Restricting to card avoids Stripe's Link enrollment/
+      // verification flow entirely, which was observed to hang indefinitely for a
+      // real submitted Checkout session (no payment_intent was ever created).
+      payment_method_types: ['card'],
       ...customerParams,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/settings/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
