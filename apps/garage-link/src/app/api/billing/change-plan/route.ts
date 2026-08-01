@@ -161,6 +161,15 @@ export async function POST(request: Request) {
         })
         .eq('id', subscription.id);
       if (subscriptionUpdateError) throw new Error('subscription_schedule_failed');
+    } else {
+      // アップグレードは即時反映されるため、過去に予約された下位プランへの
+      // スケジュール変更(pending_plan)は無効化する。消さないと、次回請求日到達時に
+      // webhookが古いpending_planを読み、今回のアップグレードを黙って上書きしてしまう。
+      const { error: clearScheduleError } = await admin
+        .from('company_subscriptions')
+        .update({ pending_plan: null, pending_plan_effective_at: null })
+        .eq('id', subscription.id);
+      if (clearScheduleError) throw new Error('subscription_schedule_clear_failed');
     }
 
     const { error: requestInsertError } = await admin.from('plan_change_requests').insert({
