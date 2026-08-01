@@ -24,6 +24,19 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
       required('E2E_TEST_SUPABASE_SERVICE_ROLE_KEY'),
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
+    // service_role has zero grants on `vehicles` (least-privilege boundary, same as
+    // `stores`) - quota enforcement must be checked as the real signed-in store member
+    // would see it, via RLS, not via the admin/service-role client.
+    const asUser = createClient(
+      required('E2E_TEST_SUPABASE_URL'),
+      required('E2E_TEST_SUPABASE_ANON_KEY'),
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+    const { error: userSignInError } = await asUser.auth.signInWithPassword({
+      email: required('E2E_EMAIL'),
+      password: required('E2E_PASSWORD'),
+    });
+    if (userSignInError) throw new Error(`e2e_user_supabase_signin_failed: ${userSignInError.message}`);
     const runNonce = crypto.randomUUID();
     const marker = `garage-link-commercial-e2e:${required('EXPECTED_RELEASE_SHA').slice(0, 12)}:${runNonce}`;
     // Stripe Checkout's Link network recognizes a repeated email address across runs and
@@ -35,6 +48,7 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
     let subscriptionId: string | null = null;
     let clockId: string | null = null;
     let quotaStoreId: string | null = null;
+    let primaryError: unknown;
     const checkoutSessionIds = new Set<string>();
     const subscriptionIds = new Set<string>();
     const invoiceIds = new Set<string>();
@@ -201,9 +215,9 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
           .eq('plan', 'starter').single();
         expect(contractError).toBeNull();
         expect(contract?.inventory_limit).toBe(50);
-        await admin.from('vehicles').delete().eq('store_id', quotaStoreId!)
+        await asUser.from('vehicles').delete().eq('store_id', quotaStoreId!)
           .like('management_no', `${quotaPrefix}%`);
-        const { data: existingVehicles, error: countError } = await admin.from('vehicles')
+        const { data: existingVehicles, error: countError } = await asUser.from('vehicles')
           .select('id,status,deleted_at,is_archived').eq('store_id', quotaStoreId!);
         expect(countError).toBeNull();
         const inactive = new Set(['売却済み', '納車済み', 'sold', 'delivered', 'archived', 'deleted']);
@@ -213,7 +227,7 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         expect(activeCount).toBeLessThanOrEqual(49);
         const seedCount = 49 - activeCount;
         if (seedCount > 0) {
-          const { error } = await admin.from('vehicles').insert(
+          const { error } = await asUser.from('vehicles').insert(
             Array.from({ length: seedCount }, (_, index) => ({
               store_id: quotaStoreId,
               management_no: `${quotaPrefix}-SEED-${index}`,
@@ -223,7 +237,7 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
           expect(error).toBeNull();
         }
         const attempts = await Promise.all(
-          [1, 2].map((index) => admin.from('vehicles').insert({
+          [1, 2].map((index) => asUser.from('vehicles').insert({
             store_id: quotaStoreId,
             management_no: `${quotaPrefix}-RACE-${index}`,
             status: 'in_stock',
@@ -497,39 +511,51 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
         expect(result.dead_letter).toBe(0);
         expect(result.failed).toBe(0);
       });
+    } catch (error) {
+      primaryError = error;
     } finally {
-      if (quotaStoreId) {
-        const { error } = await admin.from('vehicles').delete().eq('store_id', quotaStoreId)
-          .like('management_no', `${quotaPrefix}%`);
-        if (error) throw new Error('quota_fixture_teardown_failed');
+      // A cleanup failure here must never overwrite whatever the try block actually
+      // threw - two earlier runs each surfaced a generic cleanup error ("customerId
+      // null", "quota_fixture_teardown_failed") while masking the real assertion
+      // failure that happened first, costing a full diagnostic cycle each time.
+      try {
+        if (quotaStoreId) {
+          const { error } = await asUser.from('vehicles').delete().eq('store_id', quotaStoreId)
+            .like('management_no', `${quotaPrefix}%`);
+          if (error) throw new Error(`quota_fixture_teardown_failed: ${error.message}`);
+        }
+        for (const trackedSubscriptionId of subscriptionIds) {
+          const subscription = await stripe.subscriptions.retrieve(trackedSubscriptionId);
+          if (subscription.status !== 'canceled') await stripe.subscriptions.cancel(trackedSubscriptionId);
+        }
+        for (const trackedSessionId of checkoutSessionIds) {
+          const session = await stripe.checkout.sessions.retrieve(trackedSessionId);
+          if (session.status === 'open') await stripe.checkout.sessions.expire(trackedSessionId);
+          else expect(['complete', 'expired']).toContain(session.status);
+        }
+        for (const trackedInvoiceId of invoiceIds) {
+          const invoice = await stripe.invoices.retrieve(trackedInvoiceId);
+          if (invoice.status === 'draft') await stripe.invoices.del(trackedInvoiceId);
+          else expect(['paid', 'void', 'uncollectible']).toContain(invoice.status);
+        }
+        expect(customerId).toBeTruthy();
+        const remaining = await stripe.subscriptions.list({ customer: customerId!, status: 'all' });
+        expect(remaining.data.filter((subscription) => subscription.status !== 'canceled')).toHaveLength(0);
+        if (customerId) await stripe.customers.del(customerId);
+        if (clockId) await stripe.testHelpers.testClocks.del(clockId);
+        console.info(JSON.stringify({
+          teardown: 'garage_commercial_marker',
+          active_subscriptions: 0,
+          checkout_sessions_terminal: checkoutSessionIds.size,
+          invoices_terminal_or_deleted: invoiceIds.size,
+          customer_deleted: Boolean(customerId),
+          test_clock_deleted: Boolean(clockId),
+        }));
+      } catch (cleanupError) {
+        console.error(`[e2e:cleanup] cleanup failed: ${cleanupError instanceof Error ? cleanupError.message : cleanupError}`);
+        if (!primaryError) primaryError = cleanupError;
       }
-      for (const trackedSubscriptionId of subscriptionIds) {
-        const subscription = await stripe.subscriptions.retrieve(trackedSubscriptionId);
-        if (subscription.status !== 'canceled') await stripe.subscriptions.cancel(trackedSubscriptionId);
-      }
-      for (const trackedSessionId of checkoutSessionIds) {
-        const session = await stripe.checkout.sessions.retrieve(trackedSessionId);
-        if (session.status === 'open') await stripe.checkout.sessions.expire(trackedSessionId);
-        else expect(['complete', 'expired']).toContain(session.status);
-      }
-      for (const trackedInvoiceId of invoiceIds) {
-        const invoice = await stripe.invoices.retrieve(trackedInvoiceId);
-        if (invoice.status === 'draft') await stripe.invoices.del(trackedInvoiceId);
-        else expect(['paid', 'void', 'uncollectible']).toContain(invoice.status);
-      }
-      expect(customerId).toBeTruthy();
-      const remaining = await stripe.subscriptions.list({ customer: customerId!, status: 'all' });
-      expect(remaining.data.filter((subscription) => subscription.status !== 'canceled')).toHaveLength(0);
-      if (customerId) await stripe.customers.del(customerId);
-      if (clockId) await stripe.testHelpers.testClocks.del(clockId);
-      console.info(JSON.stringify({
-        teardown: 'garage_commercial_marker',
-        active_subscriptions: 0,
-        checkout_sessions_terminal: checkoutSessionIds.size,
-        invoices_terminal_or_deleted: invoiceIds.size,
-        customer_deleted: Boolean(customerId),
-        test_clock_deleted: Boolean(clockId),
-      }));
     }
+    if (primaryError) throw primaryError;
   });
 });
