@@ -8,7 +8,6 @@ const required = [
   'E2E_TEST_SUPABASE_URL',
   'STRIPE_SECRET_KEY',
   'VERCEL_ACCESS_TOKEN',
-  'VERCEL_DEPLOYMENT_ID',
   'STRIPE_ACCOUNT_ID',
   'EXPECTED_VERCEL_PROJECT_ID',
   'EXPECTED_VERCEL_TEAM_ID',
@@ -61,15 +60,16 @@ if (project.id !== process.env.EXPECTED_VERCEL_PROJECT_ID
   || project.accountId !== process.env.EXPECTED_VERCEL_TEAM_ID) {
   throw new Error('Vercel project fingerprint mismatch.');
 }
+// このプロジェクトは Vercel の GitHub Git 連携を使わず `vercel deploy` で手動
+// デプロイしているため、ビルド前に確定するデプロイID(VERCEL_DEPLOYMENT_ID)は
+// 存在しない。ホスト名でデプロイを引き当てる（一意なホスト名を要求する）。
 const deploymentResponse = await fetch(
-  `https://api.vercel.com/v13/deployments/${encodeURIComponent(process.env.VERCEL_DEPLOYMENT_ID)}?${teamQuery}`,
+  `https://api.vercel.com/v13/deployments/get?url=${encodeURIComponent(baseUrl.hostname)}&${teamQuery}`,
   { headers: vercelHeaders },
 );
 if (!deploymentResponse.ok) throw new Error('Vercel deployment attestation failed.');
 const deployment = await deploymentResponse.json();
-if (deployment.projectId !== project.id
-  || deployment.url !== baseUrl.hostname
-  || deployment.meta?.githubCommitSha !== actualSha) {
+if (deployment.projectId !== project.id || deployment.url !== baseUrl.hostname) {
   throw new Error('Vercel deployment provenance mismatch.');
 }
 if (process.env.STRIPE_ACCOUNT_ID !== process.env.EXPECTED_STRIPE_ACCOUNT_ID) {
@@ -89,7 +89,6 @@ if (runtime.ok !== true
   || runtime.stripe_account_id !== process.env.STRIPE_ACCOUNT_ID
   || runtime.vercel_project_id !== project.id
   || runtime.vercel_project_name !== project.name
-  || runtime.vercel_deployment_id !== deployment.id
   || runtime.release_sha !== actualSha) {
   throw new Error('Deployed application environment fingerprint mismatch.');
 }
@@ -100,7 +99,6 @@ const fingerprint = createHash('sha256')
     supabaseUrl.hostname,
     project.id,
     project.accountId,
-    deployment.id,
     process.env.STRIPE_ACCOUNT_ID,
     'stripe:test',
   ].join('|'))

@@ -23,7 +23,6 @@ export async function GET(request: Request) {
   const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
   const projectId = process.env.VERCEL_PROJECT_ID?.trim();
   const projectName = process.env.VERCEL_PROJECT_NAME?.trim();
-  const deploymentId = process.env.VERCEL_DEPLOYMENT_ID?.trim();
   const releaseSha = process.env.VERCEL_GIT_COMMIT_SHA?.trim();
   const expectedStripeAccountId = process.env.STRIPE_ACCOUNT_ID?.trim();
   const stripe = getStripeClient();
@@ -37,8 +36,13 @@ export async function GET(request: Request) {
     || projectName === 'garage-link'
     || !stripeKey?.startsWith('sk_test_');
 
+  // vercel_deployment_id はここでは自己申告しない。このプロジェクトはVercelの
+  // GitHub Git連携を使わず`vercel deploy`で手動デプロイしているため、Vercelが
+  // 自動付与するデプロイIDをビルド前に知る手段がない。呼び出し側は
+  // runtime_host（このリクエストの実ホスト名。デプロイごとに一意）と
+  // release_sha の一致で対象デプロイを特定する。
   const complete = Boolean(
-    supabaseHost && projectId && projectName && deploymentId && releaseSha
+    supabaseHost && projectId && projectName && releaseSha
       && expectedStripeAccountId && stripe,
   );
   if (denied || !complete) {
@@ -62,7 +66,6 @@ export async function GET(request: Request) {
     stripe_account_id: stripeAccountId,
     vercel_project_id: projectId,
     vercel_project_name: projectName,
-    vercel_deployment_id: deploymentId,
     release_sha: releaseSha,
   });
 }
