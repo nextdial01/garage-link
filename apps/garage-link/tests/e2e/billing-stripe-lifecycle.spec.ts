@@ -33,7 +33,7 @@ const invoiceIds = new Set<string>();
 let quotaPrefix: string;
 
 const readDbSubscription = async () => admin.from('company_subscriptions')
-  .select('company_id,tenant_id,plan,billing_state,stripe_status,grace_ends_at,stripe_customer_id,stripe_subscription_id')
+  .select('company_id,tenant_id,plan,billing_state,stripe_status,grace_ends_at,stripe_customer_id,stripe_subscription_id,pending_plan,pending_plan_effective_at')
   .eq('tenant_id', tenantId)
   .order('updated_at', { ascending: false })
   .limit(1)
@@ -422,19 +422,18 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
         data: { plan: 'starter', termsAccepted: true },
       });
       expectAccepted(response);
-      // Unlike upgrades, a downgrade only *schedules* the plan change
-      // (pending_plan/pending_plan_effective_at) rather than applying it inline - but the
-      // handler still computes pending_plan_effective_at from the subscription's
-      // current_period_end asynchronously, tracked by the same billing_sync_operations
-      // row as upgrades. Advancing the test clock before that row reaches 'completed' (as
-      // CP5/CP6 already wait for) raced the handler's own read of current_period_end
-      // against advanceBillingPeriod()'s clock jump: the handler could read the
-      // *already-advanced* period end and schedule a full cycle late.
-      await waitFor(async () => {
-        const { data } = await admin.from('billing_sync_operations').select('status')
-          .eq('idempotency_key', `${marker}:downgrade`).maybeSingle();
-        return data?.status === 'completed';
-      }, 'downgrade operation completed');
+      // Unlike upgrades, a downgrade only *schedules* the plan change - but
+      // /api/billing/change-plan writes pending_plan/pending_plan_effective_at
+      // synchronously inside the same request that returns this response (it reads
+      // current_period_end and writes the schedule before responding), so by the time
+      // expectAccepted() returns, the schedule is already committed. billing_sync_operations
+      // only reaches 'completed' later, via whatever webhook happens to arrive next for
+      // this subscription (observed anywhere from ~2s to ~100s later) - it is not a signal
+      // that the schedule write happened, so waiting on it here was both unnecessary and
+      // unreliably slow. Verify the schedule directly instead.
+      await waitFor(async () => (await readDbSubscription()).data?.pending_plan === 'starter',
+        'downgrade scheduled (pending_plan written)');
+      console.info(`[checkpoint:7] pending_plan_effective_at=${(await readDbSubscription()).data?.pending_plan_effective_at}`);
       await advanceBillingPeriod();
       await waitFor(async () => (await readDbSubscription()).data?.plan === 'starter', 'downgrade landed on starter');
       await expectLatestPaidGross(7480);
