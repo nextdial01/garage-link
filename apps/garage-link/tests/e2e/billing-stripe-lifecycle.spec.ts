@@ -625,6 +625,10 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
     }
     const remaining = await stripe.subscriptions.list({ customer: customerId!, status: 'all' });
     expect(remaining.data.filter((subscription) => subscription.status !== 'canceled')).toHaveLength(0);
+    // Same reasoning as the subscriptions above: checkpoint 4's quota-limit seed vehicles
+    // are only deleted by afterAll, which hasn't run yet at this point.
+    await asUser.from('vehicles').delete().eq('store_id', storeId)
+      .like('management_no', `${quotaPrefix}%`);
     const { count } = await asUser.from('vehicles')
       .select('id', { count: 'exact', head: true })
       .eq('store_id', storeId)
