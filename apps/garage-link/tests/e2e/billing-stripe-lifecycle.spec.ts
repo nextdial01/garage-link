@@ -463,6 +463,10 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
     await stripe.customers.update(customerId!, {
       invoice_settings: { default_payment_method: paymentMethod.id },
     });
+    // The subscription's own default_payment_method (set when checkout completed)
+    // takes precedence over the customer-level default above - invoices keep charging
+    // the original card unless this is updated too.
+    await stripe.subscriptions.update(subscriptionId!, { default_payment_method: paymentMethod.id });
     await advanceBillingPeriod();
     await waitFor(async () => {
       const subscription = await stripe.subscriptions.retrieve(subscriptionId!, {
@@ -483,6 +487,7 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
     await stripe.customers.update(customerId!, {
       invoice_settings: { default_payment_method: recoveryMethod.id },
     });
+    await stripe.subscriptions.update(subscriptionId!, { default_payment_method: recoveryMethod.id });
     const subscription = await stripe.subscriptions.retrieve(subscriptionId!);
     const invoiceId = typeof subscription.latest_invoice === 'string'
       ? subscription.latest_invoice
