@@ -132,8 +132,15 @@ export async function processGarageStripeEvent(event: Stripe.Event) {
     customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
     await linkCheckoutOperation(session, subscriptionId);
   } else if (event.type.startsWith('invoice.')) {
-    invoiceId = (object as Stripe.Invoice).id;
-    if (event.type === 'invoice.paid') scheduledPlan = await applyScheduledPlanIfDue(subscriptionId!, event.created * 1000);
+    const invoice = object as Stripe.Invoice;
+    invoiceId = invoice.id;
+    // event.created is when Stripe's webhook system generated the notification - always
+    // real wall-clock time, even for a subscription driven by a test clock. A test clock's
+    // "frozen_time" instead becomes the effective now() for objects created under it, so
+    // the invoice's own `created` (not the event wrapper's) is what actually reflects the
+    // simulated time and is comparable to pending_plan_effective_at (itself derived from
+    // a test-clock-controlled current_period_end).
+    if (event.type === 'invoice.paid') scheduledPlan = await applyScheduledPlanIfDue(subscriptionId!, invoice.created * 1000);
   } else if (event.type === 'customer.subscription.deleted') {
     deletedSnapshot = object as Stripe.Subscription;
   }
