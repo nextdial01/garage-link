@@ -451,10 +451,15 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
       return;
     }
 
-    const paymentMethod = await stripe.paymentMethods.create({
-      type: 'card', card: { token: 'tok_chargeCustomerFail' }, metadata: { marker },
+    // pm_card_chargeCustomerFail is a fixed Stripe test-mode PaymentMethod id (not
+    // something we create): it attaches successfully but every subsequent charge for
+    // this customer is declined. The legacy `tok_chargeCustomerFail` token wrapped in
+    // paymentMethods.create() attaches fine too, but does NOT carry the decline
+    // behavior through to PaymentIntent-based subscription invoices - only this
+    // dedicated PaymentMethod id does.
+    const paymentMethod = await stripe.paymentMethods.attach('pm_card_chargeCustomerFail', {
+      customer: customerId!,
     });
-    await stripe.paymentMethods.attach(paymentMethod.id, { customer: customerId! });
     await stripe.customers.update(customerId!, {
       invoice_settings: { default_payment_method: paymentMethod.id },
     });
