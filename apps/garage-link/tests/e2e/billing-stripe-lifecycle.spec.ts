@@ -454,6 +454,7 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
     const paymentMethod = await stripe.paymentMethods.create({
       type: 'card', card: { token: 'tok_chargeCustomerFail' }, metadata: { marker },
     });
+    await stripe.paymentMethods.attach(paymentMethod.id, { customer: customerId! });
     await stripe.customers.update(customerId!, {
       invoice_settings: { default_payment_method: paymentMethod.id },
     });
@@ -473,6 +474,7 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
     const recoveryMethod = await stripe.paymentMethods.create({
       type: 'card', card: { token: 'tok_visa' }, metadata: { marker },
     });
+    await stripe.paymentMethods.attach(recoveryMethod.id, { customer: customerId! });
     await stripe.customers.update(customerId!, {
       invoice_settings: { default_payment_method: recoveryMethod.id },
     });

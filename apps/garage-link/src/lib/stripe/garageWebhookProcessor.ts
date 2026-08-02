@@ -63,14 +63,6 @@ async function linkCheckoutOperation(session: Stripe.Checkout.Session, subscript
   if (error) throw new Error('checkout_operation_subscription_link_failed');
 }
 
-async function diagLog(admin: ReturnType<typeof createAdminClient>, note: string, detail: unknown) {
-  try {
-    await admin?.from('_diag_scheduled_plan').insert({ note, detail: detail as object });
-  } catch {
-    // best-effort diagnostic only
-  }
-}
-
 async function applyScheduledPlanIfDue(subscriptionId: string, asOfMs: number) {
   const admin = createAdminClient();
   const stripe = getStripeClient();
@@ -79,20 +71,14 @@ async function applyScheduledPlanIfDue(subscriptionId: string, asOfMs: number) {
     .select('id, company_id, pending_plan, pending_plan_effective_at')
     .eq('stripe_subscription_id', subscriptionId)
     .maybeSingle();
-  if (error) {
-    await diagLog(admin, 'lookup_error', { subscriptionId, error });
-    throw new Error('scheduled_plan_lookup_failed');
-  }
+  if (error) throw new Error('scheduled_plan_lookup_failed');
   const row = data as {
     id: string;
     company_id: string;
     pending_plan: string | null;
     pending_plan_effective_at: string | null;
   } | null;
-  if (!row?.pending_plan || !row.pending_plan_effective_at) {
-    await diagLog(admin, 'no_pending', { subscriptionId, row });
-    return null;
-  }
+  if (!row?.pending_plan || !row.pending_plan_effective_at) return null;
   // The webhook event's own timestamp, not the server's wall-clock Date.now(): a
   // subscription advanced via a Stripe test clock fires events whose `created` reflects
   // the simulated time, which can be arbitrarily ahead of (or behind) real wall-clock
@@ -100,29 +86,18 @@ async function applyScheduledPlanIfDue(subscriptionId: string, asOfMs: number) {
   // a test clock. For real, non-test-clock subscriptions the two are for all practical
   // purposes identical (webhooks deliver within seconds), so this is not a behavior
   // change for production traffic.
-  if (Date.parse(row.pending_plan_effective_at) > asOfMs + 60_000) {
-    await diagLog(admin, 'not_due', { subscriptionId, pendingPlanEffectiveAt: row.pending_plan_effective_at, asOfMs });
-    return null;
-  }
-  await diagLog(admin, 'attempting', { subscriptionId, row, asOfMs });
-  try {
-    await withGarageSubscriptionMutationLease(subscriptionId, async () => {
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      await diagLog(admin, 'lease_claimed_retrieved', { subscriptionId, status: subscription.status, metadata: subscription.metadata });
-      const updated = await stripe.subscriptions.update(subscriptionId, {
-        metadata: {
-          ...subscription.metadata,
-          company_id: row.company_id,
-          plan_code: row.pending_plan!,
-          pending_plan: '',
-        },
-      }, { idempotencyKey: `scheduled_plan:${row.id}:${row.pending_plan_effective_at}` });
-      await diagLog(admin, 'update_succeeded', { subscriptionId, metadata: updated.metadata });
-    });
-  } catch (e) {
-    await diagLog(admin, 'lease_or_update_threw', { subscriptionId, message: e instanceof Error ? e.message : String(e) });
-    throw e;
-  }
+  if (Date.parse(row.pending_plan_effective_at) > asOfMs + 60_000) return null;
+  await withGarageSubscriptionMutationLease(subscriptionId, async () => {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    await stripe.subscriptions.update(subscriptionId, {
+      metadata: {
+        ...subscription.metadata,
+        company_id: row.company_id,
+        plan_code: row.pending_plan!,
+        pending_plan: '',
+      },
+    }, { idempotencyKey: `scheduled_plan:${row.id}:${row.pending_plan_effective_at}` });
+  });
   return row;
 }
 
