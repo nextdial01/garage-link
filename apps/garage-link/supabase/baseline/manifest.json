@@ -516,6 +516,16 @@
         "20260731000300"
       ],
       "checksum": "5a2529a92fb748f68db16d7cc419330d07941cd41025262691b0df91b1c1dd91"
+    },
+    {
+      "version": "20260802000300",
+      "name": "ll_legacy_policies_authenticated_only",
+      "file": "../migrations/20260802000300_ll_legacy_policies_authenticated_only.sql",
+      "kind": "repair",
+      "dependsOn": [
+        "20260802000200"
+      ],
+      "checksum": "c7faa1e6484674829deaf22d80e1bda5a3b4224a52322b8bafcb1857ed7056d4"
     }
   ],
   "excluded": [
@@ -536,6 +546,11 @@
     }
   ],
   "rollbacks": [
+    {
+      "version": "20260802000300",
+      "file": "../rollback/20260802000300_ll_legacy_policies_authenticated_only.down.sql",
+      "checksum": "2f2d377c9d5e8eb57c36970124df3e8c23c855c4fa5fbb5d7120caa4aff0854c"
+    },
     {
       "version": "20260802000200",
       "file": "../rollback/20260802000200_restore_ll_current_user_company_ids_execute.down.sql",
