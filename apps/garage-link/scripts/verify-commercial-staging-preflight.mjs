@@ -97,6 +97,17 @@ if (runtime.ok !== true
   || runtime.vercel_project_id !== project.id
   || runtime.vercel_project_name !== project.name
   || runtime.release_sha !== actualSha) {
+  console.error(JSON.stringify({
+    diag: 'fingerprint_mismatch_fields',
+    ok: runtime.ok,
+    runtime_host: [runtime.runtime_host, baseUrl.hostname],
+    supabase_host: [runtime.supabase_host, supabaseUrl.hostname],
+    stripe_mode: runtime.stripe_mode,
+    stripe_account_id: [runtime.stripe_account_id, process.env.STRIPE_ACCOUNT_ID],
+    vercel_project_id: [runtime.vercel_project_id, project.id],
+    vercel_project_name: [runtime.vercel_project_name, project.name],
+    release_sha: [runtime.release_sha, actualSha],
+  }));
   throw new Error('Deployed application environment fingerprint mismatch.');
 }
 
