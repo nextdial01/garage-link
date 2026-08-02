@@ -203,13 +203,12 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
 
     tenantId = required('E2E_TENANT_ID');
     storeId = required('E2E_STORE_ID');
-    // Stable across retries of this same disposable tenant (not a fresh random UUID per
-    // attempt) so idempotency keys from an earlier partial attempt are recognized as the
-    // same operation rather than creating duplicates.
-    marker = `garage-link-commercial-e2e:disposable:${tenantId}`;
     checkoutEmail = `garage-link-e2e-disposable+${tenantId}@example.invalid`;
     quotaPrefix = `E2E-B1B-${tenantId.slice(0, 8)}`;
 
+    // Fresh by default - overridden below only when a live (non-deleted) customer from an
+    // in-progress cycle is found, so its already-issued idempotency keys keep matching.
+    marker = `garage-link-commercial-e2e:disposable:${tenantId}:${crypto.randomUUID()}`;
     const { data: existing } = await readDbSubscription();
     // afterAll's own cleanup deletes the Stripe customer (which cascades to its
     // subscriptions) once every checkpoint has passed - the DB row's stripe_customer_id/
@@ -217,6 +216,16 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
     // fresh process resuming after such a fully-completed prior run must start a new
     // customer/clock/checkout cycle, exactly like a first run, rather than rehydrating
     // IDs that Stripe will only hand back as {deleted: true}.
+    //
+    // The marker/idempotency-key namespace must follow the same split: reusing a purely
+    // tenant-derived (permanently stable) marker meant a genuinely fresh cycle, after a
+    // prior cycle fully completed and got cleaned up, hit checkout's own idempotency-key
+    // dedup against that OLD, already-'completed' billing_sync_operations row and got a
+    // false 409 ("決済済みです") - the row itself is never deleted, only the Stripe
+    // objects it pointed to. So the marker is only stable *within* one in-progress cycle
+    // (true mid-cycle resume, needed so retries don't double-charge), anchored to the
+    // live customer's own metadata rather than the tenant id - a brand new cycle after a
+    // completed+cleaned prior one gets a brand new marker.
     if (existing?.stripe_customer_id) {
       const rehydratedCustomerId: string = existing.stripe_customer_id;
       const customer = await stripe.customers.retrieve(rehydratedCustomerId);
@@ -224,6 +233,8 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
         console.info('[rehydrate] prior customer was deleted by a completed run, starting fresh');
       } else {
         customerId = rehydratedCustomerId;
+        marker = customer.metadata.marker
+          ?? `garage-link-commercial-e2e:disposable:${tenantId}:${crypto.randomUUID()}`;
         if (typeof customer.test_clock === 'string') {
           clockId = customer.test_clock;
         } else if (customer.test_clock && typeof customer.test_clock === 'object') {
