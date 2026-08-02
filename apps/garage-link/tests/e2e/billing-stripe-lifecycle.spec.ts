@@ -118,7 +118,7 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
       const url = (await response.json() as { url: string }).url;
       expect(url).toContain('billing.stripe.com');
       await page.goto(url);
-      await expect(page.getByText(new RegExp(gross.toLocaleString('ja-JP'))).first()).toBeVisible();
+      await expect(page.getByText(new RegExp(gross.toLocaleString('ja-JP'))).first()).toBeVisible({ timeout: 20_000 });
     };
     const checkoutStep = async (label: string, action: () => Promise<void>) => {
       console.info(`[e2e:checkout] ${label} - starting`);
