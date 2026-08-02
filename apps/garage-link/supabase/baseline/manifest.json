@@ -496,6 +496,16 @@
         "20260731000300"
       ],
       "checksum": "64909f8506601f999e8b5f90497937b4f7b8e9f4b6f8d4e2cbb6848551ca468a"
+    },
+    {
+      "version": "20260802000100",
+      "name": "plan_change_requests_service_role_grant",
+      "file": "../migrations/20260802000100_plan_change_requests_service_role_grant.sql",
+      "kind": "repair",
+      "dependsOn": [
+        "20260731000300"
+      ],
+      "checksum": "ef8c3f806c97575a6edd3cb59d42041ada3cf084fb64005ff761d0318d4a4b9b"
     }
   ],
   "excluded": [
@@ -516,6 +526,11 @@
     }
   ],
   "rollbacks": [
+    {
+      "version": "20260802000100",
+      "file": "../rollback/20260802000100_plan_change_requests_service_role_grant.down.sql",
+      "checksum": "4b7f58837ec07f11ffdd23ced4d2384a1971b6fd525cdab2db60144666232fec"
+    },
     {
       "version": "20260801000100",
       "file": "../rollback/20260801000100_free_plan_billing_state_fix.down.sql",
