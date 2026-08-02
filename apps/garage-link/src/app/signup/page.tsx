@@ -48,13 +48,9 @@ function SignupForm() {
         return;
       }
 
-      const { data: member } = await supabase
-        .from<{ store_id: string }>('store_members')
-        .select('store_id')
-        .eq('user_id', userData.user.id)
-        .maybeSingle();
+      const { data: accessibleStoreIds } = await supabase.rpc('current_user_store_ids', {});
 
-      if (!member?.store_id) {
+      if (!Array.isArray(accessibleStoreIds) || accessibleStoreIds.length === 0) {
         setIsResumeOnly(true);
         setEmail(userData.user.email ?? '');
       }

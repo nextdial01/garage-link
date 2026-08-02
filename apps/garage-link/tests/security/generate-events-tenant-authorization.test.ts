@@ -173,7 +173,9 @@ test.describe('API層: 既存の呼び出し経路はp_store_idをセッショ�
     // service_role clientはauth.uid()を持たないため今回追加した認可チェックをスキップして通過するが、
     // それは「APIルート側で既にowner/admin確認済みのstore_idしか渡さない」設計に立脚している。
     // その前提（member.store_id のみを渡す・request由来のstore_idを使わない）が崩れていないことを確認する。
-    expect(source).toContain('runGenerationJobs(service, member.store_id)');
+    expect(source).toContain('expectedTenantId: member.tenant_id');
+    expect(source).toContain('storeId: member.store_id');
+    expect(source).toContain('runGenerationJobs(service, context)');
     expect(source).not.toContain('request.json()');
     expect(source).not.toMatch(/searchParams\.get\(['"]store_id['"]\)/);
   });

@@ -8,8 +8,8 @@ import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import SoftDeleteButton from '@/components/SoftDeleteButton';
 import { createClient } from '@/lib/supabase/client';
+import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 
-type StoreMemberRow = { store_id: string };
 type CustomerRow = {
   id: string; store_id: string; customer_type: string | null; name: string | null; kana: string | null; phone: string | null; mobile_phone: string | null;
   email: string | null; postal_code: string | null; address: string | null; gender: string | null; birth_date: string | null; line_user_id: string | null;
@@ -114,20 +114,17 @@ export default function CustomerDetailPage() {
       try {
         setIsLoading(true); setErrorMessage('');
         const supabase = createClient();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
-        const { data: member, error: memberError } = await supabase.from<StoreMemberRow>('store_members').select('store_id').eq('user_id', userData.user.id).single();
-        if (memberError || !member?.store_id) throw new Error('所属店舗が見つかりません。');
-        setStoreId(member.store_id);
+        const activeStoreId = (await requireActiveGarageStore()).storeId;
+        setStoreId(activeStoreId);
         const [customerResult, dealResult, vehicleResult, maintenanceResult, logResult, quoteResult, invoiceResult, ownedResult] = await Promise.all([
-          supabase.from<CustomerRow & { last_contact_at?: string | null }>('customers').select('*').eq('id', customerId).eq('store_id', member.store_id).single(),
-          supabase.from<DealRow>('deals').select('id, vehicle_id, deal_no, title, status, next_action_at, source, lost_reason, last_contact_at, trade_in_status').eq('customer_id', customerId).eq('store_id', member.store_id).order('created_at', { ascending: false }),
-          supabase.from<VehicleRow>('vehicles').select('id, maker, model_name, management_no, inspection_expiry_date, sold_date').eq('store_id', member.store_id),
-          supabase.from<MaintenanceRow>('maintenance_jobs').select('id, vehicle_id, job_no, job_type, status, actual_delivery_date').eq('customer_id', customerId).eq('store_id', member.store_id).order('created_at', { ascending: false }),
-          supabase.from<LineLogRow>('line_message_logs').select('id, message_type, title, send_status, error_message, sent_at, created_at').eq('customer_id', customerId).eq('store_id', member.store_id).order('created_at', { ascending: false }),
-          supabase.from<QuoteRow>('quotes').select('id, quote_no, title, status, total_amount, created_at').eq('customer_id', customerId).eq('store_id', member.store_id).order('created_at', { ascending: false }),
-          supabase.from<InvoiceRow>('invoices').select('id, invoice_no, title, status, total_amount, created_at').eq('customer_id', customerId).eq('store_id', member.store_id).order('created_at', { ascending: false }),
-          supabase.from<OwnedVehicleRow>('vehicles').select('id, maker, model_name, management_no, inspection_expiry_date, sold_date').eq('store_id', member.store_id),
+          supabase.from<CustomerRow & { last_contact_at?: string | null }>('customers').select('*').eq('id', customerId).eq('store_id', activeStoreId).single(),
+          supabase.from<DealRow>('deals').select('id, vehicle_id, deal_no, title, status, next_action_at, source, lost_reason, last_contact_at, trade_in_status').eq('customer_id', customerId).eq('store_id', activeStoreId).order('created_at', { ascending: false }),
+          supabase.from<VehicleRow>('vehicles').select('id, maker, model_name, management_no, inspection_expiry_date, sold_date').eq('store_id', activeStoreId),
+          supabase.from<MaintenanceRow>('maintenance_jobs').select('id, vehicle_id, job_no, job_type, status, actual_delivery_date').eq('customer_id', customerId).eq('store_id', activeStoreId).order('created_at', { ascending: false }),
+          supabase.from<LineLogRow>('line_message_logs').select('id, message_type, title, send_status, error_message, sent_at, created_at').eq('customer_id', customerId).eq('store_id', activeStoreId).order('created_at', { ascending: false }),
+          supabase.from<QuoteRow>('quotes').select('id, quote_no, title, status, total_amount, created_at').eq('customer_id', customerId).eq('store_id', activeStoreId).order('created_at', { ascending: false }),
+          supabase.from<InvoiceRow>('invoices').select('id, invoice_no, title, status, total_amount, created_at').eq('customer_id', customerId).eq('store_id', activeStoreId).order('created_at', { ascending: false }),
+          supabase.from<OwnedVehicleRow>('vehicles').select('id, maker, model_name, management_no, inspection_expiry_date, sold_date').eq('store_id', activeStoreId),
         ]);
         if (customerResult.error || !customerResult.data) {
           if (customerResult.error?.message.toLowerCase().includes('0 rows')) setNotFound(true);

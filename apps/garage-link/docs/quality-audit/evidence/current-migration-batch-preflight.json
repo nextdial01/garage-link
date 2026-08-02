@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-28T06:18:08.808Z",
+  "status": "PASS",
+  "version": "20260728000200",
+  "migration": {
+    "path": "supabase/migrations/20260728000200_auth_billing_release_blocker_batch.sql",
+    "sha256": "2960b3884000d37e8027a37c48bc66dafeb85c829e1faab190720379576398b6"
+  },
+  "manifest": {
+    "path": "supabase/baseline/manifest.json",
+    "entries": 50,
+    "sha256": "bb055ac364cebf49876e197a58d407fd338fd7106e13a977dd7de27bd12ead5f"
+  },
+  "package": {
+    "path": "docs/quality-audit/operator/release-blocker/02-current-sql-editor-apply.sql",
+    "sha256": "afbdb364f0a3c467dce5cfac99eb760c7c732192e976d5e33aa590c012e522d9"
+  },
+  "expectedLedgerBefore": 50,
+  "expectedLedgerAfter": 51
+}

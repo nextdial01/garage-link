@@ -280,7 +280,7 @@ export default function NewInvoicePage() {
         if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
 
         const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
+          .from<StoreMemberRow>('current_user_active_store_membership')
           .select('store_id')
           .eq('user_id', userData.user.id)
           .single();
@@ -571,7 +571,7 @@ export default function NewInvoicePage() {
     ]);
   }
 
-  async function saveInvoice(issueStatus: 'draft' | 'issued') {
+  async function saveInvoice() {
     setSaveError('');
     setIsSaving(true);
 
@@ -593,8 +593,8 @@ export default function NewInvoicePage() {
         vehicle_id: toNullableText(vehicleId),
         invoice_no: finalInvoiceNo,
         title: toNullableText(title),
-        status: issueStatus,
-        issue_status: issueStatus,
+        status: 'draft',
+        issue_status: 'draft',
         issue_date: toNullableText(issueDate),
         payment_due_date: toNullableText(paymentDueDate),
         assigned_user_name: toNullableText(assignedUser),
@@ -693,7 +693,7 @@ export default function NewInvoicePage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await saveInvoice('draft');
+    await saveInvoice();
   }
 
   return (
@@ -975,7 +975,7 @@ export default function NewInvoicePage() {
           <button
             type="button"
             disabled={isSaving}
-            onClick={() => void saveInvoice('draft')}
+            onClick={() => void saveInvoice()}
             className="inline-flex items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-6 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
           >
             下書き保存

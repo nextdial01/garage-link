@@ -566,7 +566,7 @@ export default function DashboardPage() {
         setRole(context.role);
         setMemberDisplayName(context.displayName);
 
-        const { data, error } = await supabase.rpc('get_garage_dashboard_payload', {});
+        const { data, error } = await supabase.rpc('get_garage_dashboard_payload_v2', {});
         if (error) throw new Error(error.message);
         const payload = normalizeDashboardPayload(data);
 

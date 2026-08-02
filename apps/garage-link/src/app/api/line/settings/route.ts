@@ -3,8 +3,14 @@ import { NextResponse } from 'next/server';
 import { canManageLineSettings } from '@/lib/auth/permissions';
 import { encryptSecret, getLast4, maskSecret } from '@/lib/security/encryption';
 import { createClient } from '@/lib/supabase/server';
+import {
+  resolveStoreTenantContext,
+  type GarageTenantContext,
+  type GarageTenantRole,
+} from '@/lib/security/garageTenantContext';
 
 type StoreMemberRow = {
+  tenant_id: string;
   store_id: string;
   role: string | null;
 };
@@ -145,7 +151,7 @@ function safeSettings(row: LineSettingsRow | null) {
   };
 }
 
-async function getAuthorizedContext() {
+async function getAuthorizedContext(request: Request) {
   const supabase = await createClient();
   const { data: userData, error: userError } = await supabase.auth.getUser();
 
@@ -157,9 +163,10 @@ async function getAuthorizedContext() {
   }
 
   const { data: member, error: memberError } = await supabase
-    .from<StoreMemberRow>('store_members')
-    .select('store_id, role')
+    .from<StoreMemberRow>('current_user_active_store_membership')
+    .select('tenant_id, store_id, role')
     .eq('user_id', userData.user.id)
+    .eq('status', 'active')
     .single();
 
   if (memberError || !member?.store_id) {
@@ -184,10 +191,28 @@ async function getAuthorizedContext() {
     };
   }
 
+  let tenantContext: GarageTenantContext;
+  try {
+    tenantContext = await resolveStoreTenantContext(service, {
+      expectedTenantId: member.tenant_id,
+      storeId: member.store_id,
+      actorUserId: userData.user.id,
+      actorRole: member.role as GarageTenantRole,
+      source: 'api',
+      correlationId: request.headers.get('x-correlation-id')?.slice(0, 80) || crypto.randomUUID(),
+    });
+  } catch {
+    return {
+      ok: false as const,
+      response: NextResponse.json({ ok: false, error: '店舗scopeを確認できませんでした。' }, { status: 403 }),
+    };
+  }
+
   return {
     ok: true as const,
     service,
     member,
+    tenantContext,
   };
 }
 
@@ -205,12 +230,12 @@ async function getLineSettings(service: ServiceSupabaseClient, storeId: string) 
   return (data as LineSettingsRow | null) ?? null;
 }
 
-export async function GET() {
-  const context = await getAuthorizedContext();
+export async function GET(request: Request) {
+  const context = await getAuthorizedContext(request);
   if (!context.ok) return context.response;
 
   try {
-    const settings = await getLineSettings(context.service, context.member.store_id);
+    const settings = await getLineSettings(context.service, context.tenantContext.storeId!);
     return NextResponse.json({
       ok: true,
       role: context.member.role ?? 'viewer',
@@ -226,7 +251,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const context = await getAuthorizedContext();
+  const context = await getAuthorizedContext(request);
   if (!context.ok) return context.response;
 
   let body: LineSettingsRequestBody;
@@ -241,7 +266,7 @@ export async function PATCH(request: Request) {
     const channelSecret = toNullableText(body.channel_secret);
     const channelAccessToken = toNullableText(body.channel_access_token);
     const payload: Record<string, unknown> = {
-      store_id: context.member.store_id,
+      store_id: context.tenantContext.storeId!,
       line_account_name: toNullableText(body.line_account_name),
       basic_id: toNullableText(body.basic_id),
       channel_id: toNullableText(body.channel_id),
@@ -284,7 +309,7 @@ export async function PATCH(request: Request) {
       throw new Error('LINE設定の保存に失敗しました。');
     }
 
-    const settings = await getLineSettings(context.service, context.member.store_id);
+    const settings = await getLineSettings(context.service, context.tenantContext.storeId!);
     return NextResponse.json({
       ok: true,
       role: context.member.role ?? 'viewer',

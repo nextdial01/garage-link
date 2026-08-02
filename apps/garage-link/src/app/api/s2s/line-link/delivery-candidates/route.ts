@@ -4,6 +4,7 @@ import { verifyLLinkS2SRequest } from '@/lib/line-link/s2sAuth';
 import { CANDIDATE_EVENT_TYPES, type CandidateEventType } from '@/lib/line-link/deliveryCandidates';
 import { logServerError } from '@/lib/observability/logServerError';
 import { canStoreUseLLink } from '@/lib/billing/lLinkContract';
+import { assertServiceTenantStoreContext, type GarageTenantContext } from '@/lib/security/garageTenantContext';
 
 // GARAGE LINK → L-LINK S2S 配信候補 API（HMAC 署名認証）。
 // - 既存セッション認証ルート /api/line-link/delivery-candidates とは独立。既存ルートの動作には触れない。
@@ -56,8 +57,9 @@ export async function POST(request: Request) {
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error, code: auth.code }, { status: auth.status });
   }
-  if (!(await canStoreUseLLink(auth.storeId))) {
-    return NextResponse.json({ ok: false, error: 'L-LINK連携はStandard以上の契約が必要です。', code: 'plan_required' }, { status: 403 });
+  const context: GarageTenantContext = auth.context;
+  if (!(await canStoreUseLLink(context))) {
+    return NextResponse.json({ ok: false, error: 'L-LINK連携は現在提供準備中です。', code: 'feature_preparing' }, { status: 403 });
   }
 
   // 任意フィルタは body JSON から（type, limit）。未指定でも OK。
@@ -87,12 +89,14 @@ export async function POST(request: Request) {
   }
 
   try {
+    await assertServiceTenantStoreContext(supabase, context);
     let query = supabase
       .from('inspection_reminder_events')
       .select(
         'id, store_id, customer_id, event_type, reminder_offset_days, inspection_expiry_date, customer_name, vehicle_name, created_at'
       )
-      .eq('store_id', auth.storeId)
+      .eq('store_id', context.storeId!)
+      .eq('company_id', context.tenantId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
       .range(0, limit - 1);

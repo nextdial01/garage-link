@@ -2,9 +2,14 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { sendAdminOtpEmail } from '@/lib/notifications/sendAdminOtpEmail';
 import { emailHash, getAdminEmailOtpSecret, maskEmail, otpHash, randomOtpCode } from '@/lib/security/adminEmailOtp';
 import { getAuthenticatedAdminContext } from '@/lib/security/adminEmailOtpServer';
+import { getPreviewOtpSinkContext } from '@/lib/security/previewOtpSink';
 
 export async function POST(request: NextRequest) {
-  const context = await getAuthenticatedAdminContext(request);
+  const sink = getPreviewOtpSinkContext(request);
+  if (sink.requested && !sink.authorized) {
+    return NextResponse.json({ error: 'Not Found' }, { status: 404 });
+  }
+  const context = await getAuthenticatedAdminContext(request, { requireReleaseQa: sink.authorized });
   const secret = getAdminEmailOtpSecret();
   if (!context || !secret) return NextResponse.json({ error: '管理者メール認証を利用できません。' }, { status: 403 });
   const code = randomOtpCode();
@@ -23,6 +28,14 @@ export async function POST(request: NextRequest) {
     const status = message.includes('otp_resend_too_soon') || message.includes('otp_rate_limited') ? 429 : 503;
     return NextResponse.json({ error: status === 429 ? '確認コードは1分後に再送できます。' : '確認コードを作成できませんでした。' }, { status });
   }
+  if (sink.authorized) {
+    return NextResponse.json({
+      ok: true,
+      maskedEmail: maskEmail(context.email),
+      retryAfter: 60,
+      previewOtp: code,
+    });
+  }
   const sent = await sendAdminOtpEmail(context.email, code);
   if (!sent.ok) {
     if (typeof challengeId === 'string') await context.service.from('admin_email_otp_challenges').update({ consumed_at: new Date().toISOString() }).eq('id', challengeId);
@@ -30,4 +43,3 @@ export async function POST(request: NextRequest) {
   }
   return NextResponse.json({ ok: true, maskedEmail: maskEmail(context.email), retryAfter: 60 });
 }
-

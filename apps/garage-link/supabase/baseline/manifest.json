@@ -1,0 +1,610 @@
+{
+  "formatVersion": 1,
+  "allowedRoot": "..",
+  "baselineMethod": "official-supabase-postgres-bootstrap-plus-manifest",
+  "supabasePostgresImage": "public.ecr.aws/supabase/postgres:17.6.1.155",
+  "database": "postgres",
+  "entries": [
+    {
+      "version": "000000000001",
+      "name": "garage_link_baseline_047",
+      "files": [
+        "../schema/001_initial_core_tables.sql",
+        "../schema/002_auth_onboarding_policies.sql",
+        "../schema/003_vehicle_policies.sql",
+        "../schema/004_customer_policies.sql",
+        "../schema/005_deal_policies.sql",
+        "../schema/006_quotes_tables.sql",
+        "../schema/008_trade_in_and_payments.sql",
+        "../schema/009_company_profile_and_document_settings.sql",
+        "../schema/010_document_issue_management.sql",
+        "../schema/011_line_message_drafts.sql",
+        "../schema/012_line_settings.sql",
+        "../schema/013_line_webhook_events.sql",
+        "../schema/014_line_message_logs.sql",
+        "../schema/015_line_friends.sql",
+        "../schema/016_line_management_pack.sql",
+        "../schema/017_vehicle_operations_tables.sql",
+        "../schema/018_store_members_permissions.sql",
+        "../schema/019_audit_logs.sql",
+        "../schema/020_soft_delete_and_security.sql",
+        "../schema/021_line_draft_enhancements.sql",
+        "../schema/022_tenant_security_foundation.sql",
+        "../schema/023_line_secret_hardening.sql",
+        "../schema/024_line_delivery_safety.sql",
+        "../schema/025_csv_security.sql",
+        "../schema/026_storage_security.sql",
+        "../schema/027_pii_minimization.sql",
+        "../schema/029_line_plan_billing.sql",
+        "../schema/030_company_billing_requests.sql",
+        "../schema/031_repair_parts.sql",
+        "../schema/032_parts_integration.sql",
+        "../schema/033_maintenance_workflow.sql",
+        "../schema/034_storage_path_hardening.sql",
+        "../schema/035_inspection_reminders.sql",
+        "../schema/036_grant_core_tables.sql",
+        "../schema/037_delivery_candidate_event_types.sql",
+        "../schema/037_signup_onboarding.sql",
+        "../schema/038_stock_movements_and_invoice_sale.sql",
+        "../schema/039_customer_deal_followup_fields.sql",
+        "../schema/040_followup_candidate_generation.sql",
+        "../schema/041_inventory_profit_turnover.sql",
+        "../schema/042_line_link_inbound_nonces.sql",
+        "../schema/043_line_link_s2s_service_role_grants.sql",
+        "../schema/044_vehicle_market_and_listing_status.sql",
+        "../schema/045_appointments_and_inquiry_links.sql",
+        "../schema/046_store_ui_preferences.sql",
+        "../schema/047_vehicle_direct_costs.sql",
+        "048_garage_link_integration_columns.sql"
+      ],
+      "kind": "baseline",
+      "checksum": "cdc30aca72f85ed25323062ae49e5a0489a15747793900862a4d81cf68884e59"
+    },
+    {
+      "version": "20260625000000",
+      "name": "line_link_inbound_nonces",
+      "file": "../migrations/20260625000000_line_link_inbound_nonces.sql",
+      "kind": "incremental",
+      "checksum": "ef525e122cd07a53ab2f2abce4b2beb493079f9779ccfd38255088ae6da29555"
+    },
+    {
+      "version": "20260625000100",
+      "name": "line_link_s2s_service_role_grants",
+      "file": "../migrations/20260625000100_line_link_s2s_service_role_grants.sql",
+      "kind": "incremental",
+      "checksum": "bfb2dfeefffd4f7c72cf57be339aaf55570dd793fa0c4c82a8f7d399e32c7a73"
+    },
+    {
+      "version": "20260627000000",
+      "name": "inspection_reminder_eligibility_fn",
+      "file": "../migrations/20260627000000_inspection_reminder_eligibility_fn.sql",
+      "kind": "incremental",
+      "checksum": "e0e03e5ebf8412b12b99ebdf9c5e168ea0d0b8b8cdf5ac3dc0f2f2a5b83b67d6"
+    },
+    {
+      "version": "20260628000000",
+      "name": "inspection_reminder_stale_event_invalidation",
+      "file": "../migrations/20260628000000_inspection_reminder_stale_event_invalidation.sql",
+      "kind": "incremental",
+      "checksum": "8c87f3cd2d078918d88c739d87d27ff59f851ee08d4d54f9fa7c2d545dd3f9fd"
+    },
+    {
+      "version": "20260629000000",
+      "name": "inspection_reminder_ack_fn",
+      "file": "../migrations/20260629000000_inspection_reminder_ack_fn.sql",
+      "kind": "incremental",
+      "checksum": "1d1eaa3f0feae2e5ac85a54cd2796b44f7978c7366822ca9ef4447807ab26181"
+    },
+    {
+      "version": "20260630000000",
+      "name": "delivery_candidate_event_types",
+      "file": "../migrations/20260630000000_delivery_candidate_event_types.sql",
+      "kind": "incremental",
+      "checksum": "9c823142319f2d739eb075fe537b647ba0caf4c95358e53a347163b9ebf7bd20"
+    },
+    {
+      "version": "20260630000100",
+      "name": "stock_movements_and_invoice_sale",
+      "file": "../migrations/20260630000100_stock_movements_and_invoice_sale.sql",
+      "kind": "incremental",
+      "checksum": "ecdbf985c475b3006715a58b65991afdde2e839f9fbe2bc9c0b2217df52c6bea"
+    },
+    {
+      "version": "20260630000200",
+      "name": "customer_deal_followup_fields",
+      "file": "../migrations/20260630000200_customer_deal_followup_fields.sql",
+      "kind": "incremental",
+      "checksum": "46e249ad1185fadf9aa890994018a6ae6488978d57a69495fb149d4581234a96"
+    },
+    {
+      "version": "20260701000000",
+      "name": "followup_candidate_generation",
+      "file": "../migrations/20260701000000_followup_candidate_generation.sql",
+      "kind": "incremental",
+      "checksum": "de0a6e79804d6f24827afad238b58bb6e3ed42bc0d9b40bd299260afaa477d96"
+    },
+    {
+      "version": "20260701000100",
+      "name": "inventory_profit_turnover",
+      "file": "../migrations/20260701000100_inventory_profit_turnover.sql",
+      "kind": "incremental",
+      "checksum": "02684ba617cb6b56668ae8aa80af5e634299928e7954bf436e505ac0257404a8"
+    },
+    {
+      "version": "20260702000000",
+      "name": "inspection_reminder_eligibility_scope_event_type",
+      "file": "../migrations/20260702000000_inspection_reminder_eligibility_scope_event_type.sql",
+      "kind": "incremental",
+      "checksum": "f123c54961146ff6b9086f7524190e73ff85b704b87b9527fb6a75f90c496868"
+    },
+    {
+      "version": "20260703000000",
+      "name": "generate_events_store_authorization",
+      "file": "../migrations/20260703000000_generate_events_store_authorization.sql",
+      "kind": "incremental",
+      "checksum": "792cad83d7ab2580337d7c1f797b0051c6d622e084f58101c1c7368c4af82042"
+    },
+    {
+      "version": "20260706000000",
+      "name": "signup_onboarding",
+      "file": "../migrations/20260706000000_signup_onboarding.sql",
+      "kind": "incremental",
+      "checksum": "d246481e0d45c01c608e2f04b9b7336cf55ceec92d761c704cf926d50fb37171"
+    },
+    {
+      "version": "20260706110000",
+      "name": "stripe_billing",
+      "file": "../migrations/20260706110000_stripe_billing.sql",
+      "kind": "incremental",
+      "checksum": "5a25abe339e8949ac9ded626047146ea793a44e0966a38466a2facc9ba88a4f1"
+    },
+    {
+      "version": "20260706120000",
+      "name": "company_subscriptions_grants",
+      "file": "../migrations/20260706120000_company_subscriptions_grants.sql",
+      "kind": "incremental",
+      "checksum": "394510e479ce021a2f857230277cf923fa668a0b095fd033924aa3a73597351d"
+    },
+    {
+      "version": "20260706130000",
+      "name": "company_subscriptions_rpc_reads",
+      "file": "../migrations/20260706130000_company_subscriptions_rpc_reads.sql",
+      "kind": "incremental",
+      "checksum": "35c46150c9b294fd6684dc2514e5e5030ad74c0b3df50a280eadbdd469ad7492"
+    },
+    {
+      "version": "20260706140000",
+      "name": "company_subscriptions_owner",
+      "file": "../migrations/20260706140000_company_subscriptions_owner.sql",
+      "kind": "incremental",
+      "checksum": "2b0bf2125174b39c0264706a9ab4391933caae7f4c3782d65ef50063df3c9753"
+    },
+    {
+      "version": "20260706150000",
+      "name": "subscription_retention",
+      "file": "../migrations/20260706150000_subscription_retention.sql",
+      "kind": "incremental",
+      "checksum": "938833735337c52665b3cd83d3f147c648e5f0493093d2e470db2ccd73830486"
+    },
+    {
+      "version": "20260712000000",
+      "name": "vehicle_market_and_listing_status",
+      "file": "../migrations/20260712000000_vehicle_market_and_listing_status.sql",
+      "kind": "incremental",
+      "checksum": "2e56f7319f2ccfb3c8f78bce0fc1d9d1231ab15355db502bb9ab596b6d6ab71a"
+    },
+    {
+      "version": "20260712000100",
+      "name": "appointments_and_inquiry_links",
+      "file": "../migrations/20260712000100_appointments_and_inquiry_links.sql",
+      "kind": "incremental",
+      "checksum": "9f9133aa80aa6b4b64c3f75fc90db8864058bbe34427bec6d08655bfc8a58b8b"
+    },
+    {
+      "version": "20260712000200",
+      "name": "accounting_export_settings",
+      "file": "../migrations/20260712000200_accounting_export_settings.sql",
+      "kind": "incremental",
+      "checksum": "714ede8d8a9b958d2043133d1354dc4018766746f43d2427f40b765f2ed27f94"
+    },
+    {
+      "version": "20260717000000",
+      "name": "store_ui_preferences",
+      "file": "../migrations/20260717000000_store_ui_preferences.sql",
+      "kind": "incremental",
+      "checksum": "38f43dc83e2988d2fb43e640c32df2950563f1d29d50dae9d4613a15238a0a5a"
+    },
+    {
+      "version": "20260718000100",
+      "name": "vehicle_direct_costs",
+      "file": "../migrations/20260718000100_vehicle_direct_costs.sql",
+      "kind": "incremental",
+      "checksum": "5a6571967539109ae2646a2d5494fa2c932be959ee9a6e84832dd9f09ddf0ab0"
+    },
+    {
+      "version": "20260718000200",
+      "name": "l_link_inquiry_identity",
+      "file": "../migrations/20260718000200_l_link_inquiry_identity.sql",
+      "kind": "incremental",
+      "checksum": "27c1dd4b8a4eeb7d44ae4a77ddda9766e0e2855b007fb22146290241509a5219"
+    },
+    {
+      "version": "20260718000300",
+      "name": "inquiry_response_management",
+      "file": "../migrations/20260718000300_inquiry_response_management.sql",
+      "kind": "incremental",
+      "checksum": "2010a8e5b7cddb8d1e59eacff4dfed34a223570f97c35c62615066ceee728669"
+    },
+    {
+      "version": "20260718000400",
+      "name": "backfill_l_link_connected_stores",
+      "file": "../migrations/20260718000400_backfill_l_link_connected_stores.sql",
+      "kind": "data_backfill",
+      "checksum": "14676193ac712a05bce31c529bd8b2424beaee8890acdc6b05192ac2fa6775ef"
+    },
+    {
+      "version": "20260718000500",
+      "name": "tenant_plan_limits_and_billing_security",
+      "file": "../migrations/20260718000500_tenant_plan_limits_and_billing_security.sql",
+      "kind": "incremental",
+      "checksum": "d10577007c45156c28b3d36a387c77e660565eb3fc1bc52d7375299d6c55eeeb"
+    },
+    {
+      "version": "20260722000100",
+      "name": "admin_access_credentials",
+      "file": "../migrations/20260722000100_admin_access_credentials.sql",
+      "kind": "incremental",
+      "checksum": "5c78828610106c03930250aa8d47bb93e938d1a8c82aff16c5ca360c4b4350cc"
+    },
+    {
+      "version": "20260722000200",
+      "name": "auth_security_hardening",
+      "file": "../migrations/20260722000200_auth_security_hardening.sql",
+      "kind": "incremental",
+      "checksum": "882b047366bd17289304488361645fc488a8bfc116f0d0e4bc0ea6942deaacb9"
+    },
+    {
+      "version": "20260722000300",
+      "name": "enforce_administrator_aal2",
+      "file": "../migrations/20260722000300_enforce_administrator_aal2.sql",
+      "kind": "incremental",
+      "checksum": "219b97d821ed3a7d6a2a9386f80be76129a15f6e3d33b6d667d0653495499bf4"
+    },
+    {
+      "version": "20260723000100",
+      "name": "remove_admin_access_code",
+      "file": "../migrations/20260723000100_remove_admin_access_code.sql",
+      "kind": "contract",
+      "checksum": "f0c8c921806e478ac291639ee0ee2d6228562cfed30a48a01df79cb3ceae4aff"
+    },
+    {
+      "version": "20260723000200",
+      "name": "stripe_webhook_idempotency",
+      "file": "../migrations/20260723000200_stripe_webhook_idempotency.sql",
+      "kind": "incremental",
+      "checksum": "32114de5e28b290fb8a191df8a0a258566e9a04a44be15cd9a01b54e0fcfbde3"
+    },
+    {
+      "version": "20260723000300",
+      "name": "admin_email_otp",
+      "file": "../migrations/20260723000300_admin_email_otp.sql",
+      "kind": "incremental",
+      "checksum": "65a75044fccfdc407021e2e65c450a791d8db6ecbdbd5faff06d4d10b68b2b11"
+    },
+    {
+      "version": "20260724000100",
+      "name": "garage_ui_context",
+      "file": "../migrations/20260724000100_garage_ui_context.sql",
+      "kind": "incremental",
+      "checksum": "b1ca5ee5675a23d091e15bc1a9663d74f5103acafcd8d341c9a3faf07b2d4da3"
+    },
+    {
+      "version": "20260724000200",
+      "name": "garage_dashboard_payload",
+      "file": "../migrations/20260724000200_garage_dashboard_payload.sql",
+      "kind": "incremental",
+      "checksum": "cc8c26e1621f7d6a68bfbe7eef395252ebe1e2d1654b30b3aa42a3e13882d266"
+    },
+    {
+      "version": "20260724000300",
+      "name": "garage_analytics_payload",
+      "file": "../migrations/20260724000300_garage_analytics_payload.sql",
+      "kind": "incremental",
+      "checksum": "9d4c8da7a2b7749c1e93243dc728affdf909adcc35343acdf7b18eced8915c7c"
+    },
+    {
+      "version": "20260725010000",
+      "name": "fix_garage_dashboard_maintenance_job_number",
+      "file": "../migrations/20260725010000_fix_garage_dashboard_maintenance_job_number.sql",
+      "kind": "repair",
+      "checksum": "6257bfb662f3a6c9ead9168ec293ac9a281bd38ed3ac66b5034de576c4a63649"
+    },
+    {
+      "version": "20260726000100",
+      "name": "membership_admission_lock",
+      "file": "../migrations/20260726000100_membership_admission_lock.sql",
+      "kind": "incremental",
+      "checksum": "d8c4f1ffd0380b4af6a01cb59bbe55ac666c402cc957b41c4268066e71c49482"
+    },
+    {
+      "version": "20260726000200",
+      "name": "role_aware_business_write_lock",
+      "file": "../migrations/20260726000200_role_aware_business_write_lock.sql",
+      "kind": "incremental",
+      "checksum": "6cf299750d0d647926975edb864732ac1f5fb11ac6d810553b51f64c9c315064"
+    },
+    {
+      "version": "20260726000300",
+      "name": "vehicle_sale_atomicity",
+      "file": "../migrations/20260726000300_vehicle_sale_atomicity.sql",
+      "kind": "incremental",
+      "checksum": "fd1c3f44fd7c8050484325865d2f5c8ca3ec517eb681e48bb897db9ad7246606"
+    },
+    {
+      "version": "20260726000400",
+      "name": "fresh_supabase_extension_compatibility",
+      "file": "../migrations/20260726000400_fresh_supabase_extension_compatibility.sql",
+      "kind": "repair",
+      "dependsOn": [
+        "20260726000100",
+        "20260726000300"
+      ],
+      "checksum": "268ae491e1e567677c0f513bacdd5212b821a10c7511fb15c9bbbd7380aaf5eb"
+    },
+    {
+      "version": "20260726000450",
+      "name": "restore_required_baseline_relations",
+      "file": "../migrations/20260726000450_restore_required_baseline_relations.sql",
+      "kind": "incremental",
+      "dependsOn": [
+        "20260726000100",
+        "20260726000200",
+        "20260726000400"
+      ],
+      "checksum": "e6b31cd773f48632964ccc01580eff18b315f9d5f17c99c7b5e741a6fe99718d"
+    },
+    {
+      "version": "20260726000500",
+      "name": "service_role_tenant_store_integrity",
+      "file": "../migrations/20260726000500_service_role_tenant_store_integrity.sql",
+      "kind": "incremental",
+      "dependsOn": [
+        "20260726000100",
+        "20260726000200",
+        "20260726000300",
+        "20260726000400",
+        "20260726000450"
+      ],
+      "checksum": "a73c1fd2701f8dd004677bcbc23dc157f05204384f24a3dbfbaab384009efcdb"
+    },
+    {
+      "version": "20260727000100",
+      "name": "active_store_preference",
+      "file": "../migrations/20260727000100_active_store_preference.sql",
+      "kind": "incremental",
+      "dependsOn": [
+        "20260726000100",
+        "20260726000200",
+        "20260726000500"
+      ],
+      "checksum": "edae573430ecdb52b0b86eb02898941027e964188cb15c31375e39d67d0c04a3"
+    },
+    {
+      "version": "20260727000200",
+      "name": "accounting_state_integrity",
+      "file": "../migrations/20260727000200_accounting_state_integrity.sql",
+      "kind": "incremental",
+      "dependsOn": [
+        "20260726000300",
+        "20260726000500",
+        "20260727000100"
+      ],
+      "checksum": "07f2f7389fcd2b323ec0444ec718b963bef66affd6063a972a98ca7448b8f5af"
+    },
+    {
+      "version": "20260727000300",
+      "name": "delivered_sale_correction",
+      "file": "../migrations/20260727000300_delivered_sale_correction.sql",
+      "kind": "incremental",
+      "dependsOn": [
+        "20260726000300",
+        "20260726000500",
+        "20260727000100",
+        "20260727000200"
+      ],
+      "checksum": "108f648f01b10f0cdbe333126562e0ef44d97226f8218c1abcc8c3287e5e515c"
+    },
+    {
+      "version": "20260728000050",
+      "name": "inventory_count_items_compatibility",
+      "file": "../migrations/20260728000050_inventory_count_items_compatibility.sql",
+      "kind": "incremental",
+      "dependsOn": [
+        "20260727000300"
+      ],
+      "checksum": "782af8feb8db7f54d642de4ab92a180c9834c070ae3e060c8a6d45039fff3325"
+    },
+    {
+      "version": "20260728000100",
+      "name": "high_remediation_batch",
+      "file": "../migrations/20260728000100_high_remediation_batch.sql",
+      "kind": "incremental",
+      "dependsOn": [
+        "20260726000100",
+        "20260726000200",
+        "20260726000500",
+        "20260727000100",
+        "20260727000200",
+        "20260727000300",
+        "20260728000050"
+      ],
+      "checksum": "5a24e58c397f585055fbe52242b8e45cc58dea1dcd9882e8ce81e00d93434166"
+    },
+    {
+      "version": "20260728000200",
+      "name": "auth_billing_release_blocker_batch",
+      "file": "../migrations/20260728000200_auth_billing_release_blocker_batch.sql",
+      "kind": "incremental",
+      "dependsOn": [
+        "20260726000100",
+        "20260726000200",
+        "20260727000100",
+        "20260728000100"
+      ],
+      "checksum": "2960b3884000d37e8027a37c48bc66dafeb85c829e1faab190720379576398b6"
+    },
+    {
+      "version": "20260731000100",
+      "name": "commercial_remediation_batch_1",
+      "file": "../migrations/20260731000100_commercial_remediation_batch_1.sql",
+      "kind": "incremental",
+      "dependsOn": [
+        "20260718000500",
+        "20260723000200",
+        "20260728000100",
+        "20260728000200"
+      ],
+      "checksum": "f6eca2c80c76201e17edd1c339c4daba45597868908e9316dc6e82db7801b2a8"
+    },
+    {
+      "version": "20260731000200",
+      "name": "commercial_remediation_batch_1b",
+      "file": "../migrations/20260731000200_commercial_remediation_batch_1b.sql",
+      "kind": "incremental",
+      "dependsOn": [
+        "20260731000100"
+      ],
+      "checksum": "36913dc2618722e99dc3a60e77cbbfee68da440507c6a57989e442c574d4abe3"
+    },
+    {
+      "version": "20260731000300",
+      "name": "application_privilege_contract",
+      "file": "../migrations/20260731000300_application_privilege_contract.sql",
+      "kind": "incremental",
+      "dependsOn": [
+        "20260731000200"
+      ],
+      "checksum": "ef796d4a630c394e1fb7447bccb21a813672df552fe90ab1ce584dd522176087"
+    },
+    {
+      "version": "20260801000100",
+      "name": "free_plan_billing_state_fix",
+      "file": "../migrations/20260801000100_free_plan_billing_state_fix.sql",
+      "kind": "repair",
+      "dependsOn": [
+        "20260731000200",
+        "20260731000300"
+      ],
+      "checksum": "64909f8506601f999e8b5f90497937b4f7b8e9f4b6f8d4e2cbb6848551ca468a"
+    },
+    {
+      "version": "20260802000100",
+      "name": "plan_change_requests_service_role_grant",
+      "file": "../migrations/20260802000100_plan_change_requests_service_role_grant.sql",
+      "kind": "repair",
+      "dependsOn": [
+        "20260731000300"
+      ],
+      "checksum": "ef8c3f806c97575a6edd3cb59d42041ada3cf084fb64005ff761d0318d4a4b9b"
+    }
+  ],
+  "excluded": [
+    {
+      "file": "../schema/028_legacy_pii_cleanup_plan.sql",
+      "kind": "archive",
+      "reason": "read-only audit plan; not schema state"
+    },
+    {
+      "file": "../migrations/20260706160000_ll_subscriptions_stripe.sql",
+      "kind": "obsolete",
+      "reason": "former L-LINK monorepo migration; unresolved L-LINK-only dependencies"
+    },
+    {
+      "file": "../migrations/20260706170000_ll_friend_info_defaults.sql",
+      "kind": "obsolete",
+      "reason": "former L-LINK monorepo migration; depends on the obsolete subscription migration"
+    }
+  ],
+  "rollbacks": [
+    {
+      "version": "20260802000100",
+      "file": "../rollback/20260802000100_plan_change_requests_service_role_grant.down.sql",
+      "checksum": "4b7f58837ec07f11ffdd23ced4d2384a1971b6fd525cdab2db60144666232fec"
+    },
+    {
+      "version": "20260801000100",
+      "file": "../rollback/20260801000100_free_plan_billing_state_fix.down.sql",
+      "checksum": "85f18ce5fdd59cb4f0cd253832774c4199c4394b9c7e18c2d81e2b89aa02a48e"
+    },
+    {
+      "version": "20260731000300",
+      "file": "../rollback/20260731000300_application_privilege_contract.down.sql",
+      "checksum": "68fa86afa2504e261e81a8999524acfee7d4aed706f2d78413ee7838ffead90f"
+    },
+    {
+      "version": "20260731000200",
+      "file": "../rollback/20260731000200_commercial_remediation_batch_1b.down.sql",
+      "checksum": "031258b759fc4831f818dc4c96b4af5f4abfdd562595c1fa9f9d422790eb59bf"
+    },
+    {
+      "version": "20260731000100",
+      "file": "../rollback/20260731000100_commercial_remediation_batch_1.down.sql",
+      "checksum": "3f03305a59a52fa5155f8d42911797b0a5175642d976d306baf0aeb48a0f516d"
+    },
+    {
+      "version": "20260728000200",
+      "file": "../rollback/20260728000200_auth_billing_release_blocker_batch.down.sql",
+      "checksum": "6cf781bf25bdc4688429f504038121f83a7bc1dc288026627b877ddce4029497"
+    },
+    {
+      "version": "20260728000100",
+      "file": "../rollback/20260728000100_high_remediation_batch.down.sql",
+      "checksum": "e78872070b49da0042e1b70a8f8f1dd7fc25ca31bd688a1ecbba99001e11ce50"
+    },
+    {
+      "version": "20260728000050",
+      "file": "../rollback/20260728000050_inventory_count_items_compatibility.down.sql",
+      "checksum": "bf5db47419ae94ea0150f8d44b9253658a14de4a92ba824c49c08640d65b283a"
+    },
+    {
+      "version": "20260727000300",
+      "file": "../rollback/20260727000300_delivered_sale_correction.down.sql",
+      "checksum": "53d15d846d28aad805d9cbcb6b93325edf3c51410d10152dd1ff89a693608264"
+    },
+    {
+      "version": "20260727000200",
+      "file": "../rollback/20260727000200_accounting_state_integrity.down.sql",
+      "checksum": "249df04eae85ae07f6aa9b589ffdc55318ddaa5103290d043b9c813054b21237"
+    },
+    {
+      "version": "20260727000100",
+      "file": "../rollback/20260727000100_active_store_preference.down.sql",
+      "checksum": "e2b3d7d5e9ce5b2fcfc28bbc4db2580788627e936875caeedc12695f0a1d054f"
+    },
+    {
+      "version": "20260726000500",
+      "file": "../rollback/20260726000500_service_role_tenant_store_integrity.down.sql",
+      "checksum": "ffbc705588d51474273aca94dd784348177023e27822f8e84a9071b571360ad9"
+    },
+    {
+      "version": "20260726000450",
+      "file": "../rollback/20260726000450_restore_required_baseline_relations.down.sql",
+      "checksum": "a35df8315a88a5fd1140ddc8cf5329fbc23103423253e3639e62986c662c3e43"
+    },
+    {
+      "version": "20260726000300",
+      "file": "../rollback/20260726000300_vehicle_sale_atomicity.down.sql",
+      "checksum": "f0b5a15c8d866896675b2b802a752a6eee7b58ea3bd1b6c9415a7f3a263d97ff"
+    },
+    {
+      "version": "20260726000200",
+      "file": "../rollback/20260726000200_role_aware_business_write_lock.down.sql",
+      "checksum": "7a92f1e40373ba24689f291737f9b0b101f6d6b837f60e5017c2b0e24d6220dc"
+    },
+    {
+      "version": "20260726000100",
+      "file": "../rollback/20260726000100_membership_admission_lock.down.sql",
+      "checksum": "b3f9c2d6752e5e203f8a76507d708efca1ab985ba3fdb02186acd503ab4796ca"
+    }
+  ]
+}

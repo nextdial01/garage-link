@@ -43,9 +43,9 @@ test.describe('Stripe security controls', () => {
     expect(middleware.indexOf('shouldCheckAdminSecurity')).toBeLessThan(
       middleware.indexOf('const postAuthPath'),
     );
-    expect(middleware.indexOf("from('store_members')")).toBeLessThan(
-      middleware.indexOf("from('memberships')"),
-    );
+    expect(middleware).toContain("service.rpc('admin_email_otp_bootstrap_context'");
+    expect(middleware).not.toContain("from('store_members')");
+    expect(middleware).not.toContain("from('memberships')");
 
     expect(otpForm).toContain("fetch('/api/auth/admin-email-otp/request'");
     expect(otpForm).toContain("fetch('/api/auth/admin-email-otp/verify'");
@@ -78,9 +78,9 @@ test.describe('Stripe security controls', () => {
     );
   });
 
-  test('store_membersの現在権限を優先し、古いmemberships権限で管理者扱いに戻さない', () => {
-    expect(hasEffectiveAdminRole([{ role: 'owner' }], [{ role: 'staff' }])).toBeFalsy();
-    expect(hasEffectiveAdminRole([{ role: 'viewer' }], [{ role: 'admin' }])).toBeTruthy();
+  test('membershipsだけを正本とし、store_membersから管理者権限を復活させない', () => {
+    expect(hasEffectiveAdminRole([{ role: 'owner' }], [{ role: 'staff' }])).toBeTruthy();
+    expect(hasEffectiveAdminRole([{ role: 'viewer' }], [{ role: 'admin' }])).toBeFalsy();
     expect(hasEffectiveAdminRole([{ role: 'implementer' }], [])).toBeTruthy();
     expect(hasEffectiveAdminRole([{ role: 'staff' }], [])).toBeFalsy();
   });

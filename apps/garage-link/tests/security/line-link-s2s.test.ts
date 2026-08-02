@@ -21,7 +21,8 @@ test.describe('L-LINK ↔ GARAGE LINK S2S セキュリティ契約（ソース�
     expect(src).toContain('verifyLLinkS2SRequest');
 
     // 3. store_idによる店舗スコープの制限
-    expect(src).toContain(".eq('store_id', auth.storeId)");
+    expect(src).toContain(".eq('store_id', context.storeId!)");
+    expect(src).toContain(".eq('company_id', context.tenantId)");
     expect(src).toContain(".eq('status', 'pending')");
 
     // 4. 個人情報（PII）の排除（コメント外のコード内に機密キーが含まれていないこと）

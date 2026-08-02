@@ -5,7 +5,7 @@ import { formatYayoiCsv, formatMoneyForwardCsv, encodeShiftJis } from '@/lib/acc
 
 export const dynamic = 'force-dynamic';
 
-type StoreMemberRow = { store_id: string };
+type StoreMemberRow = { tenant_id: string; store_id: string; role: string | null };
 type SettingsRow = {
   sales_account_name: string;
   receivable_account_name: string;
@@ -49,12 +49,17 @@ export async function GET(request: Request) {
   }
 
   const { data: member, error: memberError } = await supabase
-    .from<StoreMemberRow>('store_members')
-    .select('store_id')
+    .from<StoreMemberRow>('current_user_active_store_membership')
+    .select('tenant_id, store_id, role')
     .eq('user_id', userData.user.id)
+    .eq('status', 'active')
     .single();
   if (memberError || !member?.store_id) {
     return NextResponse.json({ ok: false, error: '所属店舗が見つかりません。' }, { status: 403 });
+  }
+  const exportRoles = ['owner', 'admin', 'implementer'];
+  if (!member.role || !exportRoles.includes(member.role)) {
+    return NextResponse.json({ ok: false, error: '会計データを出力する権限がありません。' }, { status: 403 });
   }
   const storeId = member.store_id;
 
@@ -122,6 +127,22 @@ export async function GET(request: Request) {
   const entries = buildJournalEntries(invoicesForExport, accounts);
   if (entries.length === 0) {
     return NextResponse.json({ ok: false, error: '仕訳として出力できる請求書がありませんでした。' }, { status: 404 });
+  }
+
+  const { error: auditError } = await supabase.from('data_export_logs').insert({
+    tenant_id: member.tenant_id,
+    store_id: storeId,
+    user_id: userData.user.id,
+    export_type: `accounting_${format}`,
+    target_table: 'invoices',
+    row_count: invoices.length,
+    columns_exported: ['invoice_no', 'issue_date', 'customer_name', 'items'],
+    filters_snapshot: { from, to, issue_status: 'issued' },
+    status: 'completed',
+    user_agent: request.headers.get('user-agent')?.slice(0, 500) ?? null,
+  });
+  if (auditError) {
+    return NextResponse.json({ ok: false, error: '監査記録の保存に失敗しました。' }, { status: 503 });
   }
 
   if (format === 'moneyforward') {

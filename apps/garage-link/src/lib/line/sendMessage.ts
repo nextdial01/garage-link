@@ -1,5 +1,6 @@
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { decryptSecret } from '@/lib/security/encryption';
+import { areExternalSendsDisabled } from '@/lib/security/runtimeSafety';
 
 type LineSettingsTokenRow = {
   channel_access_token: string | null;
@@ -75,6 +76,14 @@ export async function sendLineTextMessage({
   to: string;
   text: string;
 }) {
+  if (areExternalSendsDisabled()) {
+    return {
+      ok: false,
+      status: 503,
+      lineResponse: { status: 503, message: 'external_sends_disabled' },
+    };
+  }
+
   const response = await fetch('https://api.line.me/v2/bot/message/push', {
     method: 'POST',
     headers: {

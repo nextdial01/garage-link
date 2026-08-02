@@ -1,5 +1,6 @@
 export type GarageAccessibleStore = {
   id: string;
+  tenantId: string;
   name: string | null;
   companyName: string | null;
   isCurrent: boolean;
@@ -19,6 +20,8 @@ export type GarageUiCounts = {
 };
 
 export type GarageUiContext = {
+  state: 'active' | 'selection_required' | 'no_access';
+  tenantId: string;
   storeId: string;
   storeLabel: string;
   role: string;
@@ -66,6 +69,10 @@ export function normalizeGarageUiContext(value: unknown): GarageUiContext {
   const rawStores = Array.isArray(row.stores) ? row.stores : [];
 
   return {
+    state: row.state === 'active' || row.state === 'selection_required'
+      ? row.state
+      : 'no_access',
+    tenantId: asString(row.tenant_id),
     storeId: asString(row.store_id),
     storeLabel: asString(row.store_label, '店舗').trim() || '店舗',
     role: asString(row.role, 'viewer') || 'viewer',
@@ -79,6 +86,7 @@ export function normalizeGarageUiContext(value: unknown): GarageUiContext {
       const store = asRecord(item);
       return {
         id: asString(store.id),
+        tenantId: asString(store.tenant_id),
         name: typeof store.name === 'string' ? store.name : null,
         companyName: typeof store.company_name === 'string' ? store.company_name : null,
         isCurrent: store.is_current === true,

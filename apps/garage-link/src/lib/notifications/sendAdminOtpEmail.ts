@@ -1,6 +1,10 @@
 import 'server-only';
+import { areExternalSendsDisabled } from '@/lib/security/runtimeSafety';
 
 export async function sendAdminOtpEmail(email: string, code: string) {
+  if (areExternalSendsDisabled()) {
+    return { ok: false as const, error: 'external_sends_disabled' };
+  }
   const apiKey = process.env.GARAGE_RESEND_API_KEY ?? process.env.RESEND_API_KEY;
   const from = process.env.GARAGE_SECURITY_FROM_EMAIL ?? process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !from) return { ok: false as const, error: 'email_not_configured' };

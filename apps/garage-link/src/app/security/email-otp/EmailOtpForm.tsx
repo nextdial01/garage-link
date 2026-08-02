@@ -16,14 +16,16 @@ export function EmailOtpForm({ returnPath }: { returnPath: string }) {
   async function sendCode() {
     setError('');
     const response = await fetch('/api/auth/admin-email-otp/request', { method: 'POST' });
-    const result = await response.json().catch(() => ({})) as { maskedEmail?: string; retryAfter?: number; error?: string };
+    const result = await response.json().catch(() => ({})) as { maskedEmail?: string; retryAfter?: number; previewOtp?: string; error?: string };
     if (!response.ok) {
       setMessage('');
       setError(toUserErrorMessage(result.error, '確認コードを送信できませんでした。'));
       if (response.status === 429) setCooldown(60);
       return;
     }
-    setMessage(`${result.maskedEmail ?? '登録済みメールアドレス'}へ6桁の確認コードを送信しました。`);
+    setMessage(result.previewOtp
+      ? `Preview QA確認コード: ${result.previewOtp}`
+      : `${result.maskedEmail ?? '登録済みメールアドレス'}へ6桁の確認コードを送信しました。`);
     setCooldown(result.retryAfter ?? 60);
   }
 

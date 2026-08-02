@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
+import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 
-type StoreMemberRow = { store_id: string };
 type InventoryCountRow = {
   id: string;
   count_no: string;
@@ -67,14 +67,11 @@ export default function InventoryCountsPage() {
         setIsLoading(true);
         setErrorMessage('');
         const supabase = createClient();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
-        const { data: member, error: memberError } = await supabase.from<StoreMemberRow>('store_members').select('store_id').eq('user_id', userData.user.id).single();
-        if (memberError || !member?.store_id) throw new Error('所属店舗が見つかりません。');
+        const activeStoreId = (await requireActiveGarageStore()).storeId;
         const { data, error } = await supabase
           .from<InventoryCountRow>('inventory_counts')
           .select('id, count_no, name, count_type, count_category, status, scheduled_date, difference_count, unchecked_count, approval_status, deleted_at, is_archived')
-          .eq('store_id', member.store_id)
+          .eq('store_id', activeStoreId)
           .order('created_at', { ascending: false });
         if (error) throw new Error(error.message);
         setCounts((data ?? []).filter((count) => !count.deleted_at && count.is_archived !== true));

@@ -14,7 +14,6 @@ import {
   VehicleReplacementSection,
 } from '@/components/deals/DealFlowParts';
 import PartPickerModal, { type PickedPart } from '@/components/parts/PartPickerModal';
-import { logAudit } from '@/lib/audit/logAudit';
 import { DOCUMENT_LIMIT_MESSAGE, assertDocumentLimitAvailable } from '@/lib/billing/garageSubscription';
 import { createClient } from '@/lib/supabase/client';
 
@@ -53,12 +52,6 @@ type VehicleRow = {
 
 type InvoiceIdRow = {
   id: string;
-};
-
-type StoreMemberRow = {
-  role: string | null;
-  display_name: string | null;
-  email: string | null;
 };
 
 type InvoiceInsert = {
@@ -343,19 +336,9 @@ export default function DealInvoiceNewPage() {
 
       const supabase = createClient();
       await assertDocumentLimitAvailable(supabase, deal.store_id);
-      const { data: userData } = await supabase.auth.getUser();
-      const { data: member } = userData.user?.id
-        ? await supabase
-            .from<StoreMemberRow>('store_members')
-            .select('role, display_name, email')
-            .eq('user_id', userData.user.id)
-            .eq('store_id', deal.store_id)
-            .single()
-        : { data: null };
       const now = new Date().toISOString();
       const finalInvoiceNo = invoiceNo.trim() || createDocumentNo('INV');
       const finalIssueDate = toNullableText(issueDate) ?? now.slice(0, 10);
-      const issuedBy = userData.user?.email ?? deal.assigned_user_name;
       const totalAmount = grandTotal;
 
       const invoicePayload: InvoiceInsert = {
@@ -366,8 +349,8 @@ export default function DealInvoiceNewPage() {
         vehicle_id: vehicle?.id ?? deal.vehicle_id,
         invoice_no: finalInvoiceNo,
         title: deal.title,
-        status: issueStatus,
-        issue_status: issueStatus,
+        status: 'draft',
+        issue_status: 'draft',
         issue_date: finalIssueDate,
         payment_due_date: toNullableText(paymentDueDate),
         assigned_user_name: deal.assigned_user_name,
@@ -401,9 +384,9 @@ export default function DealInvoiceNewPage() {
             .filter((value) => value.trim() !== '')
             .join('\n')
         ),
-        issued_at: issueStatus === 'issued' ? now : null,
-        issued_by: issueStatus === 'issued' ? issuedBy : null,
-        pdf_generated_at: issueStatus === 'issued' ? now : null,
+        issued_at: null,
+        issued_by: null,
+        pdf_generated_at: null,
         cancelled_at: null,
         cancel_reason: null,
       };
@@ -470,23 +453,13 @@ export default function DealInvoiceNewPage() {
       }
 
       if (issueStatus === 'issued') {
-        await logAudit({
-          supabase,
-          storeId: deal.store_id,
-          userId: userData.user?.id ?? null,
-          userEmail: userData.user?.email ?? member?.email ?? null,
-          userRole: member?.role ?? null,
-          userDisplayName: member?.display_name ?? null,
-          action: 'issue_invoice',
-          targetType: 'invoice',
-          targetId: invoice.id,
-          targetLabel: finalInvoiceNo,
-          metadata: {
-            deal_id: deal.id,
-            total_amount: totalAmount,
-            issue_date: finalIssueDate,
-          },
+        const response = await fetch(`/api/invoices/${invoice.id}/issue`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }),
         });
+        const result = await response.json() as { ok?: boolean; error?: string };
+        if (!response.ok || !result.ok) throw new Error(result.error ?? '請求書を発行できませんでした。下書きとして保存されています。');
         router.push(`/deals/${deal.id}/invoices/preview?invoiceId=${invoice.id}`);
         return;
       }

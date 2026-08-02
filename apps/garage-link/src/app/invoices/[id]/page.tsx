@@ -103,9 +103,8 @@ export default function InvoiceDetailPage() {
   const [saveError, setSaveError] = useState('');
   const saveErrorRef = useRef<HTMLDivElement>(null);
 
-  const [editStatus, setEditStatus] = useState('');
-  const [editIssueStatus, setEditIssueStatus] = useState('');
-  const [editPaidAmount, setEditPaidAmount] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [editPaymentDueDate, setEditPaymentDueDate] = useState('');
   const [editAssignedUser, setEditAssignedUser] = useState('');
   const [editInternalMemo, setEditInternalMemo] = useState('');
@@ -124,7 +123,7 @@ export default function InvoiceDetailPage() {
         if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
 
         const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
+          .from<StoreMemberRow>('current_user_active_store_membership')
           .select('store_id, role')
           .eq('user_id', userData.user.id)
           .single();
@@ -141,9 +140,6 @@ export default function InvoiceDetailPage() {
         if (error || !data) throw new Error(error?.message ?? '請求書が見つかりません。');
 
         setInvoice(data);
-        setEditStatus(data.status ?? 'draft');
-        setEditIssueStatus(data.issue_status ?? 'draft');
-        setEditPaidAmount(data.paid_amount !== null ? String(data.paid_amount) : '');
         setEditPaymentDueDate(data.payment_due_date ?? '');
         setEditAssignedUser(data.assigned_user_name ?? '');
         setEditInternalMemo(data.internal_memo ?? '');
@@ -180,23 +176,10 @@ export default function InvoiceDetailPage() {
       setSaveError('');
       setIsSaving(true);
 
-      const paidAmount = editPaidAmount.trim() ? parseFloat(editPaidAmount) : 0;
-      const totalAmount = invoice?.total_amount ?? 0;
-      const unpaidAmount = Math.max(totalAmount - paidAmount, 0);
-      const issueDate =
-        editIssueStatus === 'issued' && !invoice?.issue_date
-          ? new Date().toISOString().slice(0, 10)
-          : invoice?.issue_date ?? null;
-
       const supabase = createClient();
       const { error } = await supabase
         .from('invoices')
         .update({
-          status: editStatus,
-          issue_status: editIssueStatus,
-          issue_date: issueDate,
-          paid_amount: paidAmount,
-          unpaid_amount: unpaidAmount,
           payment_due_date: editPaymentDueDate || null,
           assigned_user_name: editAssignedUser.trim() || null,
           internal_memo: editInternalMemo.trim() || null,
@@ -209,11 +192,6 @@ export default function InvoiceDetailPage() {
         prev
           ? {
               ...prev,
-              status: editStatus,
-              issue_status: editIssueStatus,
-              issue_date: issueDate,
-              paid_amount: paidAmount,
-              unpaid_amount: unpaidAmount,
               payment_due_date: editPaymentDueDate || null,
               assigned_user_name: editAssignedUser.trim() || null,
               internal_memo: editInternalMemo.trim() || null,
@@ -230,12 +208,64 @@ export default function InvoiceDetailPage() {
   }
 
   const canEdit = role === 'owner' || role === 'admin' || role === 'implementer' || role === 'staff';
+  const canIssue = role === 'owner' || role === 'admin' || role === 'staff';
+  const canVoid = role === 'owner' || role === 'admin';
   const canManageStock = role === 'owner' || role === 'admin';
 
   async function reloadInvoice() {
     const supabase = createClient();
     const { data } = await supabase.from<InvoiceRow>('invoices').select('*').eq('id', id).eq('store_id', storeId).single();
     if (data) setInvoice(data);
+  }
+
+  async function runAccountingAction(path: string, body: Record<string, unknown>) {
+    setSaveError('');
+    setIsSaving(true);
+    try {
+      const response = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, idempotencyKey: crypto.randomUUID() }),
+      });
+      const result = await response.json() as { ok?: boolean; error?: string };
+      if (!response.ok || !result.ok) throw new Error(result.error ?? '処理を完了できませんでした。');
+      await reloadInvoice();
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleIssueInvoice() {
+    try {
+      await runAccountingAction(`/api/invoices/${id}/issue`, {});
+    } catch (error) {
+      setSaveError(toUserErrorMessage(error, '請求書を発行できませんでした。'));
+    }
+  }
+
+  async function handleVoidInvoice() {
+    const reason = window.prompt('請求書を取消する理由を入力してください（3文字以上）。');
+    if (reason === null) return;
+    try {
+      await runAccountingAction(`/api/invoices/${id}/void`, { reason });
+    } catch (error) {
+      setSaveError(toUserErrorMessage(error, '請求書を取消できませんでした。'));
+    }
+  }
+
+  async function handleRecordPayment() {
+    const amount = Number(paymentAmount);
+    if (!Number.isSafeInteger(amount) || amount <= 0) {
+      setSaveError('入金額は1円以上の整数で入力してください。');
+      return;
+    }
+    try {
+      await runAccountingAction(`/api/invoices/${id}/payments`, { amount, paymentMethod });
+      setPaymentAmount('');
+      setPaymentMethod('');
+    } catch (error) {
+      setSaveError(toUserErrorMessage(error, '入金を登録できませんでした。'));
+    }
   }
 
   async function handleConfirmStock() {
@@ -460,44 +490,37 @@ export default function InvoiceDetailPage() {
 
           <form onSubmit={handleSave} className="space-y-5">
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-base font-bold text-slate-950">入金・ステータス管理</h2>
+              <h2 className="mb-4 text-base font-bold text-slate-950">入金・発行管理</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
-                  <span className="mb-1 block text-sm font-bold text-slate-700">支払ステータス</span>
-                  <select className={inputClass} value={editStatus} onChange={(e) => setEditStatus(e.target.value)} disabled={!canEdit}>
-                    <option value="draft">下書き</option>
-                    <option value="issued">送付済み</option>
-                    <option value="paid">入金済み</option>
-                    <option value="overdue">期限超過</option>
-                    <option value="cancelled">取消</option>
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-sm font-bold text-slate-700">発行状態</span>
-                  <select className={inputClass} value={editIssueStatus} onChange={(e) => setEditIssueStatus(e.target.value)} disabled={!canEdit}>
-                    <option value="draft">下書き</option>
-                    <option value="issued">発行済み</option>
-                    <option value="cancelled">取消済み</option>
-                  </select>
-                </label>
-                <label className="block">
                   <span className="mb-1 block text-sm font-bold text-slate-700">支払期限</span>
-                  <input type="date" className={inputClass} value={editPaymentDueDate} onChange={(e) => setEditPaymentDueDate(e.target.value)} disabled={!canEdit} />
+                  <input type="date" className={inputClass} value={editPaymentDueDate} onChange={(e) => setEditPaymentDueDate(e.target.value)} disabled={!canEdit || invoice.issue_status !== 'draft'} />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-sm font-bold text-slate-700">入金済み金額（円）</span>
-                  <input type="number" min="0" step="1" className={inputClass} value={editPaidAmount} onChange={(e) => setEditPaidAmount(e.target.value)} placeholder="0" disabled={!canEdit} />
-                  {editPaidAmount.trim() && invoice.total_amount !== null && (
-                    <p className="mt-1 text-xs font-semibold text-slate-500">
-                      未入金: {formatPrice(Math.max((invoice.total_amount ?? 0) - (parseFloat(editPaidAmount) || 0), 0))}
-                    </p>
-                  )}
+                  <span className="mb-1 block text-sm font-bold text-slate-700">入金額（円）</span>
+                  <input type="number" min="1" step="1" className={inputClass} value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder={String(invoice.unpaid_amount ?? 0)} disabled={!canIssue || invoice.issue_status !== 'issued' || invoice.unpaid_amount === 0} />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-bold text-slate-700">入金方法</span>
+                  <input type="text" className={inputClass} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} placeholder="現金・振込など" disabled={!canIssue || invoice.issue_status !== 'issued' || invoice.unpaid_amount === 0} />
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-sm font-bold text-slate-700">担当者</span>
                   <input type="text" className={inputClass} value={editAssignedUser} onChange={(e) => setEditAssignedUser(e.target.value)} disabled={!canEdit} />
                 </label>
               </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {canIssue && invoice.issue_status === 'draft' && (
+                  <button type="button" onClick={() => void handleIssueInvoice()} disabled={isSaving} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300">請求書を発行する</button>
+                )}
+                {canIssue && invoice.issue_status === 'issued' && (invoice.unpaid_amount ?? 0) > 0 && (
+                  <button type="button" onClick={() => void handleRecordPayment()} disabled={isSaving} className="rounded-xl bg-green-600 px-4 py-2 text-sm font-bold text-white disabled:bg-slate-300">入金を登録する</button>
+                )}
+                {canVoid && invoice.issue_status === 'issued' && (
+                  <button type="button" onClick={() => void handleVoidInvoice()} disabled={isSaving} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 disabled:opacity-50">請求書を取消する</button>
+                )}
+              </div>
+              <p className="mt-3 text-xs text-slate-500">発行後の金額・状態は直接変更できません。入金は履歴として追加され、取消・返金は管理者の専用操作で記録します。</p>
             </section>
 
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

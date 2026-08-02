@@ -167,7 +167,7 @@ export default function LinePage() {
         }
 
         const { data: member } = await supabase
-          .from<StoreMemberRow>('store_members')
+          .from<StoreMemberRow>('current_user_active_store_membership')
           .select('store_id')
           .eq('user_id', userData.user.id)
           .single();

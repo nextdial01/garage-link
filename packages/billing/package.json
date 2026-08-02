@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./garagePlans": "./src/garagePlans.ts",
+    "./garageCommercial": "./src/garageCommercial.ts",
     "./linePlans": "./src/linePlans.ts"
   }
 }

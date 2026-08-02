@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyLLinkS2SRequest } from '@/lib/line-link/s2sAuth';
 import { logServerError } from '@/lib/observability/logServerError';
 import { canStoreUseLLink } from '@/lib/billing/lLinkContract';
+import { assertServiceTenantStoreContext, type GarageTenantContext } from '@/lib/security/garageTenantContext';
 
 export const dynamic = 'force-dynamic';
 
@@ -106,8 +107,9 @@ export async function POST(request: Request) {
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error, code: auth.code }, { status: auth.status });
   }
-  if (!(await canStoreUseLLink(auth.storeId))) {
-    return NextResponse.json({ ok: false, code: 'plan_required', error: 'L-LINK連携はStandard以上の契約が必要です。' }, { status: 403 });
+  const context: GarageTenantContext = auth.context;
+  if (!(await canStoreUseLLink(context))) {
+    return NextResponse.json({ ok: false, code: 'feature_preparing', error: 'L-LINK連携は現在提供準備中です。' }, { status: 403 });
   }
 
   const body = parseBody(bodyText);
@@ -120,6 +122,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    await assertServiceTenantStoreContext(supabase, context);
     const { data: existing, error: existingError } = await supabase
       .from('line_form_responses')
       .select('id')

@@ -3,7 +3,15 @@ import { spawn } from 'node:child_process';
 const requiredWhenEnabled = [
   'E2E_EMAIL',
   'E2E_PASSWORD',
+  'E2E_TENANT_ID',
+  'E2E_STORE_ID',
   'E2E_TEST_SUPABASE_URL',
+  'E2E_TEST_SUPABASE_SERVICE_ROLE_KEY',
+  'EXPECTED_RELEASE_SHA',
+  'E2E_MARKER',
+  'STRIPE_SECRET_KEY',
+  'STRIPE_WEBHOOK_SECRET',
+  'CRON_SECRET',
 ];
 
 function hasValue(name) {
@@ -12,6 +20,10 @@ function hasValue(name) {
 
 function isBillingMutationEnabled() {
   return process.env.E2E_ALLOW_BILLING_MUTATIONS === 'true';
+}
+
+function isReleaseEvidenceRequired() {
+  return process.env.E2E_REQUIRE_BILLING === 'true';
 }
 
 function assertSafeSupabaseUrl() {
@@ -45,7 +57,11 @@ async function isAppReachable() {
 function runPlaywright() {
   const child = spawn(
     'pnpm',
-    ['--filter', '@apps/garage-link', 'exec', 'playwright', 'test', 'tests/e2e/billing.spec.ts'],
+    [
+      '--filter', '@apps/garage-link', 'exec', 'playwright', 'test',
+      '--config', 'playwright.commercial-staging.config.ts',
+      '--project', 'billing',
+    ],
     {
       stdio: 'inherit',
       shell: process.platform === 'win32',
@@ -60,7 +76,14 @@ function runPlaywright() {
 
 async function main() {
   if (!isBillingMutationEnabled()) {
-    console.log('Skipping GARAGE LINK billing E2E: E2E_ALLOW_BILLING_MUTATIONS is not true.');
+    if (isReleaseEvidenceRequired()) {
+      throw new Error(
+        'Commercial release billing E2E is required, but E2E_ALLOW_BILLING_MUTATIONS is not true.'
+      );
+    }
+    console.log(
+      'GARAGE LINK billing E2E was not run. This local result is not PAID_SALES_READY evidence.'
+    );
     return;
   }
 

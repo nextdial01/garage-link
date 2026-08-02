@@ -1,0 +1,70 @@
+{
+  "status": "PASS",
+  "expectedCount": 9,
+  "manifestEntryCount": 47,
+  "manifestSha256": "fcd990a8e9ff135fa897f5d1f017e8d962c3ed3b4e0c5813cc75851c41dcc677",
+  "versions": [
+    {
+      "version": "20260726000100",
+      "name": "membership_admission_lock",
+      "file": "supabase/migrations/20260726000100_membership_admission_lock.sql",
+      "checksum": "d8c4f1ffd0380b4af6a01cb59bbe55ac666c402cc957b41c4268066e71c49482"
+    },
+    {
+      "version": "20260726000200",
+      "name": "role_aware_business_write_lock",
+      "file": "supabase/migrations/20260726000200_role_aware_business_write_lock.sql",
+      "checksum": "6cf299750d0d647926975edb864732ac1f5fb11ac6d810553b51f64c9c315064"
+    },
+    {
+      "version": "20260726000300",
+      "name": "vehicle_sale_atomicity",
+      "file": "supabase/migrations/20260726000300_vehicle_sale_atomicity.sql",
+      "checksum": "fd1c3f44fd7c8050484325865d2f5c8ca3ec517eb681e48bb897db9ad7246606"
+    },
+    {
+      "version": "20260726000400",
+      "name": "fresh_supabase_extension_compatibility",
+      "file": "supabase/migrations/20260726000400_fresh_supabase_extension_compatibility.sql",
+      "checksum": "268ae491e1e567677c0f513bacdd5212b821a10c7511fb15c9bbbd7380aaf5eb"
+    },
+    {
+      "version": "20260726000450",
+      "name": "restore_required_baseline_relations",
+      "file": "supabase/migrations/20260726000450_restore_required_baseline_relations.sql",
+      "checksum": "e6b31cd773f48632964ccc01580eff18b315f9d5f17c99c7b5e741a6fe99718d"
+    },
+    {
+      "version": "20260726000500",
+      "name": "service_role_tenant_store_integrity",
+      "file": "supabase/migrations/20260726000500_service_role_tenant_store_integrity.sql",
+      "checksum": "a73c1fd2701f8dd004677bcbc23dc157f05204384f24a3dbfbaab384009efcdb"
+    },
+    {
+      "version": "20260727000100",
+      "name": "active_store_preference",
+      "file": "supabase/migrations/20260727000100_active_store_preference.sql",
+      "checksum": "edae573430ecdb52b0b86eb02898941027e964188cb15c31375e39d67d0c04a3"
+    },
+    {
+      "version": "20260727000200",
+      "name": "accounting_state_integrity",
+      "file": "supabase/migrations/20260727000200_accounting_state_integrity.sql",
+      "checksum": "07f2f7389fcd2b323ec0444ec718b963bef66affd6063a972a98ca7448b8f5af"
+    },
+    {
+      "version": "20260727000300",
+      "name": "delivered_sale_correction",
+      "file": "supabase/migrations/20260727000300_delivered_sale_correction.sql",
+      "checksum": "108f648f01b10f0cdbe333126562e0ef44d97226f8218c1abcc8c3287e5e515c"
+    }
+  ],
+  "checks": {
+    "versionMissing": 0,
+    "versionDuplicate": 0,
+    "orderMismatch": 0,
+    "migrationManifestChecksumMismatch": 0,
+    "unexpectedMigration": 0,
+    "runbookGeneratedBlockDrift": 0
+  }
+}

@@ -420,7 +420,7 @@ export default function DealQuoteNewPage() {
       const { data: userData } = await supabase.auth.getUser();
       const { data: member } = userData.user?.id
         ? await supabase
-            .from<StoreMemberRow>('store_members')
+            .from<StoreMemberRow>('current_user_active_store_membership')
             .select('role, display_name, email')
             .eq('user_id', userData.user.id)
             .eq('store_id', deal.store_id)

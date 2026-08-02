@@ -1,0 +1,98 @@
+{
+  "formatVersion": 1,
+  "createdAt": "2026-07-28T11:18:10+09:00",
+  "currentSupabaseAccessed": false,
+  "currentSupabaseWrites": 0,
+  "migrationApplied": 0,
+  "backup": {
+    "status": "PASS",
+    "directory": "/Users/ksk/garage-link-backups/pre-g7-20260728-104502",
+    "requiredDumpFiles": 8,
+    "requiredDumpFilesNonEmpty": true,
+    "directoryMode": "700",
+    "fileMode": "600",
+    "sha256SumsPresent": true,
+    "sha256EntriesVerified": 8,
+    "sha256EntriesFailed": 0,
+    "sha256SumsFileSha256": "8379a36438609c2d73e39e650b23c8c14f9a1a5d06d81368c8163520893c869f",
+    "payloadBytes": 1277682,
+    "migrationLedgerRows": 48,
+    "credentialOrUriLiteralMatches": 0,
+    "invalidMarkerReclassified": "restore-smoke failure only; dump acquisition and checksums passed"
+  },
+  "restoreFailure": {
+    "stage": "backup_restore_check",
+    "error": "must be owner of schema auth",
+    "classification": "restore-test design defect",
+    "backupAcquisitionFailure": false,
+    "invoicePaymentLedgerCircularForeignKeyWarning": {
+      "present": true,
+      "directStopCause": false,
+      "backupRows": 0
+    }
+  },
+  "migrationScope": {
+    "sources": [
+      {
+        "version": "20260728000050",
+        "path": "supabase/migrations/20260728000050_inventory_count_items_compatibility.sql",
+        "sha256": "782af8feb8db7f54d642de4ab92a180c9834c070ae3e060c8a6d45039fff3325"
+      },
+      {
+        "version": "20260728000100",
+        "path": "supabase/migrations/20260728000100_high_remediation_batch.sql",
+        "sha256": "5a24e58c397f585055fbe52242b8e45cc58dea1dcd9882e8ce81e00d93434166"
+      }
+    ],
+    "appOwnedSchemasModified": ["public", "supabase_migrations"],
+    "supabaseManagedSchemasModified": [],
+    "supabaseManagedSchemaReferencesOnly": ["auth", "extensions"]
+  },
+  "applicationRestoreSmoke": {
+    "status": "PASS",
+    "environment": "network-none disposable Supabase PostgreSQL 17.6.1.136",
+    "scope": "public schema/data and supabase_migrations schema/data",
+    "managedSchemasPreserved": true,
+    "sessionReplicationRoleReplicaUsedForDataOnly": true,
+    "ledgerRows": 48,
+    "publicTables": 119,
+    "rlsTables": 119,
+    "policies": 363,
+    "functions": 120,
+    "constraints": 579,
+    "indexes": 527,
+    "stores": 5,
+    "tenants": 5,
+    "memberships": 5,
+    "invoicePaymentLedgerRows": 0,
+    "crossTenant": 0,
+    "crossStore": 0,
+    "orphan": 0,
+    "supabasePlatformFullRestore": "OUT_OF_SCOPE_NOT_VERIFIED"
+  },
+  "sqlEditorPackage": {
+    "path": "docs/quality-audit/operator/g7-high-remediation/02-current-sql-editor-apply.sql",
+    "sha256": "72f71e202cb73a8008bda2d17896b19a142870c99ed15d7a724de2a8bdd76b92",
+    "compatibilityMigrationBodyExact": true,
+    "sourceMigrationBodyExact": true,
+    "staticStatus": "PASS",
+    "psqlMetaCommands": 0,
+    "externalCommunication": 0,
+    "managedSchemaModifications": 0,
+    "currentBackupCloneStatus": "PASS",
+    "currentBackupCloneLedgerBefore": 48,
+    "currentBackupCloneLedgerAfter": 50,
+    "currentBackupCloneUnexpectedBusinessWrites": 0,
+    "packageCasesPassed": 9,
+    "contractMismatchCasesRejected": ["type", "default", "nullability", "ledger", "column_without_ledger"],
+    "g7FailureRollsBackCompatibility": true,
+    "retry": "REJECTED_LEDGER_UNCHANGED_50",
+    "operatorReady": true
+  },
+  "gate": {
+    "backupBeforeG7": "PASS",
+    "g7ApplicationRecovery": "PASS",
+    "sqlEditorCurrentApply": "READY_FOR_OPERATOR_RUN",
+    "operatorAction": "RUN_THE_INTEGRATED_PACKAGE_ONCE_IN_GARAGE_LINK_SQL_EDITOR"
+  }
+}

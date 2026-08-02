@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-28T17:05:00+09:00",
+  "overall": "PASS_WITH_EXTERNAL_SENDS_DISABLED",
+  "sourceCommit": "96c28052e8e2ff505588c3f26144c4bd3383335a",
+  "currentDatabase": {
+    "migrationLedger": 51,
+    "unexpectedChanges": 0,
+    "crossTenant": 0,
+    "crossStore": 0,
+    "orphan": 0
+  },
+  "preview": {
+    "deploymentId": "dpl_CFA9yj5ZgnnfSRvbAcfeNVD3TXWK",
+    "url": "https://garage-link-jrtxe33gk-altos-projects-fa55063c.vercel.app",
+    "state": "READY",
+    "fullRegression": "PASS"
+  },
+  "production": {
+    "deploymentId": "dpl_CHxKMKxdRGuwNayP4F2ezZy8cmTY",
+    "deploymentUrl": "https://garage-link-oure5b7do-altos-projects-fa55063c.vercel.app",
+    "publicUrl": "https://garage-link.tech",
+    "state": "READY",
+    "aliasError": null,
+    "smoke": "PASS",
+    "runtimeErrors": 0
+  },
+  "safety": {
+    "externalSends": 0,
+    "stripeLiveEnabled": false,
+    "previewOtpInProduction": false,
+    "cronWorkersEnabled": false,
+    "rollbackRequired": false
+  },
+  "remaining": {
+    "productCritical": 0,
+    "productHigh": 0,
+    "externalSendEnablement": "SEPARATE_GATE"
+  }
+}

@@ -14,6 +14,7 @@ export type BillingInvoice = {
 
 export function toBillingInvoice(invoice: Stripe.Invoice): BillingInvoice | null {
   if (!invoice.number || !invoice.invoice_pdf || !invoice.status || invoice.status === 'draft') return null;
+  if (!['paid', 'open', 'void', 'uncollectible'].includes(invoice.status)) return null;
 
   return {
     id: invoice.id,
@@ -23,7 +24,7 @@ export function toBillingInvoice(invoice: Stripe.Invoice): BillingInvoice | null
     periodEnd: new Date(invoice.period_end * 1000).toISOString(),
     amount: invoice.total,
     currency: invoice.currency,
-    status: invoice.status,
+    status: invoice.status as BillingInvoice['status'],
     pdfUrl: `/api/billing/invoices/${encodeURIComponent(invoice.id)}/download`,
   };
 }

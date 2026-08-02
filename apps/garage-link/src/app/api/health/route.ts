@@ -21,8 +21,10 @@ export async function GET() {
     });
 
     // 行データは取得せず、件数ヘッダのみの軽量クエリで接続を確認する。
+    // application-privilege-contract (20260731000300) では service_role は
+    // stores への権限を持たないため、service_role に付与済みの運用テーブルを使う。
     const { error } = await supabase
-      .from('stores')
+      .from('stripe_webhook_events')
       .select('id', { head: true, count: 'exact' })
       .limit(1);
 

@@ -33,6 +33,17 @@ export function parseGaragePlanCodeFromStripeMetadata(value: string | null | und
   return normalized;
 }
 
-export function getAppBaseUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'http://localhost:3001';
+export function getAppBaseUrl(requestUrl?: string) {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, '');
+  if (configured) return configured;
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  if (process.env.VERCEL_ENV === 'preview' && vercelUrl) return `https://${vercelUrl}`;
+  if (requestUrl) {
+    try {
+      return new URL(requestUrl).origin;
+    } catch {
+      // Fail closed to the local default below.
+    }
+  }
+  return 'http://localhost:3001';
 }

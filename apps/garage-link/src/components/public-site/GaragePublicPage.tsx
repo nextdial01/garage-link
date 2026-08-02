@@ -52,7 +52,7 @@ const faqs = [
   },
   {
     question: "L-LINKとの連携は、どのプランで使えますか？",
-    answer: "L-LINK連携はStandardプランとProプランで利用できます。LINE側の設計・構築支援が必要な場合は、L-touringをご案内します。",
+    answer: "StandardプランとProプランの対象機能ですが、現在は提供準備中です。Production S2S E2Eが完了するまでは販売済み機能として扱いません。",
   },
 ];
 
@@ -77,7 +77,7 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
   },
   pricing: {
     title: "GARAGE LINKの料金",
-    description: "在庫台数、スタッフ数、店舗数、L-LINK連携の有無に合わせて、月額0円のFreeを含む4プランから選べます。有料プランの表示額は基準料金に10%相当額を加えた請求総額です。",
+    description: "在庫台数、スタッフ数、店舗数に合わせて、月額0円のFreeを含む4プランから選べます。有料プランの表示額は基準料金に10%相当額を加えた請求総額です。",
     sections: [
       {
         title: "店舗規模に合わせた4プラン",
@@ -85,17 +85,17 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
         items: [
           { title: "Free｜月額0円", body: "在庫5台、スタッフ1人、1店舗。見積・請求は月5件まで利用できます。" },
           { title: "Starter｜月額7,480円", body: "在庫50台、スタッフ1人、1店舗。見積・請求は月20件まで利用できます。" },
-          { title: "Standard｜月額16,280円", body: "在庫200台、スタッフ3人、1店舗。見積・請求は上限なしで、L-LINK連携に対応します。" },
-          { title: "Pro｜月額32,780円", body: "在庫500台、スタッフ10人、3店舗。見積・請求は上限なしで、L-LINK連携に対応します。" },
+          { title: "Standard｜月額16,280円", body: "在庫200台、スタッフ3人、1店舗。見積・請求は上限なし。L-LINK連携は提供準備中です。" },
+          { title: "Pro｜月額32,780円", body: "在庫500台、スタッフ10人、3店舗。見積・請求は上限なし。L-LINK連携は提供準備中です。" },
         ],
       },
       {
         title: "追加が必要になったときの料金",
-        description: "スタッフや店舗を増やす場合と、個別支援を依頼する場合の費用です。",
+        description: "スタッフ、店舗、保存容量を増やす場合の月額料金です。",
         items: [
           { title: "追加スタッフ｜月額1,100円／人", body: "追加できる対象プランで、店舗の運用人数に合わせて増やせます。" },
           { title: "追加店舗｜月額5,500円／店舗", body: "Standard・Proで、契約に含まれる店舗数を超える場合に追加できます。" },
-          { title: "個別サポート｜60分11,000円", body: "画面を共有した個別支援の料金です。通常のチャットサポートは各プランに含まれます。" },
+          { title: "追加ストレージ｜月額550円／10GB", body: "Starter・Standard・Proで、必要な保存容量を10GB単位で追加できます。" },
         ],
       },
     ],
@@ -111,7 +111,7 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
           { title: "仕入原価と在庫日数", body: "仕入日、入庫日、原価、保管場所を記録し、長期在庫を一覧で確認します。" },
           { title: "媒体掲載と参考相場", body: "掲載先、掲載状態、参考相場の出所・確認日・条件を車両へ残します。" },
           { title: "問い合わせと商談", body: "希望車両、来店予定、見積、次回連絡日を顧客と車両にひも付けます。" },
-          { title: "納車後の次回案内", body: "納車日と次回点検時期を記録し、L-LINK連携時はLINE案内の対象へつなげます。" },
+          { title: "納車後の次回案内", body: "納車日と次回点検時期を記録できます。L-LINKとの連携機能は現在提供準備中です。" },
         ],
       },
     ],
@@ -127,7 +127,7 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
           { title: "販売車両の在庫", body: "メーカー、車種、仕入、販売状態、保管場所を車両ごとに確認します。" },
           { title: "修理・カスタム入庫", body: "依頼内容、作業状態、使用部品、担当者、納車予定を記録します。" },
           { title: "見積と追加作業", body: "当初見積と追加作業を明細で分け、説明した内容と金額を残します。" },
-          { title: "点検・季節案内", body: "次回点検を記録し、L-LINK連携時は時期に合わせたLINE案内へつなげます。" },
+          { title: "点検・季節案内", body: "次回点検を記録できます。L-LINKとの連携機能は現在提供準備中です。" },
         ],
       },
     ],
@@ -143,7 +143,7 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
           { title: "予約・入庫予定", body: "受付日時、依頼内容、担当者、代車、納車予定を一覧で確認します。" },
           { title: "作業内容と使用部品", body: "作業状態、部品、数量、工賃を整備記録と見積・請求へ反映します。" },
           { title: "納車と請求", body: "完了した作業、請求金額、入金状況、納車日を同じ案件で確認します。" },
-          { title: "車検・点検の次回案内", body: "満了日と案内時期を記録し、L-LINK連携時はLINE案内の対象へつなげます。" },
+          { title: "車検・点検の次回案内", body: "満了日と案内時期を記録できます。L-LINKとの連携機能は現在提供準備中です。" },
         ],
       },
     ],
@@ -170,7 +170,7 @@ const heroCopy: Record<GaragePublicPageKey, HeroCopy> = {
   pricing: {
     eyebrow: "月額0円から、店舗規模に合わせて",
     title: ["台数と人数で選ぶ。", "月額0円から", "4つのプラン。"],
-    lead: "在庫5台までのFreeから、L-LINK連携や複数店舗に対応するStandard・Proまで。現在の運用規模に合わせて選べます。",
+    lead: "在庫5台までのFreeから、複数店舗に対応するProまで、現在の運用規模に合わせて選べます。L-LINK連携は提供準備中です。",
   },
   "industries/used-car": {
     eyebrow: "中古車販売店向け",
@@ -223,7 +223,7 @@ const facts: Record<GaragePublicPageKey, Array<{ value: string; label: string }>
   faq: [
     { value: "3業態", label: "中古車・バイク・整備" },
     { value: "月額0円", label: "Freeプラン" },
-    { value: "Standard以上", label: "L-LINK連携" },
+    { value: "提供準備中", label: "L-LINK連携" },
   ],
 };
 
@@ -245,7 +245,7 @@ const processCopy: Record<GaragePublicPageKey, ProcessCopy> = {
     steps: [
       { title: "管理する在庫台数を確認", body: "販売前、商談中、整備中を含め、登録する車両台数を確認します。" },
       { title: "利用するスタッフ数を確認", body: "閲覧だけの担当者も含め、店舗で利用する人数を数えます。" },
-      { title: "連携と店舗数を確認", body: "L-LINK連携の要否と、管理する店舗数から対象プランを絞ります。" },
+      { title: "提供状況と店舗数を確認", body: "L-LINK連携は提供準備中です。現在は管理する店舗数から対象プランを絞ります。" },
     ],
   },
   "industries/used-car": {
@@ -285,7 +285,7 @@ const processCopy: Record<GaragePublicPageKey, ProcessCopy> = {
     steps: [
       { title: "対象業務を決める", body: "在庫、商談、整備、見積・請求のうち、最初に使う業務を決めます。" },
       { title: "プラン上限を確認", body: "在庫台数、スタッフ数、店舗数、見積・請求件数を確認します。" },
-      { title: "権限と連携を確認", body: "スタッフの担当範囲と、L-LINK連携の要否を決めます。" },
+      { title: "権限と提供状況を確認", body: "スタッフの担当範囲を決めます。L-LINK連携は提供準備中です。" },
     ],
   },
 };

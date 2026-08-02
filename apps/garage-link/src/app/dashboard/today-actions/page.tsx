@@ -18,12 +18,7 @@ import {
   type TodayActionStatus,
 } from '@/lib/dashboard/todayActions';
 import { createClient } from '@/lib/supabase/client';
-
-type StoreMemberRow = {
-  store_id: string;
-  role: string | null;
-  display_name: string | null;
-};
+import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 
 type VehicleRow = {
   id: string;
@@ -184,16 +179,8 @@ function TodayActionsPageContent() {
     setErrorMessage('');
     try {
       const supabase = createClient();
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData.user?.id) throw new Error(userError?.message ?? 'ログイン情報を取得できませんでした。');
-
-      const { data: member, error: memberError } = await supabase
-        .from<StoreMemberRow>('store_members')
-        .select('store_id, role, display_name')
-        .eq('user_id', userData.user.id)
-        .single();
-
-      if (memberError || !member?.store_id) throw new Error(memberError?.message ?? '所属店舗が見つかりません。');
+      const context = await requireActiveGarageStore();
+      const member = { store_id: context.storeId, role: context.role, display_name: context.displayName };
 
       setStoreId(member.store_id);
       setRole(member.role ?? '');

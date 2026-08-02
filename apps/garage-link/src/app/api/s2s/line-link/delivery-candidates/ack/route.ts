@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyLLinkS2SRequest } from '@/lib/line-link/s2sAuth';
 import { logServerError } from '@/lib/observability/logServerError';
 import { canStoreUseLLink } from '@/lib/billing/lLinkContract';
+import { assertServiceTenantStoreContext, type GarageTenantContext } from '@/lib/security/garageTenantContext';
 
 // L-LINK → GARAGE LINK S2S 確認応答（ACK）API（HMAC 署名認証）。
 // - 既存の候補取得ルート（../route.ts、SELECTのみ）とは独立。既存ルートの動作には一切触れない。
@@ -75,8 +76,9 @@ export async function POST(request: Request) {
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error, code: auth.code }, { status: auth.status });
   }
-  if (!(await canStoreUseLLink(auth.storeId))) {
-    return NextResponse.json({ ok: false, error: 'L-LINK連携はStandard以上の契約が必要です。', code: 'plan_required' }, { status: 403 });
+  const context: GarageTenantContext = auth.context;
+  if (!(await canStoreUseLLink(context))) {
+    return NextResponse.json({ ok: false, error: 'L-LINK連携は現在提供準備中です。', code: 'feature_preparing' }, { status: 403 });
   }
 
   const acknowledgements = parseAcknowledgements(bodyText);
@@ -96,6 +98,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    await assertServiceTenantStoreContext(supabase, context);
     // p_store_id は HMAC 検証済みの auth.storeId のみ。body の store_id は渡さない/使わない。
     const { data, error } = await supabase.rpc('acknowledge_inspection_reminder_events', {
       p_store_id: auth.storeId,

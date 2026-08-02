@@ -1,5 +1,5 @@
 type PostAuthQueryResult = {
-  data: { store_id?: string; onboarding_completed_at?: string | null } | null;
+  data: { onboarding_completed_at?: string | null } | null;
 };
 
 type PostAuthSupabaseClient = {
@@ -10,6 +10,10 @@ type PostAuthSupabaseClient = {
       };
     };
   };
+  rpc: (
+    functionName: string,
+    args: Record<string, never>
+  ) => Promise<{ data: unknown; error: { message?: string } | null }>;
 };
 
 import { fetchStoreOnboardingStatus } from '@/lib/auth/store-onboarding';
@@ -39,22 +43,28 @@ function normalizeNextPath(nextPath?: string | null): string | null {
  */
 export async function resolvePostAuthPath(
   supabase: PostAuthSupabaseClient,
-  userId: string,
+  _userId: string,
   options: PostAuthRedirectOptions = {}
 ): Promise<string> {
   const nextPath = normalizeNextPath(options.nextPath);
 
-  const { data: member } = await supabase
-    .from('store_members')
-    .select('store_id')
-    .eq('user_id', userId)
-    .maybeSingle();
+  const { data: rawContext, error: scopeError } = await supabase.rpc(
+    'get_garage_ui_context_v2',
+    {}
+  );
+  const context = rawContext && typeof rawContext === 'object' && !Array.isArray(rawContext)
+    ? rawContext as { state?: string; store_id?: string }
+    : null;
 
-  if (!member?.store_id) {
+  if (scopeError || !context || context.state === 'no_access') {
     return '/signup?resume=1';
   }
 
-  const { onboardingCompleted } = await fetchStoreOnboardingStatus(supabase, member.store_id);
+  if (context.state === 'selection_required' || !context.store_id) {
+    return nextPath ?? '/dashboard';
+  }
+
+  const { onboardingCompleted } = await fetchStoreOnboardingStatus(supabase, context.store_id);
 
   if (!onboardingCompleted) {
     return '/onboarding';

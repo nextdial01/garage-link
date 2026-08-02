@@ -8,6 +8,7 @@ import { trackConversion } from '@/lib/analytics/conversion';
 import { translateAuthError } from '@/lib/auth/auth-errors';
 import { fetchStoreForOnboarding, markOnboardingComplete } from '@/lib/auth/store-onboarding';
 import { createClient } from '@/lib/supabase/client';
+import { getGarageUiContext } from '@/lib/store/garageUiContext';
 import { DEFAULT_PRIMARY_TABS, PRIMARY_TAB_OPTIONS, PURCHASE_RECOGNITION_OPTIONS, SALES_RECOGNITION_OPTIONS, resolvePrimaryTabs, sanitizePrimaryTabs, type PrimaryTabKey, type PurchaseRecognitionBasis, type SalesRecognitionBasis } from '@/lib/store/uiPreferences';
 
 const STEP_LABELS = ['業態と基本情報', '売上の集計基準', '仕入の集計基準', '主タブと目標'];
@@ -68,18 +69,17 @@ export default function OnboardingPage() {
         return;
       }
 
-      const { data: member } = await supabase
-        .from<{ store_id: string }>('store_members')
-        .select('store_id')
-        .eq('user_id', userData.user.id)
-        .maybeSingle();
-
-      if (!member?.store_id) {
+      const context = await getGarageUiContext({ force: true });
+      if (context.state === 'selection_required') {
+        router.replace('/dashboard');
+        return;
+      }
+      if (context.state !== 'active' || !context.storeId) {
         router.replace('/signup?resume=1');
         return;
       }
 
-      const { store, errorMessage } = await fetchStoreForOnboarding(supabase, member.store_id);
+      const { store, errorMessage } = await fetchStoreForOnboarding(supabase, context.storeId);
 
       if (errorMessage || !store) {
         setLoadError(

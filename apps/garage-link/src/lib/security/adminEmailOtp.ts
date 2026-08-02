@@ -6,9 +6,9 @@ const ADMIN_ROLES = new Set(['owner', 'admin', 'implementer']);
 
 type RoleRow = { role?: string | null };
 
-export function hasEffectiveAdminRole(membershipRoles: RoleRow[], storeRoles: RoleRow[]) {
-  const effectiveRoles = storeRoles.length > 0 ? storeRoles : membershipRoles;
-  return effectiveRoles.some((membership) => ADMIN_ROLES.has(membership.role ?? ''));
+export function hasEffectiveAdminRole(membershipRoles: RoleRow[], _legacyStoreRoles: RoleRow[] = []) {
+  void _legacyStoreRoles;
+  return membershipRoles.some((membership) => ADMIN_ROLES.has(membership.role ?? ''));
 }
 
 function base64UrlEncode(value: string) {

@@ -52,7 +52,7 @@ export default function RootLayout({
     <html lang="ja" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         {children}
-        <GarageAnalytics />
+        {process.env.VERCEL === "1" ? <GarageAnalytics /> : null}
       </body>
     </html>
   );

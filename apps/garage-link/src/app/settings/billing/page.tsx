@@ -7,9 +7,6 @@ import PermissionDeniedCard from '@/components/PermissionDeniedCard';
 import {
   GARAGE_PLAN_ORDER,
   GARAGE_PLANS,
-  canAddStaff,
-  canAddStorage,
-  canAddStore,
   formatGarageYen,
   formatStorage,
   getGaragePlan,
@@ -134,6 +131,15 @@ function toNonNegativeNumber(value: string) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 }
 
+function clearCheckoutRetryKeys() {
+  for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+    const key = window.sessionStorage.key(index);
+    if (key?.startsWith('garage-billing-operation:') && key.includes(':/api/billing/checkout:')) {
+      window.sessionStorage.removeItem(key);
+    }
+  }
+}
+
 export default function BillingSettingsPage() {
   const [role, setRole] = useState('');
   const [store, setStore] = useState<StoreRow | null>(null);
@@ -153,6 +159,7 @@ export default function BillingSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isStripeLoading, setIsStripeLoading] = useState(false);
+  const [isStripePortalLoading, setIsStripePortalLoading] = useState(false);
   const [stripeConfigured, setStripeConfigured] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -168,7 +175,7 @@ export default function BillingSettingsPage() {
         if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
 
         const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
+          .from<StoreMemberRow>('current_user_active_store_membership')
           .select('store_id, role')
           .eq('user_id', userData.user.id)
           .single();
@@ -241,6 +248,7 @@ export default function BillingSettingsPage() {
           throw new Error(payload.error ?? '決済結果の反映に失敗しました。');
         }
         setSuccessMessage(`Stripe 決済が完了しました。プランを ${payload.plan ?? ''} に更新しました。`);
+        clearCheckoutRetryKeys();
         window.history.replaceState({}, '', '/settings/billing');
         window.location.reload();
       } catch (error) {
@@ -270,9 +278,9 @@ export default function BillingSettingsPage() {
   const isCancelledRetention = subscription?.status === 'cancelled';
 
   const validationMessage = (() => {
-    if (form.request_type === 'add_staff' && !canAddStaff(currentPlanCode)) return 'Freeプランではスタッフ追加はできません。';
-    if (form.request_type === 'add_store' && !canAddStore(currentPlanCode)) return '店舗追加はStandard以上で利用できます。';
-    if (form.request_type === 'add_storage' && !canAddStorage(currentPlanCode)) return 'Freeプランではストレージ追加はできません。';
+    if (form.request_type === 'add_staff' || form.request_type === 'add_store' || form.request_type === 'add_storage') {
+      return 'スタッフ・店舗・保存容量の追加購入は初回販売の対象外です。準備が整い次第あらためてご案内します。';
+    }
     return '';
   })();
 
@@ -371,25 +379,60 @@ export default function BillingSettingsPage() {
     try {
       setIsStripeLoading(true);
       const hasPaidSubscription = Boolean(subscription?.stripe_subscription_id) && !isCancelledRetention;
-      const response = await fetch(hasPaidSubscription ? '/api/billing/change-plan' : '/api/billing/checkout', {
+      const billingEndpoint = hasPaidSubscription ? '/api/billing/change-plan' : '/api/billing/checkout';
+      const retryKeyName = `garage-billing-operation:${store?.id ?? 'unknown'}:${billingEndpoint}:${targetPlan}`;
+      let idempotencyKey = window.sessionStorage.getItem(retryKeyName);
+      if (!idempotencyKey) {
+        idempotencyKey = crypto.randomUUID();
+        window.sessionStorage.setItem(retryKeyName, idempotencyKey);
+      }
+      const response = await fetch(billingEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'idempotency-key': idempotencyKey,
+        },
         body: JSON.stringify({ plan: targetPlan, termsAccepted: true }),
       });
-      const payload = (await response.json()) as { ok?: boolean; url?: string; error?: string; message?: string };
+      const payload = (await response.json()) as {
+        ok?: boolean; url?: string; error?: string; message?: string; code?: string;
+      };
       if (!response.ok || !payload.ok) {
+        if (payload.code === 'checkout_session_expired') {
+          window.sessionStorage.removeItem(retryKeyName);
+        }
         throw new Error(payload.error ?? 'プラン変更の開始に失敗しました。');
       }
       if (payload.url) {
         window.location.assign(payload.url);
         return;
       }
+      window.sessionStorage.removeItem(retryKeyName);
       setSuccessMessage(payload.message ?? 'プラン変更を受け付けました。');
       window.setTimeout(() => window.location.reload(), 1200);
     } catch (error) {
       setErrorMessage(translateDbError(error instanceof Error ? error.message : 'Checkout の開始に失敗しました。'));
     } finally {
       setIsStripeLoading(false);
+    }
+  }
+
+  async function handleStripePortal() {
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    try {
+      setIsStripePortalLoading(true);
+      const response = await fetch('/api/billing/portal', { method: 'POST' });
+      const payload = (await response.json()) as { ok?: boolean; url?: string; error?: string };
+      if (!response.ok || !payload.ok || !payload.url) {
+        throw new Error(payload.error ?? '契約管理ページを開けませんでした。');
+      }
+      window.location.assign(payload.url);
+    } catch (error) {
+      setErrorMessage(translateDbError(error instanceof Error ? error.message : '契約管理ページを開けませんでした。'));
+    } finally {
+      setIsStripePortalLoading(false);
     }
   }
 
@@ -453,6 +496,20 @@ export default function BillingSettingsPage() {
             {subscription?.pending_plan && subscription.pending_plan_effective_at && (
               <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
                 {getGaragePlan(subscription.pending_plan).name}への変更を予約済みです。{formatInvoiceDate(subscription.pending_plan_effective_at)}から機能と契約内容を切り替えます。
+              </p>
+            )}
+            {subscription?.stripe_customer_id ? (
+              <button
+                type="button"
+                onClick={() => void handleStripePortal()}
+                disabled={isStripePortalLoading}
+                className="mt-4 inline-flex rounded-xl border border-blue-300 bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isStripePortalLoading ? '契約管理を開いています...' : '支払方法・契約を管理'}
+              </button>
+            ) : (
+              <p className="mt-4 text-sm font-semibold text-slate-600">
+                Stripeの契約情報が未連携のため、支払方法の管理はまだ利用できません。契約手続きの完了後に利用できます。
               </p>
             )}
           </section>
@@ -626,7 +683,7 @@ export default function BillingSettingsPage() {
                       ['標準店舗', (code: GaragePlanCode) => `${GARAGE_PLANS[code].includedStoreCount}店舗`],
                       ['保存容量', (code: GaragePlanCode) => formatStorage(GARAGE_PLANS[code].storageLimitMb)],
                       ['見積・請求', (code: GaragePlanCode) => (GARAGE_PLANS[code].quoteInvoiceLimit === null ? '無制限' : `月${GARAGE_PLANS[code].quoteInvoiceLimit}件`)],
-                      ['L-LINK連携', (code: GaragePlanCode) => (GARAGE_PLANS[code].lLinkIntegrationEnabled ? '利用可' : '対象外')],
+                      ['L-LINK連携', (code: GaragePlanCode) => GARAGE_PLANS[code].lLinkAvailability === 'preparing' ? '提供準備中' : '対象外'],
                     ].map(([label, formatter]) => (
                       <tr key={label as string} className="hover:bg-slate-50">
                         <td className="px-5 py-4 font-bold text-slate-700">{label as string}</td>
@@ -645,12 +702,17 @@ export default function BillingSettingsPage() {
                 <label className="block">
                   <span className="mb-2 block text-sm font-bold text-slate-700">申込種別</span>
                   <select className={inputClass} value={form.request_type} onChange={(event) => setForm((current) => ({ ...current, request_type: event.target.value as RequestType }))}>
-                    {Object.entries(requestTypeLabels).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
+                    {Object.entries(requestTypeLabels)
+                      .filter(([value]) => value !== 'add_staff' && value !== 'add_store' && value !== 'add_storage')
+                      .map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
                   </select>
+                  <p className="mt-2 text-xs text-slate-500">
+                    スタッフ・店舗・保存容量の追加購入は初回販売の対象外です。準備が整い次第あらためてご案内します。
+                  </p>
                 </label>
                 <label className="block">
                   <span className="mb-2 block text-sm font-bold text-slate-700">希望プラン</span>

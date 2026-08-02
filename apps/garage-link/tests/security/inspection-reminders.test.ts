@@ -616,7 +616,8 @@ test.describe('車検案内: L-LINK 確認応答（ACK）ルート — 既存の
       'utf8'
     );
     // pending のみ・store_idスコープのSELECTのみという既存契約が維持されている。
-    expect(source).toContain(".eq('store_id', auth.storeId)");
+    expect(source).toContain(".eq('store_id', context.storeId!)");
+    expect(source).toContain(".eq('company_id', context.tenantId)");
     expect(source).toContain(".eq('status', 'pending')");
     expect(source).not.toMatch(/\.update\(|\.upsert\(|\.insert\(|\.delete\(/);
   });

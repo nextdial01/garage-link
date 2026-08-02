@@ -8,6 +8,7 @@ import {
   type DeliveryDraftBatch,
 } from '@/lib/line-link/deliveryCandidates';
 import { canStoreUseLLink } from '@/lib/billing/lLinkContract';
+import type { GarageTenantContext } from '@/lib/security/garageTenantContext';
 
 // GARAGE LINK → L-LINK 配信候補の受け渡し（読み取り専用契約）。
 // - 認証ユーザーのセッション（RLS: 所属店舗のみ）でアクセス。service_role 非依存。
@@ -16,7 +17,7 @@ import { canStoreUseLLink } from '@/lib/billing/lLinkContract';
 export const dynamic = 'force-dynamic';
 
 const MAX_LIMIT = 200;
-type StoreMemberRow = { store_id: string; role: string | null };
+type StoreMemberRow = { tenant_id: string; store_id: string; role: string | null };
 type EventRow = {
   id: string;
   company_id: string | null;
@@ -37,15 +38,26 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: 'ログイン情報を取得できませんでした。', code: 'unauthorized' }, { status: 401 });
   }
   const { data: member, error: memberError } = await supabase
-    .from<StoreMemberRow>('store_members')
-    .select('store_id, role')
+    .from<StoreMemberRow>('current_user_active_store_membership')
+    .select('tenant_id, store_id, role')
     .eq('user_id', userData.user.id)
+    .eq('status', 'active')
     .single();
   if (memberError || !member?.store_id) {
     return NextResponse.json({ ok: false, error: '所属店舗を取得できませんでした。', code: 'forbidden_no_membership' }, { status: 403 });
   }
-  if (!(await canStoreUseLLink(member.store_id))) {
-    return NextResponse.json({ ok: false, error: 'L-LINK連携はStandard以上の契約が必要です。', code: 'plan_required' }, { status: 403 });
+  const actorRole = member.role === 'owner' || member.role === 'admin' || member.role === 'implementer'
+    || member.role === 'staff' || member.role === 'viewer' ? member.role : 'viewer';
+  const context: GarageTenantContext = {
+    tenantId: member.tenant_id,
+    storeId: member.store_id,
+    actorUserId: userData.user.id,
+    actorRole,
+    source: 'api',
+    correlationId: request.headers.get('x-correlation-id')?.slice(0, 80) || crypto.randomUUID(),
+  };
+  if (!(await canStoreUseLLink(context))) {
+    return NextResponse.json({ ok: false, error: 'L-LINK連携は現在提供準備中です。', code: 'feature_preparing' }, { status: 403 });
   }
 
   const url = new URL(request.url);

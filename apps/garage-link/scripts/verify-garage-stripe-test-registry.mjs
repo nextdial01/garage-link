@@ -1,0 +1,99 @@
+import Stripe from 'stripe';
+
+const expected = [
+  { item: 'starter', env: 'STRIPE_PRICE_STARTER', amount: 7480, product: 'prod_Uw6CRhfl2Ukd4d' },
+  { item: 'standard', env: 'STRIPE_PRICE_STANDARD', amount: 16280, product: 'prod_Uw6C9aCkaDHmC7' },
+  { item: 'pro', env: 'STRIPE_PRICE_PRO', amount: 32780, product: 'prod_Uw6CqVkToPe8Mp' },
+  { item: 'extra_staff', env: 'STRIPE_PRICE_EXTRA_STAFF', amount: 1100 },
+  { item: 'extra_store', env: 'STRIPE_PRICE_EXTRA_STORE', amount: 5500 },
+  { item: 'extra_storage_10gb', env: 'STRIPE_PRICE_EXTRA_STORAGE_10GB', amount: 550 },
+];
+
+function required(name) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
+
+async function main() {
+  const secret = required('STRIPE_SECRET_KEY');
+  if (!secret.startsWith('sk_test_')) {
+    throw new Error('Refusing Stripe registry verification: test mode key is required');
+  }
+
+  const stripe = new Stripe(secret, { apiVersion: '2026-07-29.dahlia' });
+  const account = await stripe.accounts.retrieve();
+  if (account.livemode || process.env.STRIPE_ACCOUNT_ID !== account.id) {
+    throw new Error('Stripe test account fingerprint mismatch');
+  }
+  const taxSettings = await stripe.tax.settings.retrieve();
+  const activeTaxRegistrations = await stripe.tax.registrations.list({
+    status: 'active',
+    limit: 100,
+  });
+  const results = [];
+
+  for (const item of expected) {
+    // add-on (staff/store/storage) prices are out of scope while the add-on
+    // purchase flow is disabled for initial sale (see change-options/route.ts) -
+    // no approved test Price exists to verify against yet.
+    if (item.item.startsWith('extra_') && !process.env[item.env]?.trim()) continue;
+    const priceId = required(item.env);
+    const price = await stripe.prices.retrieve(priceId, { expand: ['product'] });
+    const product = typeof price.product === 'string' ? null : price.product;
+    const subscriptions = await stripe.subscriptions.list({
+      price: price.id,
+      status: 'all',
+      limit: 100,
+    });
+    const automaticTaxEnabled = subscriptions.data.some(
+      (subscription) => subscription.automatic_tax.enabled,
+    );
+    const manualTaxRatesPresent = subscriptions.data.some(
+      (subscription) => subscription.default_tax_rates.length > 0,
+    );
+    const valid = price.livemode === false
+      && price.active
+      && price.currency === 'jpy'
+      && price.unit_amount === item.amount
+      && price.type === 'recurring'
+      && price.recurring?.interval === 'month'
+      && ['inclusive', 'unspecified'].includes(price.tax_behavior)
+      && !automaticTaxEnabled
+      && !manualTaxRatesPresent
+      && Boolean(product && !('deleted' in product && product.deleted) && product.active)
+      && (!item.product || product?.id === item.product);
+    results.push({
+      item: item.item,
+      mode: price.livemode ? 'live' : 'test',
+      active: price.active,
+      currency: price.currency,
+      amount: price.unit_amount,
+      interval: price.recurring?.interval ?? null,
+      tax_behavior: price.tax_behavior,
+      automatic_tax: automaticTaxEnabled,
+      default_tax_rates: manualTaxRatesPresent,
+      product_active: Boolean(product && !('deleted' in product && product.deleted) && product.active),
+      product_id: product?.id ?? null,
+      expected_product_id: item.product ?? null,
+      expected_amount: item.amount,
+      pass: valid,
+    });
+  }
+
+  console.log(JSON.stringify({
+    mode: 'test',
+    account_tax: {
+      status: taxSettings.status,
+      default_tax_behavior: taxSettings.defaults?.tax_behavior ?? null,
+      active_registration_count: activeTaxRegistrations.data.length,
+    },
+    results,
+  }, null, 2));
+  if (results.some((result) => !result.pass)) process.exitCode = 1;
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : 'Stripe registry verification failed');
+  process.exit(1);
+});

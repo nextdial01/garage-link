@@ -343,6 +343,7 @@ export default function DealDetailPage() {
   const [isUpdatingVehicle, setIsUpdatingVehicle] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const tradeInRef = useRef<HTMLElement | null>(null);
+  const saleRequestKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     async function loadDeal() {
@@ -480,7 +481,6 @@ export default function DealDetailPage() {
         deal_no: toNullableText(dealForm.deal_no),
         title: toNullableText(dealForm.title),
         deal_type: toNullableText(dealForm.deal_type),
-        status: toNullableText(dealForm.status),
         probability: toNullableText(dealForm.probability),
         source: toNullableText(dealForm.source),
         budget: toNullableNumber(dealForm.budget),
@@ -491,6 +491,31 @@ export default function DealDetailPage() {
         line_status: toNullableText(dealForm.line_status),
         memo: toNullableText(dealForm.memo),
       };
+      let savedStatus = deal.status;
+      if (deal.status !== '成約' && dealForm.status === '成約') {
+        saleRequestKeyRef.current ??= `reserve:${deal.id}:${crypto.randomUUID()}`;
+        const response = await fetch(`/api/deals/${deal.id}/sale`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idempotencyKey: saleRequestKeyRef.current }),
+        });
+        const result = (await response.json()) as { error?: string };
+        if (!response.ok) throw new Error(result.error ?? '売約処理に失敗しました。');
+        savedStatus = '成約';
+      } else if (deal.status === '成約' && dealForm.status !== '成約') {
+        saleRequestKeyRef.current ??= `cancel:${deal.id}:${crypto.randomUUID()}`;
+        const response = await fetch(`/api/deals/${deal.id}/sale`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idempotencyKey: saleRequestKeyRef.current }),
+        });
+        const result = (await response.json()) as { error?: string };
+        if (!response.ok) throw new Error(result.error ?? '売約取消に失敗しました。');
+        savedStatus = '失注';
+      } else {
+        payload.status = toNullableText(dealForm.status);
+        savedStatus = payload.status ?? deal.status;
+      }
       const { error } = await supabase
         .from<DealUpdate>('deals')
         .update(payload)
@@ -499,7 +524,9 @@ export default function DealDetailPage() {
       if (error) {
         throw new Error(error.message);
       }
-      setDeal({ ...deal, ...payload } as DealRow);
+      setDeal({ ...deal, ...payload, status: savedStatus } as DealRow);
+      setDealForm((current) => ({ ...current, status: savedStatus ?? current.status }));
+      saleRequestKeyRef.current = null;
       setSuccessMessage('商談情報を保存しました。');
     } catch (error) {
       setErrorMessage(toUserErrorMessage(error, '商談情報の保存に失敗しました。'));
@@ -559,6 +586,20 @@ export default function DealDetailPage() {
     setErrorMessage('');
 
     try {
+      if (tableName === 'invoices') {
+        const reason = window.prompt('請求書を取消する理由を入力してください（3文字以上）。');
+        if (reason === null) return;
+        const response = await fetch(`/api/invoices/${documentId}/void`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason, idempotencyKey: crypto.randomUUID() }),
+        });
+        const result = await response.json() as { ok?: boolean; error?: string };
+        if (!response.ok || !result.ok) throw new Error(result.error ?? '請求書を取消できませんでした。');
+        setReloadKey((current) => current + 1);
+        return;
+      }
+
       const supabase = createClient();
       const { data: userData } = await supabase.auth.getUser();
       const { error } = await supabase
@@ -576,7 +617,7 @@ export default function DealDetailPage() {
 
       const { data: member } = userData.user?.id && deal?.store_id
         ? await supabase
-            .from<StoreMemberRow>('store_members')
+            .from<StoreMemberRow>('current_user_active_store_membership')
             .select('role, display_name, email')
             .eq('user_id', userData.user.id)
             .eq('store_id', deal.store_id)

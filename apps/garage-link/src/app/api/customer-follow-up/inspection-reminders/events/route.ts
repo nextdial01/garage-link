@@ -16,9 +16,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: 'ログイン情報を取得できませんでした。', code: 'unauthorized' }, { status: 401 });
   }
   const { data: member, error: memberError } = await supabase
-    .from<StoreMemberRow>('store_members')
+    .from<StoreMemberRow>('current_user_active_store_membership')
     .select('store_id, role')
     .eq('user_id', userData.user.id)
+    .eq('status', 'active')
     .single();
   if (memberError || !member?.store_id) {
     return NextResponse.json({ ok: false, error: '所属店舗を取得できませんでした。', code: 'forbidden_no_membership' }, { status: 403 });

@@ -1,0 +1,43 @@
+{
+  "generatedAt": "2026-07-28T16:55:00+09:00",
+  "environment": "vercel-preview-current-test-data-only",
+  "project": "garage-link",
+  "deploymentId": "dpl_CFA9yj5ZgnnfSRvbAcfeNVD3TXWK",
+  "deploymentUrl": "https://garage-link-jrtxe33gk-altos-projects-fa55063c.vercel.app",
+  "commit": "96c28052e8e2ff505588c3f26144c4bd3383335a",
+  "currentMigrationLedger": 51,
+  "externalSends": 0,
+  "environmentControls": {
+    "externalSendsDisabled": true,
+    "previewOtpSink": "preview-only",
+    "stripe": "preview-mock",
+    "resendCredential": "production-only",
+    "securityFromEmail": "production-only",
+    "line": "disabled",
+    "lLink": "mock-only",
+    "cron": "fail-closed"
+  },
+  "localRegression": {
+    "security": "244/244 PASS",
+    "apiSmoke": "PASS",
+    "lineLinkMock": "PASS",
+    "inquiryManagement": "PASS",
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "productionBuild": "PASS (130 routes)"
+  },
+  "browser": {
+    "publicRoutes": "PASS",
+    "owner": "PASS",
+    "admin": "PASS",
+    "implementer": "PASS",
+    "staff": "PASS",
+    "viewer": "PASS",
+    "previewOtpSink": "PASS",
+    "ownerMajorRoutes": "10/10 PASS",
+    "staffMajorRoutes": "7/7 PASS",
+    "runtimeErrors": 0,
+    "rateLimitObserved": true
+  },
+  "status": "PASS"
+}

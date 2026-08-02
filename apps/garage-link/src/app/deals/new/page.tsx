@@ -8,6 +8,7 @@ import { ChangeEvent, FormEvent, Suspense, useEffect, useMemo, useRef, useState 
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
 import { buildDealTitleFromVehicle, formatVehicleLabel } from '@/lib/vehicles/vehicle-label';
+import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 
 type FieldType =
   | 'text'
@@ -53,10 +54,6 @@ type FormSection = {
   description: string;
   fields: Field[];
   note?: string;
-};
-
-type StoreMemberRow = {
-  store_id: string;
 };
 
 type CustomerOption = {
@@ -871,23 +868,8 @@ function NewDealPageContent() {
 
       try {
         const supabase = createClient();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-
-        if (userError || !userData.user?.id) {
-          throw new Error(userError?.message ?? 'ログイン情報を取得できませんでした。');
-        }
-
-        const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
-          .select('store_id')
-          .eq('user_id', userData.user.id)
-          .single();
-
-        if (memberError || !member?.store_id) {
-          throw new Error(memberError?.message ?? '所属店舗が見つかりません。');
-        }
-
-        setStoreId(member.store_id);
+        const activeStoreId = (await requireActiveGarageStore()).storeId;
+        setStoreId(activeStoreId);
 
         const [customerResult, vehicleResult] = await Promise.all([
           supabase
@@ -895,14 +877,14 @@ function NewDealPageContent() {
             .select(
               'id, name, kana, phone, mobile_phone, email, line_display_name, line_user_id, line_friend_status, delivery_permission, desired_maker, desired_model, desired_displacement, budget_min, budget_max, desired_purchase_timing, trade_in_status, customer_status, assigned_user_name, next_action_date, memo'
             )
-            .eq('store_id', member.store_id)
+            .eq('store_id', activeStoreId)
             .order('created_at', { ascending: false }),
           supabase
             .from<VehicleOption>('vehicles')
             .select(
               'id, management_no, vehicle_type, maker, model_name, grade, vin, registration_no, first_registration_month, model_year, displacement_cc, mileage_km, color, inspection_expiry_date, purchase_price, base_price, total_price, status, location_name, description, internal_memo'
             )
-            .eq('store_id', member.store_id)
+            .eq('store_id', activeStoreId)
             .order('created_at', { ascending: false }),
         ]);
 

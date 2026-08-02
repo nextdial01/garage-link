@@ -7,8 +7,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
+import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 
-type StoreMemberRow = { store_id: string };
 type CustomerRow = {
   id: string;
   name: string | null;
@@ -110,20 +110,12 @@ export default function NewMaintenancePage() {
     async function loadOptions() {
       try {
         const supabase = createClient();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
-
-        const { data: member, error: memberError } = await supabase
-          .from<StoreMemberRow>('store_members')
-          .select('store_id')
-          .eq('user_id', userData.user.id)
-          .single();
-        if (memberError || !member?.store_id) throw new Error('所属店舗を取得できませんでした。');
-        setStoreId(member.store_id);
+        const activeStoreId = (await requireActiveGarageStore()).storeId;
+        setStoreId(activeStoreId);
 
         const [customerResult, vehicleResult] = await Promise.all([
-          supabase.from<CustomerRow>('customers').select('id, name, phone, mobile_phone, email, line_display_name, delivery_permission').eq('store_id', member.store_id),
-          supabase.from<VehicleRow>('vehicles').select('id, management_no, maker, model_name, grade, vin, registration_no, mileage_km, inspection_expiry_date, status').eq('store_id', member.store_id),
+          supabase.from<CustomerRow>('customers').select('id, name, phone, mobile_phone, email, line_display_name, delivery_permission').eq('store_id', activeStoreId),
+          supabase.from<VehicleRow>('vehicles').select('id, management_no, maker, model_name, grade, vin, registration_no, mileage_km, inspection_expiry_date, status').eq('store_id', activeStoreId),
         ]);
         if (customerResult.error) throw new Error(customerResult.error.message);
         if (vehicleResult.error) throw new Error(vehicleResult.error.message);

@@ -1,0 +1,1229 @@
+{
+  "formatVersion": 4,
+  "repositoryRoot": "/Users/ksk/garage-link",
+  "applicationRoot": "/Users/ksk/garage-link/apps/garage-link",
+  "branch": "main",
+  "head": "f45b0e924f611756e9f5d99e5534d73726f4c75a",
+  "scope": {
+    "description": "Dirty-tree product, migration, test, and evidence-generator inputs; audit reports, secrets, build output, node_modules and test output are excluded.",
+    "trackedChangeCount": 107,
+    "untrackedCount": 128,
+    "fileCount": 191,
+    "files": [
+      {
+        "path": "apps/garage-link/package.json",
+        "kind": "tracked-change",
+        "size": 2293,
+        "sha256": "9ab13d61bd989cc6b09c709356e04d7c1ae83e07a49f500f7f1212525d4b0c83"
+      },
+      {
+        "path": "apps/garage-link/scripts/check-c6-migration-integrity.mjs",
+        "kind": "untracked",
+        "size": 4260,
+        "sha256": "1736ec0b2ce6595a61cc3ef1a37460a3d230dbea060a460f27aa11d5c2a6bf53"
+      },
+      {
+        "path": "apps/garage-link/scripts/check-g1c-service-scope.mjs",
+        "kind": "untracked",
+        "size": 3203,
+        "sha256": "394a9f2f025dd8fcb2cee95ce3134864e42520597e07fd6bd581b791b4f6e4f9"
+      },
+      {
+        "path": "apps/garage-link/scripts/check-inquiry-response-management.mjs",
+        "kind": "tracked-change",
+        "size": 2259,
+        "sha256": "03ac6661c6b71683426580d97dff39bf87ee683ec86dc91dff2d4772b1c456f1"
+      },
+      {
+        "path": "apps/garage-link/scripts/check-l-link-inquiry-s2s.mjs",
+        "kind": "tracked-change",
+        "size": 2395,
+        "sha256": "aa21cd090ad881de87911267b9e2dd3e93f871e99d5d4def0b38273ab0b8b7a7"
+      },
+      {
+        "path": "apps/garage-link/scripts/check-line-link-s2s-ack.mjs",
+        "kind": "tracked-change",
+        "size": 5493,
+        "sha256": "2031d00dd2a8ac65563aa059e1e52db02046749420141c4f99fd579861e9e310"
+      },
+      {
+        "path": "apps/garage-link/scripts/check-line-link-s2s.mjs",
+        "kind": "tracked-change",
+        "size": 5140,
+        "sha256": "2514e51ff1c8097d325a0af0d77217c9c642f6b5a0298c2e128f046fda151347"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/check-g1c-relation-contract.mjs",
+        "kind": "untracked",
+        "size": 3093,
+        "sha256": "4b5ebf889b00f1d83333b915de480d224150368647100a2de933e02ae691830b"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/g0b-api-smoke.mjs",
+        "kind": "untracked",
+        "size": 9996,
+        "sha256": "6fc7db08b4ca16ba121c6818bdb9e4e7990a95c5279de1a91b8d210a33d9cb73"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/g0b-supabase-stub.mjs",
+        "kind": "untracked",
+        "size": 13066,
+        "sha256": "1f089ad202b32784ab3b013f07913964d97e1003a44630f2deae65b43a72d3e1"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/g1d-browser-smoke.mjs",
+        "kind": "untracked",
+        "size": 4685,
+        "sha256": "46e0e895e8e1f731707ba8660fc2a6c3a8875dee789fa914747188d9dae6a216"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/migration-runner.mjs",
+        "kind": "untracked",
+        "size": 15906,
+        "sha256": "a4a192454a08a4f93e5a5719160b01cb6c1440d969efa091ffe27a339e8cf930"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/run-db003-relation-compatibility.sh",
+        "kind": "untracked",
+        "size": 3370,
+        "sha256": "5db30cfe77a5a61686e8bd73afe669606008dc24fbdddd0d7c32500292832bd1"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/run-g0b-api-smoke.sh",
+        "kind": "untracked",
+        "size": 1342,
+        "sha256": "2780585515a3032c84ebd8025bc7468a20418e4a8e142f1463e28f27d6f3a1fb"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/run-g0b-ci.sh",
+        "kind": "untracked",
+        "size": 9448,
+        "sha256": "2ef74e529cf94cd0466c37c0f1d25b1728d2e7d37bc6b39a12f10a0f98871051"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/run-g0b-full-ci.sh",
+        "kind": "untracked",
+        "size": 766,
+        "sha256": "b61e6a0ba1a5c270f489f2e5c9038fe98b648d338c4dfdca7a3c9275c37ff0c5"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/run-g1d-concurrency.sh",
+        "kind": "untracked",
+        "size": 4202,
+        "sha256": "798e7cc9a24e57ea08899ce7857fffb41b9d5cff1377d7786a40494fc83760b2"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/run-g1d-process-kill.sh",
+        "kind": "untracked",
+        "size": 3944,
+        "sha256": "5e313c168387318237304eeb209539b1b796c34b5ee5c37afb0c4a8d7df49964"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/run-g4a-concurrency.sh",
+        "kind": "untracked",
+        "size": 7150,
+        "sha256": "3b471c6f798e3a2cd3a78d7ae09e0f0ce3753e67b7f5e21968d11b893500c34f"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/run-g4a-process-kill.sh",
+        "kind": "untracked",
+        "size": 5702,
+        "sha256": "3a135d6311a4d38455431598d19df21aa4801e1176f3a0b56a04911cddc377b0"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/run-g4b-concurrency.sh",
+        "kind": "untracked",
+        "size": 9142,
+        "sha256": "5d2054e47c8454257d93050aa247bad35694935a65ecdffdff7d4ceefe392a61"
+      },
+      {
+        "path": "apps/garage-link/scripts/db/run-g4b-process-kill.sh",
+        "kind": "untracked",
+        "size": 2100,
+        "sha256": "9db4afa0306205768bc0108ebdd1a8edb2dc9752d31efd7a5343c6a3861467e4"
+      },
+      {
+        "path": "apps/garage-link/scripts/generate-c6-snapshot.mjs",
+        "kind": "untracked",
+        "size": 3272,
+        "sha256": "72511d87b051aaae73facce1d5314deeab2e1b7a063e193dbb7ceec65898805d"
+      },
+      {
+        "path": "apps/garage-link/src/app/admin/plan-requests/page.tsx",
+        "kind": "tracked-change",
+        "size": 9444,
+        "sha256": "5dd494c23b9c376bc94ba333c0f04d17aed78e1ed243fb8d1537ce7537486f12"
+      },
+      {
+        "path": "apps/garage-link/src/app/analytics/page.tsx",
+        "kind": "tracked-change",
+        "size": 24555,
+        "sha256": "67a711a8c106d1ec8f5c20841ff7182e98d073a44345150043db01785d26f6a2"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/accounting-export/route.ts",
+        "kind": "tracked-change",
+        "size": 6425,
+        "sha256": "ece079314543b02deb6287096736c3627d76c2ab4c289da10488905e948693c3"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/billing/change-options/route.ts",
+        "kind": "tracked-change",
+        "size": 6247,
+        "sha256": "c42471494314d25ab70c20a7b77eddea59335634e90865606a683e0fdbf1f53b"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/billing/change-plan/route.ts",
+        "kind": "tracked-change",
+        "size": 6703,
+        "sha256": "e67624a1636e60320beacb28d72b74c24845dc8af340994de686db4d01e9e97e"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/billing/checkout/route.ts",
+        "kind": "tracked-change",
+        "size": 8379,
+        "sha256": "3f597686744ccc79f2ffecfb5896d2b2386a688b82b7077400f7469d06a9d5e2"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/billing/invoices/[invoiceId]/download/route.ts",
+        "kind": "tracked-change",
+        "size": 3031,
+        "sha256": "a8f1b95df68db3e4ec9081dc8a0590cbe1a51d9e0941708e9fe7bb1b104f82ee"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/billing/invoices/route.ts",
+        "kind": "tracked-change",
+        "size": 2866,
+        "sha256": "74c0c9cfab4760eae0e589080e90c0cd487ac20910095a026135336efe0b74b8"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/billing/subscription/route.ts",
+        "kind": "tracked-change",
+        "size": 4155,
+        "sha256": "cb98198cbd504b114d275753339693443598463d731fe76cbbeaa06b3d28ef8c"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/cron/purge-expired-store-data/route.ts",
+        "kind": "tracked-change",
+        "size": 2551,
+        "sha256": "b94a3202dff936024231d17590c7b3991f5238721e32a72e6907b25ab5eb9f6f"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/customer-follow-up/inspection-reminders/eligibility/route.ts",
+        "kind": "tracked-change",
+        "size": 2101,
+        "sha256": "0941d83218b926b3ac0ddb401f76393a93f1460c68387e528ca33e677cf3c663"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/customer-follow-up/inspection-reminders/events/route.ts",
+        "kind": "tracked-change",
+        "size": 3442,
+        "sha256": "ed3db2757b09a47c32e5fe3df2d6452e93aa1ca075eb5a83985fa41e92739f4a"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/customer-follow-up/inspection-reminders/settings/route.ts",
+        "kind": "tracked-change",
+        "size": 6397,
+        "sha256": "9b2aa5ef886819c4993fd61e83d309f20ec35afb29bc29024031a655feb3cb42"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/deals/[dealId]/sale/route.ts",
+        "kind": "untracked",
+        "size": 3874,
+        "sha256": "92737ac6e04a2e7088f815171155bfeb2ce3755d22aaef0b8af00ad6173435fc"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/invoices/[invoiceId]/issue/route.ts",
+        "kind": "untracked",
+        "size": 1355,
+        "sha256": "a84e32ed74fec312eb033a7965a5f54f2a07efb889125ebb48f7112066621375"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/invoices/[invoiceId]/payments/route.ts",
+        "kind": "untracked",
+        "size": 1565,
+        "sha256": "3343e15c7f6b1f888250d9964dd2891c59bff1c6041a647992730b7828d31eac"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/invoices/[invoiceId]/void/route.ts",
+        "kind": "untracked",
+        "size": 1441,
+        "sha256": "c2d88b350a90159b7d0e5912908aca669a393ffa7a41df1d15cb97ad5924eb89"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/jobs/inspection-reminders/route.ts",
+        "kind": "tracked-change",
+        "size": 9324,
+        "sha256": "c12d516a5c450a5ba8c4ad4ebeceb75a41439300209f1f1b3a7fe14fac28f0c4"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/line-link/delivery-candidates/route.ts",
+        "kind": "tracked-change",
+        "size": 4640,
+        "sha256": "ec87052900e60d6a7fd7d015cd13bd1ac2726334b852c9b64a910b84cb27f523"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/line/send/route.ts",
+        "kind": "tracked-change",
+        "size": 21748,
+        "sha256": "0eefaaf1f2abc1aa25cbefbce939a4fe7ede7091d7baa2c58c7a24e5dbccb2d6"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/line/settings/migrate-secrets/route.ts",
+        "kind": "tracked-change",
+        "size": 5949,
+        "sha256": "3c26d271158e95b1abe45a9077214a3b553c750d11fa5d698ba1e53d8942a381"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/line/settings/route.ts",
+        "kind": "tracked-change",
+        "size": 11720,
+        "sha256": "a8924e8018b59c90ec68fbced9f33adbdcc618e62d559a9a605441177ec6e69c"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/payments/[paymentId]/reversals/route.ts",
+        "kind": "untracked",
+        "size": 1679,
+        "sha256": "c2a57010f76b4846cb0c0486af1669c5f59c85056a024c35813e3df0ff613860"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/s2s/line-link/delivery-candidates/ack/route.ts",
+        "kind": "tracked-change",
+        "size": 5697,
+        "sha256": "988590efb387b69d3e4a8ef9aa0292933f9972387e45ac2ecaba1c4aa1e42f39"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/s2s/line-link/delivery-candidates/route.ts",
+        "kind": "tracked-change",
+        "size": 5659,
+        "sha256": "55a3a1a994565e0daba476d1670160527763972547adb5454aed3e6e906fa5e3"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/s2s/line-link/inquiries/route.ts",
+        "kind": "tracked-change",
+        "size": 7462,
+        "sha256": "782bb8d4c5233568f97f1de04ad480a3d880658e43587fb220f60868befb0502"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/sale-corrections/[caseId]/actions/route.ts",
+        "kind": "untracked",
+        "size": 3673,
+        "sha256": "bc257ea16bff858f5b6c80ee1e33a8d5c154531a3c0775ca7d5fb0efdb8be1a2"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/sale-corrections/route.ts",
+        "kind": "untracked",
+        "size": 2220,
+        "sha256": "f07debaf7ab0b97e588992656c83b868249527581a8abae2c176cc2ca7ad069c"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/security-check/route.ts",
+        "kind": "tracked-change",
+        "size": 4614,
+        "sha256": "83a91ce5ac646d84b67cbe4439f7af02bc30d6025af6febdac57767200b7aaba"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/settings/env-check/route.ts",
+        "kind": "tracked-change",
+        "size": 2659,
+        "sha256": "edf612b9eaf98dfac144bd66a21e2015fb2189564cf6cbce7ced6d7b9ddd0791"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/stores/active/route.ts",
+        "kind": "untracked",
+        "size": 2970,
+        "sha256": "137eae62a8fac6043fb8e91541d42fc4ff242d3abb731d7c605fd02c852445b5"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/vehicles/feed/route.ts",
+        "kind": "tracked-change",
+        "size": 1632,
+        "sha256": "75b6ec4206e0a08fb883b1be27092a94264b57aebe2df537ac5571c7dac12f7d"
+      },
+      {
+        "path": "apps/garage-link/src/app/api/vehicles/google-feed/route.ts",
+        "kind": "tracked-change",
+        "size": 3622,
+        "sha256": "045d5ab3b3c0ef5a5afdfc086e72238b5cc22ab8b1a5fb510befe1eb672defe2"
+      },
+      {
+        "path": "apps/garage-link/src/app/customer-follow-up/inspection-reminders/page.tsx",
+        "kind": "tracked-change",
+        "size": 12913,
+        "sha256": "c0633d8bab7b34172d895f21c08623fcf85082d9685f9323584641858c5b7056"
+      },
+      {
+        "path": "apps/garage-link/src/app/customers/[id]/page.tsx",
+        "kind": "tracked-change",
+        "size": 29012,
+        "sha256": "fc17c89b9fa1d22a8d3c4799acc1a0b452a6057b3b3f9dff5a4d8794dc4494c4"
+      },
+      {
+        "path": "apps/garage-link/src/app/customers/new/page.tsx",
+        "kind": "tracked-change",
+        "size": 22901,
+        "sha256": "82da0d742e150d9bc5bd959e2d325da6ed315bffb72bd710a6acb19972987590"
+      },
+      {
+        "path": "apps/garage-link/src/app/dashboard/page.tsx",
+        "kind": "tracked-change",
+        "size": 46611,
+        "sha256": "33487831aeca6b2ed67a73c383836ea9ca58dfbf341c8a2fb88be49d4e4116bf"
+      },
+      {
+        "path": "apps/garage-link/src/app/dashboard/today-actions/page.tsx",
+        "kind": "tracked-change",
+        "size": 31807,
+        "sha256": "c2ecc72965c0fa0a703547062b7e8987bf891b80002bbf78622f91e083f79ae9"
+      },
+      {
+        "path": "apps/garage-link/src/app/deals/[id]/invoices/new/page.tsx",
+        "kind": "tracked-change",
+        "size": 31757,
+        "sha256": "99ef4d926db58714e71ba932cd2e09a6a95a81e4c786a0028eb132a55dd0ea45"
+      },
+      {
+        "path": "apps/garage-link/src/app/deals/[id]/invoices/preview/page.tsx",
+        "kind": "tracked-change",
+        "size": 22405,
+        "sha256": "c3c5a56855a301d93030f8c0febba10abaac32e2762305644db4fda3c56143af"
+      },
+      {
+        "path": "apps/garage-link/src/app/deals/[id]/page.tsx",
+        "kind": "tracked-change",
+        "size": 43602,
+        "sha256": "cab8b400cc0babf6f9218f311615bf4443d5c180e324d40384480b9c430b0045"
+      },
+      {
+        "path": "apps/garage-link/src/app/deals/[id]/quotes/new/page.tsx",
+        "kind": "tracked-change",
+        "size": 36312,
+        "sha256": "24fb2410b52bf05abedb979c180a9f3253d8652213331416201924b8d5a06e1d"
+      },
+      {
+        "path": "apps/garage-link/src/app/deals/[id]/quotes/preview/page.tsx",
+        "kind": "tracked-change",
+        "size": 23567,
+        "sha256": "4bc168ad372da6102d666b527342a00d2f920c65fa1e7d7f92da0d558f1fa330"
+      },
+      {
+        "path": "apps/garage-link/src/app/deals/new/page.tsx",
+        "kind": "tracked-change",
+        "size": 38541,
+        "sha256": "4d7384fa67c1d2c66053c880b255286177bddbb10c8796a7742842293772fc61"
+      },
+      {
+        "path": "apps/garage-link/src/app/inventory-counts/[id]/page.tsx",
+        "kind": "tracked-change",
+        "size": 41724,
+        "sha256": "c5ca10023f2e224fbf91da6fbaf953f263be2a89df0d1019d03d93294d6f17de"
+      },
+      {
+        "path": "apps/garage-link/src/app/inventory-counts/new/page.tsx",
+        "kind": "tracked-change",
+        "size": 13773,
+        "sha256": "726e25fa17b68de19a3cc6429e0c22797ee9f51e40d4db83c406361b40d7f952"
+      },
+      {
+        "path": "apps/garage-link/src/app/inventory-counts/page.tsx",
+        "kind": "tracked-change",
+        "size": 7223,
+        "sha256": "f1a2ab474d67a264ff9d665c49cf4e35756d194793ba67475c8f299532c036dc"
+      },
+      {
+        "path": "apps/garage-link/src/app/invoices/[id]/page.tsx",
+        "kind": "tracked-change",
+        "size": 26997,
+        "sha256": "487763fefb63e8fcee4763f58dd84a42737eb0ca35a7270d36a261dc35807ba4"
+      },
+      {
+        "path": "apps/garage-link/src/app/invoices/[id]/preview/page.tsx",
+        "kind": "tracked-change",
+        "size": 18415,
+        "sha256": "877bae81d8876c7df2ed8647a9d1137db01123173c41ac6b18e9bf6db1897bc4"
+      },
+      {
+        "path": "apps/garage-link/src/app/invoices/new/page.tsx",
+        "kind": "tracked-change",
+        "size": 43334,
+        "sha256": "c51a0aff0e82301cfbafee9c7dbf0494b3877e164a3c435e368ce6fa7b4ef763"
+      },
+      {
+        "path": "apps/garage-link/src/app/invoices/page.tsx",
+        "kind": "tracked-change",
+        "size": 9932,
+        "sha256": "5e29441c08fc6fe13f96ac07bc15ece4a4bc21c858298c28b3fa393bc1a8a869"
+      },
+      {
+        "path": "apps/garage-link/src/app/layout.tsx",
+        "kind": "tracked-change",
+        "size": 1566,
+        "sha256": "c87771151bfd117108ebd72b8ad985562537789c0185c27d00a4791affc85bd6"
+      },
+      {
+        "path": "apps/garage-link/src/app/line-package/dashboard/page.tsx",
+        "kind": "tracked-change",
+        "size": 11012,
+        "sha256": "65cd90d13f30449f604f7531f29c25391c98dfc40b057e7591328032a5cbdba8"
+      },
+      {
+        "path": "apps/garage-link/src/app/line-package/friends/page.tsx",
+        "kind": "tracked-change",
+        "size": 5070,
+        "sha256": "cd7e9ed57b3d1aeb2b75d2ea761135667e9f5db74fcf642205172ad822d15ec3"
+      },
+      {
+        "path": "apps/garage-link/src/app/line-package/messages/page.tsx",
+        "kind": "tracked-change",
+        "size": 11395,
+        "sha256": "fac122460f9d4791fd9859210108ec730ade3e2fc82fd805b2c0dd9a8715e05d"
+      },
+      {
+        "path": "apps/garage-link/src/app/line/_components/LineCrudPage.tsx",
+        "kind": "tracked-change",
+        "size": 27301,
+        "sha256": "fc648fbc26c1ba269bbfb0f4715194afbdf82896ac1a3493db0cadc593e150d8"
+      },
+      {
+        "path": "apps/garage-link/src/app/line/_components/LineRecordDetailPage.tsx",
+        "kind": "tracked-change",
+        "size": 21406,
+        "sha256": "f60429a6209279c15a64af449304ef567838323ad21fef33227c8d9cd19e88a5"
+      },
+      {
+        "path": "apps/garage-link/src/app/line/drafts/page.tsx",
+        "kind": "tracked-change",
+        "size": 17078,
+        "sha256": "8244cf0a9283a818bcf633204ed8b45e43f0ce7665902c6ef9c6057109d09c91"
+      },
+      {
+        "path": "apps/garage-link/src/app/line/friends/page.tsx",
+        "kind": "tracked-change",
+        "size": 22555,
+        "sha256": "03fc39c70e0c01f8fcf9a1920a65847c721260199dec49433acb11c2f939f5f2"
+      },
+      {
+        "path": "apps/garage-link/src/app/line/message-logs/page.tsx",
+        "kind": "tracked-change",
+        "size": 10450,
+        "sha256": "3478a5b3d72b26414791a277a434079e651bcc4281369fc83d3668861c7a22bb"
+      },
+      {
+        "path": "apps/garage-link/src/app/line/page.tsx",
+        "kind": "tracked-change",
+        "size": 19078,
+        "sha256": "25fd72955f62ad5ad3ad30be7f47de2c9ae084a9930329ee5b4e1ebe9ad4592a"
+      },
+      {
+        "path": "apps/garage-link/src/app/line/webhook-events/page.tsx",
+        "kind": "tracked-change",
+        "size": 5557,
+        "sha256": "cc5f4956a825584bbe5c27bc095535efdde25df04d0538e7839e69c297b285e7"
+      },
+      {
+        "path": "apps/garage-link/src/app/maintenance/[id]/page.tsx",
+        "kind": "tracked-change",
+        "size": 35683,
+        "sha256": "3a0c7deca1c0f02ff8010b76b78d423405579882b40e144411606e3f917ec81e"
+      },
+      {
+        "path": "apps/garage-link/src/app/maintenance/new/page.tsx",
+        "kind": "tracked-change",
+        "size": 20557,
+        "sha256": "b756a83ba762cbac928a9de73ff08d5c4ef06cee9ce1b9bf1e98fabd74b2d730"
+      },
+      {
+        "path": "apps/garage-link/src/app/menu/page.tsx",
+        "kind": "tracked-change",
+        "size": 4990,
+        "sha256": "890445c14e1b959a4df13bf2f51a3c315ce599e772792c7113d4d48e591c683f"
+      },
+      {
+        "path": "apps/garage-link/src/app/onboarding/page.tsx",
+        "kind": "tracked-change",
+        "size": 24979,
+        "sha256": "b8a74bdab2940fa33f72ea6cad28421b5789c3f98ab81b630d4e1ad046501234"
+      },
+      {
+        "path": "apps/garage-link/src/app/parts/[id]/page.tsx",
+        "kind": "tracked-change",
+        "size": 17129,
+        "sha256": "70de1020068671b59c59fda89e5e09e42bcafaaf6e9d3a6777cde673a6560313"
+      },
+      {
+        "path": "apps/garage-link/src/app/parts/new/page.tsx",
+        "kind": "tracked-change",
+        "size": 11542,
+        "sha256": "c1b295c17627d92136dd70149486cbb64a93819ecf9a3ca039349fa85ea26ee5"
+      },
+      {
+        "path": "apps/garage-link/src/app/quotes/[id]/edit/page.tsx",
+        "kind": "tracked-change",
+        "size": 45348,
+        "sha256": "66e8bf5cb8f449222fe39aed01d381322f86567dbb746b3988a7ca59ee37be2f"
+      },
+      {
+        "path": "apps/garage-link/src/app/quotes/[id]/page.tsx",
+        "kind": "tracked-change",
+        "size": 14217,
+        "sha256": "ad7356f26cac4487913c95672998c096e8f7b38a569ef68f97548cdf009e952b"
+      },
+      {
+        "path": "apps/garage-link/src/app/quotes/[id]/preview/page.tsx",
+        "kind": "tracked-change",
+        "size": 18627,
+        "sha256": "a70e551c7eb5cf75e51c6ef21e2d44813db720836ff8bc96affeb6140489ff80"
+      },
+      {
+        "path": "apps/garage-link/src/app/quotes/new/page.tsx",
+        "kind": "tracked-change",
+        "size": 51932,
+        "sha256": "802fb7c8e6de2f93fd9a086e0776a9dd6dd2983fc51847e593f62dc182cc677f"
+      },
+      {
+        "path": "apps/garage-link/src/app/quotes/page.tsx",
+        "kind": "tracked-change",
+        "size": 10184,
+        "sha256": "55bf2105ce48e91da6a2c2208e1e6ae5dd13f7d3716a3b6367159d42340f6000"
+      },
+      {
+        "path": "apps/garage-link/src/app/settings/accounting-export/page.tsx",
+        "kind": "tracked-change",
+        "size": 11421,
+        "sha256": "088c431a4f2fd71807ccffc1bb161ad8dc5a2ff6b41f6feca56cd0a0ceceabae"
+      },
+      {
+        "path": "apps/garage-link/src/app/settings/audit-logs/page.tsx",
+        "kind": "tracked-change",
+        "size": 10451,
+        "sha256": "69f9a81fd0ffe9a1dc22b2ec94d3785de6aa5a21af7e22385a7de4df47cfe94e"
+      },
+      {
+        "path": "apps/garage-link/src/app/settings/billing/page.tsx",
+        "kind": "tracked-change",
+        "size": 36330,
+        "sha256": "299fd5b62dd7bb407e69b4a0da192e926c44555903800cede12df16abda555de"
+      },
+      {
+        "path": "apps/garage-link/src/app/settings/company/page.tsx",
+        "kind": "tracked-change",
+        "size": 22242,
+        "sha256": "79b537300d7254be3ec4a24217c8a981dcdda9fd9799e0f543c33ef8542134a3"
+      },
+      {
+        "path": "apps/garage-link/src/app/settings/customer-follow-up/inspection-reminders/page.tsx",
+        "kind": "tracked-change",
+        "size": 22727,
+        "sha256": "49b8a6e82d549c4fa4d9fe022e23bc51d2f3702ecb6004ad8403162267613ac4"
+      },
+      {
+        "path": "apps/garage-link/src/app/settings/import-export/page.tsx",
+        "kind": "tracked-change",
+        "size": 44924,
+        "sha256": "24503d622a997eada7eabbf084973114152b55e1aaf25188f74a608e74a44548"
+      },
+      {
+        "path": "apps/garage-link/src/app/settings/l-link/page.tsx",
+        "kind": "tracked-change",
+        "size": 10459,
+        "sha256": "5ab5f05c0d8413ccacc71b52d0218b5b1fc620f0ee63c4acb058c23cdd62107a"
+      },
+      {
+        "path": "apps/garage-link/src/app/settings/launch-checklist/page.tsx",
+        "kind": "tracked-change",
+        "size": 26340,
+        "sha256": "7987f06d12a9549c180a431a8866789dc4019a5d9a1c9721f373cc0d2ddf6255"
+      },
+      {
+        "path": "apps/garage-link/src/app/settings/members/page.tsx",
+        "kind": "tracked-change",
+        "size": 24497,
+        "sha256": "610b33a70239740ebc8bc49da5f3ef0ea69d7c0cb62b2e69cbab1ae955a5b6cb"
+      },
+      {
+        "path": "apps/garage-link/src/app/settings/page.tsx",
+        "kind": "tracked-change",
+        "size": 7686,
+        "sha256": "08cd103b78d5594001f8ccc360cf039ae871d283f3b800b9827391ff32e141b9"
+      },
+      {
+        "path": "apps/garage-link/src/app/settings/store/page.tsx",
+        "kind": "tracked-change",
+        "size": 17844,
+        "sha256": "583097d636bf528c77fb099b04476e28e97f831c8f247d1073d8fe032f0510cc"
+      },
+      {
+        "path": "apps/garage-link/src/app/settings/stores/page.tsx",
+        "kind": "tracked-change",
+        "size": 7098,
+        "sha256": "072f4814734ad5476880c4a9bf702a262e6230b5601906bdc351fdbe032e62b9"
+      },
+      {
+        "path": "apps/garage-link/src/app/settings/trash/page.tsx",
+        "kind": "tracked-change",
+        "size": 14086,
+        "sha256": "a76b5b1e7a08258e57b36942986d6793b700988fdf7d4b5af8fc137c2efadb2a"
+      },
+      {
+        "path": "apps/garage-link/src/app/signup/page.tsx",
+        "kind": "tracked-change",
+        "size": 16145,
+        "sha256": "e32795b59845118df17e15034fc6448b1b4ace72d52de2177bccd17e81187d4a"
+      },
+      {
+        "path": "apps/garage-link/src/app/vehicles/[id]/page.tsx",
+        "kind": "tracked-change",
+        "size": 27734,
+        "sha256": "61a8b1d96d79e210cde31c06586224f24f8d390a2a366c8c672047d30e03ae4e"
+      },
+      {
+        "path": "apps/garage-link/src/app/vehicles/new/page.tsx",
+        "kind": "tracked-change",
+        "size": 19845,
+        "sha256": "ed75f0c92894eb3dc6c7d617fac062b1dcabc229afea0dc3f8447b2fc414df5d"
+      },
+      {
+        "path": "apps/garage-link/src/components/AppShell.tsx",
+        "kind": "tracked-change",
+        "size": 8611,
+        "sha256": "4188a3c0340a9681e20da8c89f6a6699b538c47a30480b2e1e378166b320a7b4"
+      },
+      {
+        "path": "apps/garage-link/src/components/SoftDeleteButton.tsx",
+        "kind": "tracked-change",
+        "size": 3354,
+        "sha256": "0b35e28b177783d90c31e4193c9178b6ff480083477aa8d05bc32200c04fd34a"
+      },
+      {
+        "path": "apps/garage-link/src/lib/accounting/accountingApi.ts",
+        "kind": "untracked",
+        "size": 2093,
+        "sha256": "b8111500b7e5fb5cba23a7739ba414275708bc429dc24b1f835f5e85e13ffbf8"
+      },
+      {
+        "path": "apps/garage-link/src/lib/auth/permissions.ts",
+        "kind": "tracked-change",
+        "size": 2493,
+        "sha256": "94d1810d06785c248ecdcad70c1696860fd6334325ee7f15cee499e1878f7478"
+      },
+      {
+        "path": "apps/garage-link/src/lib/auth/post-auth-redirect.ts",
+        "kind": "tracked-change",
+        "size": 2149,
+        "sha256": "7e8107ef18a1164ddfd96fb1c85da540d7d8ba2fbabed0d1e4f6bf3a3ae214ae"
+      },
+      {
+        "path": "apps/garage-link/src/lib/auth/tenant.ts",
+        "kind": "tracked-change",
+        "size": 4743,
+        "sha256": "b9725a04a3478be5e33659e275d22d47f37317de7a812b6366c9f75e08f2029e"
+      },
+      {
+        "path": "apps/garage-link/src/lib/billing/lLinkContract.ts",
+        "kind": "tracked-change",
+        "size": 1017,
+        "sha256": "f3ca103f4ba1eb57038237f4afe365edf81c2a64c0d3e702586ac62e9f9a6586"
+      },
+      {
+        "path": "apps/garage-link/src/lib/line-link/s2sAuth.ts",
+        "kind": "tracked-change",
+        "size": 7961,
+        "sha256": "130cd468fe4a2a61eb0b14be05b97a9fd58332413eb6f994e27da432ff7706b5"
+      },
+      {
+        "path": "apps/garage-link/src/lib/sale-corrections/correctionApi.ts",
+        "kind": "untracked",
+        "size": 2330,
+        "sha256": "53a1f90ec70b364f81b26841328828cfcd7dbed5350a84d8a1cbc0efbdade771"
+      },
+      {
+        "path": "apps/garage-link/src/lib/security/adminEmailOtp.ts",
+        "kind": "tracked-change",
+        "size": 4308,
+        "sha256": "779b034731166849adf2883572ce2dca2ddd53164d9a596fcf29361433dcb5b4"
+      },
+      {
+        "path": "apps/garage-link/src/lib/security/adminEmailOtpServer.ts",
+        "kind": "tracked-change",
+        "size": 1599,
+        "sha256": "f91f59f8689d491d495b7903c28777c655d8304cc029c9d874a8ef010f2eddc6"
+      },
+      {
+        "path": "apps/garage-link/src/lib/security/csvApi.ts",
+        "kind": "tracked-change",
+        "size": 5740,
+        "sha256": "d8ae7b9d316fea2aaaa402c7f724e6be763d18b113e5f1b843ab930e73a1617b"
+      },
+      {
+        "path": "apps/garage-link/src/lib/security/garageTenantContext.ts",
+        "kind": "untracked",
+        "size": 2909,
+        "sha256": "87ca9705740a9185bb9a6e7900fdf852f05db48ad0f062b2dde6db6ac6c0dc3b"
+      },
+      {
+        "path": "apps/garage-link/src/lib/storage/auth.ts",
+        "kind": "tracked-change",
+        "size": 4486,
+        "sha256": "068fddf51f182d02e8acbbd7cec480d21919b0877172a11cd546e775e067326d"
+      },
+      {
+        "path": "apps/garage-link/src/lib/store/garageUiContext.ts",
+        "kind": "tracked-change",
+        "size": 2503,
+        "sha256": "317d7dc3c5adc716b3646b3ec8616cd72d7af9fa4e769c06caa868ac8c002994"
+      },
+      {
+        "path": "apps/garage-link/src/lib/store/garageUiContextCore.ts",
+        "kind": "tracked-change",
+        "size": 4346,
+        "sha256": "7951578bed98bc8e3b690864f7d895fd987f4bf903397903901df19de1e99b09"
+      },
+      {
+        "path": "apps/garage-link/src/middleware.ts",
+        "kind": "tracked-change",
+        "size": 8522,
+        "sha256": "9c2fcd2dc997bd1d05aa9077ffcdf4340edddb254df62a59e37a34cb61c72bf1"
+      },
+      {
+        "path": "apps/garage-link/supabase/baseline/048_garage_link_integration_columns.sql",
+        "kind": "untracked",
+        "size": 757,
+        "sha256": "64915a8cc3b23a8be5f97089da3360cb72a132a6c389b76a9899deeae7e3acfe"
+      },
+      {
+        "path": "apps/garage-link/supabase/baseline/g1c-relation-contract.json",
+        "kind": "untracked",
+        "size": 1562,
+        "sha256": "73572b5d9eed92c9e71ec255b611cda62c08469976d217534d87350eeb0fe06c"
+      },
+      {
+        "path": "apps/garage-link/supabase/baseline/manifest.json",
+        "kind": "untracked",
+        "size": 19070,
+        "sha256": "fcd990a8e9ff135fa897f5d1f017e8d962c3ed3b4e0c5813cc75851c41dcc677"
+      },
+      {
+        "path": "apps/garage-link/supabase/baseline/migration-classification.csv",
+        "kind": "untracked",
+        "size": 22953,
+        "sha256": "d4cb446484572a57bf0abee67537edd6df84d283f0194f6cc46c0045f1095308"
+      },
+      {
+        "path": "apps/garage-link/supabase/migrations/20260726000100_membership_admission_lock.sql",
+        "kind": "untracked",
+        "size": 40196,
+        "sha256": "d8c4f1ffd0380b4af6a01cb59bbe55ac666c402cc957b41c4268066e71c49482"
+      },
+      {
+        "path": "apps/garage-link/supabase/migrations/20260726000200_role_aware_business_write_lock.sql",
+        "kind": "untracked",
+        "size": 47707,
+        "sha256": "6cf299750d0d647926975edb864732ac1f5fb11ac6d810553b51f64c9c315064"
+      },
+      {
+        "path": "apps/garage-link/supabase/migrations/20260726000300_vehicle_sale_atomicity.sql",
+        "kind": "untracked",
+        "size": 27214,
+        "sha256": "fd1c3f44fd7c8050484325865d2f5c8ca3ec517eb681e48bb897db9ad7246606"
+      },
+      {
+        "path": "apps/garage-link/supabase/migrations/20260726000400_fresh_supabase_extension_compatibility.sql",
+        "kind": "untracked",
+        "size": 2204,
+        "sha256": "268ae491e1e567677c0f513bacdd5212b821a10c7511fb15c9bbbd7380aaf5eb"
+      },
+      {
+        "path": "apps/garage-link/supabase/migrations/20260726000450_restore_required_baseline_relations.sql",
+        "kind": "untracked",
+        "size": 10664,
+        "sha256": "e6b31cd773f48632964ccc01580eff18b315f9d5f17c99c7b5e741a6fe99718d"
+      },
+      {
+        "path": "apps/garage-link/supabase/migrations/20260726000500_service_role_tenant_store_integrity.sql",
+        "kind": "untracked",
+        "size": 23788,
+        "sha256": "a73c1fd2701f8dd004677bcbc23dc157f05204384f24a3dbfbaab384009efcdb"
+      },
+      {
+        "path": "apps/garage-link/supabase/migrations/20260727000100_active_store_preference.sql",
+        "kind": "untracked",
+        "size": 30370,
+        "sha256": "edae573430ecdb52b0b86eb02898941027e964188cb15c31375e39d67d0c04a3"
+      },
+      {
+        "path": "apps/garage-link/supabase/migrations/20260727000200_accounting_state_integrity.sql",
+        "kind": "untracked",
+        "size": 36555,
+        "sha256": "07f2f7389fcd2b323ec0444ec718b963bef66affd6063a972a98ca7448b8f5af"
+      },
+      {
+        "path": "apps/garage-link/supabase/migrations/20260727000300_delivered_sale_correction.sql",
+        "kind": "untracked",
+        "size": 53945,
+        "sha256": "108f648f01b10f0cdbe333126562e0ef44d97226f8218c1abcc8c3287e5e515c"
+      },
+      {
+        "path": "apps/garage-link/supabase/rollback/20260726000100_membership_admission_lock.down.sql",
+        "kind": "untracked",
+        "size": 1159,
+        "sha256": "b3f9c2d6752e5e203f8a76507d708efca1ab985ba3fdb02186acd503ab4796ca"
+      },
+      {
+        "path": "apps/garage-link/supabase/rollback/20260726000200_role_aware_business_write_lock.down.sql",
+        "kind": "untracked",
+        "size": 4785,
+        "sha256": "7a92f1e40373ba24689f291737f9b0b101f6d6b837f60e5017c2b0e24d6220dc"
+      },
+      {
+        "path": "apps/garage-link/supabase/rollback/20260726000300_vehicle_sale_atomicity.down.sql",
+        "kind": "untracked",
+        "size": 806,
+        "sha256": "f0b5a15c8d866896675b2b802a752a6eee7b58ea3bd1b6c9415a7f3a263d97ff"
+      },
+      {
+        "path": "apps/garage-link/supabase/rollback/20260726000450_restore_required_baseline_relations.down.sql",
+        "kind": "untracked",
+        "size": 786,
+        "sha256": "a35df8315a88a5fd1140ddc8cf5329fbc23103423253e3639e62986c662c3e43"
+      },
+      {
+        "path": "apps/garage-link/supabase/rollback/20260726000500_service_role_tenant_store_integrity.down.sql",
+        "kind": "untracked",
+        "size": 487,
+        "sha256": "ffbc705588d51474273aca94dd784348177023e27822f8e84a9071b571360ad9"
+      },
+      {
+        "path": "apps/garage-link/supabase/rollback/20260727000100_active_store_preference.down.sql",
+        "kind": "untracked",
+        "size": 993,
+        "sha256": "e2b3d7d5e9ce5b2fcfc28bbc4db2580788627e936875caeedc12695f0a1d054f"
+      },
+      {
+        "path": "apps/garage-link/supabase/rollback/20260727000200_accounting_state_integrity.down.sql",
+        "kind": "untracked",
+        "size": 1039,
+        "sha256": "249df04eae85ae07f6aa9b589ffdc55318ddaa5103290d043b9c813054b21237"
+      },
+      {
+        "path": "apps/garage-link/supabase/rollback/20260727000300_delivered_sale_correction.down.sql",
+        "kind": "untracked",
+        "size": 1319,
+        "sha256": "53d15d846d28aad805d9cbcb6b93325edf3c51410d10152dd1ff89a693608264"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/db005_store_eligibility_regression.sql",
+        "kind": "untracked",
+        "size": 3285,
+        "sha256": "fb6304264544dcf7c4433917dd4f3b65c55b8a5f3f6d7433429180a5d975c20f"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/db006_canonical_owner_regression.sql",
+        "kind": "untracked",
+        "size": 8066,
+        "sha256": "4a30cf94c4c012e3b1eed897d227b6461c6924d742a7b54a945387ed91adb66f"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g0b_catalog_assertions.sql",
+        "kind": "untracked",
+        "size": 6701,
+        "sha256": "b16f7a64194de9f76614d0682280c5c736a69f0cbfae36f219bda6a28f1e4c3b"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g0b_catalog_fingerprint.sql",
+        "kind": "untracked",
+        "size": 3983,
+        "sha256": "2ef0577790a774bbe055085fd9cabcb12058001bca3aa2f1f4efd87178a5d88c"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g0b_extension_compatibility_regression.sql",
+        "kind": "untracked",
+        "size": 1891,
+        "sha256": "68b908ad3bb266946211373cf2e2980d76d69dbccd6289abe3815ef961604abf"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g0b_upgrade_assertions.sql",
+        "kind": "untracked",
+        "size": 1907,
+        "sha256": "55d729b361ec34f5e73af1169d64a0cf0063dfbed20cf9b674f5bcba39f3a584"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g0b_upgrade_fixture.sql",
+        "kind": "untracked",
+        "size": 2443,
+        "sha256": "f8ca8fe936eef6d2a383ff2975fe7417bd651d69fc0942bc32f1a512da331f35"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g1a_fixture.sql",
+        "kind": "untracked",
+        "size": 8669,
+        "sha256": "26fcf51a6a329e0690ddd1e891cf5e73efef9b24dbc12fa9e830d4c39a92df1a"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g1a_inconsistency_report.sql",
+        "kind": "untracked",
+        "size": 1173,
+        "sha256": "93d4d96a9b93ae099e0641fe0cf3c2cdb9da941081a6b794c7f5dc4c1af8dcd5"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g1b_role_regression.sql",
+        "kind": "untracked",
+        "size": 6615,
+        "sha256": "6fec0a82dcf470f4dcbbbac3351c5c6da2d10b25d691e8a7b6236e5d31444f0a"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g1b_table_classification.csv",
+        "kind": "untracked",
+        "size": 5357,
+        "sha256": "548253093c5b0c06be648cf596b577d554ed864838b1d82dd6776908bed49eaf"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g1c_current_relation_drift_fixture.sql",
+        "kind": "untracked",
+        "size": 850,
+        "sha256": "30d140b08031b311bf5787842be34f030d7ab368f2cd5a051a80c2f32be38c70"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g1c_relation_contract_assertions.sql",
+        "kind": "untracked",
+        "size": 1651,
+        "sha256": "20d6298740c9ffd9b4ea24d4ae6ca7698ef3cc815d3572b681ecfb37a910d6dd"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g1c_service_role_inventory.csv",
+        "kind": "untracked",
+        "size": 2925,
+        "sha256": "87d282c10facf1e9880c946d3ef0da44b64f7ab168ae64dcbc0ccfbe7d98c0bb"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g1c_tenant_integrity_regression.sql",
+        "kind": "untracked",
+        "size": 4128,
+        "sha256": "76ebfcf6a8d2113dc3cada2156205ff6deabac61a7b9319cbf87620efc6a4f74"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g1d_active_store_regression.sql",
+        "kind": "untracked",
+        "size": 10322,
+        "sha256": "f9c7a4ca5b1b54c7193b87d34c975e8d589a702467a3b3357277085799732b53"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g3_cancel_concurrency.sh",
+        "kind": "untracked",
+        "size": 2428,
+        "sha256": "34588959005ecde136da568cfdd74950474998403d364edc456888e672cc712b"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g3_concurrency.sh",
+        "kind": "untracked",
+        "size": 1996,
+        "sha256": "8c206ab89b0536be60b7e0f71615cf6dba5dec51f24abb52a6f5886b137b7d84"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g3_fixture.sql",
+        "kind": "untracked",
+        "size": 1742,
+        "sha256": "c82265b46297c9ae5de2531652b91178d30eb68ef462e9b40ebd483a0234c0b4"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g3_process_kill.sh",
+        "kind": "untracked",
+        "size": 2529,
+        "sha256": "448b326149fa4d05ce333d1c37093423fea6c4f638eeb4c1eb75a5f2248296e0"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g3_sale_regression.sql",
+        "kind": "untracked",
+        "size": 8020,
+        "sha256": "709d517206732b804456fd1fce565d0c9d120800e06aebb4b4d5a769ab0503af"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g4a_accounting_regression.sql",
+        "kind": "untracked",
+        "size": 5368,
+        "sha256": "c8794f67a74b6c2d77747fece0f5811ddff1bfc18b8d2a8379a70fcc8859f09f"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g4b_delivered_sale_correction_regression.sql",
+        "kind": "untracked",
+        "size": 7734,
+        "sha256": "14a493022b0d2a490fbb8792820504025abffd49520725e50b45389136ebbb77"
+      },
+      {
+        "path": "apps/garage-link/supabase/tests/g4b_fixture.sql",
+        "kind": "untracked",
+        "size": 3933,
+        "sha256": "9e80fb9f0f2c938dc3764cfc41b8b144869122d348efa5b12e93ad819078f5c7"
+      },
+      {
+        "path": "apps/garage-link/tests/db/g1c-relation-contract.test.mjs",
+        "kind": "untracked",
+        "size": 2849,
+        "sha256": "c60fc3e505c0bcaf8804e4c375e0cf87c7cac71a360e95ae11f2aa276e971555"
+      },
+      {
+        "path": "apps/garage-link/tests/db/migration-runner.test.mjs",
+        "kind": "untracked",
+        "size": 2617,
+        "sha256": "a2e1637e709f8a884291d482705e0d95c79355f8cf8d91126fc635108293115e"
+      },
+      {
+        "path": "apps/garage-link/tests/e2e/smoke.spec.ts",
+        "kind": "tracked-change",
+        "size": 1276,
+        "sha256": "3e244366d020197078c5aa4041c6e4f06a6e80f73543d45416f7aec2b4210cf9"
+      },
+      {
+        "path": "apps/garage-link/tests/security/accounting-state-integrity-g4a.test.ts",
+        "kind": "untracked",
+        "size": 4182,
+        "sha256": "9d1af2b3b5e18e49b7825a473fcb29b171bf78d56f1fc97e624774e92903e6db"
+      },
+      {
+        "path": "apps/garage-link/tests/security/active-store-preference-g1d.test.ts",
+        "kind": "untracked",
+        "size": 5815,
+        "sha256": "c554a05cf80f2c9ff1f939e88e4322411699544d6bbc6ed2ff8e672aa4cec036"
+      },
+      {
+        "path": "apps/garage-link/tests/security/delivered-sale-correction-g4b.test.ts",
+        "kind": "untracked",
+        "size": 4501,
+        "sha256": "9258d2199d7c73614466e5ef2b8e89f42673a50b3287df096881a52e644dc618"
+      },
+      {
+        "path": "apps/garage-link/tests/security/generate-events-tenant-authorization.test.ts",
+        "kind": "tracked-change",
+        "size": 11985,
+        "sha256": "a59639129b619526f6be6b69d04135acf4f79a65ba7f5d65d5b856c82bfcdb1a"
+      },
+      {
+        "path": "apps/garage-link/tests/security/inspection-reminders.test.ts",
+        "kind": "tracked-change",
+        "size": 34667,
+        "sha256": "9755688584a9a3331c3da7176b8ed368b7b26d2c3ffefc1b118bd57cd195be12"
+      },
+      {
+        "path": "apps/garage-link/tests/security/line-link-s2s.test.ts",
+        "kind": "tracked-change",
+        "size": 4872,
+        "sha256": "1627800b0dd6cb7b1e94546d21cff6812ed9da9b6093ff7129050c5a6b663fdb"
+      },
+      {
+        "path": "apps/garage-link/tests/security/membership-admission-g1a.test.ts",
+        "kind": "untracked",
+        "size": 4603,
+        "sha256": "2745c3815bca6dcbf5136e148942a510237a403154db64c798bf9bafa26e6f04"
+      },
+      {
+        "path": "apps/garage-link/tests/security/performance-contracts.test.ts",
+        "kind": "tracked-change",
+        "size": 5437,
+        "sha256": "54f3aeac7110ce2e97e18ed9a697887edcbe1bea53d22f666f5eafa70f2333e8"
+      },
+      {
+        "path": "apps/garage-link/tests/security/phase1234-contracts.test.ts",
+        "kind": "tracked-change",
+        "size": 8378,
+        "sha256": "242b057265adaa954e7b5f3b3bdd2e78bac7a1e7c4c8a6d4a73872b38c77a27d"
+      },
+      {
+        "path": "apps/garage-link/tests/security/role-aware-business-write-g1b.test.ts",
+        "kind": "untracked",
+        "size": 7173,
+        "sha256": "f9420b65c9095c0eea61e1044332f34fcb16bd0f222d8d8fe2d3ed1676882d55"
+      },
+      {
+        "path": "apps/garage-link/tests/security/service-role-tenant-integrity-g1c.test.ts",
+        "kind": "untracked",
+        "size": 4414,
+        "sha256": "d67e6661b96bdbf3612e761dd8c3c1cb2ac79abc6a4915e98f0004e740ebb971"
+      },
+      {
+        "path": "apps/garage-link/tests/security/store-authorization-eligibility-db005.test.ts",
+        "kind": "untracked",
+        "size": 3003,
+        "sha256": "63d5a341231f58f125db7d12d342c4356a4c6153350cf93cae0ea01e423b372f"
+      },
+      {
+        "path": "apps/garage-link/tests/security/stripe-security-controls.test.ts",
+        "kind": "tracked-change",
+        "size": 4987,
+        "sha256": "9026a496fa5947f597f3c1512a85b782d42f8a84055c35a4f15b6ab0d8c9e7b5"
+      },
+      {
+        "path": "apps/garage-link/tests/security/vehicle-sale-atomicity-g3.test.ts",
+        "kind": "untracked",
+        "size": 3171,
+        "sha256": "e6b08f660fa030919204a8c4feeb9fab8df06d230af1e070a4c5e5e587781524"
+      }
+    ]
+  },
+  "migrationManifest": {
+    "path": "supabase/baseline/manifest.json",
+    "entryCount": 47,
+    "sha256": "fcd990a8e9ff135fa897f5d1f017e8d962c3ed3b4e0c5813cc75851c41dcc677",
+    "targetVersions": [
+      {
+        "version": "20260726000100",
+        "name": "membership_admission_lock",
+        "checksum": "d8c4f1ffd0380b4af6a01cb59bbe55ac666c402cc957b41c4268066e71c49482"
+      },
+      {
+        "version": "20260726000200",
+        "name": "role_aware_business_write_lock",
+        "checksum": "6cf299750d0d647926975edb864732ac1f5fb11ac6d810553b51f64c9c315064"
+      },
+      {
+        "version": "20260726000300",
+        "name": "vehicle_sale_atomicity",
+        "checksum": "fd1c3f44fd7c8050484325865d2f5c8ca3ec517eb681e48bb897db9ad7246606"
+      },
+      {
+        "version": "20260726000400",
+        "name": "fresh_supabase_extension_compatibility",
+        "checksum": "268ae491e1e567677c0f513bacdd5212b821a10c7511fb15c9bbbd7380aaf5eb"
+      },
+      {
+        "version": "20260726000450",
+        "name": "restore_required_baseline_relations",
+        "checksum": "e6b31cd773f48632964ccc01580eff18b315f9d5f17c99c7b5e741a6fe99718d"
+      },
+      {
+        "version": "20260726000500",
+        "name": "service_role_tenant_store_integrity",
+        "checksum": "a73c1fd2701f8dd004677bcbc23dc157f05204384f24a3dbfbaab384009efcdb"
+      },
+      {
+        "version": "20260727000100",
+        "name": "active_store_preference",
+        "checksum": "edae573430ecdb52b0b86eb02898941027e964188cb15c31375e39d67d0c04a3"
+      },
+      {
+        "version": "20260727000200",
+        "name": "accounting_state_integrity",
+        "checksum": "07f2f7389fcd2b323ec0444ec718b963bef66affd6063a972a98ca7448b8f5af"
+      },
+      {
+        "version": "20260727000300",
+        "name": "delivered_sale_correction",
+        "checksum": "108f648f01b10f0cdbe333126562e0ef44d97226f8218c1abcc8c3287e5e515c"
+      }
+    ]
+  },
+  "packageLock": {
+    "path": "../../pnpm-lock.yaml",
+    "sha256": "158a5bd5df81ba088fd8f08132cc4c79ebb1d49bf50c32c93f54f6d361adc9a2"
+  },
+  "testCommands": [
+    "pnpm verify:g0b"
+  ],
+  "buildCommand": "next build --webpack",
+  "currentSupabase": {
+    "projectRef": "wmlpuzuskfiwdipluglz",
+    "projectFingerprint": "5b41e1af2add",
+    "migrationAppliedBeforeC6": 0,
+    "currentLedgerBeforeC6": 39
+  },
+  "createdAt": "2026-07-27T14:31:03.826Z",
+  "snapshotFingerprint": "9e786d4c29ba9ff9bdb94c88df33cb525eed265c4a2f9ceda4d7e1e3b4258a21"
+}

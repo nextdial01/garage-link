@@ -8,6 +8,7 @@ import AppShell from '@/components/AppShell';
 import PermissionDeniedCard from '@/components/PermissionDeniedCard';
 import { canAddStore, getGaragePlan, type GarageSubscriptionLike } from '@/lib/billing/garagePlans';
 import { createClient } from '@/lib/supabase/client';
+import { getGarageUiContext, invalidateGarageUiContext } from '@/lib/store/garageUiContext';
 
 type AccessibleStore = {
   id: string;
@@ -15,8 +16,6 @@ type AccessibleStore = {
   company_name: string | null;
   is_current: boolean;
 };
-
-type MemberRow = { role: string | null; store_id: string };
 
 export default function StoreManagementPage() {
   const [role, setRole] = useState('');
@@ -32,15 +31,9 @@ export default function StoreManagementPage() {
     try {
       setIsLoading(true);
       const supabase = createClient();
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user?.id) throw new Error('ログインが必要です。');
-      const { data: member } = await supabase
-        .from<MemberRow>('store_members')
-        .select('role, store_id')
-        .eq('user_id', userData.user.id)
-        .single();
-      if (!member) throw new Error('所属店舗が見つかりません。');
-      setRole(member.role ?? '');
+      const context = await getGarageUiContext({ force: true });
+      if (!context.tenantId) throw new Error('所属tenantが見つかりません。');
+      setRole(context.role);
       const [storeResult, billingResponse] = await Promise.all([
         supabase.rpc('list_accessible_garage_stores', {}),
         fetch('/api/billing/subscription'),
@@ -70,10 +63,15 @@ export default function StoreManagementPage() {
       const supabase = createClient();
       const { data, error } = await supabase.rpc('create_garage_store', { p_name: name.trim() });
       if (error) throw new Error(error.message);
-      const created = data as { id?: string };
-      if (created.id) {
-        const { error: switchError } = await supabase.rpc('switch_active_garage_store', { p_store_id: created.id });
-        if (switchError) throw new Error(switchError.message);
+      const created = data as { id?: string; tenant_id?: string };
+      if (created.id && created.tenant_id) {
+        const switchResponse = await fetch('/api/stores/active', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ tenantId: created.tenant_id, storeId: created.id }),
+        });
+        if (!switchResponse.ok) throw new Error('作成した店舗へ切り替えられませんでした。');
+        invalidateGarageUiContext();
       }
       setMessage('店舗を追加しました。新しい店舗へ切り替えます。');
       window.setTimeout(() => window.location.assign('/onboarding'), 800);

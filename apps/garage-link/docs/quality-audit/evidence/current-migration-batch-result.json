@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-28T16:10:00+09:00",
+  "status": "PASS",
+  "projectRef": "wmlpuzuskfiwdipluglz",
+  "migrationVersions": ["20260728000200"],
+  "migrationSha256": "2960b3884000d37e8027a37c48bc66dafeb85c829e1faab190720379576398b6",
+  "manifestEntries": 50,
+  "manifestSha256": "bb055ac364cebf49876e197a58d407fd338fd7106e13a977dd7de27bd12ead5f",
+  "sqlEditorPackageSha256": "afbdb364f0a3c467dce5cfac99eb760c7c732192e976d5e33aa590c012e522d9",
+  "transaction": "COMMIT",
+  "ledgerBefore": 50,
+  "ledgerAfter": 51,
+  "runCount": 1,
+  "schemaGate": "PASS",
+  "rlsPolicyRpcAclGate": "PASS",
+  "unexpectedBusinessChanges": 0,
+  "externalSends": 0
+}

@@ -4,12 +4,12 @@
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import SoftDeleteButton from '@/components/SoftDeleteButton';
 import { createClient } from '@/lib/supabase/client';
+import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 
-type StoreMemberRow = { store_id: string };
 type VehicleRow = {
   id: string;
   store_id: string;
@@ -151,6 +151,7 @@ export default function VehicleDetailPage() {
   const vehicleId = params.id;
   const [storeId, setStoreId] = useState('');
   const [form, setForm] = useState<VehicleForm>(emptyForm);
+  const [savedStatus, setSavedStatus] = useState('');
   const [deals, setDeals] = useState<DealRow[]>([]);
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceRow[]>([]);
@@ -160,6 +161,7 @@ export default function VehicleDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const deliveryRequestKeyRef = useRef<string | null>(null);
 
   const customerMap = useMemo(() => new Map(customers.map((customer) => [customer.id, customer])), [customers]);
   function updateField(name: keyof VehicleForm, value: string) { setForm((current) => ({ ...current, [name]: value })); }
@@ -169,17 +171,14 @@ export default function VehicleDetailPage() {
       try {
         setIsLoading(true); setErrorMessage('');
         const supabase = createClient();
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError || !userData.user?.id) throw new Error('ログイン情報を取得できませんでした。');
-        const { data: member, error: memberError } = await supabase.from<StoreMemberRow>('store_members').select('store_id').eq('user_id', userData.user.id).single();
-        if (memberError || !member?.store_id) throw new Error('所属店舗が見つかりません。');
-        setStoreId(member.store_id);
+        const activeStoreId = (await requireActiveGarageStore()).storeId;
+        setStoreId(activeStoreId);
         const [vehicleResult, dealResult, customerResult, maintenanceResult, listingResult] = await Promise.all([
-          supabase.from<VehicleRow>('vehicles').select('*').eq('id', vehicleId).eq('store_id', member.store_id).single(),
-          supabase.from<DealRow>('deals').select('id, customer_id, deal_no, title, status, next_action_at').eq('vehicle_id', vehicleId).eq('store_id', member.store_id).order('created_at', { ascending: false }),
-          supabase.from<CustomerRow>('customers').select('id, name').eq('store_id', member.store_id),
-          supabase.from<MaintenanceRow>('maintenance_jobs').select('id, job_no, job_type, status, scheduled_in_at, scheduled_delivery_at').eq('vehicle_id', vehicleId).eq('store_id', member.store_id).order('created_at', { ascending: false }),
-          supabase.from<ListingStatusRow>('vehicle_listing_statuses').select('id, vehicle_id, channel, status, listing_url, last_checked_at, error_message').eq('vehicle_id', vehicleId).eq('store_id', member.store_id),
+          supabase.from<VehicleRow>('vehicles').select('*').eq('id', vehicleId).eq('store_id', activeStoreId).single(),
+          supabase.from<DealRow>('deals').select('id, customer_id, deal_no, title, status, next_action_at').eq('vehicle_id', vehicleId).eq('store_id', activeStoreId).order('created_at', { ascending: false }),
+          supabase.from<CustomerRow>('customers').select('id, name').eq('store_id', activeStoreId),
+          supabase.from<MaintenanceRow>('maintenance_jobs').select('id, job_no, job_type, status, scheduled_in_at, scheduled_delivery_at').eq('vehicle_id', vehicleId).eq('store_id', activeStoreId).order('created_at', { ascending: false }),
+          supabase.from<ListingStatusRow>('vehicle_listing_statuses').select('id, vehicle_id, channel, status, listing_url, last_checked_at, error_message').eq('vehicle_id', vehicleId).eq('store_id', activeStoreId),
         ]);
         if (vehicleResult.error || !vehicleResult.data) {
           if (vehicleResult.error?.message.toLowerCase().includes('0 rows')) setNotFound(true);
@@ -191,6 +190,7 @@ export default function VehicleDetailPage() {
         if (maintenanceResult.error) throw new Error(maintenanceResult.error.message);
         if (listingResult.error) throw new Error(listingResult.error.message);
         setForm(mapVehicleToForm(vehicleResult.data));
+        setSavedStatus(vehicleResult.data.status ?? '在庫中');
         setDeals(dealResult.data ?? []);
         setCustomers(customerResult.data ?? []);
         setMaintenance(maintenanceResult.data ?? []);
@@ -209,7 +209,29 @@ export default function VehicleDetailPage() {
       setIsSaving(true); setErrorMessage(''); setSuccessMessage('');
       if (!storeId) throw new Error('所属店舗が見つかりません。');
       const supabase = createClient();
-      const { error } = await supabase.from<VehicleRow>('vehicles').update({
+      if (form.status === '売約済み' && savedStatus !== '売約済み') {
+        throw new Error('売約は商談詳細から実行してください。');
+      }
+      if (savedStatus === '納車済み' && form.status !== '納車済み') {
+        throw new Error('納車済み車両の状態は変更できません。');
+      }
+      if (savedStatus === '売約済み' && form.status !== '売約済み' && form.status !== '納車済み') {
+        throw new Error('売約取消は商談詳細から実行してください。');
+      }
+      if (savedStatus === '売約済み' && form.status === '納車済み') {
+        const activeDeal = deals.find((item) => item.status === '成約');
+        if (!activeDeal) throw new Error('有効な売約商談が見つかりません。');
+        deliveryRequestKeyRef.current ??= `deliver:${activeDeal.id}:${crypto.randomUUID()}`;
+        const response = await fetch(`/api/deals/${activeDeal.id}/sale`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idempotencyKey: deliveryRequestKeyRef.current }),
+        });
+        const result = (await response.json()) as { error?: string };
+        if (!response.ok) throw new Error(result.error ?? '納車完了処理に失敗しました。');
+        setSavedStatus('納車済み');
+        deliveryRequestKeyRef.current = null;
+      }
+      const updatePayload = {
         management_no: toNullableText(form.management_no), vehicle_type: toNullableText(form.vehicle_type), maker: toNullableText(form.maker),
         model_name: toNullableText(form.model_name), grade: toNullableText(form.grade), vin: toNullableText(form.vin), registration_no: toNullableText(form.registration_no),
         first_registration_month: toNullableText(form.first_registration_month), model_year: toNullableNumber(form.model_year), displacement_cc: toNullableNumber(form.displacement_cc),
@@ -217,9 +239,12 @@ export default function VehicleDetailPage() {
         purchase_price: toNullableNumber(form.purchase_price), direct_cost_special: toNullableNumber(form.direct_cost_special), direct_cost_accessories: toNullableNumber(form.direct_cost_accessories), direct_cost_agency: toNullableNumber(form.direct_cost_agency), direct_cost_legal: toNullableNumber(form.direct_cost_legal), base_price: toNullableNumber(form.base_price), total_price: toNullableNumber(form.total_price),
         market_value: toNullableNumber(form.market_value), market_source: toNullableText(form.market_source), market_checked_at: form.market_checked_at || null,
         market_conditions: toNullableText(form.market_conditions), market_note: toNullableText(form.market_note),
-        status: toNullableText(form.status), location_name: toNullableText(form.location_name), description: toNullableText(form.description), internal_memo: toNullableText(form.internal_memo),
-      }).eq('id', vehicleId).eq('store_id', storeId);
+        location_name: toNullableText(form.location_name), description: toNullableText(form.description), internal_memo: toNullableText(form.internal_memo),
+        ...(savedStatus === '売約済み' && form.status === '納車済み' ? {} : { status: toNullableText(form.status) }),
+      };
+      const { error } = await supabase.from<VehicleRow>('vehicles').update(updatePayload).eq('id', vehicleId).eq('store_id', storeId);
       if (error) throw new Error(error.message);
+      setSavedStatus(form.status);
       setSuccessMessage('車両情報を保存しました。');
     } catch (error) {
       setErrorMessage(toUserErrorMessage(error, '車両情報の保存に失敗しました。'));
