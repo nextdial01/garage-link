@@ -613,9 +613,16 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
 
   test('10 cleanup', async () => {
     test.setTimeout(2 * 60_000);
-    // The real cleanup runs unconditionally in afterAll (so it still executes even if an
-    // earlier checkpoint fails and this test gets skipped in serial mode). This test just
-    // confirms it converged to zero residue when every prior checkpoint actually passed.
+    // afterAll is the guaranteed teardown (still runs even if an earlier checkpoint fails
+    // and this test gets skipped in serial mode), but it only fires after this test - the
+    // checkpoint 8 resubscribe deliberately leaves a subscription active, so this
+    // checkpoint must cancel it itself before asserting convergence, not merely observe
+    // afterAll's later result. Cancelling an already-canceled subscription here is a
+    // harmless no-op for afterAll's own identical pass.
+    for (const trackedSubscriptionId of subscriptionIds) {
+      const subscription = await stripe.subscriptions.retrieve(trackedSubscriptionId);
+      if (subscription.status !== 'canceled') await stripe.subscriptions.cancel(trackedSubscriptionId);
+    }
     const remaining = await stripe.subscriptions.list({ customer: customerId!, status: 'all' });
     expect(remaining.data.filter((subscription) => subscription.status !== 'canceled')).toHaveLength(0);
     const { count } = await asUser.from('vehicles')
