@@ -212,11 +212,12 @@ export async function POST(request: Request) {
     }, { status: 202 });
   } catch (error) {
     if (tenantId) {
+      const rawMessage = error instanceof Error ? error.message : String(error);
       await admin.from('billing_sync_operations').update({
         status: stripeMutationCompleted ? 'reconciliation_required' : 'failed',
-        error_code: error instanceof Error && /^[a-z0-9_]+$/i.test(error.message)
-          ? error.message.slice(0, 100)
-          : 'billing_sync_failed',
+        error_code: /^[a-z0-9_]+$/i.test(rawMessage)
+          ? rawMessage.slice(0, 100)
+          : `diag:${rawMessage.replace(/[^\w\s.:-]/g, '').slice(0, 90)}`,
       }).eq('tenant_id', tenantId).eq('idempotency_key', idempotencyKey).in('status', ['stripe_applied', 'started']);
     }
     return NextResponse.json(
