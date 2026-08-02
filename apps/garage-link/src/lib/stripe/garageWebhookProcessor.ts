@@ -63,7 +63,7 @@ async function linkCheckoutOperation(session: Stripe.Checkout.Session, subscript
   if (error) throw new Error('checkout_operation_subscription_link_failed');
 }
 
-async function applyScheduledPlanIfDue(subscriptionId: string) {
+async function applyScheduledPlanIfDue(subscriptionId: string, asOfMs: number) {
   const admin = createAdminClient();
   const stripe = getStripeClient();
   if (!admin || !stripe) throw new Error('billing_client_unavailable');
@@ -79,7 +79,14 @@ async function applyScheduledPlanIfDue(subscriptionId: string) {
     pending_plan_effective_at: string | null;
   } | null;
   if (!row?.pending_plan || !row.pending_plan_effective_at) return null;
-  if (Date.parse(row.pending_plan_effective_at) > Date.now() + 60_000) return null;
+  // The webhook event's own timestamp, not the server's wall-clock Date.now(): a
+  // subscription advanced via a Stripe test clock fires events whose `created` reflects
+  // the simulated time, which can be arbitrarily ahead of (or behind) real wall-clock
+  // time. Comparing against Date.now() would never apply a due scheduled downgrade under
+  // a test clock. For real, non-test-clock subscriptions the two are for all practical
+  // purposes identical (webhooks deliver within seconds), so this is not a behavior
+  // change for production traffic.
+  if (Date.parse(row.pending_plan_effective_at) > asOfMs + 60_000) return null;
   await withGarageSubscriptionMutationLease(subscriptionId, async () => {
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     await stripe.subscriptions.update(subscriptionId, {
@@ -126,7 +133,7 @@ export async function processGarageStripeEvent(event: Stripe.Event) {
     await linkCheckoutOperation(session, subscriptionId);
   } else if (event.type.startsWith('invoice.')) {
     invoiceId = (object as Stripe.Invoice).id;
-    if (event.type === 'invoice.paid') scheduledPlan = await applyScheduledPlanIfDue(subscriptionId!);
+    if (event.type === 'invoice.paid') scheduledPlan = await applyScheduledPlanIfDue(subscriptionId!, event.created * 1000);
   } else if (event.type === 'customer.subscription.deleted') {
     deletedSnapshot = object as Stripe.Subscription;
   }
