@@ -83,7 +83,20 @@ grant SELECT on table public."store_members" to authenticated;
 grant DELETE, SELECT, UPDATE on table public."stores" to authenticated;
 grant DELETE, INSERT, SELECT, UPDATE on table public."stripe_webhook_events" to service_role;
 grant SELECT on table public."tenant_features" to authenticated;
-grant SELECT on table public."tenant_subscriptions" to authenticated;
+-- tenant_subscriptions belongs to the LINE-only plan billing schema
+-- (schema/029_line_plan_billing.sql) and is not part of GARAGE LINK's own
+-- commercial billing (company_subscriptions). It exists in a from-scratch
+-- fresh baseline build but was never created in the production database's
+-- actual incremental history, so this grant must not be unconditional -
+-- match the existence-guard pattern already used for optional relations
+-- elsewhere in this codebase (see 20260726000200_role_aware_business_write_lock.sql).
+do $$
+begin
+  if to_regclass('public.tenant_subscriptions') is not null then
+    execute 'grant SELECT on table public.tenant_subscriptions to authenticated';
+  end if;
+end
+$$;
 grant SELECT, UPDATE on table public."tenants" to authenticated;
 grant DELETE, INSERT, SELECT, UPDATE on table public."trade_in_vehicles" to authenticated;
 grant SELECT on table public."uploaded_files" to authenticated;
