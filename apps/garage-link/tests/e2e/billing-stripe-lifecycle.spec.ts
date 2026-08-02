@@ -76,13 +76,18 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
       .select('company_id,tenant_id,plan,billing_state,stripe_status,grace_ends_at')
       .eq('stripe_subscription_id', subscriptionId!)
       .maybeSingle();
-    const waitFor = async (predicate: () => Promise<boolean>) => {
-      const deadline = Date.now() + 30_000;
+    // 30s was tight enough to time out at least once on a convergence that (per direct DB
+    // inspection) actually completed within ~2s - CI network/Stripe-API latency has
+    // repeatedly needed more headroom than initially assumed throughout this test (the
+    // checkout redirect and Portal page hit the same pattern). 60s stays a real bound while
+    // giving slower runs room to finish.
+    const waitFor = async (predicate: () => Promise<boolean>, label?: string) => {
+      const deadline = Date.now() + 60_000;
       while (Date.now() < deadline) {
         if (await predicate()) return;
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
-      throw new Error('Stripe lifecycle convergence timeout');
+      throw new Error(`Stripe lifecycle convergence timeout${label ? ` (${label})` : ''}`);
     };
     // change-plan/cancellation both document 503 ("再照合後に再実行してください") as a
     // legitimate transient outcome when the mutation's own webhook races ahead of the
