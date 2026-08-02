@@ -32,11 +32,29 @@ test.describe.serial('GARAGE LINK Stripe test lifecycle 18', () => {
       required('E2E_TEST_SUPABASE_ANON_KEY'),
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
-    const { error: userSignInError } = await asUser.auth.signInWithPassword({
+    const { data: userSignInData, error: userSignInError } = await asUser.auth.signInWithPassword({
       email: required('E2E_EMAIL'),
       password: required('E2E_PASSWORD'),
     });
-    if (userSignInError) throw new Error(`e2e_user_supabase_signin_failed: ${userSignInError.message}`);
+    if (userSignInError || !userSignInData.session) {
+      throw new Error(`e2e_user_supabase_signin_failed: ${userSignInError?.message ?? 'no session'}`);
+    }
+    // A plain signInWithPassword() session is NOT the browser's OTP-verified session, so
+    // Supabase's PostgREST pre-request hook (enforce_administrator_email_otp, applied to
+    // every request by an administrator-role user) rejects it. Seed a matching
+    // admin_trusted_sessions row via service_role - exactly what the app's own
+    // /api/auth/admin-email-otp/verify route does after a real OTP check - so this second
+    // session is recognized as step-up-verified too.
+    const [, jwtPayload] = userSignInData.session.access_token.split('.');
+    const sessionId = (JSON.parse(Buffer.from(jwtPayload, 'base64url').toString('utf8')) as { session_id?: string }).session_id;
+    if (!sessionId) throw new Error('e2e_user_jwt_session_id_missing');
+    const { error: trustedSessionError } = await admin.from('admin_trusted_sessions').insert({
+      user_id: userSignInData.session.user.id,
+      session_id: sessionId,
+      device_token_hash: crypto.randomUUID(),
+      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    });
+    if (trustedSessionError) throw new Error(`e2e_trusted_session_seed_failed: ${trustedSessionError.message}`);
     const runNonce = crypto.randomUUID();
     const marker = `garage-link-commercial-e2e:${required('EXPECTED_RELEASE_SHA').slice(0, 12)}:${runNonce}`;
     // Stripe Checkout's Link network recognizes a repeated email address across runs and
