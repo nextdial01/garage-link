@@ -3,6 +3,8 @@ import { spawn } from 'node:child_process';
 const requiredWhenEnabled = [
   'E2E_EMAIL',
   'E2E_PASSWORD',
+  'E2E_TENANT_ID',
+  'E2E_STORE_ID',
   'E2E_TEST_SUPABASE_URL',
   'E2E_TEST_SUPABASE_SERVICE_ROLE_KEY',
   'EXPECTED_RELEASE_SHA',
@@ -55,7 +57,11 @@ async function isAppReachable() {
 function runPlaywright() {
   const child = spawn(
     'pnpm',
-    ['--filter', '@apps/garage-link', 'exec', 'playwright', 'test', 'tests/e2e/billing-stripe-lifecycle.spec.ts'],
+    [
+      '--filter', '@apps/garage-link', 'exec', 'playwright', 'test',
+      '--config', 'playwright.commercial-staging.config.ts',
+      '--project', 'billing',
+    ],
     {
       stdio: 'inherit',
       shell: process.platform === 'win32',

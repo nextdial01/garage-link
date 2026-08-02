@@ -35,6 +35,8 @@ jobs:
       PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
       E2E_EMAIL: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
       E2E_PASSWORD: ${{ secrets.GARAGE_STAGING_E2E_PASSWORD }}
+      E2E_TENANT_ID: ${{ secrets.GARAGE_STAGING_E2E_TENANT_ID }}
+      E2E_STORE_ID: ${{ secrets.GARAGE_STAGING_E2E_STORE_ID }}
       E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
       E2E_TEST_SUPABASE_ANON_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_ANON_KEY }}
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
@@ -88,3 +90,7 @@ jobs:
             apps/garage-link/playwright-report
             apps/garage-link/test-results
           retention-days: 30
+
+      - name: Delete the reused Playwright session (never persisted beyond this job)
+        if: always()
+        run: rm -f "${RUNNER_TEMP}/garage-link-e2e-storage-state.json"
