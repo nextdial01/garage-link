@@ -198,7 +198,7 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(billingPage).toContain('/api/billing/subscription');
     expect(billingPage).toContain("Boolean(subscription?.stripe_subscription_id)");
     expect(billingPage).toContain('translateDbError');
-    expect(checkoutRoute).not.toContain('payment_method_types');
+    expect(checkoutRoute).toContain("payment_method_types: ['card']");
     expect(checkoutRoute).toContain('automatic_tax: { enabled: false }');
     expect(checkoutRoute).toContain('integration_identifier');
     expect(stripeClient).toContain("apiVersion: '2026-07-29.dahlia'");
@@ -349,10 +349,11 @@ test.describe('GARAGE LINK billing and plan safety', () => {
     expect(billingPage).toContain('!termsAccepted');
     expect(checkout).toContain("body.termsAccepted !== true");
     expect(changePlan).toContain("body?.termsAccepted !== true");
-    expect(changeOptions).toContain("body?.termsAccepted !== true");
+    // change-options no longer takes a request body at all: add-on purchase (staff/store/
+    // storage) is unconditionally 403'd for initial sale, so there is nothing to consent to.
+    expect(changeOptions).toContain('初回販売の対象外です');
     expect(checkout).toContain('createTermsConsentMetadata()');
     expect(changePlan).toContain('createTermsConsentMetadata()');
-    expect(changeOptions).toContain('createTermsConsentMetadata()');
     expect(TERMS_VERSION).toBe('2026-07-23');
     expect(createTermsConsentMetadata(new Date('2026-07-23T00:00:00.000Z'))).toEqual({
       terms_accepted_at: '2026-07-23T00:00:00.000Z',
