@@ -78,7 +78,14 @@ async function applyScheduledPlanIfDue(subscriptionId: string, asOfMs: number) {
     pending_plan: string | null;
     pending_plan_effective_at: string | null;
   } | null;
-  if (!row?.pending_plan || !row.pending_plan_effective_at) return null;
+  if (!row?.pending_plan || !row.pending_plan_effective_at) {
+    console.info(JSON.stringify({
+      diag: 'applyScheduledPlanIfDue:no_pending', subscriptionId,
+      pendingPlan: row?.pending_plan ?? null,
+      pendingPlanEffectiveAt: row?.pending_plan_effective_at ?? null,
+    }));
+    return null;
+  }
   // The webhook event's own timestamp, not the server's wall-clock Date.now(): a
   // subscription advanced via a Stripe test clock fires events whose `created` reflects
   // the simulated time, which can be arbitrarily ahead of (or behind) real wall-clock
@@ -86,18 +93,36 @@ async function applyScheduledPlanIfDue(subscriptionId: string, asOfMs: number) {
   // a test clock. For real, non-test-clock subscriptions the two are for all practical
   // purposes identical (webhooks deliver within seconds), so this is not a behavior
   // change for production traffic.
-  if (Date.parse(row.pending_plan_effective_at) > asOfMs + 60_000) return null;
-  await withGarageSubscriptionMutationLease(subscriptionId, async () => {
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    await stripe.subscriptions.update(subscriptionId, {
-      metadata: {
-        ...subscription.metadata,
-        company_id: row.company_id,
-        plan_code: row.pending_plan!,
-        pending_plan: '',
-      },
-    }, { idempotencyKey: `scheduled_plan:${row.id}:${row.pending_plan_effective_at}` });
-  });
+  if (Date.parse(row.pending_plan_effective_at) > asOfMs + 60_000) {
+    console.info(JSON.stringify({
+      diag: 'applyScheduledPlanIfDue:not_due_yet', subscriptionId,
+      pendingPlanEffectiveAt: row.pending_plan_effective_at, asOfMs,
+    }));
+    return null;
+  }
+  try {
+    await withGarageSubscriptionMutationLease(subscriptionId, async () => {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const updated = await stripe.subscriptions.update(subscriptionId, {
+        metadata: {
+          ...subscription.metadata,
+          company_id: row.company_id,
+          plan_code: row.pending_plan!,
+          pending_plan: '',
+        },
+      }, { idempotencyKey: `scheduled_plan:${row.id}:${row.pending_plan_effective_at}` });
+      console.info(JSON.stringify({
+        diag: 'applyScheduledPlanIfDue:applied', subscriptionId,
+        newPlanCode: updated.metadata?.plan_code, newPendingPlan: updated.metadata?.pending_plan,
+      }));
+    });
+  } catch (error) {
+    console.info(JSON.stringify({
+      diag: 'applyScheduledPlanIfDue:lease_or_update_failed', subscriptionId,
+      error: error instanceof Error ? error.message : String(error),
+    }));
+    throw error;
+  }
   return row;
 }
 
@@ -156,6 +181,12 @@ export async function processGarageStripeEvent(event: Stripe.Event) {
     deletedSnapshot,
     paymentFailed: event.type === 'invoice.payment_failed',
   });
+  if (scheduledPlan || event.type === 'invoice.paid') {
+    console.info(JSON.stringify({
+      diag: 'processGarageStripeEvent:applied', eventType: event.type, subscriptionId,
+      scheduledPlanPresent: Boolean(scheduledPlan), appliedPlanCode: applied.planCode,
+    }));
+  }
   if (scheduledPlan) {
     const admin = createAdminClient();
     if (!admin) throw new Error('admin_client_unavailable');
