@@ -79,6 +79,9 @@ async function applyScheduledPlanIfDue(subscriptionId: string, asOfMs: number) {
     pending_plan_effective_at: string | null;
   } | null;
   if (!row?.pending_plan || !row.pending_plan_effective_at) return null;
+  // Fail closed on a malformed/missing invoice timestamp: treat as "not due yet" rather
+  // than let `Date.parse(...) > NaN` evaluate false and apply the downgrade immediately.
+  if (!Number.isFinite(asOfMs)) return null;
   // The webhook event's own timestamp, not the server's wall-clock Date.now(): a
   // subscription advanced via a Stripe test clock fires events whose `created` reflects
   // the simulated time, which can be arbitrarily ahead of (or behind) real wall-clock
