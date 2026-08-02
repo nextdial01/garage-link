@@ -506,6 +506,16 @@
         "20260731000300"
       ],
       "checksum": "ef8c3f806c97575a6edd3cb59d42041ada3cf084fb64005ff761d0318d4a4b9b"
+    },
+    {
+      "version": "20260802000200",
+      "name": "restore_ll_current_user_company_ids_execute",
+      "file": "../migrations/20260802000200_restore_ll_current_user_company_ids_execute.sql",
+      "kind": "repair",
+      "dependsOn": [
+        "20260731000300"
+      ],
+      "checksum": "5a2529a92fb748f68db16d7cc419330d07941cd41025262691b0df91b1c1dd91"
     }
   ],
   "excluded": [
@@ -526,6 +536,11 @@
     }
   ],
   "rollbacks": [
+    {
+      "version": "20260802000200",
+      "file": "../rollback/20260802000200_restore_ll_current_user_company_ids_execute.down.sql",
+      "checksum": "e60ca95a8c77919e5d52f294245f23111f4d090f672bd0411d3d962827912301"
+    },
     {
       "version": "20260802000100",
       "file": "../rollback/20260802000100_plan_change_requests_service_role_grant.down.sql",
