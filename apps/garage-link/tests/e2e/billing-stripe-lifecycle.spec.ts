@@ -39,12 +39,13 @@ const readDbSubscription = async () => admin.from('company_subscriptions')
   .limit(1)
   .maybeSingle();
 
-// 30s was tight enough to time out once on a convergence that (per direct DB inspection)
-// actually completed within ~2s - CI network/Stripe-API latency has repeatedly needed
-// more headroom than initially assumed. 60s stays a real, explicit bound; the label
-// names exactly what was being polled so a timeout is immediately attributable.
+// 30s, then 60s, both timed out at least once on convergences that (per direct DB
+// inspection) genuinely completed shortly after - once in ~2s, once at ~69s. CI
+// network/Stripe-API latency in this environment is real but variable; 90s is still an
+// explicit, bounded ceiling (not unlimited), just wide enough to cover the observed
+// range. The label names exactly what was being polled so a timeout stays attributable.
 const waitFor = async (predicate: () => Promise<boolean>, label: string) => {
-  const deadline = Date.now() + 60_000;
+  const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) {
     if (await predicate()) return;
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -210,20 +211,30 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
     quotaPrefix = `E2E-B1B-${tenantId.slice(0, 8)}`;
 
     const { data: existing } = await readDbSubscription();
+    // afterAll's own cleanup deletes the Stripe customer (which cascades to its
+    // subscriptions) once every checkpoint has passed - the DB row's stripe_customer_id/
+    // stripe_subscription_id are then stale pointers to objects that no longer exist. A
+    // fresh process resuming after such a fully-completed prior run must start a new
+    // customer/clock/checkout cycle, exactly like a first run, rather than rehydrating
+    // IDs that Stripe will only hand back as {deleted: true}.
     if (existing?.stripe_customer_id) {
       const rehydratedCustomerId: string = existing.stripe_customer_id;
-      customerId = rehydratedCustomerId;
       const customer = await stripe.customers.retrieve(rehydratedCustomerId);
-      if (!('deleted' in customer) && typeof customer.test_clock === 'string') {
-        clockId = customer.test_clock;
-      } else if (!('deleted' in customer) && customer.test_clock && typeof customer.test_clock === 'object') {
-        clockId = customer.test_clock.id;
+      if ('deleted' in customer && customer.deleted) {
+        console.info('[rehydrate] prior customer was deleted by a completed run, starting fresh');
+      } else {
+        customerId = rehydratedCustomerId;
+        if (typeof customer.test_clock === 'string') {
+          clockId = customer.test_clock;
+        } else if (customer.test_clock && typeof customer.test_clock === 'object') {
+          clockId = customer.test_clock.id;
+        }
+        if (existing?.stripe_subscription_id) {
+          const rehydratedSubscriptionId: string = existing.stripe_subscription_id;
+          subscriptionId = rehydratedSubscriptionId;
+          subscriptionIds.add(rehydratedSubscriptionId);
+        }
       }
-    }
-    if (existing?.stripe_subscription_id) {
-      const rehydratedSubscriptionId: string = existing.stripe_subscription_id;
-      subscriptionId = rehydratedSubscriptionId;
-      subscriptionIds.add(rehydratedSubscriptionId);
     }
     console.info(JSON.stringify({
       checkpoint: 'rehydrate', tenantId, storeId,
