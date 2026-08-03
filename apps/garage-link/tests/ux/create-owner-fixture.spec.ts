@@ -8,6 +8,7 @@ test.describe('staging owner fixture', () => {
   test.skip(!fixtureEmail || !fixturePassword, 'UX fixture credentials are required');
 
   test('creates an owner through the public signup and onboarding UI', async ({ page }) => {
+    const otpResponsePromise = page.waitForResponse((response) => response.url().endsWith('/api/auth/admin-email-otp/request'));
     if (fixtureExists) {
       await page.goto('/login?next=/onboarding');
       await page.locator('#email').fill(fixtureEmail!);
@@ -25,6 +26,9 @@ test.describe('staging owner fixture', () => {
     }
 
     await expect(page).toHaveURL(/\/security\/email-otp/, { timeout: 30_000 });
+    const otpResponse = await otpResponsePromise;
+    const otpPayload = await otpResponse.json() as { previewOtp?: string; error?: string };
+    expect(otpResponse.ok(), `OTP request ${otpResponse.status()}: ${otpPayload.error ?? 'unknown error'}`).toBe(true);
     const otpMessage = await page.getByText(/Preview QA確認コード:/).textContent();
     const otp = otpMessage?.match(/\b(\d{6})\b/)?.[1];
     expect(otp, 'preview deployment must expose a one-time QA code').toBeTruthy();

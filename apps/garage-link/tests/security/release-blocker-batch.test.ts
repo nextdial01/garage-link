@@ -28,7 +28,9 @@ test.describe('AUTH-004 / BILL-003 / CRON-001 release contracts', () => {
 
     expect(context).toContain("'admin_email_otp_bootstrap_context'");
     expect(context).toContain("'release_qa_admin_bootstrap_context'");
-    expect(requestRoute).toContain('requireReleaseQa: sink.authorized');
+    expect(requestRoute).toContain('getPreviewAdminContext(request)');
+    expect(requestRoute).toContain('requireReleaseQa: true');
+    expect(requestRoute).toContain('getPreviewUxAcceptanceAdminContext');
     expect(context).not.toContain("supabase.rpc('current_user_tenant_ids'");
     expect(requestRoute).toContain('getPreviewOtpSinkContext');
     expect(requestRoute).toContain('previewOtp');

@@ -1,15 +1,23 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { sendAdminOtpEmail } from '@/lib/notifications/sendAdminOtpEmail';
 import { emailHash, getAdminEmailOtpSecret, maskEmail, otpHash, randomOtpCode } from '@/lib/security/adminEmailOtp';
-import { getAuthenticatedAdminContext } from '@/lib/security/adminEmailOtpServer';
+import { getAuthenticatedAdminContext, getPreviewUxAcceptanceAdminContext } from '@/lib/security/adminEmailOtpServer';
 import { getPreviewOtpSinkContext } from '@/lib/security/previewOtpSink';
+
+async function getPreviewAdminContext(request: NextRequest) {
+  const releaseContext = await getAuthenticatedAdminContext(request, { requireReleaseQa: true });
+  if (releaseContext) return releaseContext;
+  return getPreviewUxAcceptanceAdminContext(request);
+}
 
 export async function POST(request: NextRequest) {
   const sink = getPreviewOtpSinkContext(request);
   if (sink.requested && !sink.authorized) {
     return NextResponse.json({ error: 'Not Found' }, { status: 404 });
   }
-  const context = await getAuthenticatedAdminContext(request, { requireReleaseQa: sink.authorized });
+  const context = sink.authorized
+    ? await getPreviewAdminContext(request)
+    : await getAuthenticatedAdminContext(request);
   const secret = getAdminEmailOtpSecret();
   if (!context || !secret) return NextResponse.json({ error: '管理者メール認証を利用できません。' }, { status: 403 });
   const code = randomOtpCode();
