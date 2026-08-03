@@ -191,11 +191,11 @@ export default function DealsPage() {
               </div>
               <div className="grid w-full min-w-0 gap-3 sm:grid-cols-2 xl:w-auto xl:grid-cols-[minmax(240px,1fr)_auto_auto]">
                 <input type="text" placeholder="商談番号・顧客名・車両名で検索" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full min-w-0 rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100" />
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+                <select aria-label="商談ステータス" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
                   <option value="">すべての状態</option>
                   {statusOptions.map((status) => <option key={status}>{status}</option>)}
                 </select>
-                <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value as 'all' | 'today' | 'overdue')} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+                <select aria-label="商談の次回対応日" value={actionFilter} onChange={(e) => setActionFilter(e.target.value as 'all' | 'today' | 'overdue')} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
                   <option value="all">すべての次回対応</option>
                   <option value="today">今日対応</option>
                   <option value="overdue">期限超過</option>

@@ -174,7 +174,7 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5">
+        <nav aria-label="メインナビゲーション" className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5">
           <section>
             <div className="mb-3 flex items-center justify-between px-1">
               <p className="text-xs font-black tracking-[0.18em] text-slate-600">よく使う画面</p>
@@ -223,7 +223,7 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
               </div>
             </section>
           ))}
-        </div>
+        </nav>
 
         <div className="border-t border-slate-200 px-4 py-4">
           <Link
