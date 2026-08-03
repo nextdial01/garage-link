@@ -5,6 +5,7 @@ import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AppShell from '@/components/AppShell';
+import { confirmAction } from '@/components/ui/actionDialog';
 import PermissionDeniedCard from '@/components/PermissionDeniedCard';
 import { createClient } from '@/lib/supabase/client';
 import { logAudit } from '@/lib/audit/logAudit';
@@ -211,7 +212,11 @@ export default function TrashPage() {
       return;
     }
 
-    const confirmed = window.confirm(`${item.typeLabel}「${item.label}」を復元します。よろしいですか？`);
+    const confirmed = await confirmAction({
+      title: item.typeLabel + 'を復元する',
+      description: '「' + item.label + '」を一覧へ戻します。',
+      confirmLabel: '復元する',
+    });
     if (!confirmed) {
       return;
     }

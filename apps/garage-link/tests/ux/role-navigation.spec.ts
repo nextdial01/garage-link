@@ -13,7 +13,7 @@ for (const [role, storageState] of Object.entries(roleStates)) {
     test.skip(!storageState, `${role} storageState is required`);
     test('opens dashboard and exposes an explicit primary navigation', async ({ page }) => {
       await page.goto('/dashboard');
-      await expect(page.getByRole('heading', { name: /ダッシュボード/ })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'ホーム' })).toBeVisible();
       await expect(page.getByRole('navigation').first()).toBeVisible();
     });
   });

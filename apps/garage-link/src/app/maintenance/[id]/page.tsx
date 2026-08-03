@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import { confirmAction } from '@/components/ui/actionDialog';
 import JobPartsPanel from '@/components/parts/JobPartsPanel';
 import SoftDeleteButton from '@/components/SoftDeleteButton';
 import { logAudit } from '@/lib/audit/logAudit';
@@ -519,7 +520,11 @@ export default function MaintenanceDetailPage() {
 
   async function handleComplete() {
     if (!storeId || !job) return;
-    if (!confirm('この整備案件を完了にしますか？\n完了日時と完了担当者が記録されます。')) return;
+    if (!await confirmAction({
+      title: '整備案件を完了する',
+      description: '完了日時と完了担当者が記録されます。',
+      confirmLabel: '完了にする',
+    })) return;
 
     try {
       setIsCompleting(true);

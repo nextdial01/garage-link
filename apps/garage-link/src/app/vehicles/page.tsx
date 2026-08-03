@@ -248,7 +248,7 @@ export default function VehiclesPage() {
           <div key={stat.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-500">{stat.label}</p>
             <p className="mt-3 text-3xl font-black text-slate-950">{stat.value}</p>
-            <p className="mt-2 text-xs font-semibold text-slate-400">{stat.detail}</p>
+            <p className="mt-2 text-xs font-semibold text-slate-500">{stat.detail}</p>
           </div>
         ))}
       </div>
@@ -282,6 +282,7 @@ export default function VehiclesPage() {
                 />
 
                 <select
+                  aria-label="車両ステータス"
                   value={statusFilter}
                   onChange={(event) => setStatusFilter(event.target.value)}
                   className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"

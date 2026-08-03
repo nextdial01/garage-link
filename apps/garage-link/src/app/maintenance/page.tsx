@@ -141,7 +141,7 @@ export default function MaintenancePage() {
 
   return (
     <AppShell activeLabel="整備・車検" title="整備・車検" description="納車予定が近い案件と作業中案件をまとめて見られます" actionButton={<Link href="/maintenance/new" className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700">整備・車検を登録</Link>}>
-      <div className="mb-6 grid gap-4 md:grid-cols-4">{stats.map((stat) => <div key={stat.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm font-semibold text-slate-500">{stat.label}</p><p className="mt-3 text-3xl font-black text-slate-950">{stat.value}</p><p className="mt-2 text-xs font-semibold text-slate-400">{stat.detail}</p></div>)}</div>
+      <div className="mb-6 grid gap-4 md:grid-cols-4">{stats.map((stat) => <div key={stat.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm font-semibold text-slate-500">{stat.label}</p><p className="mt-3 text-3xl font-black text-slate-950">{stat.value}</p><p className="mt-2 text-xs font-semibold text-slate-500">{stat.detail}</p></div>)}</div>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-5"><h3 className="text-base font-bold">整備・車検一覧</h3><p className="mt-1 text-sm text-slate-500">納車予定が近い順に並びます。{jobs.length}件</p></div>

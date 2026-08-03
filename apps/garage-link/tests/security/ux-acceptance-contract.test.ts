@@ -21,8 +21,11 @@ test.describe('UX acceptance regression contracts', () => {
     expect(migration).toContain("t.name like '[UX QA 20260803]%'");
     expect(migration).toContain("s.name = '[UX QA 20260803] 受入監査店'");
     expect(migration).toContain("lower(coalesce(u.email, '')) ~ '@[^@]+\\.invalid$'");
+    expect(migration).not.toContain("@[^@]+\\\\.invalid$");
     expect(migration).toContain('revoke all on function public.ux_acceptance_admin_bootstrap_context');
     expect(migration).toContain('grant execute on function public.ux_acceptance_admin_bootstrap_context');
+    expect(migration).toContain('ux_acceptance_prepare_store');
+    expect(migration).toContain('set onboarding_completed_at = coalesce');
   });
 
   test('shared modal owns the complete portal and focus-management contract', async () => {
@@ -35,5 +38,21 @@ test.describe('UX acceptance regression contracts', () => {
     expect(source).toContain('aria-modal="true"');
     expect(source).toContain('max-h-[calc(100dvh-32px)]');
     expect(source).toContain('env(safe-area-inset-bottom)');
+  });
+
+  test('destructive workflows use the accessible action dialog instead of native browser prompts', async () => {
+    const paths = [
+      'src/components/ui/actionDialog.tsx',
+      'src/app/settings/trash/page.tsx',
+      'src/app/invoices/[id]/page.tsx',
+      'src/app/deals/[id]/page.tsx',
+      'src/app/maintenance/[id]/page.tsx',
+      'src/app/line/_components/LineRecordDetailPage.tsx',
+      'src/app/line/_components/LineCrudPage.tsx',
+    ];
+    const sources = await Promise.all(paths.map((path) => readFile(path, 'utf8')));
+    expect(sources[0]).toContain("import Modal from './Modal'");
+    expect(sources[0]).toContain('minLength');
+    expect(sources.join('\n')).not.toMatch(/window\.(?:confirm|prompt)\s*\(|(?<![\w.])confirm\s*\(/);
   });
 });

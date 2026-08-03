@@ -536,7 +536,7 @@
         "20260728000200",
         "20260802000300"
       ],
-      "checksum": "99fec6fee4e01a5b25d4304739769209dfb14995ccceaa904a254e23f681f4b3"
+      "checksum": "5f23fc14efe6a543fc2858253822bc897cd3c3bddf83cc905805abd06890c966"
     }
   ],
   "excluded": [
@@ -560,7 +560,7 @@
     {
       "version": "20260803000100",
       "file": "../rollback/20260803000100_ux_acceptance_admin_bootstrap.down.sql",
-      "checksum": "3aef00e3f8e51f88141a0bc3a1222d84bb6170830b7f660efcc5d1c10442e89b"
+      "checksum": "83d67715ddbc640b6e4e46ebb10bb959a5ddef1d682b4fdf11c1b923c43ecfe1"
     },
     {
       "version": "20260802000300",

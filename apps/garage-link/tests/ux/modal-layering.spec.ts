@@ -17,8 +17,9 @@ test('dashboard help dialog stays inside the viewport and owns focus', async ({ 
   expect(rect!.y + rect!.height).toBeLessThanOrEqual((page.viewportSize()?.height ?? 0) - 16);
   await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe('hidden');
 
-  await page.keyboard.press('Tab');
   await expect(dialog.getByRole('button', { name: '閉じる', exact: true }).first()).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect.poll(() => page.evaluate(() => Boolean(document.querySelector('[role="dialog"]')?.contains(document.activeElement)))).toBe(true);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();

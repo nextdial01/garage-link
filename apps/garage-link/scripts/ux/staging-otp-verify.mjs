@@ -38,6 +38,12 @@ for (const user of users) {
 }
 if (owners.length !== 1) throw new Error(`CANONICAL_QA_OWNER_COUNT:${owners.length}`);
 const canonical = owners[0];
+const { data: preparedStore, error: prepareStoreError } = await service.rpc('ux_acceptance_prepare_store', {
+  p_tenant_id: canonical.data.tenant_id,
+  p_store_id: canonical.data.store_id,
+});
+if (prepareStoreError) throw prepareStoreError;
+if (preparedStore !== true) throw new Error('CANONICAL_QA_STORE_NOT_PREPARED');
 
 let temporaryPassword = `${randomBytes(48).toString('base64url')}Aa1!`;
 const { error: rotateError } = await service.auth.admin.updateUserById(canonical.user.id, {
@@ -135,6 +141,7 @@ try {
     project_ref: PROJECT_REF,
     canonical_host: BASE_URL,
     password_rotated: true,
+    fixture_onboarding_ready: true,
     role: canonical.data.role,
     login_status: loginResponse.status(),
     otp_request_status: requestResponse.status(),

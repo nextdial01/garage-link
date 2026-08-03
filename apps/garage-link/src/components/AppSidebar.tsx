@@ -177,7 +177,7 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5">
           <section>
             <div className="mb-3 flex items-center justify-between px-1">
-              <p className="text-xs font-black tracking-[0.18em] text-slate-500">よく使う画面</p>
+              <p className="text-xs font-black tracking-[0.18em] text-slate-600">よく使う画面</p>
               {(role === 'owner' || role === 'admin') && (
                 <Link href="/settings/store" className="text-xs font-bold text-blue-700 hover:underline">
                   主タブを変更

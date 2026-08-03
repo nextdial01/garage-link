@@ -1,21 +1,34 @@
 import { expect, type Page, type TestInfo } from '@playwright/test';
 
 export type BrowserIssue = {
-  kind: 'console' | 'pageerror' | 'requestfailed';
+  kind: 'console' | 'pageerror' | 'requestfailed' | 'response';
   detail: string;
 };
+
+function isVercelToolbarRequest(url: string, method = 'GET') {
+  const { pathname } = new URL(url);
+  return (method === 'OPTIONS' && pathname === '/')
+    || /^\/[a-f0-9]{16}\/script\.js$/.test(pathname)
+    || pathname === '/.well-known/vercel/jwe';
+}
 
 export function collectBrowserIssues(page: Page) {
   const issues: BrowserIssue[] = [];
   page.on('console', (message) => {
-    if (message.type() === 'error') issues.push({ kind: 'console', detail: message.text() });
+    if (message.type() === 'error' && !/^Failed to load resource: the server responded with a status of \d+/.test(message.text())) {
+      issues.push({ kind: 'console', detail: message.text() });
+    }
   });
   page.on('pageerror', (error) => issues.push({ kind: 'pageerror', detail: error.stack || error.message || String(error) }));
   page.on('requestfailed', (request) => {
     const url = request.url();
-    const pathname = new URL(url).pathname;
-    if (!url.includes('/_next/image') && pathname !== '/.well-known/vercel/jwe') {
+    if (!url.includes('/_next/image') && !isVercelToolbarRequest(url, request.method())) {
       issues.push({ kind: 'requestfailed', detail: `${request.method()} ${url}: ${request.failure()?.errorText ?? 'failed'}` });
+    }
+  });
+  page.on('response', (response) => {
+    if (response.status() >= 400 && !isVercelToolbarRequest(response.url())) {
+      issues.push({ kind: 'response', detail: response.status() + ' ' + response.request().method() + ' ' + response.url() });
     }
   });
   return issues;

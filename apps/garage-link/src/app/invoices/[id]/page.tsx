@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import { confirmAction, promptAction } from '@/components/ui/actionDialog';
 import { createClient } from '@/lib/supabase/client';
 
 type StoreMemberRow = { store_id: string; role: string | null };
@@ -244,7 +245,13 @@ export default function InvoiceDetailPage() {
   }
 
   async function handleVoidInvoice() {
-    const reason = window.prompt('請求書を取消する理由を入力してください（3文字以上）。');
+    const reason = await promptAction({
+      title: '請求書を取り消す',
+      description: '取消後は請求書の状態が変わります。理由を入力して確認してください。',
+      confirmLabel: '請求書を取り消す',
+      tone: 'danger',
+      input: { label: '取消理由', minLength: 3, placeholder: '3文字以上で入力' },
+    });
     if (reason === null) return;
     try {
       await runAccountingAction(`/api/invoices/${id}/void`, { reason });
@@ -270,7 +277,11 @@ export default function InvoiceDetailPage() {
 
   async function handleConfirmStock() {
     if (stockBusy !== 'idle' || !invoice) return;
-    if (!window.confirm('この請求書を確定し、対象部品の在庫を減算します。よろしいですか？')) return;
+    if (!await confirmAction({
+      title: '請求書を確定する',
+      description: '請求書を確定し、対象部品の在庫を減算します。',
+      confirmLabel: '確定して在庫を減算',
+    })) return;
     setStockBusy('confirming');
     setStockError(''); setStockMessage('');
     try {
@@ -295,7 +306,12 @@ export default function InvoiceDetailPage() {
 
   async function handleCancelStock() {
     if (stockBusy !== 'idle' || !invoice) return;
-    if (!window.confirm('この請求の確定を解除し、減算済み在庫を復元します。よろしいですか？')) return;
+    if (!await confirmAction({
+      title: '請求確定を解除する',
+      description: '請求の確定を解除し、減算済み在庫を復元します。',
+      confirmLabel: '確定を解除して在庫を復元',
+      tone: 'danger',
+    })) return;
     setStockBusy('cancelling');
     setStockError(''); setStockMessage('');
     try {
