@@ -6,7 +6,6 @@ const PROJECT_REF = 'gaytoojzwqkpuvfofeql';
 const BASE_URL = 'https://garage-link-staging.vercel.app';
 const DEPLOYMENT_ID = 'dpl_BFFb2jPtg971Hu82zBThPsKgqUVY';
 const QA_PREFIX = 'ux.qa.20260803.';
-const STORE_NAME = '[UX QA 20260803] 受入監査店';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
@@ -28,28 +27,19 @@ for (let page = 1; page <= 10; page += 1) {
 if (users.length === 0) throw new Error('QA_USERS_NOT_FOUND');
 
 const userIds = users.map((user) => user.id);
-const { data: memberships, error: membershipError } = await service
-  .from('memberships')
-  .select('id,tenant_id,store_id,user_id,role,status,disabled_at,deleted_at')
-  .in('user_id', userIds);
-if (membershipError) throw membershipError;
-
-const storeIds = [...new Set((memberships ?? []).map((membership) => membership.store_id).filter(Boolean))];
-const { data: stores, error: storeError } = await service
-  .from('stores')
-  .select('id,tenant_id,name,status')
-  .in('id', storeIds);
-if (storeError) throw storeError;
-
-const storeById = new Map((stores ?? []).map((store) => [store.id, store]));
 const userById = new Map(users.map((user) => [user.id, user]));
-const candidates = (memberships ?? [])
-  .filter((membership) => membership.role === 'owner'
-    && membership.status === 'active'
-    && !membership.disabled_at
-    && !membership.deleted_at
-    && storeById.get(membership.store_id)?.name === STORE_NAME)
-  .map((membership) => ({ membership, store: storeById.get(membership.store_id), user: userById.get(membership.user_id) }))
+const contexts = [];
+for (const userId of userIds) {
+  const { data, error } = await service.rpc('admin_email_otp_bootstrap_context', {
+    p_user_id: userId,
+    p_session_id: '00000000-0000-0000-0000-000000000001',
+  });
+  if (error) throw error;
+  if (data && typeof data === 'object' && !Array.isArray(data)) contexts.push(data);
+}
+const candidates = contexts
+  .filter((context) => context.role === 'owner')
+  .map((context) => ({ context, user: userById.get(context.user_id) }))
   .filter((candidate) => candidate.user?.email);
 
 const canonicalCandidates = candidates.filter((candidate) => candidate.user.email.toLowerCase().endsWith('.invalid'));
@@ -62,6 +52,10 @@ const duplicates = candidates.filter((candidate) => candidate.user.id !== canoni
 let temporaryPassword = `${randomBytes(48).toString('base64url')}Aa1!`;
 const { error: rotateError } = await service.auth.admin.updateUserById(canonical.user.id, {
   password: temporaryPassword,
+  app_metadata: {
+    ...canonical.user.app_metadata,
+    purpose: 'ux-acceptance-20260803',
+  },
 });
 if (rotateError) throw rotateError;
 
@@ -146,8 +140,8 @@ try {
     canonical_host: BASE_URL,
     project_ref: PROJECT_REF,
     password_rotated: true,
-    canonical_role: canonical.membership.role,
-    canonical_status: canonical.membership.status,
+    canonical_role: canonical.context.role,
+    canonical_status: 'active',
     login_status: loginResponse.status(),
     session_cookie_present: cookieContract.present,
     cookie_contract: cookieContract,

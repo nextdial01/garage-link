@@ -3,11 +3,26 @@ import { readFile } from 'node:fs/promises';
 
 test.describe('UX acceptance regression contracts', () => {
   test('preview OTP accepts the canonical project alias without weakening preview guards', async () => {
-    const source = await readFile('src/lib/security/previewOtpSink.ts', 'utf8');
+    const [source, serverContext, migration] = await Promise.all([
+      readFile('src/lib/security/previewOtpSink.ts', 'utf8'),
+      readFile('src/lib/security/adminEmailOtpServer.ts', 'utf8'),
+      readFile('supabase/migrations/20260803000100_ux_acceptance_admin_bootstrap.sql', 'utf8'),
+    ]);
     expect(source).toContain('VERCEL_PROJECT_PRODUCTION_URL');
     expect(source).toContain("process.env.VERCEL_ENV === 'preview'");
     expect(source).toContain("process.env.NODE_ENV === 'production'");
     expect(source).toContain('requestHost');
+    expect(serverContext).toContain("'ux_acceptance_admin_bootstrap_context'");
+    expect(migration).toContain('ux_acceptance_admin_bootstrap_context');
+    expect(migration).toContain("p_environment <> 'preview'");
+    expect(migration).toContain("raw_app_meta_data ->> 'purpose'");
+    expect(migration).not.toContain("coalesce(u.raw_user_meta_data ->> 'purpose'");
+    expect(migration).toContain("ux-acceptance-20260803");
+    expect(migration).toContain("t.name like '[UX QA 20260803]%'");
+    expect(migration).toContain("s.name = '[UX QA 20260803] 受入監査店'");
+    expect(migration).toContain("lower(coalesce(u.email, '')) ~ '@[^@]+\\.invalid$'");
+    expect(migration).toContain('revoke all on function public.ux_acceptance_admin_bootstrap_context');
+    expect(migration).toContain('grant execute on function public.ux_acceptance_admin_bootstrap_context');
   });
 
   test('shared modal owns the complete portal and focus-management contract', async () => {
