@@ -10,7 +10,7 @@ export function collectBrowserIssues(page: Page) {
   page.on('console', (message) => {
     if (message.type() === 'error') issues.push({ kind: 'console', detail: message.text() });
   });
-  page.on('pageerror', (error) => issues.push({ kind: 'pageerror', detail: error.message }));
+  page.on('pageerror', (error) => issues.push({ kind: 'pageerror', detail: error.stack || error.message || String(error) }));
   page.on('requestfailed', (request) => {
     const url = request.url();
     const pathname = new URL(url).pathname;

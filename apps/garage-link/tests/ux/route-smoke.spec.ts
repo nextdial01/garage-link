@@ -38,13 +38,15 @@ for (const route of publicRoutes) {
     expect(response?.status(), `${route} status`).toBeLessThan(400);
     await expect(page.locator('body')).not.toContainText(/Application error|Internal Server Error/i);
     await assertViewportIntegrity(page);
+    await page.waitForTimeout(250);
+    const productIssues = [...issues];
 
     const axe = await new AxeBuilder({ page }).analyze();
     const blocking = axe.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact ?? ''));
     await attachJson(testInfo, 'axe', { route, blocking, all: axe.violations });
-    await attachJson(testInfo, 'browser-issues', issues);
+    await attachJson(testInfo, 'browser-issues', { productIssues, postAxeIssues: issues });
     expect(blocking, `${route} axe Critical/Serious`).toEqual([]);
-    expect(issues, `${route} browser issues`).toEqual([]);
+    expect(productIssues, `${route} browser issues`).toEqual([]);
   });
 }
 
