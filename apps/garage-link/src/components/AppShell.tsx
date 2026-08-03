@@ -105,7 +105,7 @@ export default function AppShell({
       <AppSidebar activeLabel={activeLabel} />
 
       <section className="min-w-0 flex-1 pb-24 lg:pb-0">
-        <header className={`sticky top-0 z-20 border-b bg-white/95 px-4 py-4 backdrop-blur sm:px-6 lg:px-8 ${headerBorderClass}`}>
+        <header className={`sticky top-0 z-[var(--z-app-header)] border-b bg-white/95 px-4 py-4 backdrop-blur sm:px-6 lg:px-8 ${headerBorderClass}`}>
           <div className="mx-auto flex max-w-[1440px] flex-col gap-4">
             <div className="flex flex-wrap items-center justify-end gap-2">
                 <Link href="/help" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:bg-slate-50">

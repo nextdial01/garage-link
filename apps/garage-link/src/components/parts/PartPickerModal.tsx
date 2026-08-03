@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import Modal from '@/components/ui/Modal';
 
 export type PickedPart = {
   id: string;
@@ -86,20 +87,18 @@ export default function PartPickerModal({ storeId, onSelect, onAddManual, onClos
   }, [query, fetchParts]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[80vh] w-full max-w-xl flex-col rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <h2 className="text-base font-bold text-slate-950">部品マスタから選択</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="border-b border-slate-100 px-5 py-3">
+    <Modal
+      open
+      title="部品マスタから選択"
+      onClose={onClose}
+      initialFocusRef={inputRef}
+      footer={(
+        <button type="button" onClick={onAddManual} className="w-full rounded-xl border border-dashed border-slate-300 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50">
+          + マスタ未登録の部品を手動で追加
+        </button>
+      )}
+    >
+        <div className="border-b border-slate-100 pb-3">
           <input
             ref={inputRef}
             type="text"
@@ -110,7 +109,7 @@ export default function PartPickerModal({ storeId, onSelect, onAddManual, onClos
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="mt-3">
           {isLoading ? (
             <p className="px-5 py-4 text-sm text-slate-500">検索中...</p>
           ) : parts.length === 0 ? (
@@ -165,16 +164,6 @@ export default function PartPickerModal({ storeId, onSelect, onAddManual, onClos
           )}
         </div>
 
-        <div className="border-t border-slate-200 px-5 py-3">
-          <button
-            type="button"
-            onClick={onAddManual}
-            className="w-full rounded-xl border border-dashed border-slate-300 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
-          >
-            + マスタ未登録の部品を手動で追加
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

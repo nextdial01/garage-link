@@ -5,6 +5,10 @@
   --foreground: #0f172a;
   --font-geist-sans: "Meiryo UI", Meiryo, "Hiragino Kaku Gothic ProN", "Yu Gothic UI", sans-serif;
   --font-geist-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --z-app-header: 20;
+  --z-app-navigation: 30;
+  --z-modal-backdrop: 100;
+  --z-modal-dialog: 101;
 }
 
 @theme inline {
