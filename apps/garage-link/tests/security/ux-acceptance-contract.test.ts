@@ -55,4 +55,11 @@ test.describe('UX acceptance regression contracts', () => {
     expect(sources[0]).toContain('minLength');
     expect(sources.join('\n')).not.toMatch(/window\.(?:confirm|prompt)\s*\(|(?<![\w.])confirm\s*\(/);
   });
+
+  test('Vercel toolbar asset is public only on an exact Preview path', async () => {
+    const source = await readFile('src/middleware.ts', 'utf8');
+    expect(source).toContain("process.env.VERCEL_ENV === 'preview'");
+    expect(source).toContain("/^\\/[a-f0-9]{16}\\/script\\.js$/");
+    expect(source).not.toContain("pathname.endsWith('/script.js')");
+  });
 });

@@ -39,6 +39,10 @@ const CANCELLED_RETENTION_ALLOWED = [
 
 function isPublicPath(pathname: string) {
   if (PUBLIC_PATHS.includes(pathname)) return true;
+  // Vercel Preview Toolbar injects this revisioned asset into preview pages.
+  // Keep the bypass preview-only and exact so arbitrary application routes
+  // never inherit public access.
+  if (process.env.VERCEL_ENV === 'preview' && /^\/[a-f0-9]{16}\/script\.js$/.test(pathname)) return true;
   if (pathname.startsWith('/legal/')) return true;
   if (pathname.startsWith('/industries/')) return true;
   // L-LINK からのサーバー間通信は各ルートで HMAC 署名・timestamp・nonce を検証する。
