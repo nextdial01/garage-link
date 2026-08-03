@@ -153,9 +153,9 @@ export default function MaintenancePage() {
                 <button key={job.id} type="button" onClick={() => { setSelectedJobId(job.id); setEditingStatus(job.status ?? 'received'); setEditingDeliveryAt(formatDateInput(job.scheduled_delivery_at)); setConflictMessage(''); setPendingRefresh(false); }} className="flex w-full flex-col gap-3 px-5 py-4 text-left transition hover:bg-blue-50/50">
                   <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-slate-950">{job.job_no}</p><p className="mt-1 text-xs font-semibold text-slate-500">{job.job_type ?? '-'} / 担当 {job.assigned_user_name ?? '-'}</p></div><span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${getStatusClass(job.status)}`}>{statusLabel(job.status)}</span></div>
                   <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-3">
-                    <div><p className="text-xs font-bold text-slate-400">顧客</p><p className="mt-1 font-bold text-slate-900">{job.customer_id ? customers[job.customer_id] ?? '-' : '-'}</p></div>
-                    <div><p className="text-xs font-bold text-slate-400">対象車両</p><p className="mt-1 font-bold text-slate-900">{job.vehicle_id ? vehicles[job.vehicle_id] ?? '-' : '-'}</p></div>
-                    <div><p className="text-xs font-bold text-slate-400">納車予定</p><p className="mt-1 font-bold text-slate-900">{formatDate(job.scheduled_delivery_at)}</p></div>
+                    <div><p className="text-xs font-bold text-slate-600">顧客</p><p className="mt-1 font-bold text-slate-900">{job.customer_id ? customers[job.customer_id] ?? '-' : '-'}</p></div>
+                    <div><p className="text-xs font-bold text-slate-600">対象車両</p><p className="mt-1 font-bold text-slate-900">{job.vehicle_id ? vehicles[job.vehicle_id] ?? '-' : '-'}</p></div>
+                    <div><p className="text-xs font-bold text-slate-600">納車予定</p><p className="mt-1 font-bold text-slate-900">{formatDate(job.scheduled_delivery_at)}</p></div>
                   </div>
                 </button>
               ))}
@@ -175,8 +175,8 @@ export default function MaintenancePage() {
                 <div className="flex items-center justify-between gap-4"><dt className="text-slate-500">見積合計</dt><dd className="font-bold text-slate-900">{formatPrice(selectedJob.estimated_total_amount)}</dd></div>
                 <div className="flex items-center justify-between gap-4"><dt className="text-slate-500">担当者</dt><dd className="font-bold text-slate-900">{selectedJob.assigned_user_name ?? '-'}</dd></div>
               </dl>
-              <div className="space-y-2"><p className="text-xs font-bold text-slate-400">状態</p><select className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-900" value={editingStatus} onChange={(event) => setEditingStatus(event.target.value)}>{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
-              <div className="space-y-2"><p className="text-xs font-bold text-slate-400">納車予定</p><input type="datetime-local" className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-900" value={editingDeliveryAt} onChange={(event) => setEditingDeliveryAt(event.target.value)} /></div>
+              <div className="space-y-2"><p className="text-xs font-bold text-slate-600">状態</p><select className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-900" value={editingStatus} onChange={(event) => setEditingStatus(event.target.value)}>{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
+              <div className="space-y-2"><p className="text-xs font-bold text-slate-600">納車予定</p><input type="datetime-local" className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-900" value={editingDeliveryAt} onChange={(event) => setEditingDeliveryAt(event.target.value)} /></div>
               <button type="button" onClick={() => void savePanel()} disabled={isSaving || pendingRefresh} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:bg-slate-300">{isSaving ? '保存中...' : '右パネルから保存する'}</button>
               <Link href={`/maintenance/${selectedJob.id}`} className="block rounded-xl border border-slate-300 px-4 py-3 text-center text-sm font-bold text-slate-700">詳細を開く</Link>
             </div>

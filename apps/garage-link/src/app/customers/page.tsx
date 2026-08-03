@@ -179,9 +179,9 @@ export default function CustomersPage() {
                     <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${getStatusClass(customer.customer_status ?? '')}`}>{customer.customer_status ?? '-'}</span>
                   </div>
                   <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-3">
-                    <div><p className="text-xs font-bold text-slate-400">希望車種</p><p className="mt-1 font-bold text-slate-900">{customer.desired_model ?? '-'}</p></div>
-                    <div><p className="text-xs font-bold text-slate-400">予算</p><p className="mt-1 font-bold text-slate-900">{formatBudget(customer.budget_min, customer.budget_max)}</p></div>
-                    <div><p className="text-xs font-bold text-slate-400">次回対応</p><p className="mt-1 font-bold text-slate-900">{customer.next_action_date ?? '-'}</p></div>
+                    <div><p className="text-xs font-bold text-slate-600">希望車種</p><p className="mt-1 font-bold text-slate-900">{customer.desired_model ?? '-'}</p></div>
+                    <div><p className="text-xs font-bold text-slate-600">予算</p><p className="mt-1 font-bold text-slate-900">{formatBudget(customer.budget_min, customer.budget_max)}</p></div>
+                    <div><p className="text-xs font-bold text-slate-600">次回対応</p><p className="mt-1 font-bold text-slate-900">{customer.next_action_date ?? '-'}</p></div>
                   </div>
                 </button>
               ))}
@@ -200,8 +200,8 @@ export default function CustomersPage() {
                 <div className="flex items-center justify-between gap-4"><dt className="text-slate-500">希望車種</dt><dd className="font-bold text-slate-900">{selectedCustomer.desired_model ?? '-'}</dd></div>
                 <div className="flex items-center justify-between gap-4"><dt className="text-slate-500">予算</dt><dd className="font-bold text-slate-900">{formatBudget(selectedCustomer.budget_min, selectedCustomer.budget_max)}</dd></div>
               </dl>
-              <div className="space-y-2"><p className="text-xs font-bold text-slate-400">状態</p><select className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-900" value={editingStatus} onChange={(event) => setEditingStatus(event.target.value)}>{statusOptions.map((status) => <option key={status}>{status}</option>)}</select></div>
-              <div className="space-y-2"><p className="text-xs font-bold text-slate-400">次回対応日</p><input type="date" className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-900" value={editingNextAction} onChange={(event) => setEditingNextAction(event.target.value)} /></div>
+              <div className="space-y-2"><p className="text-xs font-bold text-slate-600">状態</p><select className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-900" value={editingStatus} onChange={(event) => setEditingStatus(event.target.value)}>{statusOptions.map((status) => <option key={status}>{status}</option>)}</select></div>
+              <div className="space-y-2"><p className="text-xs font-bold text-slate-600">次回対応日</p><input type="date" className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-900" value={editingNextAction} onChange={(event) => setEditingNextAction(event.target.value)} /></div>
               <button type="button" onClick={() => void savePanel()} disabled={isSavingPanel || pendingRefresh} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:bg-slate-300">{isSavingPanel ? '保存中...' : '右パネルから保存する'}</button>
               <Link href={`/customers/${selectedCustomer.id}`} className="block rounded-xl border border-slate-300 px-4 py-3 text-center text-sm font-bold text-slate-700">詳細を開く</Link>
             </div>
