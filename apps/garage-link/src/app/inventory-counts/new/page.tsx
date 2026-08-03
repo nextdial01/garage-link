@@ -84,7 +84,7 @@ export default function NewInventoryCountPage() {
           .select('id, management_no, maker, model_name')
           .eq('store_id', storeId)
           .eq('deleted_at', null)
-          .eq('is_archived', false)
+          .or('is_archived.is.null,is_archived.eq.false')
           .order('created_at', { ascending: false });
         if (error) throw error;
         setVehicles(data ?? []);
