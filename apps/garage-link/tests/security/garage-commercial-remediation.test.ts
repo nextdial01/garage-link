@@ -124,7 +124,9 @@ test.describe('GARAGE LINK commercial contract', () => {
     expect(registryCheck).toContain("secret.startsWith('sk_test_')");
     expect(registryCheck).toContain('amount: 7480');
     expect(registryCheck).toContain('amount: 32780');
-    expect(registryCheck).toContain("product: 'prod_UphNg22hvZ9jwJ'");
+    expect(registryCheck).toContain("product: 'prod_Uw6CRhfl2Ukd4d'");
+    expect(registryCheck).toContain("product: 'prod_Uw6C9aCkaDHmC7'");
+    expect(registryCheck).toContain("product: 'prod_Uw6CqVkToPe8Mp'");
     expect(registryCheck).toContain("item: 'extra_storage_10gb'");
     expect(e2eRunner).toContain('E2E_REQUIRE_BILLING');
     expect(stagingWorkflow).toContain('E2E_REQUIRE_BILLING: "true"');

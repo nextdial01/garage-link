@@ -9,8 +9,10 @@ test.describe('請求書 在庫確定/取消 UI 配線', () => {
     expect(src).toContain("supabase.rpc('cancel_invoice_part_stock'");
     // owner/admin のみ操作可（既存ロール体系）
     expect(src).toContain("role === 'owner' || role === 'admin'");
-    // destructive 操作に確認
-    expect(src).toContain('window.confirm');
+    // destructive 操作は共有のaccessibility対応Dialogで確認する
+    expect(src).toContain('confirmAction({');
+    expect(src).toContain('promptAction({');
+    expect(src).not.toContain('window.confirm');
     // 二重クリック防止
     expect(src).toContain("stockBusy !== 'idle'");
     // 在庫不足の日本語エラーを表示

@@ -57,6 +57,8 @@ test.describe('G7 unresolved High remediation contracts', () => {
     expect(sql).toContain("v_role is null or v_role not in ('owner','admin','staff')");
     expect(maintenance).toContain("supabase.rpc('cancel_maintenance_job'");
     expect(inventoryNew).toContain("supabase.rpc('create_inventory_count'");
+    expect(inventoryNew).toContain('明細${index + 1}の対象車両');
+    expect(inventoryNew).toContain('vehicle_id: vehicleId');
     expect(inventoryDetail).toContain("supabase.rpc('finalize_inventory_count'");
     expect(inventoryDetail).not.toContain("from<InventoryItemRow>('inventory_count_items').insert(payload)");
   });
