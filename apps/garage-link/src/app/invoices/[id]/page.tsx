@@ -237,6 +237,11 @@ export default function InvoiceDetailPage() {
   }
 
   async function handleIssueInvoice() {
+    if (!await confirmAction({
+      title: '請求書を発行する',
+      description: '発行後は請求金額を直接変更できません。内容を確認して発行してください。',
+      confirmLabel: '内容を確認して発行する',
+    })) return;
     try {
       await runAccountingAction(`/api/invoices/${id}/issue`, {});
     } catch (error) {
@@ -266,6 +271,11 @@ export default function InvoiceDetailPage() {
       setSaveError('入金額は1円以上の整数で入力してください。');
       return;
     }
+    if (!await confirmAction({
+      title: '入金を登録する',
+      description: `${amount.toLocaleString('ja-JP')}円の入金を履歴へ追加します。金額と入金方法を確認してください。`,
+      confirmLabel: '入金を登録する',
+    })) return;
     try {
       await runAccountingAction(`/api/invoices/${id}/payments`, { amount, paymentMethod });
       setPaymentAmount('');

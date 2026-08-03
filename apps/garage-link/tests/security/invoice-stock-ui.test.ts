@@ -12,6 +12,8 @@ test.describe('請求書 在庫確定/取消 UI 配線', () => {
     // destructive 操作は共有のaccessibility対応Dialogで確認する
     expect(src).toContain('confirmAction({');
     expect(src).toContain('promptAction({');
+    expect(src).toContain("title: '請求書を発行する'");
+    expect(src).toContain("title: '入金を登録する'");
     expect(src).not.toContain('window.confirm');
     // 二重クリック防止
     expect(src).toContain("stockBusy !== 'idle'");
