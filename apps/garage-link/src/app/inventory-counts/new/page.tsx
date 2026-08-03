@@ -81,13 +81,11 @@ export default function NewInventoryCountPage() {
         const storeId = await getStoreId();
         const { data, error } = await supabase
           .from<VehicleOption>('vehicles')
-          .select('id, management_no, maker, model_name')
+          .select('id, management_no, maker, model_name, deleted_at, is_archived')
           .eq('store_id', storeId)
-          .eq('deleted_at', null)
-          .or('is_archived.is.null,is_archived.eq.false')
           .order('created_at', { ascending: false });
         if (error) throw error;
-        setVehicles(data ?? []);
+        setVehicles((data ?? []).filter((vehicle) => !vehicle.deleted_at && vehicle.is_archived !== true));
       } catch (error) {
         setErrorMessage(toUserErrorMessage(error, '車両候補の取得に失敗しました。'));
       }
