@@ -19,6 +19,22 @@ test.describe('staging owner preview contract', () => {
     expect(source).not.toContain('access_token');
     expect(source).not.toContain('refresh_token');
     expect(source).toContain("NextResponse.json({ error: 'Not Found' }, { status: 404 })");
+    expect(source).toContain("const temporaryPassword = `${crypto.randomUUID()}Aa1!`");
+    expect(source).not.toContain('randomUUID()}-${crypto.randomUUID()');
+    expect(source).toContain('OWNER_PREVIEW_LIST_USERS_FAILED');
+    expect(source).toContain('OWNER_PREVIEW_CREATE_USER_FAILED');
+    expect(source).toContain('OWNER_PREVIEW_FIXTURE_FAILED');
+    expect(source).toContain('OWNER_PREVIEW_GENERATE_LINK_FAILED');
+    expect(source).toContain('OWNER_PREVIEW_VERIFY_OTP_FAILED');
+    expect(source).toContain("console.error(`[${code}]`)");
+    expect(source).not.toContain("console.error(error");
+    const passwordExpression = source.match(/const temporaryPassword = `\$\{crypto\.randomUUID\(\)\}([^`]*)`/);
+    expect(passwordExpression?.[1]).toBe('Aa1!');
+    expect(36 + Buffer.byteLength(passwordExpression?.[1] ?? '')).toBeLessThan(72);
+    expect(passwordExpression?.[1]).toMatch(/[A-Z]/);
+    expect(passwordExpression?.[1]).toMatch(/[a-z]/);
+    expect(passwordExpression?.[1]).toMatch(/[0-9]/);
+    expect(passwordExpression?.[1]).toMatch(/[^A-Za-z0-9]/);
   });
 
   test('keeps owner fixture operations service-role-only and environment-bound', async () => {
