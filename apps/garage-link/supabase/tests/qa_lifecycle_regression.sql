@@ -80,6 +80,9 @@ do $$ declare v jsonb; t uuid; s uuid; m uuid; begin
   t:=(v->>'tenant_id')::uuid; s:=(v->>'store_id')::uuid; m:=(v->>'membership_id')::uuid;
   if v->>'user_id'<>'62000000-0000-4000-8000-000000000010' or v->>'purpose'<>'owner-preview' or v->>'marker'<>'[OWNER PREVIEW QA 20260804]' then raise exception 'OWNER_PREVIEW_ENSURE_CONTRACT'; end if;
   if (public.qa_owner_preview_status('preview','gaytoojzwqkpuvfofeql','owner-preview','[OWNER PREVIEW QA 20260804]')->>'tenant_id') is null then raise exception 'OWNER_PREVIEW_STATUS_CONTRACT'; end if;
+  insert into public.admin_trusted_sessions(user_id,session_id,device_token_hash,expires_at) values('62000000-0000-4000-8000-000000000010','62000000-0000-4000-8000-000000000011','qa-owner-preview-hash',now()+interval '1 day');
+  insert into public.admin_email_otp_challenges(user_id,session_id,email_hash,code_hash,expires_at) values('62000000-0000-4000-8000-000000000010','62000000-0000-4000-8000-000000000011','qa-owner-preview-email-hash','qa-owner-preview-code',now()+interval '1 day');
+  begin delete from public.memberships where id=m; raise exception 'OWNER_PREVIEW_DIRECT_DELETE_ACCEPTED'; exception when others then if sqlerrm='OWNER_PREVIEW_DIRECT_DELETE_ACCEPTED' then raise; end if; end;
   begin perform public.qa_owner_preview_ensure_fixture('preview','wmlpuzuskfiwdipluglz','owner-preview','[OWNER PREVIEW QA 20260804]','62000000-0000-4000-8000-000000000010'); raise exception 'OWNER_PREVIEW_PRODUCTION_ACCEPTED'; exception when raise_exception then if sqlerrm='OWNER_PREVIEW_PRODUCTION_ACCEPTED' then raise; end if; end;
   begin perform public.qa_owner_preview_ensure_fixture('production','gaytoojzwqkpuvfofeql','owner-preview','[OWNER PREVIEW QA 20260804]','62000000-0000-4000-8000-000000000010'); raise exception 'OWNER_PREVIEW_ENVIRONMENT_ACCEPTED'; exception when raise_exception then if sqlerrm='OWNER_PREVIEW_ENVIRONMENT_ACCEPTED' then raise; end if; end;
   v:=public.qa_owner_preview_reset_fixture('preview','gaytoojzwqkpuvfofeql','owner-preview','[OWNER PREVIEW QA 20260804]');
@@ -87,6 +90,8 @@ do $$ declare v jsonb; t uuid; s uuid; m uuid; begin
   v:=public.qa_owner_preview_reset_fixture('preview','gaytoojzwqkpuvfofeql','owner-preview','[OWNER PREVIEW QA 20260804]');
   if v->>'reset'<>'false' then raise exception 'OWNER_PREVIEW_RESET_NOT_IDEMPOTENT'; end if;
   if exists(select 1 from qa_internal.owner_preview_fixtures where purpose='owner-preview') or exists(select 1 from public.company_subscriptions where tenant_id=t and company_id=s) or exists(select 1 from public.membership_store_assignments where membership_id=m and tenant_id=t and store_id=s) or exists(select 1 from public.memberships where id=m and tenant_id=t and store_id=s and user_id='62000000-0000-4000-8000-000000000010') or exists(select 1 from public.stores where id=s and tenant_id=t) or exists(select 1 from public.tenants where id=t) or exists(select 1 from public.admin_trusted_sessions where user_id='62000000-0000-4000-8000-000000000010') or exists(select 1 from public.admin_email_otp_challenges where user_id='62000000-0000-4000-8000-000000000010') then raise exception 'OWNER_PREVIEW_RESIDUAL'; end if;
+  if not exists(select 1 from pg_trigger where tgname='guard_membership_owner_and_identity' and tgrelid='public.memberships'::regclass and tgenabled='O') then raise exception 'OWNER_PREVIEW_TRIGGER_NOT_ENABLED'; end if;
+  if position('drop trigger' in lower(pg_get_functiondef('public.qa_owner_preview_reset_fixture(text,text,text,text)'::regprocedure)))>0 then raise exception 'OWNER_PREVIEW_DROP_TRIGGER_PRESENT'; end if;
   delete from auth.users where id='62000000-0000-4000-8000-000000000010';
 end $$;
 

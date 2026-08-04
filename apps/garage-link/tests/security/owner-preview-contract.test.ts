@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
 const route = 'src/app/staging-preview/route.ts';
-const migration = 'supabase/qa/migrations/20260804120000_owner_preview_contract.sql';
+const migration = 'supabase/qa/migrations/20260804130008_owner_preview_contract.sql';
 const resetRoute = 'src/app/api/staging-preview/reset/route.ts';
 
 test.describe('staging owner preview contract', () => {

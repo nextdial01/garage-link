@@ -45,35 +45,35 @@
       "checksum": "005d1103ceb3e9d07cefd4146f1474b47161ec11944e8204b3eb3a8e38e13a51"
     },
     {
-      "version": "20260804120000",
+      "version": "20260804130008",
       "name": "owner_preview_contract",
       "kind": "incremental",
-      "file": "migrations/20260804120000_owner_preview_contract.sql",
+      "file": "migrations/20260804130008_owner_preview_contract.sql",
       "dependsOn": [
         "20260804043651"
       ],
       "checksum": "237fa77c259aacaf56dff72c94c7e1294a95a09fa545db74454593b8d13a4954"
     },
     {
-      "version": "20260804123000",
+      "version": "20260804133000",
       "name": "owner_preview_reset_hardening",
       "kind": "repair",
-      "file": "migrations/20260804123000_owner_preview_reset_hardening.sql",
+      "file": "migrations/20260804133000_owner_preview_reset_hardening.sql",
       "dependsOn": [
-        "20260804120000"
+        "20260804130008"
       ],
-      "checksum": "6810461fcad579aa4a8565b14b2bfa943a8a53523cd8be187cd20b6fcede3eae"
+      "checksum": "078fde0c193b0639630f02814ba047575e7b4251a856e86abc191cc5a2b56834"
     }
   ],
   "rollbacks": [
     {
-      "version": "20260804123000",
-      "file": "rollback/20260804123000_owner_preview_reset_hardening.down.sql",
-      "checksum": "d15095fc9713cad56ab6a62bfd335f61a50abfe1022e8fe0365c91195c952b25"
+      "version": "20260804133000",
+      "file": "rollback/20260804133000_owner_preview_reset_hardening.down.sql",
+      "checksum": "e2818c74c65253962e9f13a8e57f3973a3733e229e119bf3c0459602db6d12a2"
     },
     {
-      "version": "20260804120000",
-      "file": "rollback/20260804120000_owner_preview_contract.down.sql",
+      "version": "20260804130008",
+      "file": "rollback/20260804130008_owner_preview_contract.down.sql",
       "checksum": "85d4b7aaa168e0fe06552fcbf9719c80d94df24c487623f1b58fe7a461c44352"
     },
     {
