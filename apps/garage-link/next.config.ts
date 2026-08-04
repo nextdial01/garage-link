@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const isStagingDeployment = process.env.GARAGE_DEPLOYMENT_ENV === "staging";
+
 const nextConfig: NextConfig = {
   transpilePackages: [
     "@garage-link/auth",
@@ -8,6 +10,20 @@ const nextConfig: NextConfig = {
     "@garage-link/database",
     "@garage-link/ui",
   ],
+  async headers() {
+    if (!isStagingDeployment) return [];
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "X-Robots-Tag",
+            value: "noindex, nofollow, noarchive",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
