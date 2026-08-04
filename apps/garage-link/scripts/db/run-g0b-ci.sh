@@ -20,13 +20,7 @@ start_db() {
   local name="$1"
   docker run --pull=never --network none --name "$name" \
     -e POSTGRES_PASSWORD='g0b-local-disposable-only' -d "$IMAGE" >/dev/null
-  for _ in $(seq 1 180); do
-    if [[ "$(docker inspect "$name" --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' 2>/dev/null)" == "healthy" ]] \
-      && docker exec "$name" psql -X -Atq -U postgres -d postgres -c 'select 1' >/dev/null 2>&1; then return; fi
-    sleep 1
-  done
-  echo "database did not become ready: $name" >&2
-  exit 1
+  bash "$APP_ROOT/scripts/db/wait-supabase-ready.sh" "$name"
 }
 
 psql_file() {
@@ -55,6 +49,7 @@ psql_file "$FRESH" "$APP_ROOT/supabase/tests/g3_fixture.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g0b_catalog_assertions.sql"
 assert_zero "$FRESH" "select count(*) from pg_namespace where nspname='qa_internal'" 'production lane qa schema'
 assert_zero "$FRESH" "select count(*) from pg_proc where proname like 'qa_lifecycle_%'" 'production lane qa functions'
+assert_zero "$FRESH" "select count(*) from pg_proc where proname like 'qa_owner_preview_%'" 'production lane owner preview functions'
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g0b_extension_compatibility_regression.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g1d_active_store_regression.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/db005_store_eligibility_regression.sql"
@@ -94,6 +89,7 @@ assert_zero "$FRESH" "select count(*) from information_schema.routine_privileges
 runner apply --container "$FRESH" --environment g0b-ci-fresh
 assert_zero "$FRESH" "select count(*) from pg_namespace where nspname='qa_internal'" 'production reapply qa schema'
 assert_zero "$FRESH" "select count(*) from pg_proc where proname like 'qa_lifecycle_%'" 'production reapply qa functions'
+assert_zero "$FRESH" "select count(*) from pg_proc where proname like 'qa_owner_preview_%'" 'production reapply owner preview functions'
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g1d_active_store_regression.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/db005_store_eligibility_regression.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/db006_canonical_owner_regression.sql"
@@ -128,7 +124,7 @@ psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/commercial_remediation_regression
 psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/commercial_remediation_batch_1b_regression.sql"
 
 echo '[g0b] backup and restore integrity'
-docker exec "$FRESH" pg_dump -U supabase_admin -d postgres -Fc -n public -n qa_internal -n supabase_migrations > "$TMP_DIR/app.dump"
+docker exec "$FRESH" pg_dump -U supabase_admin -d postgres -Fc -n public -n supabase_migrations > "$TMP_DIR/app.dump"
 docker exec "$FRESH" pg_dump -U supabase_admin -d postgres --data-only -t auth.users > "$TMP_DIR/auth.sql"
 start_db "$RESTORE"
 docker exec -i "$RESTORE" psql -X -U supabase_admin -d postgres -v ON_ERROR_STOP=1 < "$TMP_DIR/auth.sql"
@@ -138,6 +134,7 @@ docker exec "$RESTORE" psql -X -U supabase_admin -d postgres -v ON_ERROR_STOP=1 
 psql_file "$RESTORE" "$APP_ROOT/supabase/tests/g0b_catalog_assertions.sql"
 assert_zero "$RESTORE" "select count(*) from pg_namespace where nspname='qa_internal'" 'production restore qa schema'
 assert_zero "$RESTORE" "select count(*) from pg_proc where proname like 'qa_lifecycle_%'" 'production restore qa functions'
+assert_zero "$RESTORE" "select count(*) from pg_proc where proname like 'qa_owner_preview_%'" 'production restore owner preview functions'
 psql_file "$RESTORE" "$APP_ROOT/supabase/tests/g1d_active_store_regression.sql"
 psql_file "$RESTORE" "$APP_ROOT/supabase/tests/db005_store_eligibility_regression.sql"
 psql_file "$RESTORE" "$APP_ROOT/supabase/tests/g1b_role_regression.sql"

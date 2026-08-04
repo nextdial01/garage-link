@@ -8,11 +8,13 @@ const resetRoute = 'src/app/api/staging-preview/reset/route.ts';
 test.describe('staging owner preview contract', () => {
   test('uses the staging-only guard and never returns a magic-link token', async () => {
     const source = await readFile(route, 'utf8');
-    expect(source).toContain("process.env.VERCEL_ENV === 'preview'");
-    expect(source).toContain("STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3'");
-    expect(source).toContain("STAGING_REF = 'gaytoojzwqkpuvfofeql'");
-    expect(source).toContain("!supabaseUrl.includes('wmlpuzuskfiwdipluglz')");
-    expect(source).toContain("host !== 'garage-link.tech'");
+    expect(source).toContain('isStagingOwnerPreviewRequest');
+    const guard = await readFile('src/lib/security/stagingOwnerPreview.ts', 'utf8');
+    expect(guard).toContain("process.env.VERCEL_ENV === 'preview'");
+    expect(guard).toContain("STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3'");
+    expect(guard).toContain("STAGING_REF = 'gaytoojzwqkpuvfofeql'");
+    expect(guard).toContain("!url.includes(PRODUCTION_REF)");
+    expect(guard).toContain("host !== 'garage-link.tech'");
     expect(source).toContain("admin.auth.admin.generateLink");
     expect(source).toContain("supabase.auth.verifyOtp");
     expect(source).toContain('readSessionClaims(verified.data.session)');
@@ -59,10 +61,12 @@ test.describe('staging owner preview contract', () => {
 
   test('reset route is staging-only and identifies the synthetic owner exactly', async () => {
     const source = await readFile(resetRoute, 'utf8');
-    expect(source).toContain("process.env.VERCEL_PROJECT_ID !== PROJECT_ID");
-    expect(source).toContain("metadata?.purpose !== PURPOSE");
+    expect(source).toContain('isStagingOwnerPreviewRequest');
+    expect(source).toContain('metadata?.purpose !== OWNER_PREVIEW_PURPOSE');
+    expect(source).toContain('metadata?.marker !== OWNER_PREVIEW_MARKER');
     expect(source).toContain("qa_owner_preview_reset_fixture");
     expect(source).toContain("admin.auth.admin.deleteUser(user.id, false)");
     expect(source).toContain("response.cookies.delete('garage_owner_preview')");
+    expect(source).toContain("response.cookies.delete('garage_admin_email_verified')");
   });
 });

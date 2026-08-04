@@ -2,12 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ADMIN_EMAIL_OTP_COOKIE, createTrustedDeviceCookieValue, deviceTokenHash, getAdminEmailOtpSecret, randomDeviceToken, trustedDeviceCookieOptions } from '@/lib/security/adminEmailOtp';
-
-const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
-const STAGING_REF = 'gaytoojzwqkpuvfofeql';
-const PURPOSE = 'owner-preview';
-const MARKER = '[OWNER PREVIEW QA 20260804]';
-const SYNTHETIC_EMAIL = 'owner.preview.qa@gaytoojzwqkpuvfofeql.invalid';
+import { isStagingOwnerPreviewRequest, OWNER_PREVIEW_EMAIL as SYNTHETIC_EMAIL, OWNER_PREVIEW_MARKER as MARKER, OWNER_PREVIEW_PURPOSE as PURPOSE, STAGING_REF } from '@/lib/security/stagingOwnerPreview';
 
 function unavailable(code: string) {
   console.error(`[${code}]`);
@@ -33,22 +28,8 @@ function notFound() {
   return NextResponse.json({ error: 'Not Found' }, { status: 404 });
 }
 
-function isStagingRequest(request: NextRequest) {
-  const host = (request.headers.get('host') ?? '').split(':')[0].toLowerCase();
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-  const projectId = process.env.VERCEL_PROJECT_ID ?? '';
-  const vercelUrl = (process.env.VERCEL_URL ?? '').toLowerCase();
-  const hostAllowed = host.endsWith('.vercel.app') && (host.startsWith('garage-link-staging-') || host === vercelUrl);
-  return process.env.VERCEL_ENV === 'preview'
-    && projectId === STAGING_PROJECT_ID
-    && supabaseUrl.includes(`${STAGING_REF}.supabase.co`)
-    && !supabaseUrl.includes('wmlpuzuskfiwdipluglz')
-    && host !== 'garage-link.tech'
-    && hostAllowed;
-}
-
 export async function GET(request: NextRequest) {
-  if (!isStagingRequest(request)) return notFound();
+  if (!isStagingOwnerPreviewRequest(request)) return notFound();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
   const admin = createAdminClient();

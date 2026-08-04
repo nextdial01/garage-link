@@ -72,4 +72,22 @@ select public.qa_lifecycle_register_run('61000000-0000-4000-8000-000000000003','
 select public.qa_lifecycle_abort_clean('61000000-0000-4000-8000-000000000003','negative-test');
 do $$ begin begin perform public.qa_lifecycle_transition('61000000-0000-4000-8000-000000000003','ABORTED_CLEAN','CREATED','preflight'); raise exception 'ABORT_RESUME_ACCEPTED'; exception when raise_exception then if sqlerrm='ABORT_RESUME_ACCEPTED' then raise; end if; end; end $$;
 
+-- Owner Preview contract regression: synthetic-only, service_role-only, and reset-safe.
+do $$ declare v jsonb; t uuid; s uuid; m uuid; begin
+  if has_function_privilege('anon','public.qa_owner_preview_ensure_fixture(text,text,text,text,uuid)','EXECUTE') or has_function_privilege('authenticated','public.qa_owner_preview_ensure_fixture(text,text,text,text,uuid)','EXECUTE') then raise exception 'OWNER_PREVIEW_PUBLIC_EXECUTE'; end if;
+  insert into auth.users(id,email,raw_user_meta_data) values('62000000-0000-4000-8000-000000000010','owner.preview.qa@example.invalid','{"purpose":"owner-preview","marker":"[OWNER PREVIEW QA 20260804]"}'::jsonb);
+  v:=public.qa_owner_preview_ensure_fixture('preview','gaytoojzwqkpuvfofeql','owner-preview','[OWNER PREVIEW QA 20260804]','62000000-0000-4000-8000-000000000010');
+  t:=(v->>'tenant_id')::uuid; s:=(v->>'store_id')::uuid; m:=(v->>'membership_id')::uuid;
+  if v->>'user_id'<>'62000000-0000-4000-8000-000000000010' or v->>'purpose'<>'owner-preview' or v->>'marker'<>'[OWNER PREVIEW QA 20260804]' then raise exception 'OWNER_PREVIEW_ENSURE_CONTRACT'; end if;
+  if (public.qa_owner_preview_status('preview','gaytoojzwqkpuvfofeql','owner-preview','[OWNER PREVIEW QA 20260804]')->>'tenant_id') is null then raise exception 'OWNER_PREVIEW_STATUS_CONTRACT'; end if;
+  begin perform public.qa_owner_preview_ensure_fixture('preview','wmlpuzuskfiwdipluglz','owner-preview','[OWNER PREVIEW QA 20260804]','62000000-0000-4000-8000-000000000010'); raise exception 'OWNER_PREVIEW_PRODUCTION_ACCEPTED'; exception when raise_exception then if sqlerrm='OWNER_PREVIEW_PRODUCTION_ACCEPTED' then raise; end if; end;
+  begin perform public.qa_owner_preview_ensure_fixture('production','gaytoojzwqkpuvfofeql','owner-preview','[OWNER PREVIEW QA 20260804]','62000000-0000-4000-8000-000000000010'); raise exception 'OWNER_PREVIEW_ENVIRONMENT_ACCEPTED'; exception when raise_exception then if sqlerrm='OWNER_PREVIEW_ENVIRONMENT_ACCEPTED' then raise; end if; end;
+  v:=public.qa_owner_preview_reset_fixture('preview','gaytoojzwqkpuvfofeql','owner-preview','[OWNER PREVIEW QA 20260804]');
+  if v->>'reset'<>'true' then raise exception 'OWNER_PREVIEW_RESET_FAILED'; end if;
+  v:=public.qa_owner_preview_reset_fixture('preview','gaytoojzwqkpuvfofeql','owner-preview','[OWNER PREVIEW QA 20260804]');
+  if v->>'reset'<>'false' then raise exception 'OWNER_PREVIEW_RESET_NOT_IDEMPOTENT'; end if;
+  if exists(select 1 from qa_internal.owner_preview_fixtures where purpose='owner-preview') or exists(select 1 from public.company_subscriptions where tenant_id=t and company_id=s) or exists(select 1 from public.membership_store_assignments where membership_id=m and tenant_id=t and store_id=s) or exists(select 1 from public.memberships where id=m and tenant_id=t and store_id=s and user_id='62000000-0000-4000-8000-000000000010') or exists(select 1 from public.stores where id=s and tenant_id=t) or exists(select 1 from public.tenants where id=t) or exists(select 1 from public.admin_trusted_sessions where user_id='62000000-0000-4000-8000-000000000010') or exists(select 1 from public.admin_email_otp_challenges where user_id='62000000-0000-4000-8000-000000000010') then raise exception 'OWNER_PREVIEW_RESIDUAL'; end if;
+  delete from auth.users where id='62000000-0000-4000-8000-000000000010';
+end $$;
+
 rollback;
