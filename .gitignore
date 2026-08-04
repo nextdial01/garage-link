@@ -52,6 +52,7 @@ next-env.d.ts
 .claude/
 .codex/
 test-results/
+.qa-runs/
 
 .webui_secret_key
 apps/garage-link/_*.sql

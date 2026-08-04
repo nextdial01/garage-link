@@ -22,6 +22,8 @@
     "garage-link:lint": "npm --prefix apps/garage-link run lint",
     "garage-link:typecheck": "npm --prefix apps/garage-link run typecheck",
     "garage-link:build": "npm --prefix apps/garage-link run build",
+    "qa:lifecycle": "node apps/garage-link/scripts/qa/lifecycle.mjs",
+    "test:qa:lifecycle": "node --test apps/garage-link/tests/qa/*.test.mjs",
     "sync:env": "node scripts/sync-env-from-secrets.mjs",
     "stripe:setup-test": "node apps/garage-link/scripts/setup-stripe-test-products.mjs && pnpm sync:env",
     "stripe:setup-test:llink": "node apps/l-link/scripts/setup-stripe-test-products.mjs && pnpm sync:env"

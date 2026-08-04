@@ -22,14 +22,26 @@ begin
   end if;
 
   select count(*) into v_count from supabase_migrations.schema_migrations;
-  if v_count <> 58 then raise exception 'G0B_LEDGER_COUNT: %', v_count; end if;
+  if v_count <> 62 then raise exception 'G0B_LEDGER_COUNT: %', v_count; end if;
   select count(*) into v_count from supabase_migrations.migration_integrity where state='applied';
-  if v_count <> 58 then raise exception 'G0B_INTEGRITY_COUNT: %', v_count; end if;
+  if v_count <> 62 then raise exception 'G0B_INTEGRITY_COUNT: %', v_count; end if;
   if exists (
     select 1 from supabase_migrations.schema_migrations m
     left join supabase_migrations.migration_integrity i using(version)
     where i.version is null or i.checksum !~ '^[0-9a-f]{64}$'
   ) then raise exception 'G0B_LEDGER_INTEGRITY_MISSING'; end if;
+  if to_regnamespace('qa_internal') is null
+     or to_regclass('qa_internal.runs') is null
+     or to_regclass('qa_internal.fixtures') is null
+     or to_regprocedure('public.qa_lifecycle_teardown(uuid,boolean)') is null then
+    raise exception 'G0B_QA_LIFECYCLE_FRAMEWORK_MISSING';
+  end if;
+  if has_schema_privilege('anon','qa_internal','USAGE')
+     or has_schema_privilege('authenticated','qa_internal','USAGE')
+     or has_function_privilege('anon','public.qa_lifecycle_teardown(uuid,boolean)','EXECUTE')
+     or has_function_privilege('authenticated','public.qa_lifecycle_teardown(uuid,boolean)','EXECUTE') then
+    raise exception 'G0B_QA_LIFECYCLE_EXPOSED';
+  end if;
 
   select count(*) into v_count from pg_tables where schemaname='public';
   if v_count <> 75 then raise exception 'G0B_PUBLIC_TABLE_COUNT: %', v_count; end if;

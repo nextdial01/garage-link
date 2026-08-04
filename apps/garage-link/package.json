@@ -21,6 +21,8 @@
     "test:e2e": "playwright test",
     "test:e2e:local-chrome": "node scripts/run-local-browser-smoke.mjs",
     "qa:provision": "node scripts/provision-qa-account.mjs",
+    "qa:lifecycle": "node scripts/qa/lifecycle.mjs",
+    "test:qa:lifecycle": "node --test tests/qa/*.test.mjs",
     "test:qa:mobile-logout": "node scripts/run-mobile-logout-qa.mjs",
     "test:e2e:ui": "playwright test --ui",
     "test:db:runner": "node --test tests/db/migration-runner.test.mjs",
