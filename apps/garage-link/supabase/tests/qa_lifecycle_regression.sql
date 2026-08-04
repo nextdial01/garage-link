@@ -40,9 +40,14 @@ select public.qa_lifecycle_transition('61000000-0000-4000-8000-000000000001','TE
 select public.qa_lifecycle_teardown('61000000-0000-4000-8000-000000000001',false);
 do $$ begin if exists(select 1 from public.tenants where id='61000000-0000-4000-8000-000000000020') or exists(select 1 from public.stores where id='61000000-0000-4000-8000-000000000030') or exists(select 1 from public.memberships where id='61000000-0000-4000-8000-000000000040') then raise exception 'DB_RESIDUAL_REMAINS';end if;end $$;
 delete from auth.users where id='61000000-0000-4000-8000-000000000010';
-select public.qa_lifecycle_transition('61000000-0000-4000-8000-000000000001','DB_CLEANED','AUTH_CLEANED','storage-clean');
-select public.qa_lifecycle_transition('61000000-0000-4000-8000-000000000001','AUTH_CLEANED','STORAGE_CLEANED','artifact-clean');
-select public.qa_lifecycle_transition('61000000-0000-4000-8000-000000000001','STORAGE_CLEANED','ARTIFACTS_CLEANED','verify-clean');
+select public.qa_lifecycle_record_evidence('61000000-0000-4000-8000-000000000001','AUTH',jsonb_build_object('run_id','61000000-0000-4000-8000-000000000001','source_sha','76cdc9656e9805d2ac61f961ff59b0a199475b3d','deployment_id','dpl_LocalLifecycle','actor','test','auth_users',0,'auth_sessions',0));
+select public.qa_lifecycle_advance_cleanup('61000000-0000-4000-8000-000000000001','DB_CLEANED','AUTH_CLEANED','storage-clean');
+select public.qa_lifecycle_record_evidence('61000000-0000-4000-8000-000000000001','STORAGE',jsonb_build_object('run_id','61000000-0000-4000-8000-000000000001','source_sha','76cdc9656e9805d2ac61f961ff59b0a199475b3d','deployment_id','dpl_LocalLifecycle','actor','test','residual_count',0));
+select public.qa_lifecycle_advance_cleanup('61000000-0000-4000-8000-000000000001','AUTH_CLEANED','STORAGE_CLEANED','artifact-clean');
+select public.qa_lifecycle_record_evidence('61000000-0000-4000-8000-000000000001','ARTIFACT',jsonb_build_object('run_id','61000000-0000-4000-8000-000000000001','source_sha','76cdc9656e9805d2ac61f961ff59b0a199475b3d','deployment_id','dpl_LocalLifecycle','actor','test','residual_count',0));
+select public.qa_lifecycle_record_evidence('61000000-0000-4000-8000-000000000001','BYPASS',jsonb_build_object('run_id','61000000-0000-4000-8000-000000000001','source_sha','76cdc9656e9805d2ac61f961ff59b0a199475b3d','deployment_id','dpl_LocalLifecycle','actor','test','residual_count',0));
+select public.qa_lifecycle_record_evidence('61000000-0000-4000-8000-000000000001','PUBLIC_MARKER',jsonb_build_object('run_id','61000000-0000-4000-8000-000000000001','source_sha','76cdc9656e9805d2ac61f961ff59b0a199475b3d','deployment_id','dpl_LocalLifecycle','actor','test','residual_count',0));
+select public.qa_lifecycle_advance_cleanup('61000000-0000-4000-8000-000000000001','STORAGE_CLEANED','ARTIFACTS_CLEANED','verify-clean');
 select public.qa_lifecycle_verify_clean('61000000-0000-4000-8000-000000000001',true);
 select public.qa_lifecycle_finalize('61000000-0000-4000-8000-000000000001');
 do $$ begin if (public.qa_lifecycle_status('61000000-0000-4000-8000-000000000001')->>'state')<>'COMPLETE' then raise exception 'RUN_NOT_COMPLETE';end if;if exists(select 1 from qa_internal.fixtures where run_id='61000000-0000-4000-8000-000000000001') then raise exception 'REGISTRY_FIXTURE_RESIDUAL';end if;end $$;

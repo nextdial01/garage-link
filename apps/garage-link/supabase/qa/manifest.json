@@ -4,7 +4,7 @@
   "denylistedProjectRefs": ["wmlpuzuskfiwdipluglz"],
   "requiredProjectRef": "gaytoojzwqkpuvfofeql",
   "entries": [
-    {"version":"20260804033831","name":"qa_lifecycle_framework","kind":"incremental","file":"migrations/20260804033831_qa_lifecycle_framework.sql","checksum":"e8aa1e7b3219a2eecef9b196c872c0cb548f5fae3dffe6d0142f7c54d38d51c6"},
+    {"version":"20260804033831","name":"qa_lifecycle_framework","kind":"incremental","file":"migrations/20260804033831_qa_lifecycle_framework.sql","checksum":"2359a1216096b2247a6e94acc9328cfe3c9a166ba0c4bb0911dd9dd930c787ff"},
     {"version":"20260804041844","name":"qa_lifecycle_canary_provision","kind":"repair","file":"migrations/20260804041844_qa_lifecycle_canary_provision.sql","dependsOn":["20260804033831"],"checksum":"89e3117bad8bdab52d5fa43e4593e597724b6e8a82e9c79a7bbdef7618cbb2df"},
     {"version":"20260804042546","name":"qa_lifecycle_preview_auth","kind":"repair","file":"migrations/20260804042546_qa_lifecycle_preview_auth.sql","dependsOn":["20260804033831","20260804041844"],"checksum":"b15f2ba58e52c0cc1976cc5affe502aac10fb3bb5433d7de3f17d18351f0d6ca"},
     {"version":"20260804043651","name":"qa_lifecycle_adopt_fixture","kind":"repair","file":"migrations/20260804043651_qa_lifecycle_adopt_fixture.sql","dependsOn":["20260804033831"],"checksum":"005d1103ceb3e9d07cefd4146f1474b47161ec11944e8204b3eb3a8e38e13a51"}

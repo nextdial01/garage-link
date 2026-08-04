@@ -18,7 +18,7 @@ export const NEXT_ACTION = Object.freeze({
   PROVISIONED:'auth',AUTH_READY:'run',TEST_RUNNING:'run',TEST_COMPLETE:'teardown-dry-run',
   TEARDOWN_DRY_RUN:'teardown-dry-run',TEARDOWN_READY:'teardown',TEARING_DOWN:'teardown',
   DB_CLEANED:'auth-clean',AUTH_CLEANED:'storage-clean',STORAGE_CLEANED:'artifact-clean',ARTIFACTS_CLEANED:'verify-clean',
-  VERIFIED_CLEAN:'verify-clean',COMPLETE:'none',HARD_STOP:'none',
+  VERIFIED_CLEAN:'verify-clean',ABORTED_CLEAN:'none',COMPLETE:'none',HARD_STOP:'none',
 });
 export const TRANSITIONS=Object.freeze({
   CREATED:['PREFLIGHT_RUNNING','HARD_STOP'],PREFLIGHT_RUNNING:['PREFLIGHT_READY','FAILED_RECOVERABLE','HARD_STOP'],
@@ -28,7 +28,7 @@ export const TRANSITIONS=Object.freeze({
   TEARDOWN_DRY_RUN:['TEARDOWN_READY','FAILED_RECOVERABLE','HARD_STOP'],TEARDOWN_READY:['TEARING_DOWN','FAILED_RECOVERABLE','HARD_STOP'],
   TEARING_DOWN:['DB_CLEANED','FAILED_RECOVERABLE','HARD_STOP'],DB_CLEANED:['AUTH_CLEANED','FAILED_RECOVERABLE','HARD_STOP'],
   AUTH_CLEANED:['STORAGE_CLEANED','FAILED_RECOVERABLE','HARD_STOP'],STORAGE_CLEANED:['ARTIFACTS_CLEANED','FAILED_RECOVERABLE','HARD_STOP'],ARTIFACTS_CLEANED:['VERIFIED_CLEAN','FAILED_RECOVERABLE','HARD_STOP'],
-  VERIFIED_CLEAN:['COMPLETE','FAILED_RECOVERABLE','HARD_STOP'],FAILED_RECOVERABLE:['PREFLIGHT_RUNNING','PROVISIONING','PROVISIONED','TEST_RUNNING','TEARDOWN_DRY_RUN','TEARING_DOWN','ARTIFACTS_CLEANED','HARD_STOP'],
+  VERIFIED_CLEAN:['COMPLETE','FAILED_RECOVERABLE','HARD_STOP'],ABORTED_CLEAN:[],FAILED_RECOVERABLE:['PREFLIGHT_RUNNING','PROVISIONING','PROVISIONED','TEST_RUNNING','TEARDOWN_DRY_RUN','TEARING_DOWN','ARTIFACTS_CLEANED','HARD_STOP'],
 });
 export function transitionAllowed(from,to){return TRANSITIONS[from]?.includes(to)??false}
 
@@ -76,15 +76,16 @@ export function fixtureIdentity(runId,fixtureType='canary',date='20260804'){
 export function qaEmail(runId){return`qa.lifecycle.${runId.replaceAll('-','')}@example.invalid`}
 export function randomPassword(){return`${randomBytes(36).toString('base64url')}Aa1!`}
 export function sha256(value){return createHash('sha256').update(value).digest('hex')}
-export function keychainRead(service,account=process.env.USER??'ksk'){
+export function resolveKeychainAccount(env=process.env){const account=env.USER?.trim();if(!account)throw coded('CREDENTIAL','KEYCHAIN_ACCOUNT_UNAVAILABLE');return account}
+export function keychainRead(service,account=resolveKeychainAccount()){
   const result=spawnSync('security',['find-generic-password','-s',service,'-a',account,'-w'],{encoding:'utf8'});
   if(result.status!==0||!result.stdout.trim()) throw coded('CREDENTIAL',`KEYCHAIN_ITEM_UNAVAILABLE:${service}`); return result.stdout.trim();
 }
-export function keychainWrite(service,secret,account=process.env.USER??'ksk'){
+export function keychainWrite(service,secret,account=resolveKeychainAccount()){
   const result=spawnSync('security',['add-generic-password','-U','-s',service,'-a',account,'-w',secret],{encoding:'utf8'});
   if(result.status!==0) throw coded('VERCEL_PROTECTION',`KEYCHAIN_WRITE_FAILED:${service}`);
 }
-export function keychainDelete(service,account=process.env.USER??'ksk'){
+export function keychainDelete(service,account=resolveKeychainAccount()){
   const result=spawnSync('security',['delete-generic-password','-s',service,'-a',account],{encoding:'utf8'});
   if(![0,44].includes(result.status)) throw coded('VERCEL_PROTECTION',`KEYCHAIN_DELETE_FAILED:${service}`);
 }
