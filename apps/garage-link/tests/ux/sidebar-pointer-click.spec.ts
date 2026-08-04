@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
 
 const ownerState = process.env.UX_OWNER_STATE_PATH;
+const ownerPreviewUrl = process.env.STAGING_OWNER_PREVIEW_URL;
 
 test.describe('owner sidebar pointer navigation', () => {
   test.use({ storageState: ownerState, viewport: { width: 1440, height: 1000 } });
-  test.skip(!ownerState, 'UX owner storageState is required');
+  test.skip(!ownerState && !ownerPreviewUrl, 'UX_OWNER_STATE_PATH or STAGING_OWNER_PREVIEW_URL is required');
 
   test('clicks the visible card and count targets, then survives modal and reload', async ({ page }, testInfo) => {
     const matrix: Array<Record<string, string>> = [];
@@ -12,7 +13,7 @@ test.describe('owner sidebar pointer navigation', () => {
     page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
     page.on('requestfailed', (request) => errors.push(`requestfailed: ${request.url()}`));
 
-    await page.goto('/dashboard');
+    await page.goto(ownerState ? '/dashboard' : ownerPreviewUrl!);
     const navigation = page.getByRole('navigation', { name: 'メインナビゲーション' });
     await expect(navigation).toBeVisible();
 

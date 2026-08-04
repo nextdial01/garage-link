@@ -91,6 +91,10 @@ declare module '@supabase/ssr' {
         access_token: string;
         refresh_token: string;
       }): Promise<{ data: { session: unknown; user: AuthUser | null }; error: AuthError | null }>;
+      verifyOtp(credentials: {
+        token_hash: string;
+        type: 'magiclink' | 'email';
+      }): Promise<{ data: { session: unknown; user: AuthUser | null }; error: AuthError | null }>;
       mfa: {
         getAuthenticatorAssuranceLevel(): Promise<{
           data: { currentLevel: 'aal1' | 'aal2' | null; nextLevel: 'aal1' | 'aal2' | null } | null;

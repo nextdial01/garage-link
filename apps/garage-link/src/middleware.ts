@@ -12,6 +12,7 @@ import { ADMIN_EMAIL_OTP_COOKIE, deviceTokenHash, getAdminEmailOtpSecret, hasEff
 const PUBLIC_PATHS = [
   '/',
   '/login',
+  '/staging-preview',
   '/signup',
   '/forgot-password',
   '/auth/callback',

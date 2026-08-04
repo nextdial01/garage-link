@@ -46,6 +46,7 @@ export default function AppShell({
   const [storeContextState, setStoreContextState] = useState<'loading' | 'active' | 'selection_required' | 'no_access'>('loading');
   const [isSwitchingStore, setIsSwitchingStore] = useState(false);
   const [storeSwitchError, setStoreSwitchError] = useState('');
+  const [ownerPreview] = useState(() => typeof document !== 'undefined' && document.cookie.split(';').some((cookie) => cookie.trim() === 'garage_owner_preview=1'));
   const shellBackground = 'bg-[#F6F8FC]';
   const headerBorderClass = 'border-blue-100';
 
@@ -161,6 +162,13 @@ export default function AppShell({
               <p role="alert" className="mx-4 mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 sm:mx-6 lg:mx-8">
                 {storeSwitchError}
               </p>
+            )}
+
+            {ownerPreview && (
+              <div role="status" className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-900 sm:mx-6 lg:mx-8">
+                <span className="block">STAGING OWNER PREVIEW</span>
+                <span className="block text-xs font-bold">合成データ・外部送信なし</span>
+              </div>
             )}
 
             <div className="relative mx-auto max-w-[1440px] p-4 sm:p-6 lg:p-8">
