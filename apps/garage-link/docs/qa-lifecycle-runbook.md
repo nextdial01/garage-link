@@ -59,3 +59,20 @@ pnpm --filter @apps/garage-link typecheck
 pnpm --filter @apps/garage-link test:security
 pnpm --filter @apps/garage-link build
 ```
+# QA lifecycle — isolated staging lane
+
+## Safety contract
+
+QA DDL is never applied through `supabase db push` or the normal baseline manifest. The only source of truth is `supabase/qa/manifest.json`; run `node scripts/qa/check-migration-lane.mjs` before any QA-lane operation. The QA runner must first establish the actual connection identity as `gaytoojzwqkpuvfofeql`; a Production identity, a missing identity, a checksum mismatch, partial ledger, or any conflicting fixture relationship is a hard stop.
+
+The runner requires (without defaults): `--source-sha`, `--branch`, `--vercel-team-id`, `--vercel-project-id`, `--deployment-id`, `--deployment-url`, `--supabase-project-ref`, and `--run-id`. It verifies the ready deployment's SHA, branch and staging project through the Vercel API. Credentials are supplied through the documented environment/Keychain contract only; do not read CLI authentication files or print credentials.
+
+## Existing staging reconciliation
+
+The four pre-separation QA migrations may already be recorded in staging. Before an isolated-lane apply, the operator must read-only compare each `supabase_migrations.schema_migrations` version and checksum to `supabase/qa/manifest.json`. Matching entries are adopted into the QA ledger without reapplying DDL; missing, partial or mismatched entries stop the run. No Production drop migration is created or executed.
+
+## Rollback and completion
+
+Apply QA rollbacks in reverse manifest order. The canary rollback restores the seven-function cleanup-readiness definition, including owner, `SECURITY DEFINER`, `search_path`, grants and comments; it must be checked by `to_regprocedure` before and after rollback.
+
+Completion is ordered `DB_CLEANED → AUTH_CLEANED → STORAGE_CLEANED → ARTIFACTS_CLEANED → VERIFIED_CLEAN → COMPLETE`. Each external check must record the current run ID, target identity, timestamp and result. A missing Storage, public-text, local-artifact, provenance or zero-residual proof blocks `COMPLETE`; evidence from another run cannot be reused.

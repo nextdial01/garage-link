@@ -1,0 +1,18 @@
+{
+  "formatVersion": 1,
+  "lane": "staging-qa-only",
+  "denylistedProjectRefs": ["wmlpuzuskfiwdipluglz"],
+  "requiredProjectRef": "gaytoojzwqkpuvfofeql",
+  "entries": [
+    {"version":"20260804033831","name":"qa_lifecycle_framework","kind":"incremental","file":"migrations/20260804033831_qa_lifecycle_framework.sql","checksum":"e8aa1e7b3219a2eecef9b196c872c0cb548f5fae3dffe6d0142f7c54d38d51c6"},
+    {"version":"20260804041844","name":"qa_lifecycle_canary_provision","kind":"repair","file":"migrations/20260804041844_qa_lifecycle_canary_provision.sql","dependsOn":["20260804033831"],"checksum":"89e3117bad8bdab52d5fa43e4593e597724b6e8a82e9c79a7bbdef7618cbb2df"},
+    {"version":"20260804042546","name":"qa_lifecycle_preview_auth","kind":"repair","file":"migrations/20260804042546_qa_lifecycle_preview_auth.sql","dependsOn":["20260804033831","20260804041844"],"checksum":"b15f2ba58e52c0cc1976cc5affe502aac10fb3bb5433d7de3f17d18351f0d6ca"},
+    {"version":"20260804043651","name":"qa_lifecycle_adopt_fixture","kind":"repair","file":"migrations/20260804043651_qa_lifecycle_adopt_fixture.sql","dependsOn":["20260804033831"],"checksum":"005d1103ceb3e9d07cefd4146f1474b47161ec11944e8204b3eb3a8e38e13a51"}
+  ],
+  "rollbacks": [
+    {"version":"20260804043651","file":"rollback/20260804043651_qa_lifecycle_adopt_fixture.down.sql","checksum":"9ee3045c65e7c6c6e5ab6042359a7a3dd362d4f84f70580955e3b01e4b74d85c"},
+    {"version":"20260804042546","file":"rollback/20260804042546_qa_lifecycle_preview_auth.down.sql","checksum":"2f15b5cbf10ccb88cd69073bbce4e362186deed8941b5e72fa54ca9b81d30e58"},
+    {"version":"20260804041844","file":"rollback/20260804041844_qa_lifecycle_canary_provision.down.sql","checksum":"bc21a53416055f6d33d2a86d1b572f2a1a21afb162b6eda60b72fa348fb9d763"},
+    {"version":"20260804033831","file":"rollback/20260804033831_qa_lifecycle_framework.down.sql","checksum":"425f505f2aebd20d0e4c5e13701f593d2354d0e933f3da704ded277a4623b16a"}
+  ]
+}

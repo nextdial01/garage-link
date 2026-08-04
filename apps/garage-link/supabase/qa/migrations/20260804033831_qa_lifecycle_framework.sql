@@ -18,7 +18,7 @@ create table qa_internal.runs (
   state text not null default 'CREATED' check (state in (
     'CREATED','PREFLIGHT_RUNNING','PREFLIGHT_READY','PROVISIONING','PROVISIONED',
     'AUTH_READY','TEST_RUNNING','TEST_COMPLETE','TEARDOWN_DRY_RUN','TEARDOWN_READY',
-    'TEARING_DOWN','DB_CLEANED','AUTH_CLEANED','ARTIFACT_CLEANED','VERIFIED_CLEAN',
+    'TEARING_DOWN','DB_CLEANED','AUTH_CLEANED','STORAGE_CLEANED','ARTIFACTS_CLEANED','VERIFIED_CLEAN',
     'COMPLETE','FAILED_RECOVERABLE','HARD_STOP'
   )),
   last_successful_state text not null default 'CREATED',
@@ -50,7 +50,7 @@ create table qa_internal.fixtures (
   created_at timestamptz not null default clock_timestamp(),
   expires_at timestamptz not null,
   cleanup_state text not null default 'REGISTERED' check (cleanup_state in (
-    'REGISTERED','DRY_RUN_READY','DB_CLEANED','AUTH_CLEANED','VERIFIED_CLEAN'
+    'REGISTERED','DRY_RUN_READY','DB_CLEANED','AUTH_CLEANED','STORAGE_CLEANED','ARTIFACTS_CLEANED','VERIFIED_CLEAN'
   )),
   unique (tenant_id),
   check (expires_at > created_at),
@@ -113,8 +113,9 @@ as $$
     when 'TEARDOWN_READY' then p_to in ('TEARING_DOWN','FAILED_RECOVERABLE','HARD_STOP')
     when 'TEARING_DOWN' then p_to in ('DB_CLEANED','FAILED_RECOVERABLE','HARD_STOP')
     when 'DB_CLEANED' then p_to in ('AUTH_CLEANED','FAILED_RECOVERABLE','HARD_STOP')
-    when 'AUTH_CLEANED' then p_to in ('ARTIFACT_CLEANED','FAILED_RECOVERABLE','HARD_STOP')
-    when 'ARTIFACT_CLEANED' then p_to in ('VERIFIED_CLEAN','FAILED_RECOVERABLE','HARD_STOP')
+    when 'AUTH_CLEANED' then p_to in ('STORAGE_CLEANED','FAILED_RECOVERABLE','HARD_STOP')
+    when 'STORAGE_CLEANED' then p_to in ('ARTIFACTS_CLEANED','FAILED_RECOVERABLE','HARD_STOP')
+    when 'ARTIFACTS_CLEANED' then p_to in ('VERIFIED_CLEAN','FAILED_RECOVERABLE','HARD_STOP')
     when 'VERIFIED_CLEAN' then p_to in ('COMPLETE','FAILED_RECOVERABLE','HARD_STOP')
     when 'FAILED_RECOVERABLE' then p_to not in ('CREATED','COMPLETE')
     else false
@@ -509,15 +510,24 @@ begin
   if jsonb_array_length(v_external_blockers) > 0 then raise exception 'EXTERNAL_RESIDUAL_BLOCKS_DB_TEARDOWN:%', v_external_blockers; end if;
   perform set_config('qa.lifecycle_run_id', p_run_id::text, true);
 
-  delete from public.admin_email_otp_challenges where user_id=f.user_id;
-  delete from public.admin_trusted_sessions where user_id=f.user_id;
-  if to_regclass('public.admin_access_credentials') is not null then
-    execute 'delete from public.admin_access_credentials where user_id=$1' using f.user_id;
+  -- A fixture user may have unrelated relationships. Only rows whose exact
+  -- registered tenant/store/membership provenance is known may be touched.
+  if exists(select 1 from public.memberships m where m.user_id=f.user_id and m.id<>f.membership_id)
+     or exists(select 1 from public.store_members sm where sm.user_id=f.user_id and sm.store_id<>f.store_id)
+     or exists(select 1 from public.security_events se where se.user_id=f.user_id and se.tenant_id<>f.tenant_id)
+     or exists(select 1 from public.user_active_store_preferences p where p.user_id=f.user_id and (p.tenant_id<>f.tenant_id or p.active_store_id<>f.store_id)) then
+    raise exception 'UNREGISTERED_USER_RELATIONSHIP_BLOCKS_TEARDOWN';
   end if;
-  delete from public.user_active_store_preferences where user_id=f.user_id or tenant_id=f.tenant_id or active_store_id=f.store_id;
-  delete from public.membership_store_assignments where membership_id=f.membership_id or tenant_id=f.tenant_id or store_id=f.store_id;
-  delete from public.security_events where user_id=f.user_id or tenant_id=f.tenant_id;
-  delete from public.store_members where user_id=f.user_id or store_id=f.store_id;
+  -- Auth-owned rows have no tenant provenance in the application registry.
+  -- They are deleted only by the Auth hard-delete stage, whose FK cascade is
+  -- scoped to the exact fixture user after the out-of-scope relationship gate.
+  if to_regclass('public.admin_access_credentials') is not null then
+    execute 'delete from public.admin_access_credentials where user_id=$1 and tenant_id=$2' using f.user_id, f.tenant_id;
+  end if;
+  delete from public.user_active_store_preferences where user_id=f.user_id and tenant_id=f.tenant_id and active_store_id=f.store_id;
+  delete from public.membership_store_assignments where membership_id=f.membership_id and tenant_id=f.tenant_id and store_id=f.store_id;
+  delete from public.security_events where user_id=f.user_id and tenant_id=f.tenant_id;
+  delete from public.store_members where user_id=f.user_id and store_id=f.store_id;
   delete from public.memberships where id=f.membership_id and tenant_id=f.tenant_id and user_id=f.user_id;
   get diagnostics v_deleted_memberships = row_count;
   delete from public.stores where id=f.store_id and tenant_id=f.tenant_id;
@@ -565,10 +575,10 @@ begin
     'clean',v_total=0 and v_auth_users=0 and v_auth_sessions=0
   );
   if p_finalize then
-    if r.state <> 'ARTIFACT_CLEANED' then raise exception 'VERIFY_STATE_INVALID:%',r.state; end if;
+    if r.state <> 'ARTIFACTS_CLEANED' then raise exception 'VERIFY_STATE_INVALID:%',r.state; end if;
     if v_total<>0 or v_auth_users<>0 or v_auth_sessions<>0 then raise exception 'ZERO_RESIDUAL_GATE_FAILED:%',v_result; end if;
     update qa_internal.runs set state='VERIFIED_CLEAN',last_successful_state='VERIFIED_CLEAN',next_action='complete',final_evidence=v_result,updated_at=clock_timestamp() where run_id=p_run_id;
-    insert into qa_internal.state_events(run_id,from_state,to_state,next_action,safe_detail) values(p_run_id,'ARTIFACT_CLEANED','VERIFIED_CLEAN','complete',v_result);
+    insert into qa_internal.state_events(run_id,from_state,to_state,next_action,safe_detail) values(p_run_id,'ARTIFACTS_CLEANED','VERIFIED_CLEAN','complete',v_result);
     update qa_internal.fixtures set cleanup_state='VERIFIED_CLEAN' where run_id=p_run_id;
   end if;
   return v_result;

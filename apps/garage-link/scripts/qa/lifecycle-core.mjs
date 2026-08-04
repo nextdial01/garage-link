@@ -17,7 +17,7 @@ export const NEXT_ACTION = Object.freeze({
   CREATED:'preflight',PREFLIGHT_RUNNING:'preflight',PREFLIGHT_READY:'provision',PROVISIONING:'provision',
   PROVISIONED:'auth',AUTH_READY:'run',TEST_RUNNING:'run',TEST_COMPLETE:'teardown-dry-run',
   TEARDOWN_DRY_RUN:'teardown-dry-run',TEARDOWN_READY:'teardown',TEARING_DOWN:'teardown',
-  DB_CLEANED:'teardown',AUTH_CLEANED:'teardown',ARTIFACT_CLEANED:'verify-clean',
+  DB_CLEANED:'auth-clean',AUTH_CLEANED:'storage-clean',STORAGE_CLEANED:'artifact-clean',ARTIFACTS_CLEANED:'verify-clean',
   VERIFIED_CLEAN:'verify-clean',COMPLETE:'none',HARD_STOP:'none',
 });
 export const TRANSITIONS=Object.freeze({
@@ -27,8 +27,8 @@ export const TRANSITIONS=Object.freeze({
   TEST_RUNNING:['TEST_COMPLETE','FAILED_RECOVERABLE','HARD_STOP'],TEST_COMPLETE:['TEARDOWN_DRY_RUN','FAILED_RECOVERABLE','HARD_STOP'],
   TEARDOWN_DRY_RUN:['TEARDOWN_READY','FAILED_RECOVERABLE','HARD_STOP'],TEARDOWN_READY:['TEARING_DOWN','FAILED_RECOVERABLE','HARD_STOP'],
   TEARING_DOWN:['DB_CLEANED','FAILED_RECOVERABLE','HARD_STOP'],DB_CLEANED:['AUTH_CLEANED','FAILED_RECOVERABLE','HARD_STOP'],
-  AUTH_CLEANED:['ARTIFACT_CLEANED','FAILED_RECOVERABLE','HARD_STOP'],ARTIFACT_CLEANED:['VERIFIED_CLEAN','FAILED_RECOVERABLE','HARD_STOP'],
-  VERIFIED_CLEAN:['COMPLETE','FAILED_RECOVERABLE','HARD_STOP'],FAILED_RECOVERABLE:['PREFLIGHT_RUNNING','PROVISIONING','PROVISIONED','TEST_RUNNING','TEARDOWN_DRY_RUN','TEARING_DOWN','ARTIFACT_CLEANED','HARD_STOP'],
+  AUTH_CLEANED:['STORAGE_CLEANED','FAILED_RECOVERABLE','HARD_STOP'],STORAGE_CLEANED:['ARTIFACTS_CLEANED','FAILED_RECOVERABLE','HARD_STOP'],ARTIFACTS_CLEANED:['VERIFIED_CLEAN','FAILED_RECOVERABLE','HARD_STOP'],
+  VERIFIED_CLEAN:['COMPLETE','FAILED_RECOVERABLE','HARD_STOP'],FAILED_RECOVERABLE:['PREFLIGHT_RUNNING','PROVISIONING','PROVISIONED','TEST_RUNNING','TEARDOWN_DRY_RUN','TEARING_DOWN','ARTIFACTS_CLEANED','HARD_STOP'],
 });
 export function transitionAllowed(from,to){return TRANSITIONS[from]?.includes(to)??false}
 
@@ -44,6 +44,18 @@ export function assertSafeContract(values) {
   for(const denied of CONTRACT.productionDenylist) if(text.includes(denied.toLowerCase())) throw coded('SECURITY_BOUNDARY',`PRODUCTION_DENYLIST_MATCH:${denied}`);
   if(values.projectRef&&values.projectRef!==CONTRACT.projectRef) throw coded('CREDENTIAL','SUPABASE_PROJECT_MISMATCH');
   if(values.canonical&&values.canonical!==CONTRACT.canonical) throw coded('VERCEL_PROTECTION','CANONICAL_HOST_MISMATCH');
+}
+export function assertProvenance(values) {
+  const required=['sourceSha','branch','vercelTeamId','vercelProjectId','deploymentId','deploymentUrl','supabaseProjectRef','runId'];
+  for (const key of required) if (!values[key] || typeof values[key] !== 'string') throw coded('SECURITY_BOUNDARY',`PROVENANCE_REQUIRED:${key}`);
+  if (!/^[0-9a-f]{40}$/.test(values.sourceSha)) throw coded('SECURITY_BOUNDARY','SOURCE_SHA_INVALID');
+  if (!/^dpl_[A-Za-z0-9]+$/.test(values.deploymentId)) throw coded('SECURITY_BOUNDARY','DEPLOYMENT_ID_INVALID');
+  if (values.branch === 'main' || !values.branch.startsWith('codex/')) throw coded('SECURITY_BOUNDARY','BRANCH_NOT_QA_ISOLATED');
+  if (values.vercelTeamId !== CONTRACT.vercelTeamId || values.vercelProjectId !== CONTRACT.vercelProjectId) throw coded('SECURITY_BOUNDARY','VERCEL_IDENTITY_MISMATCH');
+  if (values.supabaseProjectRef !== CONTRACT.projectRef) throw coded('SECURITY_BOUNDARY','SUPABASE_IDENTITY_MISMATCH');
+  if (!values.deploymentUrl.startsWith('https://')) throw coded('SECURITY_BOUNDARY','DEPLOYMENT_URL_INVALID');
+  assertRunId(values.runId); assertSafeContract(values);
+  return Object.freeze({...values});
 }
 export function classifyFailure(error) {
   const text=String(error?.message??error).toLowerCase();
