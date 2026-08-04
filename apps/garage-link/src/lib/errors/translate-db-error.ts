@@ -27,6 +27,10 @@ const DB_ERROR_PATTERNS: Array<{ pattern: RegExp; message: string }> = [
     pattern: /invalid input syntax for type uuid/i,
     message: '店舗情報の形式が正しくありません。',
   },
+  {
+    pattern: /inventory_counts_one_active_store_uidx|duplicate key value violates unique constraint.*inventory_count/i,
+    message: '棚卸し中の案件が既にあります。一覧から既存の棚卸しを再開してください。',
+  },
 ];
 
 export function translateDbError(message: string, fallback = '処理に失敗しました。時間をおいて再度お試しください。'): string {

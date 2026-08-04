@@ -20,6 +20,10 @@ test.describe('利用者向けエラー境界', () => {
     );
     expect(toUserErrorMessage(new Error('Network request failed'), '取得に失敗しました。')).toBe('取得に失敗しました。');
     expect(toUserErrorMessage(new Error('保存対象が見つかりません。'), '保存に失敗しました。')).toBe('保存に失敗しました。');
+    expect(toUserErrorMessage(
+      new Error('duplicate key value violates unique constraint "inventory_counts_one_active_store_uidx"'),
+      '保存に失敗しました。',
+    )).toBe('棚卸し中の案件が既にあります。一覧から既存の棚卸しを再開してください。');
   });
 
   test('画面のcatchで例外messageを状態やalertへ直接渡さない', async () => {
