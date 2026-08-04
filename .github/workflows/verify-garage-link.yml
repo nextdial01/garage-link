@@ -36,6 +36,9 @@ jobs:
       - name: QA manifest and checksum
         run: pnpm test:qa:manifest
 
+      - name: Prepare isolated Docker image
+        run: docker pull public.ecr.aws/supabase/postgres:17.6.1.136
+
       - name: Production isolated lane — QA DDL 0
         run: bash apps/garage-link/scripts/db/run-g0b-ci.sh
 
