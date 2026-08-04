@@ -53,7 +53,8 @@ runner apply --container "$FRESH" --environment g0b-ci-fresh
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g1a_fixture.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g3_fixture.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g0b_catalog_assertions.sql"
-psql_file "$FRESH" "$APP_ROOT/supabase/tests/qa_lifecycle_regression.sql"
+assert_zero "$FRESH" "select count(*) from pg_namespace where nspname='qa_internal'" 'production lane qa schema'
+assert_zero "$FRESH" "select count(*) from pg_proc where proname like 'qa_lifecycle_%'" 'production lane qa functions'
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g0b_extension_compatibility_regression.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g1d_active_store_regression.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/db005_store_eligibility_regression.sql"
@@ -91,7 +92,8 @@ assert_zero "$FRESH" "select count(*) where to_regprocedure('public.guard_paymen
 assert_zero "$FRESH" "select count(*) from information_schema.role_table_grants where grantee in ('anon','authenticated') and table_schema='public' and table_name in ('sale_correction_cases','sale_correction_operations','sale_correction_events','customer_vehicle_ownership_history','sale_correction_refunds') and privilege_type in ('INSERT','UPDATE','DELETE')" 'G4-B direct writes after rollback'
 assert_zero "$FRESH" "select count(*) from information_schema.routine_privileges where grantee='authenticated' and routine_schema='public' and routine_name in ('create_sale_correction_case','transition_sale_correction_case','record_sale_correction_refund','complete_sale_correction_inspection','resolve_sale_correction_ownership','confirm_sale_correction_restock','resolve_sale_correction_external_procedure')" 'G4-B RPC execute after rollback'
 runner apply --container "$FRESH" --environment g0b-ci-fresh
-psql_file "$FRESH" "$APP_ROOT/supabase/tests/qa_lifecycle_regression.sql"
+assert_zero "$FRESH" "select count(*) from pg_namespace where nspname='qa_internal'" 'production reapply qa schema'
+assert_zero "$FRESH" "select count(*) from pg_proc where proname like 'qa_lifecycle_%'" 'production reapply qa functions'
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/g1d_active_store_regression.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/db005_store_eligibility_regression.sql"
 psql_file "$FRESH" "$APP_ROOT/supabase/tests/db006_canonical_owner_regression.sql"
@@ -115,7 +117,8 @@ psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/g0b_upgrade_fixture.sql"
 runner apply --container "$UPGRADE" --environment g0b-ci-upgrade
 psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/g0b_upgrade_assertions.sql"
 psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/g0b_catalog_assertions.sql"
-psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/qa_lifecycle_regression.sql"
+assert_zero "$UPGRADE" "select count(*) from pg_namespace where nspname='qa_internal'" 'production upgrade qa schema'
+assert_zero "$UPGRADE" "select count(*) from pg_proc where proname like 'qa_lifecycle_%'" 'production upgrade qa functions'
 psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/g1c_relation_contract_assertions.sql"
 psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/g1a_fixture.sql"
 psql_file "$UPGRADE" "$APP_ROOT/supabase/tests/g1d_active_store_regression.sql"
@@ -133,7 +136,8 @@ docker exec "$RESTORE" psql -X -U supabase_admin -d postgres -v ON_ERROR_STOP=1 
 docker exec -i "$RESTORE" pg_restore -U supabase_admin -d postgres --exit-on-error < "$TMP_DIR/app.dump"
 docker exec "$RESTORE" psql -X -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c 'grant usage on schema public to public;'
 psql_file "$RESTORE" "$APP_ROOT/supabase/tests/g0b_catalog_assertions.sql"
-psql_file "$RESTORE" "$APP_ROOT/supabase/tests/qa_lifecycle_regression.sql"
+assert_zero "$RESTORE" "select count(*) from pg_namespace where nspname='qa_internal'" 'production restore qa schema'
+assert_zero "$RESTORE" "select count(*) from pg_proc where proname like 'qa_lifecycle_%'" 'production restore qa functions'
 psql_file "$RESTORE" "$APP_ROOT/supabase/tests/g1d_active_store_regression.sql"
 psql_file "$RESTORE" "$APP_ROOT/supabase/tests/db005_store_eligibility_regression.sql"
 psql_file "$RESTORE" "$APP_ROOT/supabase/tests/g1b_role_regression.sql"

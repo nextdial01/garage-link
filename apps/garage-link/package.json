@@ -23,6 +23,8 @@
     "qa:provision": "node scripts/provision-qa-account.mjs",
     "qa:lifecycle": "node scripts/qa/lifecycle.mjs",
     "test:qa:lifecycle": "node --test tests/qa/*.test.mjs",
+    "test:qa:manifest": "node scripts/qa/check-migration-lane.mjs",
+    "test:qa:migrations": "bash scripts/qa/run-isolated-migration-lane.sh",
     "test:qa:mobile-logout": "node scripts/run-mobile-logout-qa.mjs",
     "test:e2e:ui": "playwright test --ui",
     "test:db:runner": "node --test tests/db/migration-runner.test.mjs",

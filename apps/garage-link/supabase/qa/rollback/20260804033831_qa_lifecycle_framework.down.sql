@@ -1,6 +1,12 @@
 begin;
 
 drop function if exists public.qa_lifecycle_finalize(uuid);
+drop function if exists public.qa_lifecycle_record_public_marker_evidence(uuid);
+drop function if exists public.qa_lifecycle_record_verified_evidence(uuid,text,jsonb);
+drop function if exists public.qa_lifecycle_record_auth_evidence(uuid,uuid);
+drop function if exists public.qa_lifecycle_advance_cleanup(uuid,text,text,text);
+drop function if exists public.qa_lifecycle_record_evidence(uuid,text,jsonb);
+drop function if exists public.qa_lifecycle_abort_clean(uuid,text);
 drop function if exists public.qa_lifecycle_verify_clean(uuid, boolean);
 drop function if exists public.qa_lifecycle_teardown(uuid, boolean);
 drop function if exists public.qa_lifecycle_register_fixture(uuid, uuid, text, uuid, uuid, uuid, text, text, timestamptz);

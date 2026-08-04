@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_PUBLIC_SUPABASE_URL: https://dummy-project.supabase.co
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,6 +29,18 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: QA Node tests
+        run: pnpm test:qa:lifecycle
+
+      - name: QA manifest and checksum
+        run: pnpm test:qa:manifest
+
+      - name: Production isolated lane — QA DDL 0
+        run: bash apps/garage-link/scripts/db/run-g0b-ci.sh
+
+      - name: QA isolated apply regression rollback reapply
+        run: pnpm test:qa:migrations
 
       - name: Verify GARAGE LINK
         run: pnpm verify:garage-link

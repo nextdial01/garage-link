@@ -28,6 +28,7 @@ create table qa_internal.runs (
     'FIXTURE_LIFECYCLE','EXECUTION_LIFECYCLE','SECURITY_BOUNDARY'
   )),
   safe_retry_count integer not null default 0 check (safe_retry_count between 0 and 2),
+  retry_ledger jsonb not null default '{}'::jsonb,
   operator_reference text not null check (operator_reference ~ '^[A-Za-z0-9._:/-]{1,160}$'),
   cleanup_deadline timestamptz not null,
   created_at timestamptz not null default clock_timestamp(),
@@ -195,7 +196,7 @@ as $$
 declare
   v_run qa_internal.runs%rowtype;
   v_last_successful text;
-  v_retry integer;
+  v_retry integer; v_retry_key text; v_ledger jsonb;
 begin
   perform qa_internal.assert_operator();
   if p_run_id is null then raise exception 'RUN_ID_REQUIRED'; end if;
@@ -215,10 +216,13 @@ begin
   if p_next_state in ('DB_CLEANED','AUTH_CLEANED','STORAGE_CLEANED','ARTIFACTS_CLEANED','VERIFIED_CLEAN') then
     raise exception 'DEDICATED_EVIDENCE_PATH_REQUIRED';
   end if;
-  if p_next_state = 'FAILED_RECOVERABLE' and v_run.safe_retry_count >= 2 and v_run.next_action = p_next_action then
+  v_retry_key := coalesce(p_next_action,'unknown') || ':' || coalesce(p_failure_class,'unknown') || ':' || coalesce(v_run.last_successful_state,'unknown');
+  if p_next_state = 'FAILED_RECOVERABLE' and coalesce((v_run.retry_ledger->>v_retry_key)::integer,0) >= 2 then
     raise exception 'SAFE_RETRY_CEILING_EXCEEDED';
   end if;
-  v_retry := case when p_next_state = 'FAILED_RECOVERABLE' then v_run.safe_retry_count + 1 else v_run.safe_retry_count end;
+  v_ledger := v_run.retry_ledger;
+  if p_next_state = 'FAILED_RECOVERABLE' then v_ledger := jsonb_set(v_ledger,array[v_retry_key],to_jsonb(coalesce((v_ledger->>v_retry_key)::integer,0)+1),true); end if;
+  v_retry := case when p_next_state = 'FAILED_RECOVERABLE' then coalesce((v_ledger->>v_retry_key)::integer,0) else v_run.safe_retry_count end;
   v_last_successful := case when p_next_state in ('FAILED_RECOVERABLE','HARD_STOP') then v_run.last_successful_state else p_next_state end;
   update qa_internal.runs
      set state = p_next_state,
@@ -226,6 +230,7 @@ begin
          next_action = p_next_action,
          failure_class = p_failure_class,
          safe_retry_count = v_retry,
+         retry_ledger = v_ledger,
          updated_at = clock_timestamp(),
          completed_at = case when p_next_state = 'COMPLETE' then clock_timestamp() else completed_at end
    where run_id = p_run_id;
@@ -254,14 +259,49 @@ declare r qa_internal.runs%rowtype; v_detail jsonb:=coalesce(p_detail,'{}'::json
 begin
   perform qa_internal.assert_operator();
   select * into strict r from qa_internal.runs where run_id=p_run_id for update;
-  if p_evidence_kind not in ('AUTH','STORAGE','ARTIFACT','BYPASS','PUBLIC_MARKER') then raise exception 'EVIDENCE_KIND_INVALID'; end if;
-  if v_detail->>'run_id' <> p_run_id::text or v_detail->>'source_sha' <> r.source_sha or v_detail->>'deployment_id' <> r.deployment_id then raise exception 'EVIDENCE_PROVENANCE_MISMATCH'; end if;
-  if p_evidence_kind='AUTH' and (coalesce((v_detail->>'auth_users')::bigint,1)<>0 or coalesce((v_detail->>'auth_sessions')::bigint,1)<>0) then raise exception 'AUTH_RESIDUAL_BLOCKS_COMPLETE'; end if;
-  if p_evidence_kind in ('STORAGE','ARTIFACT','BYPASS','PUBLIC_MARKER') and coalesce((v_detail->>'residual_count')::bigint,1)<>0 then raise exception 'EXTERNAL_RESIDUAL_BLOCKS_COMPLETE'; end if;
-  insert into qa_internal.evidence(run_id,evidence_kind,source_sha,deployment_id,actor,detail) values(p_run_id,p_evidence_kind,r.source_sha,r.deployment_id,coalesce(v_detail->>'actor',session_user),v_detail);
-  return jsonb_build_object('run_id',p_run_id,'evidence_kind',p_evidence_kind,'recorded',true);
-exception when unique_violation then
-  return jsonb_build_object('run_id',p_run_id,'evidence_kind',p_evidence_kind,'recorded',true,'idempotent',true);
+  raise exception 'CALLER_SUPPLIED_EVIDENCE_FORBIDDEN';
+end; $$;
+
+create or replace function public.qa_lifecycle_record_auth_evidence(p_run_id uuid, p_user_id uuid)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare r qa_internal.runs%rowtype; v_users bigint; v_sessions bigint; v_detail jsonb;
+begin
+  perform qa_internal.assert_operator(); select * into strict r from qa_internal.runs where run_id=p_run_id for update;
+  select count(*) into v_users from auth.users where id=p_user_id;
+  if to_regclass('auth.sessions') is not null then execute 'select count(*) from auth.sessions where user_id=$1' into v_sessions using p_user_id; else v_sessions:=0; end if;
+  if v_users<>0 or v_sessions<>0 then raise exception 'AUTH_RESIDUAL_BLOCKS_COMPLETE'; end if;
+  v_detail:=jsonb_build_object('run_id',p_run_id,'source_sha',r.source_sha,'deployment_id',r.deployment_id,'actor',session_user,'user_id',p_user_id,'auth_users',v_users,'auth_sessions',v_sessions,'observed_at',clock_timestamp());
+  insert into qa_internal.evidence(run_id,evidence_kind,source_sha,deployment_id,actor,detail) values(p_run_id,'AUTH',r.source_sha,r.deployment_id,session_user,v_detail) on conflict (run_id,evidence_kind) do update set source_sha=excluded.source_sha,deployment_id=excluded.deployment_id,actor=excluded.actor,observed_at=clock_timestamp(),detail=excluded.detail;
+  return v_detail;
+end; $$;
+
+create or replace function public.qa_lifecycle_record_verified_evidence(p_run_id uuid, p_evidence_kind text, p_observation jsonb)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare r qa_internal.runs%rowtype; v_detail jsonb:=coalesce(p_observation,'{}'::jsonb); v_expected text; v_stamp timestamptz;
+begin
+  perform qa_internal.assert_operator(); select * into strict r from qa_internal.runs where run_id=p_run_id for update;
+  if p_evidence_kind not in ('STORAGE','ARTIFACT','BYPASS') then raise exception 'EXTERNAL_EVIDENCE_KIND_INVALID'; end if;
+  if v_detail->>'run_id'<>p_run_id::text or v_detail->>'source_sha'<>r.source_sha or v_detail->>'deployment_id'<>r.deployment_id then raise exception 'EVIDENCE_PROVENANCE_MISMATCH'; end if;
+  if coalesce((v_detail->>'residual_count')::bigint,1)<>0 or v_detail->>'proof_sha' is null then raise exception 'VERIFIED_ZERO_PROOF_REQUIRED'; end if;
+  v_stamp:=nullif(v_detail->>'observed_at','')::timestamptz;
+  if v_stamp is null or v_stamp < r.updated_at then raise exception 'STALE_EVIDENCE_REJECTED'; end if;
+  insert into qa_internal.evidence(run_id,evidence_kind,source_sha,deployment_id,actor,detail) values(p_run_id,p_evidence_kind,r.source_sha,r.deployment_id,coalesce(v_detail->>'actor',session_user),v_detail) on conflict (run_id,evidence_kind) do update set source_sha=excluded.source_sha,deployment_id=excluded.deployment_id,actor=excluded.actor,observed_at=clock_timestamp(),detail=excluded.detail;
+  return v_detail;
+end; $$;
+
+create or replace function public.qa_lifecycle_record_public_marker_evidence(p_run_id uuid)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare r qa_internal.runs%rowtype; f qa_internal.fixtures%rowtype; c record; n bigint:=0; q text; v_detail jsonb;
+begin
+  perform qa_internal.assert_operator(); select * into strict r from qa_internal.runs where run_id=p_run_id for update; select * into strict f from qa_internal.fixtures where run_id=p_run_id;
+  for c in select table_name,column_name from information_schema.columns where table_schema='public' and data_type in ('text','character varying','character') loop
+    q:=format('select count(*) from public.%I where %I::text = any($1)',c.table_name,c.column_name);
+    execute q into n using array[f.tenant_id::text,f.store_id::text,f.membership_id::text,f.user_id::text,f.marker,p_run_id::text];
+    if n>0 then raise exception 'PUBLIC_MARKER_RESIDUAL:%:%:%',c.table_name,c.column_name,n; end if;
+  end loop;
+  v_detail:=jsonb_build_object('run_id',p_run_id,'source_sha',r.source_sha,'deployment_id',r.deployment_id,'actor',session_user,'residual_count',0,'observed_at',clock_timestamp());
+  insert into qa_internal.evidence(run_id,evidence_kind,source_sha,deployment_id,actor,detail) values(p_run_id,'PUBLIC_MARKER',r.source_sha,r.deployment_id,session_user,v_detail) on conflict (run_id,evidence_kind) do update set source_sha=excluded.source_sha,deployment_id=excluded.deployment_id,actor=excluded.actor,observed_at=clock_timestamp(),detail=excluded.detail;
+  return v_detail;
 end; $$;
 
 create or replace function public.qa_lifecycle_advance_cleanup(p_run_id uuid, p_expected_state text, p_next_state text, p_next_action text)
@@ -495,6 +535,9 @@ begin
       ('public.qa_lifecycle_abort_clean(uuid,text)'::regprocedure),
       ('public.qa_lifecycle_record_evidence(uuid,text,jsonb)'::regprocedure)
       ,('public.qa_lifecycle_advance_cleanup(uuid,text,text,text)'::regprocedure)
+      ,('public.qa_lifecycle_record_auth_evidence(uuid,uuid)'::regprocedure)
+      ,('public.qa_lifecycle_record_verified_evidence(uuid,text,jsonb)'::regprocedure)
+      ,('public.qa_lifecycle_record_public_marker_evidence(uuid)'::regprocedure)
     ) f(oid)
    where has_function_privilege('anon',f.oid,'EXECUTE')
       or has_function_privilege('authenticated',f.oid,'EXECUTE')
@@ -511,10 +554,13 @@ begin
       ('public.qa_lifecycle_abort_clean(uuid,text)'::regprocedure),
       ('public.qa_lifecycle_record_evidence(uuid,text,jsonb)'::regprocedure)
       ,('public.qa_lifecycle_advance_cleanup(uuid,text,text,text)'::regprocedure)
+      ,('public.qa_lifecycle_record_auth_evidence(uuid,uuid)'::regprocedure)
+      ,('public.qa_lifecycle_record_verified_evidence(uuid,text,jsonb)'::regprocedure)
+      ,('public.qa_lifecycle_record_public_marker_evidence(uuid)'::regprocedure)
     ) f(oid)
    where has_function_privilege('service_role',f.oid,'EXECUTE');
   return jsonb_build_object(
-    'ready',v_private_schema and v_trigger and v_public_execute=0 and v_service_execute=10,
+    'ready',v_private_schema and v_trigger and v_public_execute=0 and v_service_execute=13,
     'private_schema',v_private_schema,'last_owner_guard_enabled',v_trigger,
     'public_execute_count',v_public_execute,'service_execute_count',v_service_execute,
     'dry_run_supported',true,'auth_hard_delete_path','admin-api'
@@ -661,7 +707,7 @@ declare v_count integer; v_evidence_count integer;
 begin
   perform qa_internal.assert_operator();
   if not exists(select 1 from qa_internal.runs where run_id=p_run_id and state='VERIFIED_CLEAN' and final_evidence->>'clean'='true') then raise exception 'FINALIZE_GATE_FAILED'; end if;
-  select count(*) into v_evidence_count from qa_internal.evidence where run_id=p_run_id and evidence_kind in ('AUTH','STORAGE','ARTIFACT','BYPASS','PUBLIC_MARKER');
+  select count(*) into v_evidence_count from qa_internal.evidence e join qa_internal.runs r using(run_id) where e.run_id=p_run_id and e.evidence_kind in ('AUTH','STORAGE','ARTIFACT','BYPASS','PUBLIC_MARKER') and e.source_sha=r.source_sha and e.deployment_id=r.deployment_id and e.observed_at>=r.created_at and coalesce((e.detail->>'residual_count')::bigint,0)=0;
   if v_evidence_count <> 5 then raise exception 'FINALIZE_EVIDENCE_GATE_FAILED:%',v_evidence_count; end if;
   delete from qa_internal.fixtures where run_id=p_run_id;
   get diagnostics v_count = row_count;
@@ -713,6 +759,9 @@ revoke all on function public.qa_lifecycle_status(uuid) from public, anon, authe
 revoke all on function public.qa_lifecycle_abort_clean(uuid,text) from public, anon, authenticated;
 revoke all on function public.qa_lifecycle_record_evidence(uuid,text,jsonb) from public, anon, authenticated;
 revoke all on function public.qa_lifecycle_advance_cleanup(uuid,text,text,text) from public, anon, authenticated;
+revoke all on function public.qa_lifecycle_record_auth_evidence(uuid,uuid) from public, anon, authenticated;
+revoke all on function public.qa_lifecycle_record_verified_evidence(uuid,text,jsonb) from public, anon, authenticated;
+revoke all on function public.qa_lifecycle_record_public_marker_evidence(uuid) from public, anon, authenticated;
 revoke all on function public.qa_lifecycle_cleanup_readiness() from public, anon, authenticated;
 grant execute on function public.qa_lifecycle_register_run(uuid,text,text,text,text,timestamptz) to service_role;
 grant execute on function public.qa_lifecycle_transition(uuid,text,text,text,text,jsonb) to service_role;
@@ -724,6 +773,9 @@ grant execute on function public.qa_lifecycle_status(uuid) to service_role;
 grant execute on function public.qa_lifecycle_abort_clean(uuid,text) to service_role;
 grant execute on function public.qa_lifecycle_record_evidence(uuid,text,jsonb) to service_role;
 grant execute on function public.qa_lifecycle_advance_cleanup(uuid,text,text,text) to service_role;
+grant execute on function public.qa_lifecycle_record_auth_evidence(uuid,uuid) to service_role;
+grant execute on function public.qa_lifecycle_record_verified_evidence(uuid,text,jsonb) to service_role;
+grant execute on function public.qa_lifecycle_record_public_marker_evidence(uuid) to service_role;
 grant execute on function public.qa_lifecycle_cleanup_readiness() to service_role;
 
 alter function public.qa_lifecycle_register_run(uuid,text,text,text,text,timestamptz) owner to postgres;
@@ -736,6 +788,9 @@ alter function public.qa_lifecycle_status(uuid) owner to postgres;
 alter function public.qa_lifecycle_abort_clean(uuid,text) owner to postgres;
 alter function public.qa_lifecycle_record_evidence(uuid,text,jsonb) owner to postgres;
 alter function public.qa_lifecycle_advance_cleanup(uuid,text,text,text) owner to postgres;
+alter function public.qa_lifecycle_record_auth_evidence(uuid,uuid) owner to postgres;
+alter function public.qa_lifecycle_record_verified_evidence(uuid,text,jsonb) owner to postgres;
+alter function public.qa_lifecycle_record_public_marker_evidence(uuid) owner to postgres;
 alter function public.qa_lifecycle_cleanup_readiness() owner to postgres;
 
 commit;
