@@ -55,6 +55,8 @@ deployment IDとdeployed SHAは、このcommitから作成されるためCompany
 - build: PASS（132/132 pages）
 - full security: 335/335 PASS
 
+初回remote targeted regressionで、DBの最後のowner拒否文が安全な共通error boundaryにより汎用fallbackへ置換される残件を検出した。既知のmembership guard文だけを具体的な復旧案内へ変換し、targeted regression後にremote-only defect対応として2回目のstaging deploymentを許可する。
+
 ## Release gate
 
 次をCompany OS側の最終execution evidenceで満たした場合だけ `LIMITED SALES READY` とする。

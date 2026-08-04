@@ -31,6 +31,18 @@ const DB_ERROR_PATTERNS: Array<{ pattern: RegExp; message: string }> = [
     pattern: /inventory_counts_one_active_store_uidx|duplicate key value violates unique constraint.*inventory_count/i,
     message: '棚卸し中の案件が既にあります。一覧から既存の棚卸しを再開してください。',
   },
+  {
+    pattern: /^最後のownerは降格できません。$/,
+    message: '最後のオーナーは降格できません。先に別のメンバーをオーナーへ変更してください。',
+  },
+  {
+    pattern: /^最後のownerは無効化できません。$/,
+    message: '最後のオーナーは無効化できません。先に別のメンバーをオーナーへ変更してください。',
+  },
+  {
+    pattern: /^(?:roleを変更|membershipを無効化|自分自身のroleを変更)する権限がありません。$/,
+    message: 'このメンバーを変更する権限がありません。操作対象と自分の権限を確認してください。',
+  },
 ];
 
 export function translateDbError(message: string, fallback = '処理に失敗しました。時間をおいて再度お試しください。'): string {
