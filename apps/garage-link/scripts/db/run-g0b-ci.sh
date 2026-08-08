@@ -9,6 +9,7 @@ UPGRADE="garage-link-g0b-upgrade-$RUN_ID"
 RESTORE="garage-link-g0b-restore-$RUN_ID"
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/garage-link-g0b.XXXXXX")"
 MANIFEST="$APP_ROOT/supabase/baseline/manifest.json"
+EXPECTED_LEDGER_COUNT="$(jq '.entries | length' "$MANIFEST")"
 
 cleanup() {
   docker rm -f "$FRESH" "$UPGRADE" "$RESTORE" >/dev/null 2>&1 || true
@@ -26,7 +27,7 @@ start_db() {
 psql_file() {
   local name="$1" file="$2"
   docker exec -i "$name" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 \
-    -c "set app.g0b_fixture='enabled'; set lock_timeout='3s'; set statement_timeout='120s';" \
+    -c "set app.g0b_fixture='enabled'; set app.g0b_expected_ledger_count='$EXPECTED_LEDGER_COUNT'; set lock_timeout='3s'; set statement_timeout='120s';" \
     -f - < "$file"
 }
 

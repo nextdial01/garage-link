@@ -3,6 +3,7 @@
 do $$
 declare
   v_count bigint;
+  v_expected_ledger_count bigint;
 begin
   if current_database() <> 'postgres' then raise exception 'G0B_DATABASE_MISMATCH'; end if;
   if to_regnamespace('auth') is null or to_regnamespace('storage') is null
@@ -21,10 +22,12 @@ begin
     raise exception 'G0B_SERVICE_ROLE_MISMATCH';
   end if;
 
+  v_expected_ledger_count := nullif(current_setting('app.g0b_expected_ledger_count', true), '')::bigint;
+  if v_expected_ledger_count is null or v_expected_ledger_count < 1 then raise exception 'G0B_EXPECTED_LEDGER_COUNT_MISSING'; end if;
   select count(*) into v_count from supabase_migrations.schema_migrations;
-  if v_count <> 58 then raise exception 'G0B_LEDGER_COUNT: %', v_count; end if;
+  if v_count <> v_expected_ledger_count then raise exception 'G0B_LEDGER_COUNT: expected %, got %', v_expected_ledger_count, v_count; end if;
   select count(*) into v_count from supabase_migrations.migration_integrity where state='applied';
-  if v_count <> 58 then raise exception 'G0B_INTEGRITY_COUNT: %', v_count; end if;
+  if v_count <> v_expected_ledger_count then raise exception 'G0B_INTEGRITY_COUNT: expected %, got %', v_expected_ledger_count, v_count; end if;
   if exists (
     select 1 from supabase_migrations.schema_migrations m
     left join supabase_migrations.migration_integrity i using(version)
