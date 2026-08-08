@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import BrandLogo from './BrandLogo';
 import ContextHelp from './ContextHelp';
-import { getRoleLabel } from '@/lib/auth/permissions';
 import { getGarageUiContext } from '@/lib/store/garageUiContext';
 import { DEFAULT_PRIMARY_TABS, PRIMARY_TAB_OPTIONS, filterMenuGroupsByRole, getPrimaryTabMeta, resolvePrimaryTabs, type PrimaryTabKey } from '@/lib/store/uiPreferences';
 
@@ -108,7 +107,6 @@ function PrimaryLink({
 
 export default function AppSidebar({ activeLabel }: AppSidebarProps) {
   const pathname = usePathname();
-  const [menuReady, setMenuReady] = useState(false);
   const [role, setRole] = useState('viewer');
   const [storeLabel, setStoreLabel] = useState('店舗');
   const [primaryTabs, setPrimaryTabs] = useState<PrimaryTabKey[]>(DEFAULT_PRIMARY_TABS);
@@ -149,8 +147,6 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
         setCounts(nextCounts);
       } catch {
         setPrimaryTabs(DEFAULT_PRIMARY_TABS);
-      } finally {
-        setMenuReady(true);
       }
     }
 
@@ -168,11 +164,6 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
           <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <BrandLogo className="h-10 w-36 max-w-full" priority />
-              {menuReady && (
-                <span className="inline-flex shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 ring-1 ring-slate-200">
-                  権限: {getRoleLabel(role)}
-                </span>
-              )}
             </div>
             <p className="mt-4 truncate text-sm font-black text-slate-900">{storeLabel}</p>
           </div>
