@@ -117,31 +117,30 @@ test.describe('Batch 1B retry and lease matrix', () => {
 });
 
 test.describe('Batch 1B permanent gates', () => {
-  test('plan/options実並行release testを2・10・100 workerで必須化する', async () => {
-    const [lifecycle, runner, workflow] = await Promise.all([
+  test('販売対象外add-onを閉じ、並行release testを2・10・100 workerで必須化する', async () => {
+    const [lifecycle, changeOptions, concurrency, runner, config, workflow] = await Promise.all([
       readFile('tests/e2e/billing-stripe-lifecycle.spec.ts', 'utf8'),
+      readFile('src/app/api/billing/change-options/route.ts', 'utf8'),
+      readFile('scripts/db/run-g7-concurrency.sh', 'utf8'),
       readFile('scripts/run-billing-e2e.mjs', 'utf8'),
+      readFile('playwright.commercial-staging.config.ts', 'utf8'),
       readFile('../../.github/workflows/garage-link-commercial-staging.yml', 'utf8'),
     ]);
-    expect(lifecycle).toContain('const runMutationRace');
-    expect(lifecycle).toContain('test.setTimeout(40 * 60_000)');
-    expect(lifecycle).toContain('const runNonce = crypto.randomUUID()');
-    expect(lifecycle).toContain('for (const workers of [2, 10, 100])');
-    expect(lifecycle).toContain('plan-vs-plan-');
-    expect(lifecycle).toContain('option-vs-option-');
-    expect(lifecycle).toContain('plan-vs-option-');
-    expect(lifecycle).toContain('winner Stripe request must emit one update');
-    expect(lifecycle).toContain('event.request?.id === stripeRequestId');
-    expect(lifecycle).toContain("required('STRIPE_PRICE_STANDARD')");
-    expect(lifecycle).toContain("required('STRIPE_PRICE_STARTER')");
-    expect(lifecycle).toContain("required('STRIPE_PRICE_EXTRA_STAFF')");
-    expect(lifecycle).toContain('expect(option?.quantity).toBe(1)');
-    expect(lifecycle).toContain('stripe_subscription_mutations: 1');
-    expect(lifecycle).toContain('ledger_rows: 1');
-    expect(lifecycle).toContain('concurrency-restore-pro');
-    expect(lifecycle).toContain('invoiceIds.add(boundaryInvoice!.id)');
-    expect(lifecycle).toContain('expect([7480, 16280]).toContain(boundaryInvoice!.total)');
-    expect(runner).toContain('billing-stripe-lifecycle.spec.ts');
+    expect(lifecycle).toContain("test('8 cancellation／recovery'");
+    expect(lifecycle).toContain("test('9 invoice／reconciliation'");
+    expect(lifecycle).toContain('garage-link-commercial-e2e:disposable:${tenantId}:${crypto.randomUUID()}');
+    expect(lifecycle).toContain("data: { plan: 'starter', termsAccepted: true }");
+    expect(lifecycle).toContain("data: { plan: 'standard', termsAccepted: true }");
+    expect(lifecycle).toContain('expect(session.amount_total).toBe(7480)');
+    expect(lifecycle).toContain('.toBe(16280)');
+    expect(lifecycle).toContain('.toBe(32780)');
+    expect(changeOptions).toContain('add-on）は初回販売の対象外');
+    expect(changeOptions).toContain("{ status: 403 }");
+    expect(changeOptions).not.toContain('stripe.subscriptions.update');
+    expect(concurrency).toContain('for workers in 2 10 100');
+    expect(concurrency).toContain('quota_workers=$workers success=1 rows=50');
+    expect(runner).toContain("'--project', 'billing'");
+    expect(config).toContain('billing-stripe-lifecycle\\.spec\\.ts');
     expect(workflow).toContain('test:commercial-staging:garage-link');
     expect(workflow).toContain('E2E_REQUIRE_BILLING: "true"');
     expect(workflow).toContain('E2E_ALLOW_BILLING_MUTATIONS: "true"');
@@ -187,7 +186,7 @@ test.describe('Batch 1B permanent gates', () => {
       readFile('src/app/api/commercial-staging-fingerprint/route.ts', 'utf8'),
       readFile('src/app/settings/billing/page.tsx', 'utf8'),
     ]);
-    expect(registry).toContain("tax_behavior === 'inclusive'");
+    expect(registry).toContain("['inclusive', 'unspecified'].includes(price.tax_behavior)");
     expect(registry).toContain('automatic_tax');
     expect(registry).toContain('default_tax_rates');
     expect(preflight).toContain('VERCEL_PROJECT_ID');

@@ -15,6 +15,7 @@ import {
 } from './LineModule';
 import { logAudit } from '@/lib/audit/logAudit';
 import { createClient } from '@/lib/supabase/client';
+import { confirmAction } from '@/components/ui/actionDialog';
 
 type StoreMemberRow = {
   store_id: string;
@@ -474,7 +475,12 @@ export function LineCrudPage({
       return;
     }
 
-    const confirmed = window.confirm('削除すると一覧から非表示になり、ゴミ箱 / アーカイブから復元できます。削除してもよろしいですか？');
+    const confirmed = await confirmAction({
+      title: '一覧から削除する',
+      description: '削除すると一覧から非表示になります。ゴミ箱 / アーカイブから復元できます。',
+      confirmLabel: '一覧から削除する',
+      tone: 'danger',
+    });
     if (!confirmed) {
       return;
     }

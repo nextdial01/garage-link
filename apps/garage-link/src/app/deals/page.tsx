@@ -191,11 +191,11 @@ export default function DealsPage() {
               </div>
               <div className="grid w-full min-w-0 gap-3 sm:grid-cols-2 xl:w-auto xl:grid-cols-[minmax(240px,1fr)_auto_auto]">
                 <input type="text" placeholder="商談番号・顧客名・車両名で検索" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full min-w-0 rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100" />
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+                <select aria-label="商談ステータス" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
                   <option value="">すべての状態</option>
                   {statusOptions.map((status) => <option key={status}>{status}</option>)}
                 </select>
-                <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value as 'all' | 'today' | 'overdue')} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+                <select aria-label="商談の次回対応日" value={actionFilter} onChange={(e) => setActionFilter(e.target.value as 'all' | 'today' | 'overdue')} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
                   <option value="all">すべての次回対応</option>
                   <option value="today">今日対応</option>
                   <option value="overdue">期限超過</option>
@@ -216,9 +216,9 @@ export default function DealsPage() {
                     <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${getStatusClass(deal.status ?? '')}`}>{deal.status ?? '-'}</span>
                   </div>
                   <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-3">
-                    <div><p className="text-xs font-bold text-slate-400">商談番号</p><p className="mt-1 font-bold text-slate-900">{deal.deal_no ?? '-'}</p></div>
-                    <div><p className="text-xs font-bold text-slate-400">担当者</p><p className="mt-1 font-bold text-slate-900">{deal.assigned_user_name ?? '-'}</p></div>
-                    <div><p className="text-xs font-bold text-slate-400">次回連絡</p><p className="mt-1 font-bold text-slate-900">{formatDateTime(deal.next_action_at)}</p></div>
+                    <div><p className="text-xs font-bold text-slate-600">商談番号</p><p className="mt-1 font-bold text-slate-900">{deal.deal_no ?? '-'}</p></div>
+                    <div><p className="text-xs font-bold text-slate-600">担当者</p><p className="mt-1 font-bold text-slate-900">{deal.assigned_user_name ?? '-'}</p></div>
+                    <div><p className="text-xs font-bold text-slate-600">次回連絡</p><p className="mt-1 font-bold text-slate-900">{formatDateTime(deal.next_action_at)}</p></div>
                   </div>
                 </button>
               ))}
@@ -237,13 +237,13 @@ export default function DealsPage() {
                 <div className="flex items-center justify-between gap-4"><dt className="text-slate-500">担当者</dt><dd className="font-bold text-slate-900">{selectedDeal.assigned_user_name ?? '-'}</dd></div>
               </dl>
               <div className="space-y-2">
-                <p className="text-xs font-bold text-slate-400">状態</p>
+                <p className="text-xs font-bold text-slate-600">状態</p>
                 <select className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-900" value={editingStatus} onChange={(event) => setEditingStatus(event.target.value)}>
                   {statusOptions.map((status) => <option key={status}>{status}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <p className="text-xs font-bold text-slate-400">次回連絡</p>
+                <p className="text-xs font-bold text-slate-600">次回連絡</p>
                 <input type="datetime-local" className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-900" value={editingNextActionAt} onChange={(event) => setEditingNextActionAt(event.target.value)} />
               </div>
               <button type="button" onClick={() => void savePanel()} disabled={isSavingPanel || pendingRefresh} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:bg-slate-300">{isSavingPanel ? '保存中...' : '右パネルから保存する'}</button>

@@ -46,6 +46,7 @@ export default function AppShell({
   const [storeContextState, setStoreContextState] = useState<'loading' | 'active' | 'selection_required' | 'no_access'>('loading');
   const [isSwitchingStore, setIsSwitchingStore] = useState(false);
   const [storeSwitchError, setStoreSwitchError] = useState('');
+  const [ownerPreview] = useState(() => typeof document !== 'undefined' && document.cookie.split(';').some((cookie) => cookie.trim() === 'garage_owner_preview=1'));
   const shellBackground = 'bg-[#F6F8FC]';
   const headerBorderClass = 'border-blue-100';
 
@@ -105,7 +106,7 @@ export default function AppShell({
       <AppSidebar activeLabel={activeLabel} />
 
       <section className="min-w-0 flex-1 pb-24 lg:pb-0">
-        <header className={`sticky top-0 z-20 border-b bg-white/95 px-4 py-4 backdrop-blur sm:px-6 lg:px-8 ${headerBorderClass}`}>
+        <header className={`sticky top-0 z-[var(--z-app-header)] border-b bg-white/95 px-4 py-4 backdrop-blur sm:px-6 lg:px-8 ${headerBorderClass}`}>
           <div className="mx-auto flex max-w-[1440px] flex-col gap-4">
             <div className="flex flex-wrap items-center justify-end gap-2">
                 <Link href="/help" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:bg-slate-50">
@@ -161,6 +162,13 @@ export default function AppShell({
               <p role="alert" className="mx-4 mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700 sm:mx-6 lg:mx-8">
                 {storeSwitchError}
               </p>
+            )}
+
+            {ownerPreview && (
+              <div role="status" className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-black text-amber-900 sm:mx-6 lg:mx-8">
+                <span className="block">STAGING OWNER PREVIEW</span>
+                <span className="block text-xs font-bold">合成データ・外部送信なし</span>
+              </div>
             )}
 
             <div className="relative mx-auto max-w-[1440px] p-4 sm:p-6 lg:p-8">

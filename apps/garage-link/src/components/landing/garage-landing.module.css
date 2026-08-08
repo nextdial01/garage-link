@@ -3,7 +3,7 @@
   --navy: #062341;
   --navy-deep: #031a32;
   --green: #00b864;
-  --green-dark: #078a4d;
+  --green-dark: #067341;
   --mint: #eaf8f1;
   --line: rgba(7, 35, 65, 0.14);
   min-height: 100vh;
@@ -219,7 +219,7 @@
 .footer .container { display: grid; grid-template-columns: 180px 1fr auto; align-items: center; gap: 30px; }
 .footerLogo { width: 170px; height: 56px; object-fit: contain; }
 .footer nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px 17px; }
-.footer a, .footer p { color: #6c7f8e; font-size: 9px; text-decoration: none; }
+.footer a, .footer p { color: #53677a; font-size: 9px; text-decoration: none; }
 .footer p { margin: 0; white-space: nowrap; }
 .mobileStickyCta { display: none; }
 

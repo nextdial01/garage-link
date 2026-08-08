@@ -3,7 +3,7 @@
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
@@ -53,6 +53,15 @@ const initialItems = [
   { item_type: 'vehicle', vehicle_id: '', part_sku: '', management_no: '', item_name: '', location_name: '', system_quantity: '1', actual_quantity: '', difference_quantity: '', check_status: 'unchecked', memo: '' },
 ];
 
+type VehicleOption = {
+  id: string;
+  management_no: string | null;
+  maker: string | null;
+  model_name: string | null;
+  deleted_at?: string | null;
+  is_archived?: boolean | null;
+};
+
 function toArray(value: string) {
   return value.split(',').map((item) => item.trim()).filter(Boolean);
 }
@@ -61,8 +70,29 @@ export default function NewInventoryCountPage() {
   const router = useRouter();
   const [form, setForm] = useState(initialForm);
   const [items, setItems] = useState(initialItems);
+  const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    async function loadVehicles() {
+      try {
+        const supabase = createClient();
+        const storeId = await getStoreId();
+        const { data, error } = await supabase
+          .from<VehicleOption>('vehicles')
+          .select('id, management_no, maker, model_name, deleted_at, is_archived')
+          .eq('store_id', storeId)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        setVehicles((data ?? []).filter((vehicle) => !vehicle.deleted_at && vehicle.is_archived !== true));
+      } catch (error) {
+        setErrorMessage(toUserErrorMessage(error, '車両候補の取得に失敗しました。'));
+      }
+    }
+
+    void loadVehicles();
+  }, []);
 
   function updateField(name: keyof typeof initialForm, value: string) {
     setForm((current) => ({ ...current, [name]: value }));
@@ -70,6 +100,17 @@ export default function NewInventoryCountPage() {
 
   function updateItem(index: number, key: keyof typeof initialItems[number], value: string) {
     setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
+  }
+
+  function updateVehicleItem(index: number, vehicleId: string) {
+    const vehicle = vehicles.find((item) => item.id === vehicleId);
+    setItems((current) => current.map((item, itemIndex) => itemIndex === index ? {
+      ...item,
+      item_type: 'vehicle',
+      vehicle_id: vehicleId,
+      management_no: vehicle?.management_no ?? '',
+      item_name: [vehicle?.maker, vehicle?.model_name].filter(Boolean).join(' '),
+    } : item));
   }
 
   async function getStoreId() {
@@ -181,19 +222,32 @@ export default function NewInventoryCountPage() {
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-5">
             <div>
               <h3 className="text-lg font-bold text-slate-950">棚卸し明細</h3>
-              <p className="mt-1 text-sm text-slate-500">まずは手入力で明細を登録できます。</p>
+              <p className="mt-1 text-sm text-slate-500">車両は登録済み車両を選択してください。部品はSKUを入力できます。</p>
             </div>
             <button type="button" onClick={() => setItems((current) => [...current, initialItems[0]])} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700">明細追加</button>
           </div>
           <div className="overflow-x-auto p-5">
             <table className="w-full min-w-[1100px] text-left text-sm">
               <thead className="bg-slate-50 text-xs font-bold text-slate-500">
-                <tr>{['種別','SKU','管理番号','品名','場所','帳簿数','実数','差異','状態','メモ'].map((h)=><th key={h} className="px-3 py-3">{h}</th>)}</tr>
+                <tr>{['種別','対象車両','SKU','管理番号','品名','場所','帳簿数','実数','差異','状態','メモ'].map((h)=><th key={h} className="px-3 py-3">{h}</th>)}</tr>
               </thead>
               <tbody>
                 {items.map((item, index) => (
                   <tr key={index} className="border-t border-slate-100">
-                    {(['item_type','part_sku','management_no','item_name','location_name','system_quantity','actual_quantity','difference_quantity','check_status','memo'] as (keyof typeof item)[]).map((key) => (
+                    <td className="px-3 py-3">
+                      <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" value={item.item_type} onChange={(e) => updateItem(index, 'item_type', e.target.value)} />
+                    </td>
+                    <td className="px-3 py-3">
+                      <select aria-label={`明細${index + 1}の対象車両`} className="w-full min-w-48 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" value={item.vehicle_id} onChange={(e) => updateVehicleItem(index, e.target.value)}>
+                        <option value="">未選択</option>
+                        {vehicles.map((vehicle) => (
+                          <option key={vehicle.id} value={vehicle.id}>
+                            {[vehicle.management_no, vehicle.maker, vehicle.model_name].filter(Boolean).join(' / ') || '車両名未設定'}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    {(['part_sku','management_no','item_name','location_name','system_quantity','actual_quantity','difference_quantity','check_status','memo'] as (keyof typeof item)[]).map((key) => (
                       <td key={key} className="px-3 py-3">
                         <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" value={item[key]} onChange={(e) => updateItem(index, key, e.target.value)} />
                       </td>

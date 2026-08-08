@@ -73,31 +73,35 @@ function PrimaryLink({
   const chips = (tab === 'menu' ? counts.menu : counts[tab]) ?? [];
 
   return (
-    <div
-      className={`w-full rounded-2xl border px-4 py-3 transition ${
+    <div className="relative w-full">
+      <Link
+        href={meta.href}
+        aria-current={active ? 'page' : undefined}
+        className={`block w-full rounded-2xl border px-4 py-3 pr-14 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${
         active
           ? 'border-[#123B6A] bg-[#123B6A] text-white shadow-sm'
           : 'border-slate-200 bg-white text-slate-800 hover:border-blue-200 hover:bg-blue-50/60'
       }`}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <Link href={meta.href} className={`min-w-0 flex-1 py-1 text-sm font-black ${active ? 'text-white' : 'text-slate-900'}`}>
+      >
+        <div className="min-w-0 py-1 text-sm font-black">
           {meta.label}
-        </Link>
+        </div>
+        {chips.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {chips.map((chip) => (
+              <span
+                key={`${meta.key}-${chip.label}`}
+                className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black ring-1 ${active ? 'bg-white/15 text-white ring-white/10' : toneClass(chip.tone)}`}
+              >
+                {chip.label} {chip.value}
+              </span>
+            ))}
+          </div>
+        )}
+      </Link>
+      <div className="absolute right-4 top-4">
         <ContextHelp title={meta.label} description={meta.description} inverted={active} />
       </div>
-      {chips.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {chips.map((chip) => (
-            <span
-              key={`${meta.key}-${chip.label}`}
-              className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-black ring-1 ${active ? 'bg-white/15 text-white ring-white/10' : toneClass(chip.tone)}`}
-            >
-              {chip.label} {chip.value}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -174,10 +178,10 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5">
+        <nav aria-label="メインナビゲーション" className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5">
           <section>
             <div className="mb-3 flex items-center justify-between px-1">
-              <p className="text-xs font-black tracking-[0.18em] text-slate-500">よく使う画面</p>
+              <p className="text-xs font-black tracking-[0.18em] text-slate-600">よく使う画面</p>
               {(role === 'owner' || role === 'admin') && (
                 <Link href="/settings/store" className="text-xs font-bold text-blue-700 hover:underline">
                   主タブを変更
@@ -203,7 +207,7 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`flex items-center justify-between gap-3 rounded-2xl px-3 py-3 transition ${
+                      className={`flex items-center justify-between gap-3 rounded-2xl px-3 py-3 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${
                         active ? 'bg-blue-50 text-blue-800' : 'text-slate-700 hover:bg-slate-50'
                       }`}
                     >
@@ -223,7 +227,7 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
               </div>
             </section>
           ))}
-        </div>
+        </nav>
 
         <div className="border-t border-slate-200 px-4 py-4">
           <Link
@@ -235,7 +239,7 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
         </div>
       </aside>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-[var(--z-app-navigation)] border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur lg:hidden">
         <div className="grid grid-cols-5 gap-2">
           {mobileTabs.map((tab) => {
             const meta = getPrimaryTabMeta(tab);

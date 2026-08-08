@@ -521,7 +521,7 @@ function KpiCard({ label, value, detail }: { label: string; value: string; detai
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <p className="text-sm font-black text-slate-500">{label}</p>
       <p className="mt-2 text-3xl font-black text-slate-950">{value}</p>
-      <p className="mt-2 text-xs font-semibold text-slate-400">{detail}</p>
+      <p className="mt-2 text-xs font-semibold text-slate-500">{detail}</p>
     </section>
   );
 }

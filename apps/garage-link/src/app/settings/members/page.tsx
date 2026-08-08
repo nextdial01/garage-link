@@ -149,6 +149,7 @@ export default function MemberSettingsPage() {
   const [subscription, setSubscription] = useState<CompanySubscriptionRow | null>(null);
   const [contractStaffCount, setContractStaffCount] = useState(0);
   const [members, setMembers] = useState<MemberFormRow[]>([]);
+  const [persistedMembers, setPersistedMembers] = useState<MemberFormRow[]>([]);
   const [newMember, setNewMember] = useState<NewMemberForm>(emptyNewMember);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -210,6 +211,7 @@ export default function MemberSettingsPage() {
 
       if (!allowedViewRoles.includes(currentMember.role ?? '')) {
         setMembers([]);
+        setPersistedMembers([]);
         return;
       }
 
@@ -219,7 +221,9 @@ export default function MemberSettingsPage() {
         .eq('tenant_id', currentMember.tenant_id)
         .order('created_at', { ascending: true });
       if (error) throw new Error(error.message);
-      setMembers((data ?? []).map(mapMember));
+      const loadedMembers = (data ?? []).map(mapMember);
+      setMembers(loadedMembers);
+      setPersistedMembers(loadedMembers);
     } catch (error) {
       setErrorMessage(toUserErrorMessage(error, 'メンバー情報の取得に失敗しました。'));
     } finally {
@@ -306,23 +310,25 @@ export default function MemberSettingsPage() {
       setSuccessMessage('');
       if (!canEdit) throw new Error('メンバーを編集する権限がありません。');
       const supabase = createClient();
-      const beforeMember = members.find((item) => item.id === member.id);
+      const beforeMember = persistedMembers.find((item) => item.id === member.id);
       if (!beforeMember) throw new Error('更新対象が見つかりません。');
 
       if (member.role !== beforeMember.role) {
-        const { error } = await supabase.rpc('change_membership_role', {
+        const { data, error } = await supabase.rpc('change_membership_role', {
           p_membership_id: member.id,
           p_role: member.role,
         });
         if (error) throw new Error(error.message);
+        if (!(data as { ok?: boolean } | null)?.ok) throw new Error('権限変更を完了できませんでした。');
       }
 
       if (member.status !== beforeMember.status) {
         const rpcName = beforeMember.status === 'invited'
           ? 'cancel_membership_invite'
           : 'deactivate_membership';
-        const { error } = await supabase.rpc(rpcName, { p_membership_id: member.id });
+        const { data, error } = await supabase.rpc(rpcName, { p_membership_id: member.id });
         if (error) throw new Error(error.message);
+        if (!(data as { ok?: boolean } | null)?.ok) throw new Error('ステータス変更を完了できませんでした。');
       }
 
       await logAudit({

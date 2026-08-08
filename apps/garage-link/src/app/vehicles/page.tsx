@@ -248,7 +248,7 @@ export default function VehiclesPage() {
           <div key={stat.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold text-slate-500">{stat.label}</p>
             <p className="mt-3 text-3xl font-black text-slate-950">{stat.value}</p>
-            <p className="mt-2 text-xs font-semibold text-slate-400">{stat.detail}</p>
+            <p className="mt-2 text-xs font-semibold text-slate-500">{stat.detail}</p>
           </div>
         ))}
       </div>
@@ -282,6 +282,7 @@ export default function VehiclesPage() {
                 />
 
                 <select
+                  aria-label="車両ステータス"
                   value={statusFilter}
                   onChange={(event) => setStatusFilter(event.target.value)}
                   className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
@@ -340,19 +341,19 @@ export default function VehiclesPage() {
 
                     <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-4">
                       <div>
-                        <p className="text-xs font-bold text-slate-400">販売価格</p>
+                        <p className="text-xs font-bold text-slate-600">販売価格</p>
                         <p className="mt-1 font-bold text-slate-900">{formatPrice(price)}</p>
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-slate-400">見込み粗利</p>
+                        <p className="text-xs font-bold text-slate-600">見込み粗利</p>
                         <p className={`mt-1 font-bold ${profit !== null && profit < 0 ? 'text-red-700' : 'text-slate-900'}`}>{formatPrice(profit)}</p>
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-slate-400">在庫日数</p>
+                        <p className="text-xs font-bold text-slate-600">在庫日数</p>
                         <p className={`mt-1 font-bold ${(days ?? 0) > longStayThreshold ? 'text-amber-700' : 'text-slate-900'}`}>{days !== null ? `${days}日` : '-'}</p>
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-slate-400">走行距離</p>
+                        <p className="text-xs font-bold text-slate-600">走行距離</p>
                         <p className="mt-1 font-bold text-slate-900">{formatMileage(vehicle.mileage_km)}</p>
                       </div>
                     </div>
@@ -373,17 +374,17 @@ export default function VehiclesPage() {
             <div className="space-y-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-bold text-slate-400">販売価格</p>
+                  <p className="text-xs font-bold text-slate-600">販売価格</p>
                   <p className="mt-1 text-sm font-black text-slate-950">{formatPrice(selectedVehicle.total_price ?? selectedVehicle.base_price)}</p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-bold text-slate-400">見込み粗利</p>
+                  <p className="text-xs font-bold text-slate-600">見込み粗利</p>
                   <p className="mt-1 text-sm font-black text-slate-950">{formatPrice(expectedProfit(selectedVehicle))}</p>
                 </div>
               </div>
 
               <div>
-                <p className="text-xs font-bold text-slate-400">要確認</p>
+                <p className="text-xs font-bold text-slate-600">要確認</p>
                 <div className="mt-2">{renderAttentionBadges(selectedVehicle)}</div>
               </div>
 

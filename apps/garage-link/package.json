@@ -21,6 +21,10 @@
     "test:e2e": "playwright test",
     "test:e2e:local-chrome": "node scripts/run-local-browser-smoke.mjs",
     "qa:provision": "node scripts/provision-qa-account.mjs",
+    "qa:lifecycle": "node scripts/qa/lifecycle.mjs",
+    "test:qa:lifecycle": "node --test tests/qa/*.test.mjs",
+    "test:qa:manifest": "node scripts/qa/check-migration-lane.mjs",
+    "test:qa:migrations": "bash scripts/qa/run-isolated-migration-lane.sh",
     "test:qa:mobile-logout": "node scripts/run-mobile-logout-qa.mjs",
     "test:e2e:ui": "playwright test --ui",
     "test:db:runner": "node --test tests/db/migration-runner.test.mjs",
@@ -49,6 +53,7 @@
     "stripe": "^22.4.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

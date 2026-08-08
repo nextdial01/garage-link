@@ -1,0 +1,112 @@
+{
+  "formatVersion": 1,
+  "lane": "staging-qa-only",
+  "denylistedProjectRefs": [
+    "wmlpuzuskfiwdipluglz"
+  ],
+  "requiredProjectRef": "gaytoojzwqkpuvfofeql",
+  "entries": [
+    {
+      "version": "20260803000100",
+      "name": "ux_acceptance_admin_bootstrap",
+      "kind": "incremental",
+      "file": "migrations/20260803000100_ux_acceptance_admin_bootstrap.sql",
+      "checksum": "5f23fc14efe6a543fc2858253822bc897cd3c3bddf83cc905805abd06890c966"
+    },
+    {
+      "version": "20260804033831",
+      "name": "qa_lifecycle_framework",
+      "kind": "incremental",
+      "file": "migrations/20260804033831_qa_lifecycle_framework.sql",
+      "checksum": "a772f5b107e026d854d2692d1eab93a406bdeecbf1a2610bd742739c64f1a8be"
+    },
+    {
+      "version": "20260804041844",
+      "name": "qa_lifecycle_canary_provision",
+      "kind": "repair",
+      "file": "migrations/20260804041844_qa_lifecycle_canary_provision.sql",
+      "dependsOn": [
+        "20260804033831"
+      ],
+      "checksum": "89e3117bad8bdab52d5fa43e4593e597724b6e8a82e9c79a7bbdef7618cbb2df"
+    },
+    {
+      "version": "20260804042546",
+      "name": "qa_lifecycle_preview_auth",
+      "kind": "repair",
+      "file": "migrations/20260804042546_qa_lifecycle_preview_auth.sql",
+      "dependsOn": [
+        "20260804033831",
+        "20260804041844"
+      ],
+      "checksum": "b15f2ba58e52c0cc1976cc5affe502aac10fb3bb5433d7de3f17d18351f0d6ca"
+    },
+    {
+      "version": "20260804043651",
+      "name": "qa_lifecycle_adopt_fixture",
+      "kind": "repair",
+      "file": "migrations/20260804043651_qa_lifecycle_adopt_fixture.sql",
+      "dependsOn": [
+        "20260804033831"
+      ],
+      "checksum": "005d1103ceb3e9d07cefd4146f1474b47161ec11944e8204b3eb3a8e38e13a51"
+    },
+    {
+      "version": "20260804130008",
+      "name": "owner_preview_contract",
+      "kind": "incremental",
+      "file": "migrations/20260804130008_owner_preview_contract.sql",
+      "dependsOn": [
+        "20260804043651"
+      ],
+      "checksum": "237fa77c259aacaf56dff72c94c7e1294a95a09fa545db74454593b8d13a4954"
+    },
+    {
+      "version": "20260804133000",
+      "name": "owner_preview_reset_hardening",
+      "kind": "repair",
+      "file": "migrations/20260804133000_owner_preview_reset_hardening.sql",
+      "dependsOn": [
+        "20260804130008"
+      ],
+      "checksum": "078fde0c193b0639630f02814ba047575e7b4251a856e86abc191cc5a2b56834"
+    }
+  ],
+  "rollbacks": [
+    {
+      "version": "20260804133000",
+      "file": "rollback/20260804133000_owner_preview_reset_hardening.down.sql",
+      "checksum": "e2818c74c65253962e9f13a8e57f3973a3733e229e119bf3c0459602db6d12a2"
+    },
+    {
+      "version": "20260804130008",
+      "file": "rollback/20260804130008_owner_preview_contract.down.sql",
+      "checksum": "85d4b7aaa168e0fe06552fcbf9719c80d94df24c487623f1b58fe7a461c44352"
+    },
+    {
+      "version": "20260804043651",
+      "file": "rollback/20260804043651_qa_lifecycle_adopt_fixture.down.sql",
+      "checksum": "9ee3045c65e7c6c6e5ab6042359a7a3dd362d4f84f70580955e3b01e4b74d85c"
+    },
+    {
+      "version": "20260804042546",
+      "file": "rollback/20260804042546_qa_lifecycle_preview_auth.down.sql",
+      "checksum": "2f15b5cbf10ccb88cd69073bbce4e362186deed8941b5e72fa54ca9b81d30e58"
+    },
+    {
+      "version": "20260804041844",
+      "file": "rollback/20260804041844_qa_lifecycle_canary_provision.down.sql",
+      "checksum": "bc21a53416055f6d33d2a86d1b572f2a1a21afb162b6eda60b72fa348fb9d763"
+    },
+    {
+      "version": "20260804033831",
+      "file": "rollback/20260804033831_qa_lifecycle_framework.down.sql",
+      "checksum": "dcc1eede03311f597be750c1291ad98f9fb4c8d4355cfde9aa3d005b06ffae13"
+    },
+    {
+      "version": "20260803000100",
+      "file": "rollback/20260803000100_ux_acceptance_admin_bootstrap.down.sql",
+      "checksum": "83d67715ddbc640b6e4e46ebb10bb959a5ddef1d682b4fdf11c1b923c43ecfe1"
+    }
+  ]
+}

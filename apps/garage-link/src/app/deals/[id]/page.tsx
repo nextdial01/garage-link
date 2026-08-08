@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import { confirmAction, promptAction } from '@/components/ui/actionDialog';
 import SoftDeleteButton from '@/components/SoftDeleteButton';
 import {
   emptyTradeIn,
@@ -577,17 +578,27 @@ export default function DealDetailPage() {
   }
 
   async function cancelDocument(tableName: 'quotes' | 'invoices', documentId: string) {
-    const confirmed = window.confirm('この帳票を取消済みにします。よろしいですか？');
-
-    if (!confirmed) {
-      return;
+    if (tableName === 'quotes') {
+      const confirmed = await confirmAction({
+        title: '見積書を取り消す',
+        description: 'この見積書を取消済みに変更します。',
+        confirmLabel: '見積書を取り消す',
+        tone: 'danger',
+      });
+      if (!confirmed) return;
     }
 
     setErrorMessage('');
 
     try {
       if (tableName === 'invoices') {
-        const reason = window.prompt('請求書を取消する理由を入力してください（3文字以上）。');
+        const reason = await promptAction({
+          title: '請求書を取り消す',
+          description: '取消理由を入力して確認してください。',
+          confirmLabel: '請求書を取り消す',
+          tone: 'danger',
+          input: { label: '取消理由', minLength: 3, placeholder: '3文字以上で入力' },
+        });
         if (reason === null) return;
         const response = await fetch(`/api/invoices/${documentId}/void`, {
           method: 'POST',

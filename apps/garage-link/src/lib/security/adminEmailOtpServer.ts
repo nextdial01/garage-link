@@ -16,14 +16,30 @@ export async function getAuthenticatedAdminContext(
   const user = userData.user;
   const sessionId = typeof claimsData?.claims?.session_id === 'string' ? claimsData.claims.session_id : '';
   if (!user?.id || !user.email || !sessionId) return null;
-  const rpcName = options.requireReleaseQa
-    ? 'release_qa_admin_bootstrap_context'
-    : 'admin_email_otp_bootstrap_context';
-  const rpcArgs = options.requireReleaseQa
-    ? { p_user_id: user.id, p_session_id: sessionId, p_environment: process.env.VERCEL_ENV ?? 'development' }
-    : { p_user_id: user.id, p_session_id: sessionId };
-  const { data: bootstrap, error: bootstrapError } = await service.rpc(rpcName, rpcArgs);
-  if (bootstrapError || !bootstrap || typeof bootstrap !== 'object' || Array.isArray(bootstrap)) return null;
+  const rpcCalls = options.requireReleaseQa
+    ? [
+        service.rpc('release_qa_admin_bootstrap_context', {
+          p_user_id: user.id,
+          p_session_id: sessionId,
+          p_environment: process.env.VERCEL_ENV ?? 'development',
+        }),
+        service.rpc('ux_acceptance_admin_bootstrap_context', {
+          p_user_id: user.id,
+          p_session_id: sessionId,
+          p_environment: process.env.VERCEL_ENV ?? 'development',
+        }),
+      ]
+    : [service.rpc('admin_email_otp_bootstrap_context', { p_user_id: user.id, p_session_id: sessionId })];
+  let bootstrap: unknown = null;
+  for (const rpcCall of rpcCalls) {
+    const result = await rpcCall;
+    if (result.error) return null;
+    if (result.data && typeof result.data === 'object' && !Array.isArray(result.data)) {
+      bootstrap = result.data;
+      break;
+    }
+  }
+  if (!bootstrap || typeof bootstrap !== 'object' || Array.isArray(bootstrap)) return null;
   const context = bootstrap as {
     user_id?: unknown;
     email?: unknown;

@@ -234,7 +234,7 @@
 
 .microcopy {
   margin: 15px 0 0;
-  color: #64758a;
+  color: #53677a;
   font-size: 12px;
   line-height: 1.75;
 }
@@ -282,7 +282,7 @@
 }
 
 .facts span {
-  color: #64758a;
+  color: #53677a;
   font-size: 13px;
   line-height: 1.6;
 }
@@ -626,7 +626,7 @@
   padding: 24px;
   border-top: 1px solid rgba(15, 53, 90, 0.11);
   background: #f5f8fb;
-  color: #64758a;
+  color: #53677a;
   font-size: 12px;
 }
 

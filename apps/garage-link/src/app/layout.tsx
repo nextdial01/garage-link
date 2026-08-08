@@ -3,6 +3,7 @@ import { GarageAnalytics } from "@/components/analytics/GarageAnalytics";
 import "./globals.css";
 
 const metadataBase = new URL("https://garage-link.tech");
+const isStagingDeployment = process.env.GARAGE_DEPLOYMENT_ENV === "staging";
 
 export const metadata: Metadata = {
   metadataBase,
@@ -16,6 +17,14 @@ export const metadata: Metadata = {
   description:
     "中古車販売店・バイクショップ・整備工場の在庫、顧客、商談、見積、請求、整備をひとつにまとめる店舗管理ツールです。",
   applicationName: "GARAGE LINK",
+  robots: isStagingDeployment
+    ? {
+        index: false,
+        follow: false,
+        noarchive: true,
+        nosnippet: true,
+      }
+    : undefined,
   icons: {
     icon: [
       {

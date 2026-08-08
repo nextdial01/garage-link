@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { logAudit } from '@/lib/audit/logAudit';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 type StoreMemberRow = {
   store_id: string;
@@ -45,19 +46,17 @@ export default function SoftDeleteButton({
 }: SoftDeleteButtonProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   async function handleSoftDelete() {
     if (!storeId || !rowId) {
       return;
     }
 
-    const confirmed = window.confirm(`${targetLabel}を削除します。一覧から非表示になり、ゴミ箱 / アーカイブから復元できます。よろしいですか？`);
-    if (!confirmed) {
-      return;
-    }
-
     try {
       setIsDeleting(true);
+      setErrorMessage('');
       const supabase = createClient();
       const { data: userData, error: userError } = await supabase.auth.getUser();
 
@@ -105,15 +104,28 @@ export default function SoftDeleteButton({
 
       router.push(redirectHref);
     } catch (error) {
-      window.alert(toUserErrorMessage(error, '削除に失敗しました。'));
+      setErrorMessage(toUserErrorMessage(error, '削除に失敗しました。時間をおいて再試行してください。'));
+      setConfirmOpen(false);
     } finally {
       setIsDeleting(false);
     }
   }
 
   return (
-    <button type="button" onClick={() => void handleSoftDelete()} disabled={isDeleting || !storeId} className={className}>
-      {isDeleting ? '削除中...' : label}
-    </button>
+    <>
+      <button type="button" onClick={() => setConfirmOpen(true)} disabled={isDeleting || !storeId} className={className}>
+        {isDeleting ? '削除中...' : label}
+      </button>
+      {errorMessage && <p role="alert" className="mt-2 text-sm font-bold text-red-700">{errorMessage}</p>}
+      <ConfirmDialog
+        open={confirmOpen}
+        title={`${targetLabel}を削除しますか？`}
+        description="削除すると一覧から非表示になります。データは完全削除されず、ゴミ箱 / アーカイブから復元できます。"
+        confirmLabel="一覧から削除する"
+        busy={isDeleting}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={() => void handleSoftDelete()}
+      />
+    </>
   );
 }

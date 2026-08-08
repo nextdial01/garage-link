@@ -20,6 +20,19 @@ test.describe('利用者向けエラー境界', () => {
     );
     expect(toUserErrorMessage(new Error('Network request failed'), '取得に失敗しました。')).toBe('取得に失敗しました。');
     expect(toUserErrorMessage(new Error('保存対象が見つかりません。'), '保存に失敗しました。')).toBe('保存に失敗しました。');
+    expect(toUserErrorMessage(
+      new Error('duplicate key value violates unique constraint "inventory_counts_one_active_store_uidx"'),
+      '保存に失敗しました。',
+    )).toBe('棚卸し中の案件が既にあります。一覧から既存の棚卸しを再開してください。');
+    expect(toUserErrorMessage(new Error('最後のownerは降格できません。'), '保存に失敗しました。')).toBe(
+      '最後のオーナーは降格できません。先に別のメンバーをオーナーへ変更してください。',
+    );
+    expect(toUserErrorMessage(new Error('最後のownerは無効化できません。'), '保存に失敗しました。')).toBe(
+      '最後のオーナーは無効化できません。先に別のメンバーをオーナーへ変更してください。',
+    );
+    expect(toUserErrorMessage(new Error('roleを変更する権限がありません。'), '保存に失敗しました。')).toBe(
+      'このメンバーを変更する権限がありません。操作対象と自分の権限を確認してください。',
+    );
   });
 
   test('画面のcatchで例外messageを状態やalertへ直接渡さない', async () => {

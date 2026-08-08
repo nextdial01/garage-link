@@ -10,7 +10,7 @@
 }
 .routeBody * { box-sizing: border-box; }
 .shell { width: min(1160px, calc(100% - 48px)); margin: 0 auto; }
-.eyebrow { margin: 0 0 16px; color: #258553; font-size: 13px; font-weight: 900; letter-spacing: .13em; }
+.eyebrow { margin: 0 0 16px; color: #176d3d; font-size: 13px; font-weight: 900; letter-spacing: .13em; }
 .heroLead { max-width: 720px; margin: 22px auto 0; color: var(--muted); font-size: 17px; line-height: 1.85; }
 .headlineLine { display:block; word-break:keep-all; }
 .pricingHero h1, .vehicleHero h1, .dualHero h1, .scheduleHero h1, .faqHero h1 { margin: 0; font-size: clamp(38px,5vw,66px); line-height: 1.2; letter-spacing: -.035em; }
@@ -59,7 +59,7 @@
 .metrics span { color:var(--muted); font-size:13px; }
 .actionPanel ol { margin:0; padding:0; list-style:none; counter-reset:job; }
 .actionPanel li { counter-increment:job; display:flex; gap:14px; padding:14px 0; border-top:1px solid var(--line); }
-.actionPanel li::before { content:counter(job,decimal-leading-zero); color:#258553; font-weight:900; }
+.actionPanel li::before { content:counter(job,decimal-leading-zero); color:#176d3d; font-weight:900; }
 
 .dualHero { padding:80px 0; background:linear-gradient(120deg,#f7faf8 0 50%,#eef3f9 50%); }
 .dualBoard { display:grid; grid-template-columns:1fr 80px 1fr; gap:0; margin-top:42px; align-items:stretch; }
@@ -73,11 +73,12 @@
 .merge { display:grid; place-items:center; background:#dff3e6; color:#17472f; font-weight:900; writing-mode:vertical-rl; letter-spacing:.16em; }
 .workTable { border-top:2px solid var(--navy); }
 .workRow { display:grid; grid-template-columns:180px 1fr 1fr; gap:28px; padding:24px 0; border-bottom:1px solid var(--line); }
-.workRow > span { color:#258553; font-weight:900; }
+.workRow > span { color:#176d3d; font-weight:900; }
 .workRow h3 { margin:0; font-size:20px; }
 .workRow p { margin:0; color:var(--muted); line-height:1.75; }
 
 .scheduleHero { padding:80px 0 70px; background:#0d2344; color:#fff; }
+.scheduleHero .eyebrow { color:#72d493; }
 .scheduleHero .heroLead { color:#c4d0df; }
 .daySchedule { margin-top:40px; border-top:1px solid rgba(255,255,255,.2); }
 .slot { display:grid; grid-template-columns:90px 190px 1fr 160px; gap:22px; padding:18px 0; border-bottom:1px solid rgba(255,255,255,.16); align-items:center; }
@@ -87,7 +88,7 @@
 .slot span { padding:7px 10px; border:1px solid rgba(255,255,255,.2); text-align:center; font-size:12px; font-weight:800; }
 .caseFlow { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
 .caseFlow article { padding:24px; border-top:5px solid var(--green); background:#f5f8f6; }
-.caseFlow span { color:#258553; font-size:12px; font-weight:900; }
+.caseFlow span { color:#176d3d; font-size:12px; font-weight:900; }
 .caseFlow h3 { margin:18px 0 8px; font-size:20px; }
 .caseFlow p { margin:0; color:var(--muted); line-height:1.7; }
 
