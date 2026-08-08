@@ -6,7 +6,7 @@ test.describe('UX acceptance regression contracts', () => {
     const [source, serverContext, migration] = await Promise.all([
       readFile('src/lib/security/previewOtpSink.ts', 'utf8'),
       readFile('src/lib/security/adminEmailOtpServer.ts', 'utf8'),
-      readFile('supabase/migrations/20260803000100_ux_acceptance_admin_bootstrap.sql', 'utf8'),
+      readFile('supabase/qa/migrations/20260803000100_ux_acceptance_admin_bootstrap.sql', 'utf8'),
     ]);
     expect(source).toContain('VERCEL_PROJECT_PRODUCTION_URL');
     expect(source).toContain("process.env.VERCEL_ENV === 'preview'");

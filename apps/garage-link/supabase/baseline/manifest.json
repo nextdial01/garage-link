@@ -526,17 +526,6 @@
         "20260802000200"
       ],
       "checksum": "c7faa1e6484674829deaf22d80e1bda5a3b4224a52322b8bafcb1857ed7056d4"
-    },
-    {
-      "version": "20260803000100",
-      "name": "ux_acceptance_admin_bootstrap",
-      "file": "../migrations/20260803000100_ux_acceptance_admin_bootstrap.sql",
-      "kind": "incremental",
-      "dependsOn": [
-        "20260728000200",
-        "20260802000300"
-      ],
-      "checksum": "5f23fc14efe6a543fc2858253822bc897cd3c3bddf83cc905805abd06890c966"
     }
   ],
   "excluded": [
@@ -557,11 +546,6 @@
     }
   ],
   "rollbacks": [
-    {
-      "version": "20260803000100",
-      "file": "../rollback/20260803000100_ux_acceptance_admin_bootstrap.down.sql",
-      "checksum": "83d67715ddbc640b6e4e46ebb10bb959a5ddef1d682b4fdf11c1b923c43ecfe1"
-    },
     {
       "version": "20260802000300",
       "file": "../rollback/20260802000300_ll_legacy_policies_authenticated_only.down.sql",

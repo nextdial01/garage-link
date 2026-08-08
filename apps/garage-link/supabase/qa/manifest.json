@@ -7,6 +7,13 @@
   "requiredProjectRef": "gaytoojzwqkpuvfofeql",
   "entries": [
     {
+      "version": "20260803000100",
+      "name": "ux_acceptance_admin_bootstrap",
+      "kind": "incremental",
+      "file": "migrations/20260803000100_ux_acceptance_admin_bootstrap.sql",
+      "checksum": "5f23fc14efe6a543fc2858253822bc897cd3c3bddf83cc905805abd06890c966"
+    },
+    {
       "version": "20260804033831",
       "name": "qa_lifecycle_framework",
       "kind": "incremental",
@@ -95,6 +102,11 @@
       "version": "20260804033831",
       "file": "rollback/20260804033831_qa_lifecycle_framework.down.sql",
       "checksum": "dcc1eede03311f597be750c1291ad98f9fb4c8d4355cfde9aa3d005b06ffae13"
+    },
+    {
+      "version": "20260803000100",
+      "file": "rollback/20260803000100_ux_acceptance_admin_bootstrap.down.sql",
+      "checksum": "83d67715ddbc640b6e4e46ebb10bb959a5ddef1d682b4fdf11c1b923c43ecfe1"
     }
   ]
 }
