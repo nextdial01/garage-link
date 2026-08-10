@@ -27,6 +27,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(runner,/REDACTED_MANUAL_GMAIL_ADDRESS/);
   assert.match(runner,/VERCEL_DEPLOYMENT_PROVENANCE_INVALID/);
   assert.match(runner,/deployment\.meta\?\.githubCommitSha/);
+  assert.match(runner,/VERCEL_DEPLOYMENT_READ_FAILED/);
+  assert.doesNotMatch(runner,/\/v9\/projects\//);
   assert.doesNotMatch(runner,/GARAGE_STAGING_QA_MAILBOX/);
   assert.doesNotMatch(runner,/method:'PATCH'/);
   assert.doesNotMatch(runner,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);

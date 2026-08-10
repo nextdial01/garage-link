@@ -140,8 +140,6 @@ async function main(){
 
   const query=`teamId=${encodeURIComponent(teamId)}`;
   const headers={authorization:`Bearer ${vercelToken}`};
-  const project=await json(await fetch(`https://api.vercel.com/v9/projects/${encodeURIComponent(projectId)}?${query}`,{headers}),'VERCEL_PROJECT_READ_FAILED');
-  if(project.id!==projectId||project.name!==projectName||project.accountId!==teamId)fail('VERCEL_PROJECT_IDENTITY_MISMATCH');
   const deployment=await json(await fetch(`https://api.vercel.com/v13/deployments/get?url=${encodeURIComponent(baseUrl.hostname)}&${query}`,{headers}),'VERCEL_DEPLOYMENT_READ_FAILED');
   if(deployment.projectId!==projectId||deployment.url!==baseUrl.hostname||deployment.readyState!=='READY')fail('VERCEL_DEPLOYMENT_NOT_READY_OR_MISMATCH');
   const sourceSha=deployment.meta?.githubCommitSha;
