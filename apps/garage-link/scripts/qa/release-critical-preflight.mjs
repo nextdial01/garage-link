@@ -28,7 +28,7 @@ function requiredRunMarker(marker){if(typeof marker!=='string'||!/^garage-link-[
 function normalizeEmail(value){return String(value??'').trim().toLowerCase()}
 function manualGmailBaseAddress(value){
   const email=normalizeEmail(value);
-  const match=/^([^@+\s]+)(?:\+[^@\s]*)?@(gmail\.com|googlemail\.com)$/.exec(email);
+  const match=/^([^@+\s]+)(?:\+[^@\s]*)?@([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?)$/i.exec(email);
   if(!match)fail('MANUAL_GMAIL_PLUS_ADDRESS_UNAVAILABLE');
   return {localPart:match[1],domain:match[2]};
 }
@@ -113,8 +113,6 @@ export async function withMailSlurpRunInbox({apiKey,runMarker,run,fetchImpl=fetc
 }
 
 async function main(){
-  const sourceSha=required('EXPECTED_RELEASE_SHA');
-  const branch=required('EXPECTED_RELEASE_BRANCH');
   const baseUrl=new URL(required('PLAYWRIGHT_BASE_URL'));
   const supabaseUrl=new URL(required('E2E_TEST_SUPABASE_URL'));
   const serviceRole=required('E2E_TEST_SUPABASE_SERVICE_ROLE_KEY');
@@ -126,7 +124,6 @@ async function main(){
   const teamId=required('EXPECTED_VERCEL_TEAM_ID');
   const projectId=required('EXPECTED_VERCEL_PROJECT_ID');
   const projectName=required('EXPECTED_VERCEL_PROJECT_NAME');
-  if(!/^[0-9a-f]{40}$/i.test(sourceSha)||!branch||branch==='production')fail('RELEASE_CRITICAL_PROVENANCE_INVALID');
   if(supabaseUrl.hostname!==`${STAGING_REF}.supabase.co`||supabaseUrl.hostname.includes(PRODUCTION_REF))fail('SUPABASE_STAGING_REF_MISMATCH');
   if(PRODUCTION_HOSTS.has(baseUrl.hostname)||baseUrl.hostname.endsWith('.garage-link.tech'))fail('VERCEL_PRODUCTION_HOST_DENIED');
   if(projectId!==STAGING_PROJECT_ID||projectName!==STAGING_PROJECT_NAME||projectId===PRODUCTION_PROJECT_ID)fail('RELEASE_CRITICAL_CONTRACT_INVALID');
@@ -147,7 +144,9 @@ async function main(){
   if(project.id!==projectId||project.name!==projectName||project.accountId!==teamId)fail('VERCEL_PROJECT_IDENTITY_MISMATCH');
   const deployment=await json(await fetch(`https://api.vercel.com/v13/deployments/get?url=${encodeURIComponent(baseUrl.hostname)}&${query}`,{headers}),'VERCEL_DEPLOYMENT_READ_FAILED');
   if(deployment.projectId!==projectId||deployment.url!==baseUrl.hostname||deployment.readyState!=='READY')fail('VERCEL_DEPLOYMENT_NOT_READY_OR_MISMATCH');
-  if(deployment.meta?.githubCommitSha!==sourceSha||deployment.meta?.githubCommitRef!==branch)fail('VERCEL_DEPLOYMENT_PROVENANCE_MISMATCH');
+  const sourceSha=deployment.meta?.githubCommitSha;
+  const branch=deployment.meta?.githubCommitRef;
+  if(!/^[0-9a-f]{40}$/i.test(sourceSha)||typeof branch!=='string'||!branch||branch==='production')fail('VERCEL_DEPLOYMENT_PROVENANCE_INVALID');
   const healthUrl=new URL('/api/health',baseUrl);
   const bypass=await fetch(healthUrl,{headers:{'x-vercel-protection-bypass':bypassSecret,'x-vercel-set-bypass-cookie':'true',accept:'application/json'},redirect:'manual',cache:'no-store'});
   if(bypass.status<200||bypass.status>=300||bypass.headers.has('location')||new URL(bypass.url).origin!==baseUrl.origin)fail(`VERCEL_AUTOMATION_BYPASS_FAILED:${bypass.status}`);

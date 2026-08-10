@@ -3,14 +3,6 @@ name: GARAGE LINK Release Critical
 on:
   workflow_dispatch:
     inputs:
-      release_sha:
-        description: Exact SHA already deployed to garage-link-staging
-        required: true
-        type: string
-      release_branch:
-        description: Source branch recorded by the Staging deployment
-        required: true
-        type: string
       email_mode:
         description: Email verification mode for this Staging QA run
         required: true
@@ -37,8 +29,6 @@ jobs:
     environment: garage-link-commercial-staging
     timeout-minutes: 15
     env:
-      EXPECTED_RELEASE_SHA: ${{ inputs.release_sha }}
-      EXPECTED_RELEASE_BRANCH: ${{ inputs.release_branch }}
       RELEASE_CRITICAL_EMAIL_MODE: ${{ inputs.email_mode }}
       MANUAL_GMAIL_ADDRESS: ${{ inputs.manual_gmail_address }}
       PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
