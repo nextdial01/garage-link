@@ -49,6 +49,16 @@ function canonicalAuthConfigRedirect(target,endpoint){
     && target.pathname.replace(/\/+$/,'')===endpoint.pathname.replace(/\/+$/,''));
 }
 
+export async function fetchVerifiedVercelRequest(url,headers,fetchImpl=fetch){
+  const first=await fetchImpl(url,{headers,redirect:'manual',cache:'no-store'});
+  const firstLocation=first.headers.get('location');
+  const firstDiagnostic=diagnosticResponse(first,firstLocation,url);
+  if(first.status<300||first.status>=400||!firstDiagnostic.same_origin||!firstDiagnostic.same_path)return {response:first,initial:firstDiagnostic};
+  const target=new URL(firstLocation,url);
+  const response=await fetchImpl(target,{headers,redirect:'manual',cache:'no-store'});
+  return {response,initial:firstDiagnostic};
+}
+
 export async function readManagementProfile(token,fetchImpl=fetch){
   const response=await fetchImpl(managementUrl('/v1/profile'),{headers:managementHeaders(token),redirect:'manual',cache:'no-store'});
   return {status:response.status,redirected:response.redirected,url:safeUrlParts(response.url)?{origin:new URL(response.url).origin,pathname:new URL(response.url).pathname}:null};
@@ -210,14 +220,16 @@ async function main(){
   if(!Number.isInteger(passwordMinimum)||passwordMinimum<6||!productionAuth||typeof productionAuth!=='object')fail('SUPABASE_AUTH_CONFIG_INVALID');
 
   const bypassHeaders={'x-vercel-protection-bypass':bypassSecret,'x-vercel-set-bypass-cookie':'true',accept:'application/json'};
-  const provenanceResponse=await fetch(new URL('/api/qa/provenance',baseUrl),{headers:bypassHeaders,redirect:'manual',cache:'no-store'});
+  const provenanceUrl=new URL('/api/qa/provenance',baseUrl);
+  const provenanceRequest=await fetchVerifiedVercelRequest(provenanceUrl,bypassHeaders);
+  const provenanceResponse=provenanceRequest.response;
   if(provenanceResponse.status<200||provenanceResponse.status>=300||provenanceResponse.headers.has('location')||new URL(provenanceResponse.url).origin!==baseUrl.origin){
-    process.stdout.write(`${JSON.stringify({ok:false,state:'PREFLIGHT_VERCEL_REDIRECT_DIAGNOSTIC',vercel_provenance:diagnosticResponse(provenanceResponse,provenanceResponse.headers.get('location'),new URL('/api/qa/provenance',baseUrl))})}\n`);
+    process.stdout.write(`${JSON.stringify({ok:false,state:'PREFLIGHT_VERCEL_REDIRECT_DIAGNOSTIC',vercel_provenance:{initial:provenanceRequest.initial,final:diagnosticResponse(provenanceResponse,provenanceResponse.headers.get('location'),provenanceUrl)}})}\n`);
     fail(`RUNTIME_PROVENANCE_ACCESS_FAILED:${provenanceResponse.status}`);
   }
   const provenance=runtimeProvenance(await provenanceResponse.json().catch(()=>null),baseUrl);
   const healthUrl=new URL('/api/health',baseUrl);
-  const bypass=await fetch(healthUrl,{headers:bypassHeaders,redirect:'manual',cache:'no-store'});
+  const bypass=(await fetchVerifiedVercelRequest(healthUrl,bypassHeaders)).response;
   if(bypass.status<200||bypass.status>=300||bypass.headers.has('location')||new URL(bypass.url).origin!==baseUrl.origin)fail(`VERCEL_AUTOMATION_BYPASS_FAILED:${bypass.status}`);
   const health=await bypass.json().catch(()=>null);
   if(health?.ok!==true||health.service!=='garage-link')fail('VERCEL_AUTOMATION_BYPASS_APPLICATION_UNREACHED');

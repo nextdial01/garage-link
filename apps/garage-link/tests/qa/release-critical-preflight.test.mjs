@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createManualGmailSession, manualGmailCheckpoint, manualGmailWorkflowInput, pollManualGmailConfirmation, readAuthConfig, readManagementProfile } from '../../scripts/qa/release-critical-preflight.mjs';
+import { createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, manualGmailWorkflowInput, pollManualGmailConfirmation, readAuthConfig, readManagementProfile } from '../../scripts/qa/release-critical-preflight.mjs';
 
 const appRoot=resolve(import.meta.dirname,'../..');
 
@@ -29,6 +29,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(runner,/event\?\.inputs\?\.manual_gmail_address/);
   assert.match(runner,/RUNTIME_PROVENANCE_ACCESS_FAILED/);
   assert.match(runner,/PREFLIGHT_VERCEL_REDIRECT_DIAGNOSTIC/);
+  assert.match(runner,/fetchVerifiedVercelRequest/);
   assert.match(runner,/\/api\/qa\/provenance/);
   assert.match(runner,/RUNTIME_PROVENANCE_RESPONSE_SHAPE_INVALID/);
   assert.match(runner,/readManagementProfile/);
@@ -49,6 +50,33 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(workflow,/GARAGE_STAGING_MAILSLURP_API_KEY/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_QA_MAILBOX/);
   assert.doesNotMatch(workflow,/STRIPE_SECRET_KEY|E2E_ALLOW_BILLING_MUTATIONS|STRIPE_WEBHOOK_SECRET/);
+});
+
+test('Vercel bypass follows once only for a same-origin same-path redirect',async()=>{
+  const calls=[];
+  const url=new URL('https://garage-link-staging.example.vercel.app/api/qa/provenance');
+  const headers={'x-vercel-protection-bypass':'secret'};
+  const result=await fetchVerifiedVercelRequest(url,headers,async(requestUrl,requestOptions)=>{
+    calls.push({url:String(requestUrl),options:requestOptions});
+    if(calls.length===1)return new Response(null,{status:307,headers:{location:`${url}?__vercel_retry=1`}});
+    return new Response(JSON.stringify({ok:true}),{status:200,headers:{'content-type':'application/json'}});
+  });
+  assert.equal(result.initial.same_origin,true);
+  assert.equal(result.initial.same_path,true);
+  assert.equal(result.response.status,200);
+  assert.equal(calls.length,2);
+  assert.ok(calls.every(call=>call.options.headers===headers&&call.options.redirect==='manual'));
+});
+
+test('Vercel bypass does not follow a cross-origin redirect',async()=>{
+  const calls=[];
+  const result=await fetchVerifiedVercelRequest(new URL('https://garage-link-staging.example.vercel.app/api/qa/provenance'),{},async(url,options)=>{
+    calls.push({url:String(url),options});
+    return new Response(null,{status:307,headers:{location:'https://vercel.com/login'}});
+  });
+  assert.equal(result.initial.same_origin,false);
+  assert.equal(calls.length,1);
+  assert.equal(result.response.status,307);
 });
 
 test('Management API diagnosis reads profile once and follows only a same-origin canonical Auth redirect',async()=>{
