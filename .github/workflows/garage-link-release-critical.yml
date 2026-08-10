@@ -30,7 +30,6 @@ jobs:
     timeout-minutes: 15
     env:
       RELEASE_CRITICAL_EMAIL_MODE: ${{ inputs.email_mode }}
-      MANUAL_GMAIL_ADDRESS: ${{ inputs.manual_gmail_address }}
       PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
       E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}

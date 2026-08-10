@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createClient } from '@supabase/supabase-js';
+import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
 const STAGING_REF='gaytoojzwqkpuvfofeql';
@@ -36,6 +37,14 @@ function manualGmailAddress(baseAddress,runMarker){
   const marker=requiredRunMarker(runMarker);
   const base=manualGmailBaseAddress(baseAddress);
   return `${base.localPart}+${marker}@${base.domain}`;
+}
+export async function manualGmailWorkflowInput(eventPath,readFileImpl=readFile){
+  if(typeof eventPath!=='string'||!eventPath.trim())fail('MANUAL_GMAIL_WORKFLOW_EVENT_MISSING');
+  let event;
+  try {event=JSON.parse(await readFileImpl(eventPath,'utf8'))} catch {fail('MANUAL_GMAIL_WORKFLOW_EVENT_INVALID')}
+  const address=event?.inputs?.manual_gmail_address;
+  if(typeof address!=='string'||!address.trim())fail('MANUAL_GMAIL_WORKFLOW_INPUT_MISSING');
+  return address.trim();
 }
 
 export function createManualGmailSession(baseAddress,runMarker=`garage-link-${crypto.randomUUID()}`){
@@ -118,7 +127,7 @@ async function main(){
   const serviceRole=required('E2E_TEST_SUPABASE_SERVICE_ROLE_KEY');
   const managementToken=required('GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN');
   const emailMode=required('RELEASE_CRITICAL_EMAIL_MODE');
-  const manualGmail=required('MANUAL_GMAIL_ADDRESS');
+  const manualGmail=await manualGmailWorkflowInput(required('GITHUB_EVENT_PATH'));
   const vercelToken=required('VERCEL_ACCESS_TOKEN');
   const bypassSecret=required('VERCEL_AUTOMATION_BYPASS_SECRET');
   const teamId=required('EXPECTED_VERCEL_TEAM_ID');
