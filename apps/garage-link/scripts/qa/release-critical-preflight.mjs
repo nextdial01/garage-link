@@ -209,7 +209,10 @@ async function main(){
 
   const bypassHeaders={'x-vercel-protection-bypass':bypassSecret,'x-vercel-set-bypass-cookie':'true',accept:'application/json'};
   const provenanceResponse=await fetch(new URL('/api/qa/provenance',baseUrl),{headers:bypassHeaders,redirect:'manual',cache:'no-store'});
-  if(provenanceResponse.status<200||provenanceResponse.status>=300||provenanceResponse.headers.has('location')||new URL(provenanceResponse.url).origin!==baseUrl.origin)fail(`RUNTIME_PROVENANCE_ACCESS_FAILED:${provenanceResponse.status}`);
+  if(provenanceResponse.status<200||provenanceResponse.status>=300||provenanceResponse.headers.has('location')||new URL(provenanceResponse.url).origin!==baseUrl.origin){
+    process.stdout.write(`${JSON.stringify({ok:false,state:'PREFLIGHT_VERCEL_REDIRECT_DIAGNOSTIC',vercel_provenance:diagnosticResponse(provenanceResponse,provenanceResponse.headers.get('location'),new URL('/api/qa/provenance',baseUrl))})}\n`);
+    fail(`RUNTIME_PROVENANCE_ACCESS_FAILED:${provenanceResponse.status}`);
+  }
   const provenance=runtimeProvenance(await provenanceResponse.json().catch(()=>null),baseUrl);
   const healthUrl=new URL('/api/health',baseUrl);
   const bypass=await fetch(healthUrl,{headers:bypassHeaders,redirect:'manual',cache:'no-store'});

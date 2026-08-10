@@ -28,6 +28,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(runner,/GITHUB_EVENT_PATH/);
   assert.match(runner,/event\?\.inputs\?\.manual_gmail_address/);
   assert.match(runner,/RUNTIME_PROVENANCE_ACCESS_FAILED/);
+  assert.match(runner,/PREFLIGHT_VERCEL_REDIRECT_DIAGNOSTIC/);
   assert.match(runner,/\/api\/qa\/provenance/);
   assert.match(runner,/RUNTIME_PROVENANCE_RESPONSE_SHAPE_INVALID/);
   assert.match(runner,/readManagementProfile/);
