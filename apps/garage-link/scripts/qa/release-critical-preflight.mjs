@@ -49,13 +49,23 @@ function canonicalAuthConfigRedirect(target,endpoint){
     && target.pathname.replace(/\/+$/,'')===endpoint.pathname.replace(/\/+$/,''));
 }
 
+function bypassCookie(response){
+  const values=typeof response.headers.getSetCookie==='function'
+    ?response.headers.getSetCookie()
+    :[response.headers.get('set-cookie')].filter(Boolean);
+  const cookies=values.map(value=>String(value).split(';',1)[0]).filter(value=>value.includes('='));
+  return cookies.length?cookies.join('; '):null;
+}
+
 export async function fetchVerifiedVercelRequest(url,headers,fetchImpl=fetch){
   const first=await fetchImpl(url,{headers,redirect:'manual',cache:'no-store'});
   const firstLocation=first.headers.get('location');
   const firstDiagnostic=diagnosticResponse(first,firstLocation,url);
   if(first.status<300||first.status>=400||!firstDiagnostic.same_origin||!firstDiagnostic.same_path)return {response:first,initial:firstDiagnostic};
+  const cookie=bypassCookie(first);
+  if(!cookie)return {response:first,initial:firstDiagnostic};
   const target=new URL(firstLocation,url);
-  const response=await fetchImpl(target,{headers,redirect:'manual',cache:'no-store'});
+  const response=await fetchImpl(target,{headers:{...headers,cookie},redirect:'manual',cache:'no-store'});
   return {response,initial:firstDiagnostic};
 }
 

@@ -52,20 +52,23 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(workflow,/STRIPE_SECRET_KEY|E2E_ALLOW_BILLING_MUTATIONS|STRIPE_WEBHOOK_SECRET/);
 });
 
-test('Vercel bypass follows once only for a same-origin same-path redirect',async()=>{
+test('Vercel bypass carries the issued cookie once for a same-origin same-path redirect',async()=>{
   const calls=[];
   const url=new URL('https://garage-link-staging.example.vercel.app/api/qa/provenance');
   const headers={'x-vercel-protection-bypass':'secret'};
   const result=await fetchVerifiedVercelRequest(url,headers,async(requestUrl,requestOptions)=>{
     calls.push({url:String(requestUrl),options:requestOptions});
-    if(calls.length===1)return new Response(null,{status:307,headers:{location:`${url}?__vercel_retry=1`}});
+    if(calls.length===1)return new Response(null,{status:307,headers:{location:`${url}?__vercel_retry=1`,'set-cookie':'__vercel_bypass=issued; Path=/; HttpOnly'}});
     return new Response(JSON.stringify({ok:true}),{status:200,headers:{'content-type':'application/json'}});
   });
   assert.equal(result.initial.same_origin,true);
   assert.equal(result.initial.same_path,true);
   assert.equal(result.response.status,200);
   assert.equal(calls.length,2);
-  assert.ok(calls.every(call=>call.options.headers===headers&&call.options.redirect==='manual'));
+  assert.equal(calls[0].options.headers,headers);
+  assert.equal(calls[1].options.headers['x-vercel-protection-bypass'],'secret');
+  assert.equal(calls[1].options.headers.cookie,'__vercel_bypass=issued');
+  assert.ok(calls.every(call=>call.options.redirect==='manual'));
 });
 
 test('Vercel bypass does not follow a cross-origin redirect',async()=>{
