@@ -1,8 +1,11 @@
+import { MIN_PASSWORD_LENGTH } from './password-policy';
+
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   'Invalid login credentials': 'メールアドレスまたはパスワードが正しくありません。',
   'Email not confirmed': 'メールアドレスの確認が完了していません。確認メールをご確認ください。',
   'User already registered': 'このメールアドレスは既に登録されています。ログインしてください。',
-  'Password should be at least 6 characters': 'パスワードは6文字以上で入力してください。',
+  'Password should be at least 6 characters': `パスワードは${MIN_PASSWORD_LENGTH}文字以上で入力してください。`,
+  'Password should be at least 8 characters': `パスワードは${MIN_PASSWORD_LENGTH}文字以上で入力してください。`,
   'Unable to validate email address: invalid format': 'メールアドレスの形式が正しくありません。',
   'Signup requires a valid password': '有効なパスワードを入力してください。',
   'Email rate limit exceeded': '少し時間をおいてから、もう一度お試しください。',

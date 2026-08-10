@@ -5,10 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useEffect, useRef, useState } from 'react';
 import BrandLogo from '@/components/BrandLogo';
 import { isEmailConfirmationRequired, translateAuthError } from '@/lib/auth/auth-errors';
+import { hasMinimumPasswordLength, MIN_PASSWORD_LENGTH } from '@/lib/auth/password-policy';
 import { readSignupAttribution, trackConversion } from '@/lib/analytics/conversion';
 import { createClient } from '@/lib/supabase/client';
-
-const MIN_PASSWORD_LENGTH = 6;
 
 function SignupForm() {
   const router = useRouter();
@@ -105,7 +104,7 @@ function SignupForm() {
       return;
     }
 
-    if (password.length < MIN_PASSWORD_LENGTH) {
+    if (!hasMinimumPasswordLength(password)) {
       setMessage(`パスワードは${MIN_PASSWORD_LENGTH}文字以上で入力してください。`);
       return;
     }
@@ -123,6 +122,11 @@ function SignupForm() {
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
+      options: {
+        // A confirmation can create a session after the browser has left this form.
+        // Preserve the only valid continuation: creating the first store exactly once.
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/signup?resume=1')}`,
+      },
     });
 
     if (signUpError) {
@@ -134,7 +138,7 @@ function SignupForm() {
     trackConversion('account_created');
 
     if (!authData.user?.id || !authData.session) {
-      setInfoMessage('確認メールを送信しました。メール内のリンクを開いてから、ログインしてください。');
+      setInfoMessage('確認メールを送信しました。メール内のリンクを開くと、店舗情報の入力を続けられます。');
       setIsSubmitting(false);
       return;
     }
@@ -226,7 +230,7 @@ function SignupForm() {
     storeName.trim() &&
     displayName.trim() &&
     email.trim() &&
-    password.length >= MIN_PASSWORD_LENGTH &&
+    hasMinimumPasswordLength(password) &&
     password === passwordConfirmation &&
     !isSubmitting;
 

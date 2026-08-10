@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { translateAuthError } from '@/lib/auth/auth-errors';
+import { hasMinimumPasswordLength, MIN_PASSWORD_LENGTH } from '@/lib/auth/password-policy';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -17,8 +18,8 @@ export default function ResetPasswordPage() {
     event.preventDefault();
     setMessage('');
 
-    if (password.length < 8) {
-      setMessage('パスワードは8文字以上で入力してください。');
+    if (!hasMinimumPasswordLength(password)) {
+      setMessage(`パスワードは${MIN_PASSWORD_LENGTH}文字以上で入力してください。`);
       return;
     }
     if (password !== confirmation) {
@@ -48,7 +49,7 @@ export default function ResetPasswordPage() {
       <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-xs font-bold tracking-[0.25em] text-blue-600">GARAGE LINK</p>
         <h1 className="mt-3 text-2xl font-bold">新しいパスワードを設定</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-500">8文字以上で入力してください。</p>
+        <p className="mt-2 text-sm leading-6 text-slate-500">{MIN_PASSWORD_LENGTH}文字以上で入力してください。</p>
 
         {isDone ? (
           <p className="mt-6 rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">

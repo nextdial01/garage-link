@@ -1,0 +1,58 @@
+name: GARAGE LINK Release Critical
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact SHA already deployed to garage-link-staging
+        required: true
+        type: string
+      release_branch:
+        description: Source branch recorded by the Staging deployment
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: garage-link-release-critical
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Staging-only preflight (no billing)
+    runs-on: ubuntu-latest
+    environment: garage-link-commercial-staging
+    timeout-minutes: 15
+    env:
+      EXPECTED_RELEASE_SHA: ${{ inputs.release_sha }}
+      EXPECTED_RELEASE_BRANCH: ${{ inputs.release_branch }}
+      PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
+      E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
+      E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN }}
+      GARAGE_STAGING_QA_MAILBOX: ${{ secrets.GARAGE_STAGING_QA_MAILBOX }}
+      VERCEL_ACCESS_TOKEN: ${{ secrets.GARAGE_STAGING_VERCEL_READ_TOKEN }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
+      EXPECTED_VERCEL_PROJECT_ID: ${{ secrets.GARAGE_STAGING_VERCEL_PROJECT_ID }}
+      EXPECTED_VERCEL_TEAM_ID: ${{ secrets.GARAGE_STAGING_VERCEL_TEAM_ID }}
+      EXPECTED_VERCEL_PROJECT_NAME: garage-link-staging
+    steps:
+      - uses: actions/checkout@v4
+
+      # The runner itself is taken from the dispatch branch; it only observes the
+      # already-deployed SHA supplied above and never deploys the checked-out code.
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - name: Verify Staging-only execution contract
+        run: node apps/garage-link/scripts/qa/release-critical-preflight.mjs
