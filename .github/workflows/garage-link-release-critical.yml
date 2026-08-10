@@ -14,6 +14,10 @@ on:
         description: Existing Gmail base address used only for this run (never print it)
         required: true
         type: string
+      staging_base_url:
+        description: Optional exact garage-link-staging preview URL for this QA run
+        required: false
+        type: string
 
 permissions:
   contents: read

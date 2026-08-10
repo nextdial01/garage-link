@@ -117,6 +117,20 @@ export async function manualGmailWorkflowInput(eventPath,readFileImpl=readFile){
   return address.trim();
 }
 
+export async function releaseCriticalBaseUrl(eventPath,fallback=process.env.PLAYWRIGHT_BASE_URL,readFileImpl=readFile){
+  let event;
+  try {event=JSON.parse(await readFileImpl(eventPath,'utf8'))} catch {fail('RELEASE_CRITICAL_WORKFLOW_EVENT_INVALID')}
+  const supplied=event?.inputs?.staging_base_url;
+  if(typeof supplied==='string'&&supplied.trim()){
+    let url;
+    try {url=new URL(supplied.trim())} catch {fail('RELEASE_CRITICAL_STAGING_BASE_URL_INVALID')}
+    if(url.protocol!=='https:'||!/^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i.test(url.hostname))fail('RELEASE_CRITICAL_STAGING_BASE_URL_DENIED');
+    return url.toString();
+  }
+  if(typeof fallback!=='string'||!fallback.trim())fail('RELEASE_CRITICAL_PREFLIGHT_MISSING:PLAYWRIGHT_BASE_URL');
+  return fallback.trim();
+}
+
 export function createManualGmailSession(baseAddress,runMarker=`garage-link-${crypto.randomUUID()}`){
   const marker=requiredRunMarker(runMarker);
   return {emailMode:'manual_gmail',runMarker:marker,emailAddress:manualGmailAddress(baseAddress,marker)};
@@ -204,12 +218,13 @@ function runtimeProvenance(value,baseUrl){
 }
 
 async function main(){
-  const baseUrl=new URL(required('PLAYWRIGHT_BASE_URL'));
+  const eventPath=required('GITHUB_EVENT_PATH');
+  const baseUrl=new URL(await releaseCriticalBaseUrl(eventPath));
   const supabaseUrl=new URL(required('E2E_TEST_SUPABASE_URL'));
   const serviceRole=required('E2E_TEST_SUPABASE_SERVICE_ROLE_KEY');
   const managementToken=required('GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN');
   const emailMode=required('RELEASE_CRITICAL_EMAIL_MODE');
-  const manualGmail=await manualGmailWorkflowInput(required('GITHUB_EVENT_PATH'));
+  const manualGmail=await manualGmailWorkflowInput(eventPath);
   const bypassSecret=required('VERCEL_AUTOMATION_BYPASS_SECRET');
   if(supabaseUrl.hostname!==`${STAGING_REF}.supabase.co`||supabaseUrl.hostname.includes(PRODUCTION_REF))fail('SUPABASE_STAGING_REF_MISMATCH');
   if(PRODUCTION_HOSTS.has(baseUrl.hostname)||baseUrl.hostname.endsWith('.garage-link.tech'))fail('VERCEL_PRODUCTION_HOST_DENIED');

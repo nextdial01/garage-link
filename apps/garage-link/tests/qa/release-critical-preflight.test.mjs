@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, manualGmailWorkflowInput, pollManualGmailConfirmation, readAuthConfig, readManagementProfile } from '../../scripts/qa/release-critical-preflight.mjs';
+import { createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, manualGmailWorkflowInput, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl } from '../../scripts/qa/release-critical-preflight.mjs';
 
 const appRoot=resolve(import.meta.dirname,'../..');
 
@@ -45,6 +45,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/environment: garage-link-commercial-staging/);
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
   assert.match(workflow,/manual_gmail_address/);
+  assert.match(workflow,/staging_base_url/);
   assert.doesNotMatch(workflow,/MANUAL_GMAIL_ADDRESS/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_VERCEL_READ_TOKEN|GARAGE_STAGING_VERCEL_PROJECT_ID|GARAGE_STAGING_VERCEL_TEAM_ID/);
   assert.doesNotMatch(workflow,/release_sha|release_branch|EXPECTED_RELEASE_SHA|EXPECTED_RELEASE_BRANCH/);
@@ -129,4 +130,6 @@ test('Manual Gmail Bridge creates a plus address, redacts checkpoints, and polls
   assert.throws(()=>createManualGmailSession('not an email',marker),/MANUAL_GMAIL_PLUS_ADDRESS_UNAVAILABLE/);
   assert.equal(await manualGmailWorkflowInput('/github/event.json',async()=>JSON.stringify({inputs:{manual_gmail_address:'Owner.Name@kannagi-co.com'}})),'Owner.Name@kannagi-co.com');
   await assert.rejects(()=>manualGmailWorkflowInput('/github/event.json',async()=>JSON.stringify({inputs:{}})),/MANUAL_GMAIL_WORKFLOW_INPUT_MISSING/);
+  assert.equal(await releaseCriticalBaseUrl('/github/event.json','https://fallback.invalid',async()=>JSON.stringify({inputs:{staging_base_url:'https://garage-link-staging-3ilbylboz-altos-projects-fa55063c.vercel.app'}})),'https://garage-link-staging-3ilbylboz-altos-projects-fa55063c.vercel.app/');
+  await assert.rejects(()=>releaseCriticalBaseUrl('/github/event.json','https://fallback.invalid',async()=>JSON.stringify({inputs:{staging_base_url:'https://example.invalid'}})),/RELEASE_CRITICAL_STAGING_BASE_URL_DENIED/);
 });
