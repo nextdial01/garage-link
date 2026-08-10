@@ -37,6 +37,8 @@ function diagnosticResponse(response,location,baseUrl=response.url){
     redirected:response.redirected,
     url:current?{origin:current.origin,pathname:current.pathname}:null,
     location:target?{origin:target.origin,pathname:target.pathname}:null,
+    same_origin:Boolean(current&&target&&current.origin===target.origin),
+    same_path:Boolean(current&&target&&current.pathname===target.pathname),
   };
 }
 function canonicalAuthConfigRedirect(target,endpoint){

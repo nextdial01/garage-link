@@ -65,6 +65,8 @@ test('Management API diagnosis reads profile once and follows only a same-origin
   const auth=await readAuthConfig('gaytoojzwqkpuvfofeql','secret',fetchImpl);
   assert.equal(auth.initial.status,307);
   assert.deepEqual(auth.initial.location,{origin:'https://api.supabase.com',pathname:'/v1/projects/gaytoojzwqkpuvfofeql/config/auth/'});
+  assert.equal(auth.initial.same_origin,true);
+  assert.equal(auth.initial.same_path,false);
   assert.equal(auth.config.password_min_length,6);
   assert.equal(calls.length,3);
   assert.ok(calls.every(call=>call.options.redirect==='manual'));
