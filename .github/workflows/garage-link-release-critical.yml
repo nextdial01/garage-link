@@ -11,6 +11,17 @@ on:
         description: Source branch recorded by the Staging deployment
         required: true
         type: string
+      email_mode:
+        description: Email verification mode for this Staging QA run
+        required: true
+        default: manual_gmail
+        type: choice
+        options:
+          - manual_gmail
+      manual_gmail_address:
+        description: Existing Gmail base address used only for this run (never print it)
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -28,11 +39,12 @@ jobs:
     env:
       EXPECTED_RELEASE_SHA: ${{ inputs.release_sha }}
       EXPECTED_RELEASE_BRANCH: ${{ inputs.release_branch }}
+      RELEASE_CRITICAL_EMAIL_MODE: ${{ inputs.email_mode }}
+      MANUAL_GMAIL_ADDRESS: ${{ inputs.manual_gmail_address }}
       PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
       E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
       GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN }}
-      GARAGE_STAGING_MAILSLURP_API_KEY: ${{ secrets.GARAGE_STAGING_MAILSLURP_API_KEY }}
       VERCEL_ACCESS_TOKEN: ${{ secrets.GARAGE_STAGING_VERCEL_READ_TOKEN }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
       EXPECTED_VERCEL_PROJECT_ID: ${{ secrets.GARAGE_STAGING_VERCEL_PROJECT_ID }}
