@@ -27,10 +27,12 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(runner,/REDACTED_MANUAL_GMAIL_ADDRESS/);
   assert.match(runner,/GITHUB_EVENT_PATH/);
   assert.match(runner,/event\?\.inputs\?\.manual_gmail_address/);
-  assert.match(runner,/VERCEL_DEPLOYMENT_PROVENANCE_INVALID/);
-  assert.match(runner,/deployment\.meta\?\.githubCommitSha/);
-  assert.match(runner,/VERCEL_DEPLOYMENT_READ_FAILED/);
+  assert.match(runner,/RUNTIME_PROVENANCE_ACCESS_FAILED/);
+  assert.match(runner,/\/api\/qa\/provenance/);
+  assert.match(runner,/RUNTIME_PROVENANCE_RESPONSE_SHAPE_INVALID/);
+  assert.match(runner,/provenance\.git_commit_sha/);
   assert.doesNotMatch(runner,/\/v9\/projects\//);
+  assert.doesNotMatch(runner,/api\.vercel\.com\/v13\/deployments/);
   assert.doesNotMatch(runner,/GARAGE_STAGING_QA_MAILBOX/);
   assert.doesNotMatch(runner,/method:'PATCH'/);
   assert.doesNotMatch(runner,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
@@ -38,6 +40,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
   assert.match(workflow,/manual_gmail_address/);
   assert.doesNotMatch(workflow,/MANUAL_GMAIL_ADDRESS/);
+  assert.doesNotMatch(workflow,/GARAGE_STAGING_VERCEL_READ_TOKEN|GARAGE_STAGING_VERCEL_PROJECT_ID|GARAGE_STAGING_VERCEL_TEAM_ID/);
   assert.doesNotMatch(workflow,/release_sha|release_branch|EXPECTED_RELEASE_SHA|EXPECTED_RELEASE_BRANCH/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_MAILSLURP_API_KEY/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_QA_MAILBOX/);

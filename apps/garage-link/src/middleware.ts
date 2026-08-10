@@ -61,6 +61,10 @@ function isPublicPath(pathname: string) {
   // 非本番環境の provenance 確認用。CRON_SECRET のBearer認証をルート自身で行い、
   // 本番判定時は404を返すため、ここでセッション必須にしない。
   if (pathname === '/api/commercial-staging-fingerprint') return true;
+  // Staging runtime provenance is fail-closed in the route itself using the
+  // Vercel project ID and Production host deny-list. The Release Critical
+  // runner reaches it through Vercel Automation Bypass, not a user session.
+  if (pathname === '/api/qa/provenance') return true;
   return false;
 }
 

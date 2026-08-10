@@ -6,7 +6,6 @@ import { pathToFileURL } from 'node:url';
 const STAGING_REF='gaytoojzwqkpuvfofeql';
 const PRODUCTION_REF='wmlpuzuskfiwdipluglz';
 const STAGING_PROJECT_ID='prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
-const PRODUCTION_PROJECT_ID='prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64';
 const STAGING_PROJECT_NAME='garage-link-staging';
 const PRODUCTION_HOSTS=new Set(['garage-link.tech','www.garage-link.tech']);
 const MAILSLURP_API_BASE='https://api.mailslurp.com';
@@ -121,6 +120,18 @@ export async function withMailSlurpRunInbox({apiKey,runMarker,run,fetchImpl=fetc
   finally {if(inbox)await deleteMailSlurpRunInbox(apiKey,inbox,runMarker,fetchImpl)}
 }
 
+function runtimeProvenance(value,baseUrl){
+  if(!value||typeof value!=='object'||Array.isArray(value))fail('RUNTIME_PROVENANCE_INVALID');
+  const keys=Object.keys(value).sort();
+  const expected=['deployment_id','deployment_url','environment','git_commit_ref','git_commit_sha','project_id'];
+  if(keys.length!==expected.length||keys.some((key,index)=>key!==expected[index]))fail('RUNTIME_PROVENANCE_RESPONSE_SHAPE_INVALID');
+  if(value.project_id!==STAGING_PROJECT_ID||!/^dpl_[A-Za-z0-9]+$/.test(value.deployment_id)||!/^[0-9a-f]{40}$/i.test(value.git_commit_sha)||typeof value.git_commit_ref!=='string'||!value.git_commit_ref||typeof value.environment!=='string'||!value.environment)fail('RUNTIME_PROVENANCE_INVALID');
+  let deploymentUrl;
+  try {deploymentUrl=new URL(value.deployment_url)} catch {fail('RUNTIME_PROVENANCE_INVALID')}
+  if(deploymentUrl.protocol!=='https:'||!deploymentUrl.hostname.endsWith('.vercel.app')||PRODUCTION_HOSTS.has(deploymentUrl.hostname)||deploymentUrl.hostname.endsWith('.garage-link.tech')||baseUrl.hostname.endsWith('.garage-link.tech'))fail('RUNTIME_PROVENANCE_INVALID');
+  return value;
+}
+
 async function main(){
   const baseUrl=new URL(required('PLAYWRIGHT_BASE_URL'));
   const supabaseUrl=new URL(required('E2E_TEST_SUPABASE_URL'));
@@ -128,14 +139,9 @@ async function main(){
   const managementToken=required('GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN');
   const emailMode=required('RELEASE_CRITICAL_EMAIL_MODE');
   const manualGmail=await manualGmailWorkflowInput(required('GITHUB_EVENT_PATH'));
-  const vercelToken=required('VERCEL_ACCESS_TOKEN');
   const bypassSecret=required('VERCEL_AUTOMATION_BYPASS_SECRET');
-  const teamId=required('EXPECTED_VERCEL_TEAM_ID');
-  const projectId=required('EXPECTED_VERCEL_PROJECT_ID');
-  const projectName=required('EXPECTED_VERCEL_PROJECT_NAME');
   if(supabaseUrl.hostname!==`${STAGING_REF}.supabase.co`||supabaseUrl.hostname.includes(PRODUCTION_REF))fail('SUPABASE_STAGING_REF_MISMATCH');
   if(PRODUCTION_HOSTS.has(baseUrl.hostname)||baseUrl.hostname.endsWith('.garage-link.tech'))fail('VERCEL_PRODUCTION_HOST_DENIED');
-  if(projectId!==STAGING_PROJECT_ID||projectName!==STAGING_PROJECT_NAME||projectId===PRODUCTION_PROJECT_ID)fail('RELEASE_CRITICAL_CONTRACT_INVALID');
   if(emailMode!=='manual_gmail')fail('RELEASE_CRITICAL_EMAIL_MODE_INVALID');
   manualGmailBaseAddress(manualGmail);
 
@@ -147,19 +153,16 @@ async function main(){
   const passwordMinimum=stagingAuth.password_min_length??stagingAuth.minimum_password_length;
   if(!Number.isInteger(passwordMinimum)||passwordMinimum<6||!productionAuth||typeof productionAuth!=='object')fail('SUPABASE_AUTH_CONFIG_INVALID');
 
-  const query=`teamId=${encodeURIComponent(teamId)}`;
-  const headers={authorization:`Bearer ${vercelToken}`};
-  const deployment=await json(await fetch(`https://api.vercel.com/v13/deployments/get?url=${encodeURIComponent(baseUrl.hostname)}&${query}`,{headers}),'VERCEL_DEPLOYMENT_READ_FAILED');
-  if(deployment.projectId!==projectId||deployment.url!==baseUrl.hostname||deployment.readyState!=='READY')fail('VERCEL_DEPLOYMENT_NOT_READY_OR_MISMATCH');
-  const sourceSha=deployment.meta?.githubCommitSha;
-  const branch=deployment.meta?.githubCommitRef;
-  if(!/^[0-9a-f]{40}$/i.test(sourceSha)||typeof branch!=='string'||!branch||branch==='production')fail('VERCEL_DEPLOYMENT_PROVENANCE_INVALID');
+  const bypassHeaders={'x-vercel-protection-bypass':bypassSecret,'x-vercel-set-bypass-cookie':'true',accept:'application/json'};
+  const provenanceResponse=await fetch(new URL('/api/qa/provenance',baseUrl),{headers:bypassHeaders,redirect:'manual',cache:'no-store'});
+  if(provenanceResponse.status<200||provenanceResponse.status>=300||provenanceResponse.headers.has('location')||new URL(provenanceResponse.url).origin!==baseUrl.origin)fail(`RUNTIME_PROVENANCE_ACCESS_FAILED:${provenanceResponse.status}`);
+  const provenance=runtimeProvenance(await provenanceResponse.json().catch(()=>null),baseUrl);
   const healthUrl=new URL('/api/health',baseUrl);
-  const bypass=await fetch(healthUrl,{headers:{'x-vercel-protection-bypass':bypassSecret,'x-vercel-set-bypass-cookie':'true',accept:'application/json'},redirect:'manual',cache:'no-store'});
+  const bypass=await fetch(healthUrl,{headers:bypassHeaders,redirect:'manual',cache:'no-store'});
   if(bypass.status<200||bypass.status>=300||bypass.headers.has('location')||new URL(bypass.url).origin!==baseUrl.origin)fail(`VERCEL_AUTOMATION_BYPASS_FAILED:${bypass.status}`);
   const health=await bypass.json().catch(()=>null);
   if(health?.ok!==true||health.service!=='garage-link')fail('VERCEL_AUTOMATION_BYPASS_APPLICATION_UNREACHED');
-  process.stdout.write(`${JSON.stringify({ok:true,state:'PREFLIGHT_READY',environment:'garage-link-staging',source_sha:sourceSha,branch,deployment_id:deployment.uid??deployment.id??'unknown',auth:{service_role_admin_api:'PASS',staging_management_read:'PASS',production_management_read_only:'PASS',password_minimum:passwordMinimum},email:{mode:'manual_gmail',base_address:'REDACTED'},vercel:{project:projectName,ready:'PASS',protection_bypass:'VERCEL_AUTOMATION_BYPASS_PASS'}})}\n`);
+  process.stdout.write(`${JSON.stringify({ok:true,state:'PREFLIGHT_READY',environment:'garage-link-staging',source_sha:provenance.git_commit_sha,branch:provenance.git_commit_ref,deployment_id:provenance.deployment_id,auth:{service_role_admin_api:'PASS',staging_management_read:'PASS',production_management_read_only:'PASS',password_minimum:passwordMinimum},email:{mode:'manual_gmail',base_address:'REDACTED'},vercel:{project:STAGING_PROJECT_NAME,ready:'PASS',protection_bypass:'VERCEL_AUTOMATION_BYPASS_PASS'}})}\n`);
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)main().catch(error=>{process.stderr.write(`${JSON.stringify({ok:false,code:redact(error)})}\n`);process.exitCode=1});

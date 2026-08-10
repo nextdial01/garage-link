@@ -1,6 +1,7 @@
 import { access, readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { GET as healthGET } from '../../src/app/api/health/route';
+import { GET as provenanceGET } from '../../src/app/api/qa/provenance/route';
 import { buildStoragePath, privateStorageBucket } from '../../src/lib/storage/pathsCore';
 
 // 認証・実DB・Secretを使わずに、main push前に壊れやすい契約を自動確認するテストです。
@@ -28,6 +29,61 @@ test.describe('Pre-release contracts (認証不要)', () => {
       // Secretや接続情報を漏らさない（最小レスポンスのみ）。
       expect(Object.keys(body).sort()).toEqual(['code', 'ok', 'service']);
       expect(JSON.stringify(body)).not.toMatch(/key|secret|token|url|password/i);
+    } finally {
+      for (const [key, value] of saved) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
+
+  test('/api/qa/provenance: Staging runtimeだけが許可済みprovenanceを返す', async () => {
+    const keys = [
+      'VERCEL_PROJECT_ID',
+      'VERCEL_DEPLOYMENT_ID',
+      'VERCEL_GIT_COMMIT_SHA',
+      'VERCEL_GIT_COMMIT_REF',
+      'VERCEL_URL',
+      'VERCEL_ENV',
+      'VERCEL_TARGET_ENV',
+    ];
+    const saved = new Map(keys.map((key) => [key, process.env[key]]));
+    const stagingProjectId = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
+    const productionProjectId = 'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64';
+    const sha = 'a'.repeat(40);
+
+    try {
+      Object.assign(process.env, {
+        VERCEL_PROJECT_ID: stagingProjectId,
+        VERCEL_DEPLOYMENT_ID: 'dpl_1234567890abcdefghijklmnopqrstuvwxyz',
+        VERCEL_GIT_COMMIT_SHA: sha,
+        VERCEL_GIT_COMMIT_REF: 'main',
+        VERCEL_URL: 'garage-link-staging-qa.vercel.app',
+        VERCEL_ENV: 'production',
+        VERCEL_TARGET_ENV: 'staging',
+      });
+      const response = await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'));
+      const body = (await response.json()) as Record<string, unknown>;
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({
+        project_id: stagingProjectId,
+        deployment_id: 'dpl_1234567890abcdefghijklmnopqrstuvwxyz',
+        git_commit_sha: sha,
+        git_commit_ref: 'main',
+        deployment_url: 'https://garage-link-staging-qa.vercel.app',
+        environment: 'staging',
+      });
+      expect(JSON.stringify(body)).not.toMatch(/secret|token|password|key|supabase|stripe/i);
+
+      process.env.VERCEL_PROJECT_ID = productionProjectId;
+      expect((await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'))).status).toBe(404);
+
+      process.env.VERCEL_PROJECT_ID = stagingProjectId;
+      expect((await provenanceGET(new Request('https://garage-link.tech/api/qa/provenance'))).status).toBe(404);
+
+      process.env.VERCEL_GIT_COMMIT_SHA = 'not-a-sha';
+      expect((await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'))).status).toBe(404);
     } finally {
       for (const [key, value] of saved) {
         if (value === undefined) delete process.env[key];
