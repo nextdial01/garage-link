@@ -229,7 +229,9 @@ async function main(){
   const passwordMinimum=stagingAuth.password_min_length??stagingAuth.minimum_password_length;
   if(!Number.isInteger(passwordMinimum)||passwordMinimum<6||!productionAuth||typeof productionAuth!=='object')fail('SUPABASE_AUTH_CONFIG_INVALID');
 
-  const bypassHeaders={'x-vercel-protection-bypass':bypassSecret,'x-vercel-set-bypass-cookie':'true',accept:'application/json'};
+  // PREFLIGHT verifies direct Automation Bypass access. Cookie issuance is only
+  // needed by browser follow-up requests and deliberately causes a redirect.
+  const bypassHeaders={'x-vercel-protection-bypass':bypassSecret,accept:'application/json'};
   const provenanceUrl=new URL('/api/qa/provenance',baseUrl);
   const provenanceRequest=await fetchVerifiedVercelRequest(provenanceUrl,bypassHeaders);
   const provenanceResponse=provenanceRequest.response;

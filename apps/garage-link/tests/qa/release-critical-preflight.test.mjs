@@ -16,6 +16,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(runner,/auth\.admin\.listUsers/);
   assert.match(runner,/config\/auth/);
   assert.match(runner,/x-vercel-protection-bypass/);
+  assert.doesNotMatch(runner,/const bypassHeaders=\{'x-vercel-protection-bypass':bypassSecret,'x-vercel-set-bypass-cookie'/);
   assert.match(runner,/\/api\/health/);
   assert.match(runner,/bypass\.status<200\|\|bypass\.status>=300/);
   assert.match(runner,/VERCEL_AUTOMATION_BYPASS_PASS/);
