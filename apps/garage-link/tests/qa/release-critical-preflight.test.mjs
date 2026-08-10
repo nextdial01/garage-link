@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createManualGmailSession, manualGmailCheckpoint, pollManualGmailConfirmation } from '../../scripts/qa/release-critical-preflight.mjs';
+import { createManualGmailSession, manualGmailCheckpoint, manualGmailWorkflowInput, pollManualGmailConfirmation } from '../../scripts/qa/release-critical-preflight.mjs';
 
 const appRoot=resolve(import.meta.dirname,'../..');
 
@@ -25,6 +25,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(runner,/MANUAL_GMAIL_CHECKPOINT_TIMEOUT/);
   assert.match(runner,/auth\.admin\.getUserById/);
   assert.match(runner,/REDACTED_MANUAL_GMAIL_ADDRESS/);
+  assert.match(runner,/GITHUB_EVENT_PATH/);
+  assert.match(runner,/event\?\.inputs\?\.manual_gmail_address/);
   assert.match(runner,/VERCEL_DEPLOYMENT_PROVENANCE_INVALID/);
   assert.match(runner,/deployment\.meta\?\.githubCommitSha/);
   assert.match(runner,/VERCEL_DEPLOYMENT_READ_FAILED/);
@@ -35,7 +37,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/environment: garage-link-commercial-staging/);
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
   assert.match(workflow,/manual_gmail_address/);
-  assert.match(workflow,/MANUAL_GMAIL_ADDRESS/);
+  assert.doesNotMatch(workflow,/MANUAL_GMAIL_ADDRESS/);
   assert.doesNotMatch(workflow,/release_sha|release_branch|EXPECTED_RELEASE_SHA|EXPECTED_RELEASE_BRANCH/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_MAILSLURP_API_KEY/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_QA_MAILBOX/);
@@ -55,4 +57,6 @@ test('Manual Gmail Bridge creates a plus address, redacts checkpoints, and polls
   assert.deepEqual(await pollManualGmailConfirmation({admin:resetAdmin,userId:'staging-user',session,purpose:'recovery',requestedAt}),{state:'MANUAL_GMAIL_CONFIRMED',email_mode:'manual_gmail',run_marker:marker,purpose:'recovery'});
   await assert.rejects(()=>pollManualGmailConfirmation({admin:{auth:{admin:{getUserById:async()=>({data:{user:{email:session.emailAddress,email_confirmed_at:'2026-08-10T00:00:00.000Z',updated_at:requestedAt}},error:null})}}},userId:'staging-user',session,purpose:'recovery',requestedAt,timeoutMs:0}),/MANUAL_GMAIL_CHECKPOINT_TIMEOUT:recovery/);
   assert.throws(()=>createManualGmailSession('not an email',marker),/MANUAL_GMAIL_PLUS_ADDRESS_UNAVAILABLE/);
+  assert.equal(await manualGmailWorkflowInput('/github/event.json',async()=>JSON.stringify({inputs:{manual_gmail_address:'Owner.Name@kannagi-co.com'}})),'Owner.Name@kannagi-co.com');
+  await assert.rejects(()=>manualGmailWorkflowInput('/github/event.json',async()=>JSON.stringify({inputs:{}})),/MANUAL_GMAIL_WORKFLOW_INPUT_MISSING/);
 });
