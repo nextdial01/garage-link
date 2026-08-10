@@ -15,9 +15,58 @@ const MANUAL_GMAIL_POLL_INTERVAL_MS=5_000;
 
 function fail(code){throw new Error(code)}
 function required(name){const value=process.env[name]?.trim();if(!value)fail(`RELEASE_CRITICAL_PREFLIGHT_MISSING:${name}`);return value}
-function redact(error){return String(error?.message??error).replace(/[A-Za-z0-9_-]{32,}/g,'[REDACTED]').replace(/https?:\/\/[^\s)]+/g,'[REDACTED_URL]')}
+function redact(error){return String(error?.message??error).replace(/\b(?:sbp|sb_secret|sb_publishable)_[A-Za-z0-9_-]+\b/g,'[REDACTED]').replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,'[REDACTED]').replace(/https?:\/\/[^\s)]+/g,'[REDACTED_URL]')}
 async function json(response,code){if(!response.ok)fail(`${code}:${response.status}`);return response.json()}
-async function authConfig(ref,token){return json(await fetch(`https://api.supabase.com/v1/projects/${ref}/config/auth`,{headers:{authorization:`Bearer ${token}`}}),`SUPABASE_MANAGEMENT_AUTH_CONFIG_READ_FAILED:${ref}`)}
+
+const MANAGEMENT_API_ORIGIN='https://api.supabase.com';
+
+function managementHeaders(token){return {authorization:`Bearer ${token}`}}
+function managementUrl(pathname){return new URL(pathname,MANAGEMENT_API_ORIGIN)}
+function safeUrlParts(value,baseUrl){
+  if(!value)return null;
+  try {
+    const url=new URL(value,baseUrl);
+    return {origin:url.origin,pathname:url.pathname,search:url.search,hash:url.hash};
+  } catch {return null}
+}
+function diagnosticResponse(response,location,baseUrl=response.url){
+  const current=safeUrlParts(response.url||baseUrl);
+  const target=safeUrlParts(location,response.url||baseUrl);
+  return {
+    status:response.status,
+    redirected:response.redirected,
+    url:current?{origin:current.origin,pathname:current.pathname}:null,
+    location:target?{origin:target.origin,pathname:target.pathname}:null,
+  };
+}
+function canonicalAuthConfigRedirect(target,endpoint){
+  return Boolean(target
+    && target.origin===MANAGEMENT_API_ORIGIN
+    && !target.search
+    && !target.hash
+    && target.pathname.replace(/\/+$/,'')===endpoint.pathname.replace(/\/+$/,''));
+}
+
+export async function readManagementProfile(token,fetchImpl=fetch){
+  const response=await fetchImpl(managementUrl('/v1/profile'),{headers:managementHeaders(token),redirect:'manual',cache:'no-store'});
+  return {status:response.status,redirected:response.redirected,url:safeUrlParts(response.url)?{origin:new URL(response.url).origin,pathname:new URL(response.url).pathname}:null};
+}
+
+export async function readAuthConfig(ref,token,fetchImpl=fetch){
+  const endpoint=managementUrl(`/v1/projects/${encodeURIComponent(ref)}/config/auth`);
+  const environment=ref===PRODUCTION_REF?'PROD':'STAGE';
+  const first=await fetchImpl(endpoint,{headers:managementHeaders(token),redirect:'manual',cache:'no-store'});
+  const location=first.headers.get('location');
+  const initial=diagnosticResponse(first,location,endpoint);
+  if(first.ok)return {config:await first.json(),initial,canonical:null};
+  if(first.status<300||first.status>=400)fail(`SB_AUTH_${environment}_READ:${first.status}`);
+  const target=safeUrlParts(location,endpoint);
+  if(!canonicalAuthConfigRedirect(target,endpoint))fail('SUPABASE_MANAGEMENT_REDIRECT_UNSAFE');
+  const canonicalUrl=new URL(target.pathname,target.origin);
+  const canonicalResponse=await fetchImpl(canonicalUrl,{headers:managementHeaders(token),redirect:'manual',cache:'no-store'});
+  if(!canonicalResponse.ok)fail(`SB_AUTH_${environment}_CANONICAL_READ:${canonicalResponse.status}`);
+  return {config:await canonicalResponse.json(),initial,canonical:diagnosticResponse(canonicalResponse,canonicalResponse.headers.get('location'),canonicalUrl)};
+}
 
 function mailSlurpHeaders(apiKey,hasBody=false){return {'x-api-key':apiKey,accept:'application/json',...(hasBody?{'content-type':'application/json'}:{})}}
 async function mailSlurpJson(path,apiKey,options,code,fetchImpl=fetch){
@@ -148,8 +197,13 @@ async function main(){
   const admin=createClient(supabaseUrl.toString(),serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
   const {data:users,error:usersError}=await admin.auth.admin.listUsers({page:1,perPage:1});
   if(usersError||!users)fail(`SUPABASE_SERVICE_ROLE_ADMIN_API_FAILED:${usersError?.status??0}`);
-  const stagingAuth=await authConfig(STAGING_REF,managementToken);
-  const productionAuth=await authConfig(PRODUCTION_REF,managementToken);
+  const profile=await readManagementProfile(managementToken);
+  if(profile.status===401||profile.status===403)fail(`SB_PROFILE_AUTH_FAILURE:${profile.status}`);
+  if(profile.status!==200)fail(`SB_PROFILE_UNEXPECTED:${profile.status}`);
+  const stagingAuthResult=await readAuthConfig(STAGING_REF,managementToken);
+  const stagingAuth=stagingAuthResult.config;
+  const productionAuthResult=await readAuthConfig(PRODUCTION_REF,managementToken);
+  const productionAuth=productionAuthResult.config;
   const passwordMinimum=stagingAuth.password_min_length??stagingAuth.minimum_password_length;
   if(!Number.isInteger(passwordMinimum)||passwordMinimum<6||!productionAuth||typeof productionAuth!=='object')fail('SUPABASE_AUTH_CONFIG_INVALID');
 
@@ -162,7 +216,7 @@ async function main(){
   if(bypass.status<200||bypass.status>=300||bypass.headers.has('location')||new URL(bypass.url).origin!==baseUrl.origin)fail(`VERCEL_AUTOMATION_BYPASS_FAILED:${bypass.status}`);
   const health=await bypass.json().catch(()=>null);
   if(health?.ok!==true||health.service!=='garage-link')fail('VERCEL_AUTOMATION_BYPASS_APPLICATION_UNREACHED');
-  process.stdout.write(`${JSON.stringify({ok:true,state:'PREFLIGHT_READY',environment:'garage-link-staging',source_sha:provenance.git_commit_sha,branch:provenance.git_commit_ref,deployment_id:provenance.deployment_id,auth:{service_role_admin_api:'PASS',staging_management_read:'PASS',production_management_read_only:'PASS',password_minimum:passwordMinimum},email:{mode:'manual_gmail',base_address:'REDACTED'},vercel:{project:STAGING_PROJECT_NAME,ready:'PASS',protection_bypass:'VERCEL_AUTOMATION_BYPASS_PASS'}})}\n`);
+  process.stdout.write(`${JSON.stringify({ok:true,state:'PREFLIGHT_READY',environment:'garage-link-staging',source_sha:provenance.git_commit_sha,branch:provenance.git_commit_ref,deployment_id:provenance.deployment_id,auth:{service_role_admin_api:'PASS',management_profile:profile,staging_management_read:'PASS',staging_auth_config:stagingAuthResult.initial,production_management_read_only:'PASS',production_auth_config:productionAuthResult.initial,password_minimum:passwordMinimum},email:{mode:'manual_gmail',base_address:'REDACTED'},vercel:{project:STAGING_PROJECT_NAME,ready:'PASS',protection_bypass:'VERCEL_AUTOMATION_BYPASS_PASS'}})}\n`);
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)main().catch(error=>{process.stderr.write(`${JSON.stringify({ok:false,code:redact(error)})}\n`);process.exitCode=1});

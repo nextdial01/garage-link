@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createManualGmailSession, manualGmailCheckpoint, manualGmailWorkflowInput, pollManualGmailConfirmation } from '../../scripts/qa/release-critical-preflight.mjs';
+import { createManualGmailSession, manualGmailCheckpoint, manualGmailWorkflowInput, pollManualGmailConfirmation, readAuthConfig, readManagementProfile } from '../../scripts/qa/release-critical-preflight.mjs';
 
 const appRoot=resolve(import.meta.dirname,'../..');
 
@@ -30,6 +30,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(runner,/RUNTIME_PROVENANCE_ACCESS_FAILED/);
   assert.match(runner,/\/api\/qa\/provenance/);
   assert.match(runner,/RUNTIME_PROVENANCE_RESPONSE_SHAPE_INVALID/);
+  assert.match(runner,/readManagementProfile/);
+  assert.match(runner,/redirect:'manual'/);
+  assert.match(runner,/SUPABASE_MANAGEMENT_REDIRECT_UNSAFE/);
   assert.match(runner,/provenance\.git_commit_sha/);
   assert.doesNotMatch(runner,/\/v9\/projects\//);
   assert.doesNotMatch(runner,/api\.vercel\.com\/v13\/deployments/);
@@ -45,6 +48,35 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(workflow,/GARAGE_STAGING_MAILSLURP_API_KEY/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_QA_MAILBOX/);
   assert.doesNotMatch(workflow,/STRIPE_SECRET_KEY|E2E_ALLOW_BILLING_MUTATIONS|STRIPE_WEBHOOK_SECRET/);
+});
+
+test('Management API diagnosis reads profile once and follows only a same-origin canonical Auth redirect',async()=>{
+  const calls=[];
+  const fetchImpl=async(url,options)=>{
+    calls.push({url:String(url),options});
+    if(String(url).endsWith('/v1/profile'))return new Response('{}',{status:200});
+    if(String(url).endsWith('/config/auth'))return new Response(null,{status:307,headers:{location:`${String(url)}/`}});
+    if(String(url).endsWith('/config/auth/'))return new Response(JSON.stringify({password_min_length:6}),{status:200,headers:{'content-type':'application/json'}});
+    throw new Error('unexpected request');
+  };
+  const profile=await readManagementProfile('secret',fetchImpl);
+  assert.equal(profile.status,200);
+  const auth=await readAuthConfig('gaytoojzwqkpuvfofeql','secret',fetchImpl);
+  assert.equal(auth.initial.status,307);
+  assert.deepEqual(auth.initial.location,{origin:'https://api.supabase.com',pathname:'/v1/projects/gaytoojzwqkpuvfofeql/config/auth/'});
+  assert.equal(auth.config.password_min_length,6);
+  assert.equal(calls.length,3);
+  assert.ok(calls.every(call=>call.options.redirect==='manual'));
+  assert.ok(calls.every(call=>call.options.headers.authorization==='Bearer secret'));
+});
+
+test('Management API diagnosis fails closed without forwarding Authorization across origins',async()=>{
+  const calls=[];
+  await assert.rejects(()=>readAuthConfig('gaytoojzwqkpuvfofeql','secret',async(url,options)=>{
+    calls.push({url:String(url),options});
+    return new Response(null,{status:307,headers:{location:'https://example.invalid/config/auth'}});
+  }),/SUPABASE_MANAGEMENT_REDIRECT_UNSAFE/);
+  assert.equal(calls.length,1);
 });
 
 test('Manual Gmail Bridge creates a plus address, redacts checkpoints, and polls Auth confirmation',async()=>{
