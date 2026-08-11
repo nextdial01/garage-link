@@ -15,6 +15,12 @@ function allowedUrls(config){
 }
 function isLocalhostRedirect(value){try {return ['localhost','127.0.0.1','[::1]'].includes(new URL(value.replace(/\*+$/,'')).hostname)} catch {return false}}
 async function stagingOrigin(){const event=JSON.parse(await readFile(required('GITHUB_EVENT_PATH'),'utf8'));const value=String(event?.inputs?.staging_base_url??'').trim();const url=new URL(value);if(url.protocol!=='https:'||!/^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i.test(url.hostname))throw new Error('STAGING_AUTH_ORIGIN_INVALID');return url.origin}
+function safePatchFailure(response,body,allowlist){
+  const providerCode=String(body?.code??body?.error_code??'UNKNOWN').replace(/[^A-Z0-9_-]/gi,'_').slice(0,48);
+  const message=String(body?.message??body?.error??'').toLowerCase();
+  const category=/uri|redirect|allow.?list/.test(message)?'REDIRECT_CONTRACT':/site.?url/.test(message)?'SITE_URL':/password/.test(message)?'PASSWORD_POLICY':'UNCLASSIFIED';
+  return `STAGING_PASSWORD_MINIMUM_UPDATE_FAILED:${response.status}:${providerCode}:${category}:ALLOWLIST_COUNT_${allowlist.size}`;
+}
 
 export async function applyStagingPasswordMinimum(token,fetchImpl=fetch,origin){
   const resolvedOrigin=origin??await stagingOrigin();
@@ -30,7 +36,10 @@ export async function applyStagingPasswordMinimum(token,fetchImpl=fetch,origin){
   // `additional_redirect_urls` is the local CLI config alias. The hosted
   // Management API accepts the documented `uri_allow_list` field only.
   const response=await fetchImpl(endpoint,{method:'PATCH',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:resolvedOrigin,uri_allow_list:[...allowlist].join(',')}),redirect:'manual',cache:'no-store'});
-  if(!response.ok||response.status>=300)throw new Error(`STAGING_PASSWORD_MINIMUM_UPDATE_FAILED:${response.status}`);
+  if(!response.ok||response.status>=300){
+    const body=await response.json().catch(()=>null);
+    throw new Error(safePatchFailure(response,body,allowlist));
+  }
   const readback=await readAuthConfig(STAGING_REF,token,fetchImpl);
   const minimum=readback.config?.password_min_length??readback.config?.minimum_password_length;
   const readbackAllowlist=allowedUrls(readback.config);
