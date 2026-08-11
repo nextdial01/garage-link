@@ -18,6 +18,14 @@ on:
         description: Exact 40-character SHA returned by the target Staging runtime provenance endpoint
         required: true
         type: string
+      auth_config_mode:
+        description: Normal runs prove redirects through Hosted Auth; use repair only for one-time Staging drift remediation
+        required: true
+        default: verify_by_journey
+        type: choice
+        options:
+          - verify_by_journey
+          - repair_staging_once
 
 permissions:
   contents: read
@@ -39,7 +47,6 @@ jobs:
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
       RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
-      GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -56,6 +63,7 @@ jobs:
   stage-auth-contract:
     name: Staging Auth redirect and password contract
     needs: preflight
+    if: ${{ inputs.auth_config_mode == 'repair_staging_once' }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 15
@@ -76,7 +84,8 @@ jobs:
 
   journeys:
     name: Release-critical acquisition journeys
-    needs: stage-auth-contract
+    needs: [preflight, stage-auth-contract]
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.stage-auth-contract.result == 'success' || needs.stage-auth-contract.result == 'skipped') }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 50

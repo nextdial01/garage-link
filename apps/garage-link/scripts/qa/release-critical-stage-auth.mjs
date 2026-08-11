@@ -6,6 +6,8 @@ import { readAuthConfig } from './release-critical-preflight.mjs';
 const STAGING_REF='gaytoojzwqkpuvfofeql';
 const PRODUCTION_REF='wmlpuzuskfiwdipluglz';
 const MANAGEMENT_ORIGIN='https://api.supabase.com';
+const STAGING_SITE_ORIGIN='https://garage-link-staging-nextdial01-altos-projects-fa55063c.vercel.app';
+const STAGING_PREVIEW_WILDCARD='https://*-altos-projects-fa55063c.vercel.app/**';
 
 function required(name){const value=process.env[name]?.trim();if(!value)throw new Error(`RELEASE_CRITICAL_STAGE_AUTH_MISSING:${name}`);return value}
 function authEndpoint(ref){return new URL(`/v1/projects/${encodeURIComponent(ref)}/config/auth`,MANAGEMENT_ORIGIN)}
@@ -35,16 +37,14 @@ export async function applyStagingPasswordMinimum(token,fetchImpl=fetch,origin){
   // localhost fallback that caused the prior confirmation callback to leave
   // Staging. Supabase evaluates emailRedirectTo against the callback URL,
   // not the post-callback next route.
-  // Preview URLs are intentionally ephemeral. Keeping every exact preview
-  // callback grows the hosted allowlist until Supabase rejects the PATCH.
-  // Keep non-Staging contracts, remove stale preview entries, and authorize
-  // only this run's exact Staging preview origin.
+  // Supabase's documented Vercel contract uses one team-scoped wildcard for
+  // ephemeral Preview URLs. Keep the fallback Site URL on the stable Staging
+  // alias and avoid a Management API PATCH on every candidate deployment.
   const allowlist=new Set(allowedUrls(current.config).filter(value=>!isLocalhostRedirect(value)&&!isStagingPreviewRedirect(value)));
-  allowlist.add(`${resolvedOrigin}/auth/callback`);
-  allowlist.add(`${resolvedOrigin}/auth/callback**`);
+  allowlist.add(STAGING_PREVIEW_WILDCARD);
   // `additional_redirect_urls` is the local CLI config alias. The hosted
   // Management API accepts the documented `uri_allow_list` field only.
-  const response=await fetchImpl(endpoint,{method:'PATCH',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:resolvedOrigin,uri_allow_list:[...allowlist].join(',')}),redirect:'manual',cache:'no-store'});
+  const response=await fetchImpl(endpoint,{method:'PATCH',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:STAGING_SITE_ORIGIN,uri_allow_list:[...allowlist].join(',')}),redirect:'manual',cache:'no-store'});
   if(!response.ok||response.status>=300){
     const body=await response.json().catch(()=>null);
     throw new Error(safePatchFailure(response,body,allowlist));
@@ -53,9 +53,11 @@ export async function applyStagingPasswordMinimum(token,fetchImpl=fetch,origin){
   const minimum=readback.config?.password_min_length??readback.config?.minimum_password_length;
   const readbackAllowlist=allowedUrls(readback.config);
   const callbackAllowed=readbackAllowlist.some(pattern=>redirectAllowed(pattern,`${resolvedOrigin}/auth/callback`));
+  const recoveryAllowed=readbackAllowlist.some(pattern=>redirectAllowed(pattern,`${resolvedOrigin}/auth/callback?next=%2Fauth%2Freset-password`));
+  const stableWildcard=readbackAllowlist.includes(STAGING_PREVIEW_WILDCARD);
   const localhostFallback=readbackAllowlist.some(isLocalhostRedirect);
-  if(minimum!==8||readback.config?.mailer_autoconfirm!==false||readback.config?.site_url!==resolvedOrigin||!callbackAllowed||localhostFallback)throw new Error('STAGING_AUTH_CONTRACT_READBACK_FAILED');
-  return {project_ref:STAGING_REF,password_minimum:minimum,email_confirmation_required:true,staging_origin:resolvedOrigin,callback_allowed:callbackAllowed,recovery_allowed:callbackAllowed,localhost_redirects_removed:!localhostFallback};
+  if(minimum!==8||readback.config?.mailer_autoconfirm!==false||readback.config?.site_url!==STAGING_SITE_ORIGIN||!callbackAllowed||!recoveryAllowed||!stableWildcard||localhostFallback)throw new Error('STAGING_AUTH_CONTRACT_READBACK_FAILED');
+  return {project_ref:STAGING_REF,password_minimum:minimum,email_confirmation_required:true,site_origin:STAGING_SITE_ORIGIN,candidate_origin:resolvedOrigin,preview_wildcard:STAGING_PREVIEW_WILDCARD,callback_allowed:callbackAllowed,recovery_allowed:recoveryAllowed,localhost_redirects_removed:!localhostFallback};
 }
 
 async function main(){

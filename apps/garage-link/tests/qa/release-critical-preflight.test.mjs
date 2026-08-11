@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl } from '../../scripts/qa/release-critical-preflight.mjs';
-import { classifyCtaTrace, createReleaseCriticalRun, releaseCriticalSyntheticPassword, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
+import { classifyCtaTrace, createReleaseCriticalRun, releaseCriticalSyntheticPassword, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
 import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-stage-auth.mjs';
 
 const appRoot=resolve(import.meta.dirname,'../..');
@@ -102,9 +102,17 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/browser_runtime_error_count/);
   assert.match(journeys,/garage_ui_context/);
   assert.match(journeys,/contract_access_state/);
+  assert.match(journeys,/RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_PASS/);
+  assert.match(journeys,/management_pat_required:false/);
   assert.doesNotMatch(journeys,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(workflow,/environment: garage-link-commercial-staging/);
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
+  const preflightJob=workflow.slice(workflow.indexOf('\n  preflight:'),workflow.indexOf('\n  stage-auth-contract:'));
+  assert.doesNotMatch(preflightJob,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
+  assert.match(workflow,/auth_config_mode/);
+  assert.match(workflow,/verify_by_journey/);
+  assert.match(workflow,/repair_staging_once/);
+  assert.match(workflow,/inputs\.auth_config_mode == 'repair_staging_once'/);
   assert.match(workflow,/RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS/);
   assert.match(workflow,/journeys:[\s\S]*RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS/);
   assert.match(workflow,/staging_base_url/);
@@ -251,18 +259,28 @@ test('CTA trace separates pointer non-delivery, route redirects, and runtime err
   assert.equal(classifyCtaTrace({domClick:true,expected:true,navigationRequestCount:1,runtimeErrorCount:1,initialPath:'/vehicles',finalPath:'/vehicles/new'}),'RUNTIME_ERROR');
 });
 
+test('normal release runs fail closed on Hosted Auth and client redirect drift without a Management PAT',()=>{
+  const project='https://gaytoojzwqkpuvfofeql.supabase.co';
+  const expected='https://garage-link-staging-test.vercel.app/auth/callback?next=%2Fsignup%3Fresume%3D1';
+  const action=`${project}/auth/v1/verify?token=redacted&type=recovery&redirect_to=${encodeURIComponent(expected)}`;
+  assert.deepEqual(validateHostedGeneratedLink(action,expected,project),{origin:'https://garage-link-staging-test.vercel.app',path:'/auth/callback',localhost:false});
+  assert.deepEqual(validateClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent(expected)}`,expected,project),{origin:'https://garage-link-staging-test.vercel.app',path:'/auth/callback'});
+  assert.throws(()=>validateHostedGeneratedLink(`${project}/auth/v1/verify?redirect_to=${encodeURIComponent('http://localhost:3000/auth/callback')}`,expected,project),/RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_DRIFT/);
+  assert.throws(()=>validateClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent('http://localhost:3000/auth/callback')}`,expected,project),/RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID/);
+});
+
 test('hosted Auth update is Staging-only and requires password plus confirmation read-back',async()=>{
   const calls=[];
   await applyStagingPasswordMinimum('token',async(url,options)=>{
     calls.push({url:String(url),options});
     if(options.method==='PATCH')return new Response('{}',{status:200});
-    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
-  },'https://garage-link-staging-test.vercel.app');
+    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-nextdial01-altos-projects-fa55063c.vercel.app',uri_allow_list:'https://*-altos-projects-fa55063c.vercel.app/**'}),{status:200,headers:{'content-type':'application/json'}});
+  },'https://garage-link-staging-test-altos-projects-fa55063c.vercel.app');
   assert.equal(calls.length,3);
   assert.equal(calls[1].options.method,'PATCH');
-  assert.deepEqual(JSON.parse(calls[1].options.body),{password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'});
+  assert.deepEqual(JSON.parse(calls[1].options.body),{password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-nextdial01-altos-projects-fa55063c.vercel.app',uri_allow_list:'https://*-altos-projects-fa55063c.vercel.app/**'});
   assert.ok(calls.every(call=>call.url.includes('gaytoojzwqkpuvfofeql')));
-  await assert.rejects(()=>applyStagingPasswordMinimum('token',async()=>new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:true}),{status:200,headers:{'content-type':'application/json'}}),'https://garage-link-staging-test.vercel.app'),/STAGING_AUTH_CONTRACT_READBACK_FAILED/);
+  await assert.rejects(()=>applyStagingPasswordMinimum('token',async()=>new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:true}),{status:200,headers:{'content-type':'application/json'}}),'https://garage-link-staging-test-altos-projects-fa55063c.vercel.app'),/STAGING_AUTH_CONTRACT_READBACK_FAILED/);
 });
 
 test('hosted Auth contract preserves non-local redirects but removes localhost fallbacks',async()=>{
@@ -271,9 +289,9 @@ test('hosted Auth contract preserves non-local redirects but removes localhost f
     calls.push({url:String(url),options});
     if(options.method==='PATCH')return new Response('{}',{status:200});
     const firstRead=calls.length===1;
-    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:firstRead?'http://localhost:3000,https://external.example/callback,https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-old.vercel.app/auth/callback**':'https://external.example/callback,https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
-  },'https://garage-link-staging-test.vercel.app');
-  assert.equal(JSON.parse(calls[1].options.body).uri_allow_list,'https://external.example/callback,https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**');
+    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:firstRead?'https://garage-link-staging-test.vercel.app':'https://garage-link-staging-nextdial01-altos-projects-fa55063c.vercel.app',uri_allow_list:firstRead?'http://localhost:3000,https://external.example/callback,https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-old.vercel.app/auth/callback**':'https://external.example/callback,https://*-altos-projects-fa55063c.vercel.app/**'}),{status:200,headers:{'content-type':'application/json'}});
+  },'https://garage-link-staging-test-altos-projects-fa55063c.vercel.app');
+  assert.equal(JSON.parse(calls[1].options.body).uri_allow_list,'https://external.example/callback,https://*-altos-projects-fa55063c.vercel.app/**');
 });
 
 test('hosted Auth contract reads the local additional_redirect_urls alias but PATCHes the Management API uri_allow_list field',async()=>{
@@ -281,10 +299,10 @@ test('hosted Auth contract reads the local additional_redirect_urls alias but PA
   await applyStagingPasswordMinimum('token',async(url,options)=>{
     calls.push({url:String(url),options});
     if(options.method==='PATCH')return new Response('{}',{status:200});
-    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',additional_redirect_urls:'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**',uri_allow_list:'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
-  },'https://garage-link-staging-test.vercel.app');
+    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-nextdial01-altos-projects-fa55063c.vercel.app',additional_redirect_urls:'https://*-altos-projects-fa55063c.vercel.app/**',uri_allow_list:'https://*-altos-projects-fa55063c.vercel.app/**'}),{status:200,headers:{'content-type':'application/json'}});
+  },'https://garage-link-staging-test-altos-projects-fa55063c.vercel.app');
   const payload=JSON.parse(calls[1].options.body);
-  assert.equal(payload.uri_allow_list,'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**');
+  assert.equal(payload.uri_allow_list,'https://*-altos-projects-fa55063c.vercel.app/**');
   assert.equal(payload.additional_redirect_urls,undefined);
 });
 
@@ -294,7 +312,7 @@ test('hosted Auth contract compacts stale Staging preview callbacks before the M
   await applyStagingPasswordMinimum('token',async(url,options)=>{
     calls.push({url:String(url),options});
     if(options.method==='PATCH')return new Response('{}',{status:200});
-    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:calls.length===1?stale:'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
-  },'https://garage-link-staging-test.vercel.app');
-  assert.equal(JSON.parse(calls[1].options.body).uri_allow_list,'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**');
+    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:calls.length===1?'https://garage-link-staging-test.vercel.app':'https://garage-link-staging-nextdial01-altos-projects-fa55063c.vercel.app',uri_allow_list:calls.length===1?stale:'https://*-altos-projects-fa55063c.vercel.app/**'}),{status:200,headers:{'content-type':'application/json'}});
+  },'https://garage-link-staging-test-altos-projects-fa55063c.vercel.app');
+  assert.equal(JSON.parse(calls[1].options.body).uri_allow_list,'https://*-altos-projects-fa55063c.vercel.app/**');
 });

@@ -214,7 +214,6 @@ async function main(){
   const baseUrl=new URL(await releaseCriticalBaseUrl(eventPath));
   const supabaseUrl=new URL(required('E2E_TEST_SUPABASE_URL'));
   const serviceRole=required('E2E_TEST_SUPABASE_SERVICE_ROLE_KEY');
-  const managementToken=required('GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN');
   const emailMode=required('RELEASE_CRITICAL_EMAIL_MODE');
   // The address is an Environment secret, never a workflow_dispatch input.
   // Keep it out of both the GitHub event payload and Action logs.
@@ -228,15 +227,6 @@ async function main(){
   const admin=createClient(supabaseUrl.toString(),serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
   const {data:users,error:usersError}=await admin.auth.admin.listUsers({page:1,perPage:1});
   if(usersError||!users)fail(`SUPABASE_SERVICE_ROLE_ADMIN_API_FAILED:${usersError?.status??0}`);
-  const profile=await readManagementProfile(managementToken);
-  if(profile.status===401||profile.status===403)fail(`SB_PROFILE_AUTH_FAILURE:${profile.status}`);
-  if(profile.status!==200)fail(`SB_PROFILE_UNEXPECTED:${profile.status}`);
-  const stagingAuthResult=await readAuthConfig(STAGING_REF,managementToken);
-  const stagingAuth=stagingAuthResult.config;
-  const productionAuthResult=await readAuthConfig(PRODUCTION_REF,managementToken);
-  const productionAuth=productionAuthResult.config;
-  const passwordMinimum=stagingAuth.password_min_length??stagingAuth.minimum_password_length;
-  if(!Number.isInteger(passwordMinimum)||passwordMinimum<6||!productionAuth||typeof productionAuth!=='object')fail('SUPABASE_AUTH_CONFIG_INVALID');
 
   // PREFLIGHT verifies direct Automation Bypass access. Cookie issuance is only
   // needed by browser follow-up requests and deliberately causes a redirect.
@@ -254,7 +244,7 @@ async function main(){
   if(bypass.status<200||bypass.status>=300||bypass.headers.has('location')||new URL(bypass.url).origin!==baseUrl.origin)fail(`VERCEL_AUTOMATION_BYPASS_FAILED:${bypass.status}`);
   const health=await bypass.json().catch(()=>null);
   if(health?.ok!==true||health.service!=='garage-link')fail('VERCEL_AUTOMATION_BYPASS_APPLICATION_UNREACHED');
-  process.stdout.write(`${JSON.stringify({ok:true,state:'PREFLIGHT_READY',environment:'garage-link-staging',source_sha:provenance.git_commit_sha,branch:provenance.git_commit_ref,deployment_id:provenance.deployment_id,auth:{service_role_admin_api:'PASS',management_profile:profile,staging_management_read:'PASS',staging_auth_config:stagingAuthResult.initial,production_management_read_only:'PASS',production_auth_config:productionAuthResult.initial,password_minimum:passwordMinimum},email:{mode:'manual_gmail',base_address:'REDACTED'},vercel:{project:STAGING_PROJECT_NAME,ready:'PASS',protection_bypass:'VERCEL_AUTOMATION_BYPASS_PASS'}})}\n`);
+  process.stdout.write(`${JSON.stringify({ok:true,state:'PREFLIGHT_READY',environment:'garage-link-staging',source_sha:provenance.git_commit_sha,branch:provenance.git_commit_ref,deployment_id:provenance.deployment_id,auth:{service_role_admin_api:'PASS',management_api:'NOT_REQUIRED_FOR_NORMAL_RUN',hosted_contract_baseline_run_id:'31488195475',redirect_drift_gate:'HOSTED_GENERATED_LINK_AND_ACTUAL_CALLBACK_FAIL_CLOSED'},email:{mode:'manual_gmail',base_address:'REDACTED'},vercel:{project:STAGING_PROJECT_NAME,ready:'PASS',protection_bypass:'VERCEL_AUTOMATION_BYPASS_PASS'}})}\n`);
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)main().catch(error=>{process.stderr.write(`${JSON.stringify({ok:false,code:redact(error)})}\n`);process.exitCode=1});

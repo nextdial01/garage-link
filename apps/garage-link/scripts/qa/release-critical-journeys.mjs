@@ -66,6 +66,37 @@ export function classifyCtaTrace(trace){
   if(trace.navigationRequestCount>0||trace.finalPath!==trace.initialPath)return 'ROUTE_STARTED_REDIRECTED';
   return 'CLICK_FIRED_ROUTER_UNOBSERVED';
 }
+export function validateHostedGeneratedLink(actionLink,expectedRedirect,supabaseUrl){
+  try {
+    const action=new URL(actionLink); const expected=new URL(expectedRedirect); const project=new URL(supabaseUrl);
+    const redirect=new URL(action.searchParams.get('redirect_to')??'');
+    if(action.origin!==project.origin||action.pathname!=='/auth/v1/verify'||redirect.toString()!==expected.toString()||redirect.protocol!=='https:'||['localhost','127.0.0.1','[::1]'].includes(redirect.hostname)||!/^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i.test(redirect.hostname))fail('RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_DRIFT');
+    return {origin:redirect.origin,path:redirect.pathname,localhost:false};
+  } catch(error) {if(String(error?.message)==='RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_DRIFT')throw error;fail('RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_DRIFT');}
+}
+export function validateClientAuthRedirect(requestUrl,expectedRedirect,supabaseUrl){
+  try {
+    const request=new URL(requestUrl); const expected=new URL(expectedRedirect); const project=new URL(supabaseUrl); const redirect=new URL(request.searchParams.get('redirect_to')??'');
+    if(request.origin!==project.origin||redirect.toString()!==expected.toString()||redirect.protocol!=='https:'||['localhost','127.0.0.1','[::1]'].includes(redirect.hostname))fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID');
+    return {origin:redirect.origin,path:redirect.pathname};
+  } catch(error) {if(String(error?.message)==='RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID')throw error;fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID');}
+}
+async function verifyHostedRedirectContract({admin,manualBase,run,baseUrl,supabaseUrl}){
+  const probeMarker=`${run.emailMarker}-contract`; const probe=createManualGmailSession(manualBase,probeMarker); const password=releaseCriticalSyntheticPassword(probeMarker);
+  const callback=new URL('/auth/callback',baseUrl); callback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); callback.searchParams.set('qa_run',run.runId);
+  let userId='';
+  try {
+    const {data:created,error:createError}=await admin.auth.admin.createUser({email:probe.emailAddress,password,email_confirm:true,app_metadata:{release_qa_redirect_probe:run.runId}});
+    userId=created?.user?.id??''; if(createError||!userId)fail(`RELEASE_CRITICAL_REDIRECT_PROBE_CREATE:${safeProviderCode(createError)}`);
+    const {data:generated,error:generateError}=await admin.auth.admin.generateLink({type:'recovery',email:probe.emailAddress,options:{redirectTo:callback.toString()}});
+    if(generateError||typeof generated?.properties?.action_link!=='string')fail(`RELEASE_CRITICAL_REDIRECT_PROBE_GENERATE:${safeProviderCode(generateError)}`);
+    const verified=validateHostedGeneratedLink(generated.properties.action_link,callback.toString(),supabaseUrl);
+    emit({state:'RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_PASS',candidate_origin:verified.origin,callback_path:verified.path,localhost:false,management_pat_required:false,baseline_run_id:'31488195475'});
+  } finally {
+    if(userId){const {error}=await admin.auth.admin.deleteUser(userId,false);if(error&&error.status!==404)fail(`RELEASE_CRITICAL_REDIRECT_PROBE_DELETE:${error.status??0}`);const [{data,error:lookupError},membership]=await Promise.all([admin.auth.admin.getUserById(userId),admin.from('memberships').select('id',{count:'exact',head:true}).eq('user_id',userId)]);if((lookupError&&lookupError.status!==404)||data?.user||membership.error||(membership.count??0)!==0)fail('RELEASE_CRITICAL_REDIRECT_PROBE_RESIDUAL');}
+  }
+}
+function releaseQaNextPathForRunner(path,runId){const url=new URL(path,'https://release-qa.invalid');url.searchParams.set('qa_run',runId);return `${url.pathname}${url.search}`;}
 async function tracePointerCta(page,{baseUrl,label,locator,expectedPath,accountState}){
   const initialPath=safeNavigationPath(page.url(),baseUrl);
   const trace={domClick:false,expected:false,initialPath,finalPath:initialPath,navigationRequestCount:0,runtimeErrorCount:0};
@@ -319,8 +350,9 @@ async function main(){
   const provenanceResponse=await fetch(new URL('/api/qa/provenance',baseUrl),{headers:{'x-vercel-protection-bypass':bypassSecret},redirect:'manual',cache:'no-store'}); if(!provenanceResponse.ok||provenanceResponse.headers.has('location'))fail('RELEASE_CRITICAL_PROVENANCE_UNREACHED');
   const provenance=validateReleaseCriticalProvenance(await provenanceResponse.json(),baseUrl); if(provenance.sourceSha!==expectedCandidateSha)fail('RELEASE_CRITICAL_CANDIDATE_SHA_MISMATCH');
   const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
-  await recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);
   const run=createReleaseCriticalRun(); const session=createManualGmailSession(manualBase,run.emailMarker); const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker); const resetPassword='GL-Release-Reset-8!';
+  await verifyHostedRedirectContract({admin,manualBase,run,baseUrl,supabaseUrl});
+  await recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);
   let browser; let context; let page; let user; let life; let adopted=false; const results={};
   try {
     life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance);
@@ -328,7 +360,10 @@ async function main(){
     await page.goto(`${baseUrl}${baseUrl.includes('?')?'&':'?'}qa_run=${encodeURIComponent(run.runId)}`,{waitUntil:'domcontentloaded'});
     await clickAndWait(page,page.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
     const fillSignup=async(password)=>{await page.getByLabel('店舗名').fill(`${run.marker} Signup`);await page.getByLabel('担当者名').fill(`${run.marker} Owner`);await page.getByLabel('メールアドレス').fill(session.emailAddress);await page.locator('#password').fill(password);await page.locator('#passwordConfirmation').fill(password);await page.getByRole('checkbox').check();};
+    const signupCallback=new URL('/auth/callback',baseUrl); signupCallback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); signupCallback.searchParams.set('qa_run',run.runId);
+    const signupRequest=page.waitForRequest(request=>request.method()==='POST'&&new URL(request.url()).pathname==='/auth/v1/signup',{timeout:30_000});
     await fillSignup(initialPassword); await page.getByRole('button',{name:'無料でアカウントを作成する'}).click();
+    const signupRedirect=validateClientAuthRedirect((await signupRequest).url(),signupCallback.toString(),supabaseUrl); emit({state:'RELEASE_CRITICAL_SIGNUP_REDIRECT_REQUEST_PASS',redirect_origin:signupRedirect.origin,redirect_path:signupRedirect.path,localhost:false});
     const signupOutcome=await signupSubmitOutcome(page);
     if(signupOutcome.kind==='alert'){
       const alertText=await page.locator('form').getByRole('alert').textContent();
@@ -354,7 +389,7 @@ async function main(){
     // The separate page keeps the main owner session intact; fill by concrete UI locators.
     const invalidAlert=invalid.locator('form').getByRole('alert');
     await invalid.getByLabel('店舗名').fill(`${run.marker} Reject`); await invalid.getByLabel('担当者名').fill(`${run.marker} Reject`); await invalid.getByLabel('メールアドレス').fill(session.emailAddress); await invalid.locator('#password').fill('short1'); await invalid.locator('#passwordConfirmation').fill('short1'); await invalid.getByRole('checkbox').check(); await invalid.getByRole('button',{name:'無料でアカウントを作成する'}).click(); await invalidAlert.waitFor(); if(!/8文字以上/.test(await invalidAlert.textContent()??''))fail('RELEASE_CRITICAL_PASSWORD_6_NOT_REJECTED'); await invalid.locator('#password').fill('short12'); await invalid.locator('#passwordConfirmation').fill('short12'); await invalid.getByRole('button',{name:'無料でアカウントを作成する'}).click(); if(!/8文字以上/.test(await invalidAlert.textContent()??''))fail('RELEASE_CRITICAL_PASSWORD_7_NOT_REJECTED'); await invalid.close(); results.J3='PASS';
-    await page.getByRole('link',{name:'ログアウト'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,initialPassword,/\/dashboard/); await page.getByRole('link',{name:'ログアウト'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await page.getByRole('link',{name:'忘れた方はこちら'}).click(); await page.waitForURL(/\/forgot-password/,{timeout:30_000}); await page.getByLabel('メールアドレス').fill(session.emailAddress); await page.getByRole('button',{name:'メールを送る'}).click(); await page.getByText('再設定メールを送りました。').waitFor({timeout:30_000}); emit({...manualGmailCheckpoint(session,'recovery'),operator_action:'Use the already-open Staging-only Gmail session: click the matching reset link and set the synthetic password GL-Release-Reset-8!.'}); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'recovery',requirePasswordUpdate:true}); await page.getByRole('link',{name:'ログインへ戻る'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,resetPassword,/\/dashboard/); results.J4='PASS';
+    await page.getByRole('link',{name:'ログアウト'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,initialPassword,/\/dashboard/); await page.getByRole('link',{name:'ログアウト'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await page.getByRole('link',{name:'忘れた方はこちら'}).click(); await page.waitForURL(/\/forgot-password/,{timeout:30_000}); await page.getByLabel('メールアドレス').fill(session.emailAddress); const recoveryCallback=new URL('/auth/callback',baseUrl); recoveryCallback.searchParams.set('next',releaseQaNextPathForRunner('/auth/reset-password',run.runId)); recoveryCallback.searchParams.set('qa_run',run.runId); const recoveryRequest=page.waitForRequest(request=>request.method()==='POST'&&new URL(request.url()).pathname==='/auth/v1/recover',{timeout:30_000}); await page.getByRole('button',{name:'メールを送る'}).click(); const recoveryRedirect=validateClientAuthRedirect((await recoveryRequest).url(),recoveryCallback.toString(),supabaseUrl); emit({state:'RELEASE_CRITICAL_RECOVERY_REDIRECT_REQUEST_PASS',redirect_origin:recoveryRedirect.origin,redirect_path:recoveryRedirect.path,localhost:false}); await page.getByText('再設定メールを送りました。').waitFor({timeout:30_000}); emit({...manualGmailCheckpoint(session,'recovery'),operator_action:'Use the already-open Staging-only Gmail session: click the matching reset link and set the synthetic password GL-Release-Reset-8!.'}); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'recovery',requirePasswordUpdate:true}); await page.getByRole('link',{name:'ログインへ戻る'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,resetPassword,/\/dashboard/); results.J4='PASS';
     await clickAndWait(page,page.getByRole('link',{name:'車両',exact:true}).first(),/\/vehicles(?:\?|$)/);
     await tracePointerCta(page,{baseUrl,label:'VEHICLE_CREATE',locator:page.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState:owner.accountState});
     await page.getByText('車両登録',{exact:true}).waitFor({timeout:30_000});
