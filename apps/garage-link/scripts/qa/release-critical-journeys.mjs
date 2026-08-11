@@ -14,6 +14,7 @@ const CHECKPOINT_TIMEOUT_MS=20*60_000;
 function fail(code){throw new Error(code)}
 function required(name){const value=process.env[name]?.trim();if(!value)fail(`RELEASE_CRITICAL_JOURNEY_MISSING:${name}`);return value}
 function safeErrorCode(error){return String(error?.message??error).replace(/https?:\/\/\S+/g,'[REDACTED_URL]').replace(/\b(?:sbp|sb_secret|eyJ)[A-Za-z0-9._-]+\b/g,'[REDACTED]').slice(0,180)}
+function safeProviderCode(error){return String(error?.code??error?.status??'UNKNOWN').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,48)}
 function emit(value){process.stdout.write(`${JSON.stringify(value)}\n`)}
 function sha256(value){return createHash('sha256').update(value).digest('hex')}
 function signupAlertClassification(value){
@@ -92,13 +93,13 @@ async function ownerFixture(admin,userId,{optional=false}={}){
   // relation is not part of the fixture-lifecycle contract and can become
   // ambiguous when a historical partial fixture is being recovered.
   const {data:memberships,error:membershipError}=await admin.from('memberships').select('id,tenant_id,store_id').eq('user_id',userId).eq('role','owner');
-  if(membershipError)fail('RELEASE_CRITICAL_FIXTURE_MEMBERSHIP_LOOKUP_FAILED');
+  if(membershipError)fail(`RELEASE_CRITICAL_FIXTURE_MEMBERSHIP_LOOKUP:${safeProviderCode(membershipError)}`);
   if((memberships?.length??0)===0){if(optional)return null;fail('RELEASE_CRITICAL_FIXTURE_OWNER_ABSENT');}
   if(memberships.length!==1)fail(`RELEASE_CRITICAL_FIXTURE_OWNER_CARDINALITY:${memberships.length}`);
   const membership=memberships[0];
   if(!membership?.id||!membership.tenant_id||!membership.store_id)fail('RELEASE_CRITICAL_FIXTURE_MEMBERSHIP_SHAPE_INVALID');
   const {data:tenant,error:tenantError}=await admin.from('tenants').select('name').eq('id',membership.tenant_id).maybeSingle();
-  if(tenantError)fail('RELEASE_CRITICAL_FIXTURE_TENANT_LOOKUP_FAILED');
+  if(tenantError)fail(`RELEASE_CRITICAL_FIXTURE_TENANT_LOOKUP:${safeProviderCode(tenantError)}`);
   if(typeof tenant?.name!=='string'||!tenant.name)fail('RELEASE_CRITICAL_FIXTURE_TENANT_ABSENT');
   return {membershipId:membership.id,tenantId:membership.tenant_id,storeId:membership.store_id,tenantName:tenant.name};
 }
