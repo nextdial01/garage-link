@@ -97,6 +97,8 @@ export async function POST(request: Request) {
     code: lookup.code,
     postgrest_response_code: lookup.diagnostic.postgrestStatus,
     postgrest_provider_error_code: lookup.diagnostic.providerErrorCode,
+    postgrest_error_class: lookup.diagnostic.providerErrorClass,
+    postgrest_object: lookup.diagnostic.providerObject,
     jwt,
     deployed_supabase_ref_matches: 'YES',
     deployed_anon_key_accepted: 'YES',

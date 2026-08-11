@@ -13,6 +13,9 @@ export type ReleaseQaFixture = {
   };
 };
 
+type PostgrestErrorClass = 'RELATION_PRIVILEGE' | 'SCHEMA_USAGE' | 'ROW_SECURITY' | 'FUNCTION_PRIVILEGE' | 'OTHER';
+type PostgrestKnownObject = 'current_user_active_store_membership' | 'memberships' | 'tenants' | 'stores';
+
 export type ReleaseQaFixtureLookup =
   | { fixture: ReleaseQaFixture; code: 'OK' }
   | {
@@ -22,12 +25,31 @@ export type ReleaseQaFixtureLookup =
       layer: 'POSTGREST_MEMBERSHIP' | 'POSTGREST_STORE' | 'POSTGREST_UI_CONTEXT' | 'POSTGREST_CONTRACT_ACCESS';
       postgrestStatus: number;
       providerErrorCode: string | null;
+      providerErrorClass: PostgrestErrorClass | null;
+      providerObject: PostgrestKnownObject | null;
     };
   };
 
-async function postgrestErrorCode(response: Response) {
-  const body = await response.clone().json().catch(() => null) as { code?: unknown } | null;
-  return typeof body?.code === 'string' && /^[A-Z0-9]{4,12}$/i.test(body.code) ? body.code.toUpperCase() : null;
+async function postgrestErrorDiagnostic(response: Response): Promise<{
+  code: string | null;
+  providerErrorClass: PostgrestErrorClass | null;
+  providerObject: PostgrestKnownObject | null;
+}> {
+  const body = await response.clone().json().catch(() => null) as { code?: unknown; message?: unknown; details?: unknown } | null;
+  const code = typeof body?.code === 'string' && /^[A-Z0-9]{4,12}$/i.test(body.code) ? body.code.toUpperCase() : null;
+  const text = `${typeof body?.message === 'string' ? body.message : ''} ${typeof body?.details === 'string' ? body.details : ''}`.toLowerCase();
+  const knownObjects = ['current_user_active_store_membership', 'memberships', 'tenants', 'stores'] as const;
+  const providerObject = knownObjects.find(value => text.includes(value)) ?? null;
+  const providerErrorClass: PostgrestErrorClass | null = /permission denied for (?:table|relation|view)/.test(text)
+    ? 'RELATION_PRIVILEGE'
+    : /permission denied for schema/.test(text)
+      ? 'SCHEMA_USAGE'
+      : /row-level security|violates row security/.test(text)
+        ? 'ROW_SECURITY'
+        : /permission denied for function/.test(text)
+          ? 'FUNCTION_PRIVILEGE'
+          : text ? 'OTHER' : null;
+  return { code, providerErrorClass, providerObject };
 }
 
 function safeAccountState(value: unknown) {
@@ -79,37 +101,43 @@ export async function readReleaseQaFixture({
   membershipsUrl.searchParams.set('user_id', `eq.${userId}`);
   membershipsUrl.searchParams.set('role', 'eq.owner');
   const membershipsResponse = await fetch(membershipsUrl, { headers, cache: 'no-store' });
-  if (!membershipsResponse.ok) return {
-    fixture: null,
-    code: `MEMBERSHIP_READ_${membershipsResponse.status}`,
-    diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status, providerErrorCode: await postgrestErrorCode(membershipsResponse) },
-  };
+  if (!membershipsResponse.ok) {
+    const provider = await postgrestErrorDiagnostic(membershipsResponse);
+    return {
+      fixture: null,
+      code: `MEMBERSHIP_READ_${membershipsResponse.status}`,
+      diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status, providerErrorCode: provider.code, providerErrorClass: provider.providerErrorClass, providerObject: provider.providerObject },
+    };
+  }
   const memberships = await membershipsResponse.json() as Array<{ id?: string; tenant_id?: string; store_id?: string; user_id?: string; role?: string }>;
   if (!Array.isArray(memberships) || memberships.length !== 1) return {
     fixture: null,
     code: 'MEMBERSHIP_CARDINALITY',
-    diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status, providerErrorCode: null },
+    diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status, providerErrorCode: null, providerErrorClass: null, providerObject: null },
   };
 
   const membership = memberships[0];
   if (!membership.id || !membership.tenant_id || !membership.store_id || membership.user_id !== userId || membership.role !== 'owner') return {
     fixture: null,
     code: 'MEMBERSHIP_SHAPE',
-    diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status, providerErrorCode: null },
+    diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status, providerErrorCode: null, providerErrorClass: null, providerObject: null },
   };
   const storesResponse = await fetch(new URL('/rest/v1/rpc/list_accessible_garage_stores', url), {
     method: 'POST', headers, cache: 'no-store',
   });
-  if (!storesResponse.ok) return {
-    fixture: null,
-    code: `STORE_READ_${storesResponse.status}`,
-    diagnostic: { layer: 'POSTGREST_STORE', postgrestStatus: storesResponse.status, providerErrorCode: await postgrestErrorCode(storesResponse) },
-  };
+  if (!storesResponse.ok) {
+    const provider = await postgrestErrorDiagnostic(storesResponse);
+    return {
+      fixture: null,
+      code: `STORE_READ_${storesResponse.status}`,
+      diagnostic: { layer: 'POSTGREST_STORE', postgrestStatus: storesResponse.status, providerErrorCode: provider.code, providerErrorClass: provider.providerErrorClass, providerObject: provider.providerObject },
+    };
+  }
   const stores = await storesResponse.json() as Array<{ id?: string; tenant_id?: string; name?: string }>;
   if (!Array.isArray(stores)) return {
     fixture: null,
     code: 'STORE_SHAPE',
-    diagnostic: { layer: 'POSTGREST_STORE', postgrestStatus: storesResponse.status, providerErrorCode: null },
+    diagnostic: { layer: 'POSTGREST_STORE', postgrestStatus: storesResponse.status, providerErrorCode: null, providerErrorClass: null, providerObject: null },
   };
   const matchingStores = (stores ?? []).filter(
     (store: { id?: string; tenant_id?: string; name?: string }) =>
@@ -121,29 +149,35 @@ export async function readReleaseQaFixture({
   if (matchingStores.length !== 1) return {
     fixture: null,
     code: 'STORE_CARDINALITY',
-    diagnostic: { layer: 'POSTGREST_STORE', postgrestStatus: storesResponse.status, providerErrorCode: null },
+    diagnostic: { layer: 'POSTGREST_STORE', postgrestStatus: storesResponse.status, providerErrorCode: null, providerErrorClass: null, providerObject: null },
   };
   const tenantName = matchingStores[0].name;
   if (typeof tenantName !== 'string') return {
     fixture: null,
     code: 'STORE_SHAPE',
-    diagnostic: { layer: 'POSTGREST_STORE', postgrestStatus: storesResponse.status, providerErrorCode: null },
+    diagnostic: { layer: 'POSTGREST_STORE', postgrestStatus: storesResponse.status, providerErrorCode: null, providerErrorClass: null, providerObject: null },
   };
 
   const [uiContextResponse,contractResponse] = await Promise.all([
     fetch(new URL('/rest/v1/rpc/get_garage_ui_context_v2', url), { method: 'POST', headers, cache: 'no-store' }),
     fetch(new URL('/rest/v1/rpc/get_member_contract_access', url), { method: 'POST', headers, cache: 'no-store' }),
   ]);
-  if (!uiContextResponse.ok) return {
-    fixture: null,
-    code: `UI_CONTEXT_READ_${uiContextResponse.status}`,
-    diagnostic: { layer: 'POSTGREST_UI_CONTEXT', postgrestStatus: uiContextResponse.status, providerErrorCode: await postgrestErrorCode(uiContextResponse) },
-  };
-  if (!contractResponse.ok) return {
-    fixture: null,
-    code: `CONTRACT_ACCESS_READ_${contractResponse.status}`,
-    diagnostic: { layer: 'POSTGREST_CONTRACT_ACCESS', postgrestStatus: contractResponse.status, providerErrorCode: await postgrestErrorCode(contractResponse) },
-  };
+  if (!uiContextResponse.ok) {
+    const provider = await postgrestErrorDiagnostic(uiContextResponse);
+    return {
+      fixture: null,
+      code: `UI_CONTEXT_READ_${uiContextResponse.status}`,
+      diagnostic: { layer: 'POSTGREST_UI_CONTEXT', postgrestStatus: uiContextResponse.status, providerErrorCode: provider.code, providerErrorClass: provider.providerErrorClass, providerObject: provider.providerObject },
+    };
+  }
+  if (!contractResponse.ok) {
+    const provider = await postgrestErrorDiagnostic(contractResponse);
+    return {
+      fixture: null,
+      code: `CONTRACT_ACCESS_READ_${contractResponse.status}`,
+      diagnostic: { layer: 'POSTGREST_CONTRACT_ACCESS', postgrestStatus: contractResponse.status, providerErrorCode: provider.code, providerErrorClass: provider.providerErrorClass, providerObject: provider.providerObject },
+    };
+  }
   const uiContext = await uiContextResponse.json().catch(() => null) as Record<string, unknown> | null;
   const contractAccess = await contractResponse.json().catch(() => null) as Record<string, unknown> | null;
   const accountState = safeAccountState({
@@ -156,7 +190,7 @@ export async function readReleaseQaFixture({
   if (!accountState) return {
     fixture: null,
     code: 'UI_CONTEXT_SHAPE',
-    diagnostic: { layer: 'POSTGREST_UI_CONTEXT', postgrestStatus: uiContextResponse.status, providerErrorCode: null },
+    diagnostic: { layer: 'POSTGREST_UI_CONTEXT', postgrestStatus: uiContextResponse.status, providerErrorCode: null, providerErrorClass: null, providerObject: null },
   };
 
   return { code: 'OK', fixture: { membershipId: membership.id, tenantId: membership.tenant_id, storeId: membership.store_id, tenantName, accountState } };
