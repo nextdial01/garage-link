@@ -25,7 +25,14 @@ export async function GET(request: Request) {
   const gitCommitSha = value('VERCEL_GIT_COMMIT_SHA');
   const gitCommitRef = value('VERCEL_GIT_COMMIT_REF');
   const url = value('VERCEL_URL').toLowerCase();
-  const environment = value('VERCEL_TARGET_ENV') || value('VERCEL_ENV');
+  const vercelEnvironment = value('VERCEL_ENV');
+  const targetEnvironment = value('VERCEL_TARGET_ENV');
+  // A manual preview can retain a project-level target value (for example
+  // "production") while VERCEL_ENV correctly identifies the deployment as a
+  // preview. Only an explicitly safe target may override that runtime value.
+  const environment = ['preview', 'staging'].includes(targetEnvironment)
+    ? targetEnvironment
+    : vercelEnvironment;
   const urlValue = deploymentUrl(url);
 
   const valid = projectId === STAGING_PROJECT_ID

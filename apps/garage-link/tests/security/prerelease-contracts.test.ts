@@ -83,6 +83,9 @@ test.describe('Pre-release contracts (認証不要)', () => {
       process.env.VERCEL_PROJECT_ID = stagingProjectId;
       expect((await provenanceGET(new Request('https://garage-link.tech/api/qa/provenance'))).status).toBe(404);
 
+      Object.assign(process.env, { VERCEL_URL: 'garage-link-staging-qa.vercel.app', VERCEL_ENV: 'preview', VERCEL_TARGET_ENV: 'production' });
+      expect((await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'))).status).toBe(200);
+
       process.env.VERCEL_GIT_COMMIT_SHA = 'not-a-sha';
       expect((await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'))).status).toBe(404);
     } finally {
