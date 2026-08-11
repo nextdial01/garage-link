@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
 const RELEASE_QA_EMAIL = /\+garage-link-[0-9a-f]{8}-[0-9a-f-]{27}@/i;
+const RELEASE_QA_RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isStagingReleaseQaRequest(request: NextRequest) {
   const host = request.nextUrl.hostname;
@@ -35,7 +36,14 @@ export async function getAuthenticatedAdminContext(
   const user = userData.user;
   const sessionId = typeof claimsData?.claims?.session_id === 'string' ? claimsData.claims.session_id : '';
   if (!user?.id || !user.email || !sessionId) return null;
-  if (bearer && !RELEASE_QA_EMAIL.test(user.email)) return null;
+  // Current Release Critical runs bind the exact authorized Gmail recipient
+  // to a service-owned app_metadata run id. Keep the legacy plus-address
+  // contract only for cleanup of older synthetic fixtures.
+  if (
+    bearer
+    && !RELEASE_QA_EMAIL.test(user.email)
+    && !RELEASE_QA_RUN_ID.test(String(user.app_metadata?.release_qa_run_id ?? ''))
+  ) return null;
   const rpcCalls = options.requireReleaseQa
     ? [
         service.rpc('release_qa_admin_bootstrap_context', {

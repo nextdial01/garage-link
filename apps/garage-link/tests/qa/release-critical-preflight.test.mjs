@@ -9,7 +9,7 @@ import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-s
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,journeys,workflow,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute]=await Promise.all([
+  const [runner,journeys,workflow,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
@@ -20,6 +20,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
     readFile(resolve(appRoot,'src/app/api/qa/callback-evidence/route.ts'),'utf8'),
     readFile(resolve(appRoot,'src/app/api/qa/fixture-discovery/route.ts'),'utf8'),
     readFile(resolve(appRoot,'src/app/api/qa/provenance/route.ts'),'utf8'),
+    readFile(resolve(appRoot,'src/lib/security/adminEmailOtpServer.ts'),'utf8'),
   ]);
   assert.match(runner,/gaytoojzwqkpuvfofeql/);
   assert.match(runner,/wmlpuzuskfiwdipluglz/);
@@ -159,6 +160,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/VEHICLE_CREATE_ADMIN_SECURITY_GATE/);
   assert.match(journeys,/RELEASE_CRITICAL_CTA_ACCOUNT_STATE_DIFFERENTIAL/);
   assert.match(journeys,/expectedClassification:'ROUTE_STARTED_REDIRECTED'/);
+  assert.match(adminOtpServer,/release_qa_run_id/);
+  assert.match(adminOtpServer,/RELEASE_QA_RUN_ID/);
   assert.doesNotMatch(callbackEvidence,/PRODUCTION_PROJECT_ID/);
   assert.match(middleware,/pathname === '\/api\/qa\/callback-evidence'/);
   assert.match(middleware,/pathname === '\/api\/qa\/fixture-discovery'/);

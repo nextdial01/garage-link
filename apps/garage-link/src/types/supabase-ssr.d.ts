@@ -2,6 +2,7 @@ declare module '@supabase/ssr' {
   type AuthUser = {
     id: string;
     email?: string | null;
+    app_metadata?: Record<string, unknown>;
   };
 
   type AuthError = {
