@@ -4,6 +4,7 @@ const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
 const PRODUCTION_PROJECT_ID = 'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64';
 const BLOCKED_PROJECT_IDS = new Set([PRODUCTION_PROJECT_ID]);
 const PRODUCTION_HOSTS = new Set(['garage-link.tech', 'www.garage-link.tech']);
+const STAGING_HOST = /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i;
 
 function value(name: string) {
   return process.env[name]?.trim() ?? '';
@@ -44,7 +45,20 @@ export async function GET(request: Request) {
     && Boolean(urlValue)
     && Boolean(environment);
 
-  if (!valid) return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
+  if (!valid) {
+    // Diagnostic booleans only: this temporary runtime RCA emits neither
+    // environment values nor credentials, and the endpoint remains 404.
+    console.info('[garage-link:qa-provenance]', {
+      project: projectId === STAGING_PROJECT_ID,
+      deployment: /^dpl_[A-Za-z0-9]+$/.test(deploymentId),
+      sha: /^[0-9a-f]{40}$/i.test(gitCommitSha),
+      ref: /^[A-Za-z0-9._/-]{1,255}$/.test(gitCommitRef),
+      url: Boolean(urlValue),
+      environment,
+      stagingHost: !isProductionHost(runtimeHost) && STAGING_HOST.test(runtimeHost),
+    });
+    return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
+  }
 
   return Response.json({
     project_id: projectId,
