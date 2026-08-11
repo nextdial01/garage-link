@@ -1,5 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
 export type ReleaseQaFixture = {
   membershipId: string;
   tenantId: string;
@@ -18,21 +16,32 @@ export async function readReleaseQaFixture({
   accessToken: string;
   userId: string;
 }): Promise<ReleaseQaFixture | null> {
-  const subject = createClient(url, anonKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-    global: { headers: { Authorization: `Bearer ${accessToken}` } },
-  });
-  const { data: memberships, error: membershipError } = await subject
-    .from('memberships')
-    .select('id,tenant_id,store_id')
-    .eq('user_id', userId)
-    .eq('role', 'owner');
-  if (membershipError || memberships?.length !== 1) return null;
+  // Send the owner's JWT directly to PostgREST. A server Supabase client with
+  // no persisted session can otherwise fall back to its anon key before the
+  // RLS query is sent, which makes the formal fixture lookup indistinguishable
+  // from an absent fixture.
+  const headers = {
+    apikey: anonKey,
+    authorization: `Bearer ${accessToken}`,
+    accept: 'application/json',
+  };
+  const membershipsUrl = new URL('/rest/v1/memberships', url);
+  membershipsUrl.searchParams.set('select', 'id,tenant_id,store_id');
+  membershipsUrl.searchParams.set('user_id', `eq.${userId}`);
+  membershipsUrl.searchParams.set('role', 'eq.owner');
+  const membershipsResponse = await fetch(membershipsUrl, { headers, cache: 'no-store' });
+  if (!membershipsResponse.ok) return null;
+  const memberships = await membershipsResponse.json() as Array<{ id?: string; tenant_id?: string; store_id?: string }>;
+  if (!Array.isArray(memberships) || memberships.length !== 1) return null;
 
   const membership = memberships[0];
   if (!membership.id || !membership.tenant_id || !membership.store_id) return null;
-  const { data: stores, error: storesError } = await subject.rpc('list_accessible_garage_stores');
-  if (storesError) return null;
+  const storesResponse = await fetch(new URL('/rest/v1/rpc/list_accessible_garage_stores', url), {
+    method: 'POST', headers, cache: 'no-store',
+  });
+  if (!storesResponse.ok) return null;
+  const stores = await storesResponse.json() as Array<{ id?: string; tenant_id?: string; name?: string }>;
+  if (!Array.isArray(stores)) return null;
   const matchingStores = (stores ?? []).filter(
     (store: { id?: string; tenant_id?: string; name?: string }) =>
       store?.id === membership.store_id &&
@@ -41,11 +50,13 @@ export async function readReleaseQaFixture({
       /^\[RELEASE QA \d{8}\]/.test(store.name)
   );
   if (matchingStores.length !== 1) return null;
+  const tenantName = matchingStores[0].name;
+  if (typeof tenantName !== 'string') return null;
 
   return {
     membershipId: membership.id,
     tenantId: membership.tenant_id,
     storeId: membership.store_id,
-    tenantName: matchingStores[0].name,
+    tenantName,
   };
 }
