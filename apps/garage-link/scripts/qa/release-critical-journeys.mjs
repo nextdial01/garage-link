@@ -34,6 +34,15 @@ export function validateReleaseCriticalProvenance(value,baseUrl){
 }
 
 async function clickAndWait(page,locator,url){await Promise.all([page.waitForURL(url,{timeout:30_000}),locator.click()])}
+async function signupSubmitOutcome(page){
+  try {
+    return await Promise.any([
+      page.getByRole('status').waitFor({state:'visible',timeout:30_000}).then(()=>({kind:'confirmation'})),
+      page.getByRole('alert').waitFor({state:'visible',timeout:30_000}).then(()=>({kind:'alert'})),
+      page.waitForURL(/\/onboarding(?:\?|$)/,{timeout:30_000}).then(()=>({kind:'onboarding'})),
+    ]);
+  } catch {fail('RELEASE_CRITICAL_SIGNUP_OUTCOME_UNOBSERVED')}
+}
 async function completeSecurityOtp(page){
   if(!/\/security\/email-otp/.test(page.url()))return;
   const preview=page.getByText(/Preview QA確認コード:\s*\d{6}/);
@@ -151,7 +160,16 @@ async function main(){
     await clickAndWait(page,page.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
     const fillSignup=async(password)=>{await page.getByLabel('店舗名').fill(`${run.marker} Signup`);await page.getByLabel('担当者名').fill(`${run.marker} Owner`);await page.getByLabel('メールアドレス').fill(session.emailAddress);await page.locator('#password').fill(password);await page.locator('#passwordConfirmation').fill(password);await page.getByRole('checkbox').check();};
     await fillSignup(initialPassword); await page.getByRole('button',{name:'無料でアカウントを作成する'}).click();
-    await page.getByRole('status').waitFor({state:'visible',timeout:30_000});
+    const signupOutcome=await signupSubmitOutcome(page);
+    if(signupOutcome.kind==='alert')fail('RELEASE_CRITICAL_SIGNUP_SUBMIT_ALERT');
+    if(signupOutcome.kind==='onboarding'){
+      user=await findUser(admin,session.emailAddress);
+      const owner=await activeOwner(admin,user.id);
+      life=lifecycle(admin,run,provenance);
+      await beginLifecycle(life,run,provenance,{...owner,userId:user.id});
+      adopted=true;
+      fail('RELEASE_CRITICAL_SIGNUP_AUTO_CONFIRMED');
+    }
     if(!/確認メールを送信しました/.test(await page.getByRole('status').textContent()??''))fail('RELEASE_CRITICAL_CONFIRMATION_REQUIRED_NOT_PROVEN');
     user=await findUser(admin,session.emailAddress); results.J2='CHECKPOINT'; emit(manualGmailCheckpoint(session,'signup'));
     await pollManualGmailConfirmation({admin,userId:user.id,session,purpose:'signup',timeoutMs:CHECKPOINT_TIMEOUT_MS});

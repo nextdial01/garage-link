@@ -49,6 +49,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/qa_lifecycle_verify_clean/);
   assert.match(journeys,/manualGmailCheckpoint\(session,'signup'\)/);
   assert.match(journeys,/manualGmailCheckpoint\(session,'recovery'\)/);
+  assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_SUBMIT_ALERT/);
+  assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_AUTO_CONFIRMED/);
+  assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_OUTCOME_UNOBSERVED/);
   assert.match(journeys,/RELEASE_CRITICAL_INQUIRY_ROUTE_UNAVAILABLE/);
   assert.doesNotMatch(journeys,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(workflow,/environment: garage-link-commercial-staging/);
