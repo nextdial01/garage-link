@@ -85,7 +85,7 @@ async function beginLifecycle(life,run,provenance,fixture){
   await life.transition('PROVISIONED','AUTH_READY','run');
   await life.transition('AUTH_READY','TEST_RUNNING','run');
 }
-async function cleanupLifecycle(life,admin,userId){
+async function cleanupLifecycle(life,admin,userId,runId){
   let current=await life.status();
   if(current.state==='TEST_RUNNING')await life.transition('TEST_RUNNING','TEST_COMPLETE','teardown-dry-run');
   current=await life.status();
@@ -109,7 +109,11 @@ async function cleanupLifecycle(life,admin,userId){
   }
   current=await life.status();
   if(current.state==='AUTH_CLEANED'){
-    await life.evidence('STORAGE',{bucket_count:0,path_count:0});
+    const {data:buckets,error:bucketsError}=await admin.storage.listBuckets(); if(bucketsError)fail('RELEASE_CRITICAL_STORAGE_LIST_FAILED');
+    let pathCount=0;
+    for(const bucket of buckets??[]){const {data,error}=await admin.storage.from(bucket.name).list(`qa/${runId}`,{limit:100});if(error)fail('RELEASE_CRITICAL_STORAGE_PATH_LIST_FAILED');pathCount+=(data??[]).length;}
+    if(pathCount!==0)fail('RELEASE_CRITICAL_STORAGE_RESIDUAL');
+    await life.evidence('STORAGE',{bucket_count:(buckets??[]).length,path_count:pathCount});
     await life.rpc('qa_lifecycle_advance_cleanup',{p_run_id:current.run_id,p_expected_state:'AUTH_CLEANED',p_next_state:'STORAGE_CLEANED',p_next_action:'artifact-clean'});
   }
   current=await life.status();
@@ -169,7 +173,7 @@ async function main(){
     if(deferredFailure)throw deferredFailure;
     emit({state:'RELEASE_CRITICAL_JOURNEYS_PASS',journeys:results,run_marker:run.emailMarker});
   } finally {
-    try {if(adopted)await cleanupLifecycle(life,admin,user?.id); else if(user?.id){const {error}=await admin.auth.admin.deleteUser(user.id,false);if(error&&error.status!==404)fail(`RELEASE_CRITICAL_EARLY_AUTH_DELETE:${error.status??0}`);}} finally {await context?.close();await browser?.close();}
+    try {if(adopted)await cleanupLifecycle(life,admin,user?.id,run.runId); else if(user?.id){const {error}=await admin.auth.admin.deleteUser(user.id,false);if(error&&error.status!==404)fail(`RELEASE_CRITICAL_EARLY_AUTH_DELETE:${error.status??0}`);}} finally {await context?.close();await browser?.close();}
   }
 }
 
