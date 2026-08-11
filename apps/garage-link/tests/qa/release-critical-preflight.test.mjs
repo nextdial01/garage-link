@@ -132,6 +132,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/staging_base_url/);
   assert.match(workflow,/description: Exact garage-link-staging preview URL/);
   assert.match(workflow,/required: true/);
+  assert.equal((workflow.match(/PLAYWRIGHT_BASE_URL: \$\{\{ inputs\.staging_base_url \}\}/g)??[]).length,2);
+  assert.doesNotMatch(workflow,/PLAYWRIGHT_BASE_URL: \$\{\{ secrets\.GARAGE_STAGING_BASE_URL \}\}/);
   assert.match(workflow,/candidate_sha/);
   assert.doesNotMatch(workflow,/manual_gmail_address/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_VERCEL_READ_TOKEN|GARAGE_STAGING_VERCEL_PROJECT_ID|GARAGE_STAGING_VERCEL_TEAM_ID/);

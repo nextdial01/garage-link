@@ -42,7 +42,7 @@ jobs:
     timeout-minutes: 10
     env:
       RELEASE_CRITICAL_EMAIL_MODE: ${{ inputs.email_mode }}
-      PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
+      PLAYWRIGHT_BASE_URL: ${{ inputs.staging_base_url }}
       E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
@@ -90,7 +90,7 @@ jobs:
     environment: garage-link-commercial-staging
     timeout-minutes: 50
     env:
-      PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
+      PLAYWRIGHT_BASE_URL: ${{ inputs.staging_base_url }}
       RELEASE_CRITICAL_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
       E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
