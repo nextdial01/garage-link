@@ -29,17 +29,21 @@ export async function readReleaseQaFixture({
     authorization: `Bearer ${accessToken}`,
     accept: 'application/json',
   };
-  const membershipsUrl = new URL('/rest/v1/memberships', url);
-  membershipsUrl.searchParams.set('select', 'id,tenant_id,store_id');
+  // Do not query the base memberships relation here. Its direct Data API
+  // contract is intentionally narrow. The application already uses this
+  // authenticated, security-invoker view to resolve the caller's active
+  // membership without widening grants or bypassing RLS.
+  const membershipsUrl = new URL('/rest/v1/current_user_active_store_membership', url);
+  membershipsUrl.searchParams.set('select', 'id,tenant_id,store_id,user_id,role');
   membershipsUrl.searchParams.set('user_id', `eq.${userId}`);
   membershipsUrl.searchParams.set('role', 'eq.owner');
   const membershipsResponse = await fetch(membershipsUrl, { headers, cache: 'no-store' });
   if (!membershipsResponse.ok) return { fixture: null, code: 'MEMBERSHIP_READ' };
-  const memberships = await membershipsResponse.json() as Array<{ id?: string; tenant_id?: string; store_id?: string }>;
+  const memberships = await membershipsResponse.json() as Array<{ id?: string; tenant_id?: string; store_id?: string; user_id?: string; role?: string }>;
   if (!Array.isArray(memberships) || memberships.length !== 1) return { fixture: null, code: 'MEMBERSHIP_CARDINALITY' };
 
   const membership = memberships[0];
-  if (!membership.id || !membership.tenant_id || !membership.store_id) return { fixture: null, code: 'MEMBERSHIP_SHAPE' };
+  if (!membership.id || !membership.tenant_id || !membership.store_id || membership.user_id !== userId || membership.role !== 'owner') return { fixture: null, code: 'MEMBERSHIP_SHAPE' };
   const storesResponse = await fetch(new URL('/rest/v1/rpc/list_accessible_garage_stores', url), {
     method: 'POST', headers, cache: 'no-store',
   });

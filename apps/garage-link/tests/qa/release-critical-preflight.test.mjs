@@ -66,6 +66,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/recoverKnownPartialFixture\(admin,provenance,baseUrl,supabaseUrl,serviceRole\)/);
   assert.match(journeys,/ownerFixtureForUser/);
   assert.match(journeys,/\/api\/qa\/fixture-discovery/);
+  assert.match(await readFile(resolve(appRoot,'src/lib/auth/releaseQaFixture.ts'),'utf8'),/current_user_active_store_membership/);
   assert.match(fixtureDiscovery,/STAGING_PROJECT_ID/);
   assert.match(fixtureDiscovery,/targetEnvironment/);
   assert.match(fixtureDiscovery,/process\.env\.VERCEL_ENV/);
