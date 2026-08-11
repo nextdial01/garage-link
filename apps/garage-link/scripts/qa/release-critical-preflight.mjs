@@ -96,7 +96,7 @@ async function mailSlurpJson(path,apiKey,options,code,fetchImpl=fetch){
   const response=await fetchImpl(`${MAILSLURP_API_BASE}${path}`,{...options,headers:{...mailSlurpHeaders(apiKey,Boolean(options.body)),...options.headers},cache:'no-store'});
   return json(response,code);
 }
-function requiredRunMarker(marker){if(typeof marker!=='string'||!(/^(?:garage-link-[a-z0-9-]{8,}|gl[0-9a-f]{8})$/i.test(marker)))fail('MAILSLURP_RUN_MARKER_INVALID');return marker}
+function requiredRunMarker(marker){if(typeof marker!=='string'||!(/^(?:garage-link-[a-z0-9-]{8,}|g[0-9a-f]{6})$/i.test(marker)))fail('MAILSLURP_RUN_MARKER_INVALID');return marker}
 function normalizeEmail(value){return String(value??'').trim().toLowerCase()}
 function manualGmailBaseAddress(value){
   const email=normalizeEmail(value);

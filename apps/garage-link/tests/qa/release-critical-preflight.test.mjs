@@ -249,9 +249,9 @@ test('Management API diagnosis fails closed without forwarding Authorization acr
 });
 
 test('Manual Gmail Bridge creates a plus address, redacts checkpoints, and polls Auth confirmation',async()=>{
-  const marker='gl12345678';
+  const marker='g123456';
   const session=createManualGmailSession('Owner.Name+old@kannagi-co.com',marker);
-  assert.equal(session.emailAddress,'owner.name+gl12345678@kannagi-co.com');
+  assert.equal(session.emailAddress,'owner.name+g123456@kannagi-co.com');
   assert.deepEqual(manualGmailCheckpoint(session,'signup'),{state:'MANUAL_GMAIL_CHECKPOINT_SIGNUP',email_mode:'manual_gmail',run_marker:marker,recipient:'REDACTED_MANUAL_GMAIL_ADDRESS',operator_action:'Open the matching Staging-only Gmail message and click its Supabase confirmation link.'});
   assert.equal(manualGmailCheckpoint(session,'recovery').state,'MANUAL_GMAIL_CHECKPOINT_RESET');
   const admin={auth:{admin:{getUserById:async()=>({data:{user:{email:session.emailAddress,email_confirmed_at:'2026-08-10T00:00:00.000Z'}},error:null})}}};
@@ -268,7 +268,7 @@ test('Manual Gmail Bridge creates a plus address, redacts checkpoints, and polls
 test('release-critical journeys accept only the Staging runtime and marker-bound synthetic fixtures',()=>{
   const run=createReleaseCriticalRun('550e8400-e29b-41d4-a716-446655440000');
   assert.equal(run.marker,'[RELEASE QA 20260811]');
-  assert.equal(run.emailMarker,'gl550e8400');
+  assert.equal(run.emailMarker,'g550e84');
   assert.match(releaseCriticalSyntheticPassword(run.emailMarker),/^GL-[a-z0-9-]+-8!$/);
   assert.deepEqual(validateReleaseCriticalProvenance({
     project_id:'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3',deployment_id:'dpl_Abc123',git_commit_sha:'d7974d6b9adc78064010cc6b4502f54adbc39ba5',git_commit_ref:'codex/garage-link-supabase-redirect-rca',deployment_url:'https://garage-link-staging-test.vercel.app',environment:'preview',

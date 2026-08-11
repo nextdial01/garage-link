@@ -34,7 +34,7 @@ function callbackPurpose(nextPath: unknown, runId: string): CallbackPurpose | nu
 }
 
 function syntheticQaUser(email: string | undefined, runId: string) {
-  const emailMarker = `gl${runId.replaceAll('-', '').slice(0, 8)}`;
+  const emailMarker = `g${runId.replaceAll('-', '').slice(0, 6)}`;
   return Boolean(email?.toLowerCase().includes(`+${emailMarker}@`));
 }
 

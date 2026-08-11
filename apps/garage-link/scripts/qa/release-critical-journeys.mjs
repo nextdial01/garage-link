@@ -38,10 +38,10 @@ function safeSignupAlertDetail(value){
 
 export function createReleaseCriticalRun(runId=randomUUID()){
   if(!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_RUN_ID_INVALID');
-  return {runId,marker:'[RELEASE QA 20260811]',emailMarker:`gl${runId.replaceAll('-','').slice(0,8).toLowerCase()}`};
+  return {runId,marker:'[RELEASE QA 20260811]',emailMarker:`g${runId.replaceAll('-','').slice(0,6).toLowerCase()}`};
 }
 export function releaseCriticalSyntheticPassword(emailMarker){
-  if(!/^(?:garage-link-[a-z0-9-]{8,}|gl[0-9a-f]{8})$/i.test(emailMarker))fail('RELEASE_CRITICAL_MARKER_INVALID');
+  if(!/^(?:garage-link-[a-z0-9-]{8,}|g[0-9a-f]{6})$/i.test(emailMarker))fail('RELEASE_CRITICAL_MARKER_INVALID');
   return `GL-${emailMarker}-8!`;
 }
 export function validateReleaseCriticalProvenance(value,baseUrl){
@@ -95,7 +95,7 @@ export async function installVercelBrowserBypass(context,baseUrl,bypassSecret){
   }}));
 }
 async function verifyHostedRedirectContract({admin,manualBase,run,baseUrl,supabaseUrl}){
-  const probeMarker=`gl${run.runId.replaceAll('-','').slice(8,16).toLowerCase()}`; const probe=createManualGmailSession(manualBase,probeMarker); const password=releaseCriticalSyntheticPassword(probeMarker);
+  const probeMarker=`g${run.runId.replaceAll('-','').slice(6,12).toLowerCase()}`; const probe=createManualGmailSession(manualBase,probeMarker); const password=releaseCriticalSyntheticPassword(probeMarker);
   if(probeMarker===run.emailMarker)fail('RELEASE_CRITICAL_REDIRECT_PROBE_MARKER_COLLISION');
   const callback=new URL('/auth/callback',baseUrl); callback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); callback.searchParams.set('qa_run',run.runId);
   let userId=''; let subject=null;
@@ -228,7 +228,7 @@ async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,passwo
     if(loginError||!login.session?.user){if(optional)return null;fail(`RELEASE_CRITICAL_FIXTURE_OWNER_LOGIN:${safeProviderCode(loginError)}`);}
     await trustReleaseQaAdminSession({baseUrl,bypassSecret,accessToken:login.session.access_token});
     const emailMarker=email.split('@')[0]?.split('+')[1];
-    if(!/^(?:gl[0-9a-f]{8}|garage-link-(?:[0-9a-f]{12}|[0-9a-f-]{36}))$/i.test(emailMarker??''))fail('RELEASE_CRITICAL_FIXTURE_EMAIL_MARKER_INVALID');
+    if(!/^(?:g[0-9a-f]{6}|garage-link-(?:[0-9a-f]{12}|[0-9a-f-]{36}))$/i.test(emailMarker??''))fail('RELEASE_CRITICAL_FIXTURE_EMAIL_MARKER_INVALID');
     const headers={authorization:`Bearer ${login.session.access_token}`,'content-type':'application/json','x-vercel-protection-bypass':bypassSecret};
     const request=await fetchVerifiedVercelRequest(new URL('/api/qa/fixture-discovery',baseUrl),headers,fetch,{method:'POST',body:JSON.stringify({email_marker:emailMarker})});
     const response=request.response;
@@ -413,8 +413,11 @@ async function main(){
     const fillSignup=async(password)=>{await page.getByLabel('店舗名').fill(`${run.marker} Signup`);await page.getByLabel('担当者名').fill(`${run.marker} Owner`);await page.getByLabel('メールアドレス').fill(session.emailAddress);await page.locator('#password').fill(password);await page.locator('#passwordConfirmation').fill(password);await page.getByRole('checkbox').check();};
     const signupCallback=new URL('/auth/callback',baseUrl); signupCallback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); signupCallback.searchParams.set('qa_run',run.runId);
     const signupRequest=page.waitForRequest(request=>request.method()==='POST'&&new URL(request.url()).pathname==='/auth/v1/signup',{timeout:30_000});
+    const signupResponse=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/auth/v1/signup',{timeout:30_000});
     await fillSignup(initialPassword); await page.getByRole('button',{name:'無料でアカウントを作成する'}).click();
     const signupRedirect=validateClientAuthRedirect((await signupRequest).url(),signupCallback.toString(),supabaseUrl); emit({state:'RELEASE_CRITICAL_SIGNUP_REDIRECT_REQUEST_PASS',redirect_origin:signupRedirect.origin,redirect_path:signupRedirect.path,localhost:false});
+    const authResponse=await signupResponse; const authDetail=await authResponse.json().catch(()=>null); const [localPart,domain]=session.emailAddress.split('@');
+    emit({state:'RELEASE_CRITICAL_SIGNUP_PROVIDER_DIAGNOSTIC',http_status:authResponse.status(),provider_error_code:safeProviderCode(authDetail?.code??authDetail?.error_code??authResponse.status()),email_local_length:localPart?.length??0,email_domain_length:domain?.length??0,email_total_length:session.emailAddress.length,run_marker_length:run.emailMarker.length});
     const signupOutcome=await signupSubmitOutcome(page);
     if(signupOutcome.kind==='alert'){
       const alertText=await page.locator('form').getByRole('alert').textContent();
