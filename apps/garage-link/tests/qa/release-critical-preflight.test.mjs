@@ -60,7 +60,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/beginLifecycle\(life,run,provenance\)/);
   assert.match(journeys,/maybeActiveOwner/);
   assert.match(journeys,/qa_lifecycle_abort_clean/);
-  assert.match(journeys,/recoverKnownPartialFixture\(admin,provenance\)/);
+  assert.match(journeys,/recoverKnownPartialFixture\(admin,provenance,supabaseUrl,serviceRole\)/);
+  assert.match(journeys,/ownerFixtureForUser/);
+  assert.match(journeys,/list_accessible_garage_stores/);
   assert.match(journeys,/RELEASE_CRITICAL_PARTIAL_FIXTURE_CLEAN/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_SUBMIT_ALERT/);
   assert.match(journeys,/REDIRECT_URL_NOT_ALLOWED/);
