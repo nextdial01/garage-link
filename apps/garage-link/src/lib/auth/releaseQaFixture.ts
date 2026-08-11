@@ -3,15 +3,23 @@ export type ReleaseQaFixture = {
   tenantId: string;
   storeId: string;
   tenantName: string;
+  accountState: {
+    garageUiContext: 'active' | 'selection_required' | 'no_access';
+    activeStore: 'YES' | 'NO';
+    onboardingCompleted: 'YES' | 'NO';
+    membershipRole: string;
+    membershipStatus: 'active';
+    contractAccessState: string;
+  };
 };
 
 export type ReleaseQaFixtureLookup =
   | { fixture: ReleaseQaFixture; code: 'OK' }
   | {
     fixture: null;
-    code: `MEMBERSHIP_READ_${number}` | 'MEMBERSHIP_CARDINALITY' | 'MEMBERSHIP_SHAPE' | `STORE_READ_${number}` | 'STORE_CARDINALITY' | 'STORE_SHAPE';
+    code: `MEMBERSHIP_READ_${number}` | 'MEMBERSHIP_CARDINALITY' | 'MEMBERSHIP_SHAPE' | `STORE_READ_${number}` | 'STORE_CARDINALITY' | 'STORE_SHAPE' | `UI_CONTEXT_READ_${number}` | 'UI_CONTEXT_SHAPE' | `CONTRACT_ACCESS_READ_${number}` | 'CONTRACT_ACCESS_SHAPE';
     diagnostic: {
-      layer: 'POSTGREST_MEMBERSHIP' | 'POSTGREST_STORE';
+      layer: 'POSTGREST_MEMBERSHIP' | 'POSTGREST_STORE' | 'POSTGREST_UI_CONTEXT' | 'POSTGREST_CONTRACT_ACCESS';
       postgrestStatus: number;
       providerErrorCode: string | null;
     };
@@ -20,6 +28,26 @@ export type ReleaseQaFixtureLookup =
 async function postgrestErrorCode(response: Response) {
   const body = await response.clone().json().catch(() => null) as { code?: unknown } | null;
   return typeof body?.code === 'string' && /^[A-Z0-9]{4,12}$/i.test(body.code) ? body.code.toUpperCase() : null;
+}
+
+function safeAccountState(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const garageUiContext = record.state;
+  const contractAccessState = record.contract_access_state;
+  if (!['active', 'selection_required', 'no_access'].includes(String(garageUiContext))
+    || !['YES', 'NO'].includes(String(record.active_store))
+    || !['YES', 'NO'].includes(String(record.onboarding_completed))
+    || !/^[a-z_]{2,32}$/i.test(String(record.membership_role))
+    || !/^[a-z_]{2,48}$/i.test(String(contractAccessState))) return null;
+  return {
+    garageUiContext: garageUiContext as 'active' | 'selection_required' | 'no_access',
+    activeStore: record.active_store as 'YES' | 'NO',
+    onboardingCompleted: record.onboarding_completed as 'YES' | 'NO',
+    membershipRole: record.membership_role as string,
+    membershipStatus: 'active' as const,
+    contractAccessState: contractAccessState as string,
+  };
 }
 
 export async function readReleaseQaFixture({
@@ -102,5 +130,34 @@ export async function readReleaseQaFixture({
     diagnostic: { layer: 'POSTGREST_STORE', postgrestStatus: storesResponse.status, providerErrorCode: null },
   };
 
-  return { code: 'OK', fixture: { membershipId: membership.id, tenantId: membership.tenant_id, storeId: membership.store_id, tenantName } };
+  const [uiContextResponse,contractResponse] = await Promise.all([
+    fetch(new URL('/rest/v1/rpc/get_garage_ui_context_v2', url), { method: 'POST', headers, cache: 'no-store' }),
+    fetch(new URL('/rest/v1/rpc/get_member_contract_access', url), { method: 'POST', headers, cache: 'no-store' }),
+  ]);
+  if (!uiContextResponse.ok) return {
+    fixture: null,
+    code: `UI_CONTEXT_READ_${uiContextResponse.status}`,
+    diagnostic: { layer: 'POSTGREST_UI_CONTEXT', postgrestStatus: uiContextResponse.status, providerErrorCode: await postgrestErrorCode(uiContextResponse) },
+  };
+  if (!contractResponse.ok) return {
+    fixture: null,
+    code: `CONTRACT_ACCESS_READ_${contractResponse.status}`,
+    diagnostic: { layer: 'POSTGREST_CONTRACT_ACCESS', postgrestStatus: contractResponse.status, providerErrorCode: await postgrestErrorCode(contractResponse) },
+  };
+  const uiContext = await uiContextResponse.json().catch(() => null) as Record<string, unknown> | null;
+  const contractAccess = await contractResponse.json().catch(() => null) as Record<string, unknown> | null;
+  const accountState = safeAccountState({
+    state: uiContext?.state,
+    active_store: uiContext?.store_id ? 'YES' : 'NO',
+    onboarding_completed: uiContext?.onboarding_completed === true ? 'YES' : 'NO',
+    membership_role: uiContext?.role,
+    contract_access_state: contractAccess?.state,
+  });
+  if (!accountState) return {
+    fixture: null,
+    code: 'UI_CONTEXT_SHAPE',
+    diagnostic: { layer: 'POSTGREST_UI_CONTEXT', postgrestStatus: uiContextResponse.status, providerErrorCode: null },
+  };
+
+  return { code: 'OK', fixture: { membershipId: membership.id, tenantId: membership.tenant_id, storeId: membership.store_id, tenantName, accountState } };
 }

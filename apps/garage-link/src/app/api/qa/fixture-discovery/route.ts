@@ -108,5 +108,13 @@ export async function POST(request: Request) {
     tenant_id: fixture.tenantId,
     store_id: fixture.storeId,
     tenant_name: fixture.tenantName,
+    account_state: {
+      garage_ui_context: fixture.accountState.garageUiContext,
+      active_store: fixture.accountState.activeStore,
+      onboarding_completed: fixture.accountState.onboardingCompleted,
+      membership_role: fixture.accountState.membershipRole,
+      membership_status: fixture.accountState.membershipStatus,
+      contract_access_state: fixture.accountState.contractAccessState,
+    },
   }, { headers: { 'Cache-Control': 'no-store' } });
 }

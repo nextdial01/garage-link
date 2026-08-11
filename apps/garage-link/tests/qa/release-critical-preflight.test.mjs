@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl } from '../../scripts/qa/release-critical-preflight.mjs';
-import { createReleaseCriticalRun, releaseCriticalSyntheticPassword, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
+import { classifyCtaTrace, createReleaseCriticalRun, releaseCriticalSyntheticPassword, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
 import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-stage-auth.mjs';
 
 const appRoot=resolve(import.meta.dirname,'../..');
@@ -75,6 +75,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(fixtureDiscovery,/ROUTE_AUTH/);
   assert.match(fixtureDiscovery,/marker_hash/);
   assert.match(fixtureDiscovery,/postgrest_provider_error_code/);
+  assert.match(fixtureDiscovery,/account_state/);
   assert.match(fixtureDiscovery,/status: 404/);
   assert.doesNotMatch(fixtureDiscovery,/createAdminClient|STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(journeys,/RELEASE_CRITICAL_PARTIAL_FIXTURE_CLEAN/);
@@ -92,6 +93,15 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/fetchVerifiedVercelRequest/);
   assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_DISCOVERY_DIAGNOSTIC/);
   assert.match(journeys,/postgrest_provider_error_code/);
+  assert.match(journeys,/RELEASE_CRITICAL_CTA_TRACE/);
+  assert.match(journeys,/VEHICLE_CREATE/);
+  assert.match(journeys,/VEHICLE_DETAIL/);
+  assert.match(journeys,/CUSTOMER_CREATE/);
+  assert.match(journeys,/DEAL_CREATE/);
+  assert.match(journeys,/middleware_final_destination/);
+  assert.match(journeys,/browser_runtime_error_count/);
+  assert.match(journeys,/garage_ui_context/);
+  assert.match(journeys,/contract_access_state/);
   assert.doesNotMatch(journeys,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(workflow,/environment: garage-link-commercial-staging/);
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
@@ -231,6 +241,14 @@ test('release-critical journeys accept only the Staging runtime and marker-bound
   assert.throws(()=>validateReleaseCriticalProvenance({
     project_id:'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64',deployment_id:'dpl_Abc123',git_commit_sha:'d7974d6b9adc78064010cc6b4502f54adbc39ba5',git_commit_ref:'main',deployment_url:'https://garage-link.tech',environment:'production',
   },'https://garage-link.tech'),/RELEASE_CRITICAL_PROVENANCE_DENIED/);
+});
+
+test('CTA trace separates pointer non-delivery, route redirects, and runtime errors',()=>{
+  assert.equal(classifyCtaTrace({domClick:false,expected:false,navigationRequestCount:0,runtimeErrorCount:0,initialPath:'/vehicles',finalPath:'/vehicles'}),'CLICK_NOT_FIRED');
+  assert.equal(classifyCtaTrace({domClick:true,expected:false,navigationRequestCount:1,runtimeErrorCount:0,initialPath:'/vehicles',finalPath:'/onboarding'}),'ROUTE_STARTED_REDIRECTED');
+  assert.equal(classifyCtaTrace({domClick:true,expected:false,navigationRequestCount:0,runtimeErrorCount:0,initialPath:'/vehicles',finalPath:'/vehicles'}),'CLICK_FIRED_ROUTER_UNOBSERVED');
+  assert.equal(classifyCtaTrace({domClick:true,expected:true,navigationRequestCount:1,runtimeErrorCount:0,initialPath:'/vehicles',finalPath:'/vehicles/new'}),'PASS');
+  assert.equal(classifyCtaTrace({domClick:true,expected:true,navigationRequestCount:1,runtimeErrorCount:1,initialPath:'/vehicles',finalPath:'/vehicles/new'}),'RUNTIME_ERROR');
 });
 
 test('hosted Auth update is Staging-only and requires password plus confirmation read-back',async()=>{
