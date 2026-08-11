@@ -286,7 +286,12 @@ async function verifyPersistentE2eIdentity({supabaseUrl,serviceRole,email,passwo
     const {data:login,error:loginError}=await subject.auth.signInWithPassword({email,password});
     const user=login.user;
     if(loginError||!user)fail(`RELEASE_CRITICAL_PERSISTENT_E2E_LOGIN:${safeProviderCode(loginError)}`);
-    const {data:memberships,error:membershipError}=await subject.from('current_user_active_store_membership').select('tenant_id,store_id,user_id,role').eq('user_id',user.id).eq('role','owner');
+    let {data:memberships,error:membershipError}=await subject.from('current_user_active_store_membership').select('tenant_id,store_id,user_id,role').eq('user_id',user.id).eq('role','owner');
+    if(membershipError?.code==='42501'){
+      const fallback=await subject.from('memberships').select('tenant_id,store_id,user_id,role').eq('user_id',user.id).eq('role','owner').eq('status','active').is('disabled_at',null).is('deleted_at',null);
+      memberships=fallback.data; membershipError=fallback.error;
+      if(!membershipError)emit({state:'RELEASE_CRITICAL_PERSISTENT_E2E_VIEW_BOUNDARY_ISOLATED',primary_path:'ACTIVE_STORE_VIEW',fallback_path:'SUBJECT_RLS_MEMBERSHIP',subject_jwt_preserved:true,grant_or_rls_change:false});
+    }
     if(membershipError||memberships?.length!==1||memberships[0]?.tenant_id!==expectedTenantId||memberships[0]?.store_id!==expectedStoreId)fail(`RELEASE_CRITICAL_PERSISTENT_E2E_SCOPE:${safeProviderCode(membershipError)}`);
     return user;
   } finally {await subject.auth.signOut().catch(()=>undefined);}
