@@ -10,10 +10,6 @@ on:
         type: choice
         options:
           - manual_gmail
-      manual_gmail_address:
-        description: Existing Gmail base address used only for this run (never print it)
-        required: true
-        type: string
       staging_base_url:
         description: Exact garage-link-staging preview URL for this QA run
         required: true
@@ -42,6 +38,7 @@ jobs:
       E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
+      RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
       GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN }}
     steps:
       - uses: actions/checkout@v4

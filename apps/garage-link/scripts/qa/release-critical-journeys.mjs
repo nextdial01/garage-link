@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { chromium, webkit } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { createManualGmailSession, manualGmailCheckpoint, manualGmailWorkflowInput, pollManualGmailConfirmation, releaseCriticalBaseUrl } from './release-critical-preflight.mjs';
+import { createManualGmailSession, manualGmailCheckpoint, pollManualGmailConfirmation, releaseCriticalBaseUrl } from './release-critical-preflight.mjs';
 
 const STAGING_REF='gaytoojzwqkpuvfofeql';
 const STAGING_PROJECT_ID='prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
@@ -235,7 +235,7 @@ async function main(){
   const supabaseUrl=required('E2E_TEST_SUPABASE_URL');
   const serviceRole=required('E2E_TEST_SUPABASE_SERVICE_ROLE_KEY');
   const bypassSecret=required('VERCEL_AUTOMATION_BYPASS_SECRET');
-  const manualBase=await manualGmailWorkflowInput(eventPath);
+  const manualBase=required('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS');
   const expectedCandidateSha=String(process.env.RELEASE_CRITICAL_CANDIDATE_SHA??'').trim().toLowerCase();
   if(!/^[0-9a-f]{40}$/.test(expectedCandidateSha))fail('RELEASE_CRITICAL_CANDIDATE_SHA_INPUT_INVALID');
   if(!new URL(supabaseUrl).hostname.startsWith(`${STAGING_REF}.`)||new URL(baseUrl).hostname.endsWith('.garage-link.tech'))fail('RELEASE_CRITICAL_STAGING_BOUNDARY_DENIED');

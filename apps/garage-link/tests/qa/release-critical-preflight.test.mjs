@@ -86,12 +86,12 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(journeys,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(workflow,/environment: garage-link-commercial-staging/);
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
-  assert.match(workflow,/manual_gmail_address/);
+  assert.match(workflow,/RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS/);
   assert.match(workflow,/staging_base_url/);
   assert.match(workflow,/description: Exact garage-link-staging preview URL/);
   assert.match(workflow,/required: true/);
   assert.match(workflow,/candidate_sha/);
-  assert.doesNotMatch(workflow,/MANUAL_GMAIL_ADDRESS/);
+  assert.doesNotMatch(workflow,/manual_gmail_address/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_VERCEL_READ_TOKEN|GARAGE_STAGING_VERCEL_PROJECT_ID|GARAGE_STAGING_VERCEL_TEAM_ID/);
   assert.doesNotMatch(workflow,/release_sha|release_branch|EXPECTED_RELEASE_SHA|EXPECTED_RELEASE_BRANCH/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_MAILSLURP_API_KEY/);
