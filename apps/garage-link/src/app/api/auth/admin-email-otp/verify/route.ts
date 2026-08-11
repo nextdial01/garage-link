@@ -1,9 +1,14 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { ADMIN_EMAIL_OTP_COOKIE, createTrustedDeviceCookieValue, deviceTokenHash, getAdminEmailOtpSecret, otpHash, randomDeviceToken, trustedDeviceCookieOptions } from '@/lib/security/adminEmailOtp';
 import { getAuthenticatedAdminContext } from '@/lib/security/adminEmailOtpServer';
+import { getPreviewOtpSinkContext } from '@/lib/security/previewOtpSink';
 
 export async function POST(request: NextRequest) {
-  const context = await getAuthenticatedAdminContext(request);
+  const sink = getPreviewOtpSinkContext(request);
+  if (sink.requested && !sink.authorized) {
+    return NextResponse.json({ error: 'Not Found' }, { status: 404 });
+  }
+  const context = await getAuthenticatedAdminContext(request, { requireReleaseQa: sink.authorized });
   const secret = getAdminEmailOtpSecret();
   const body = await request.json().catch(() => null) as { code?: unknown } | null;
   const code = typeof body?.code === 'string' ? body.code.replace(/\D/g, '') : '';
@@ -30,4 +35,3 @@ export async function POST(request: NextRequest) {
   response.cookies.set(ADMIN_EMAIL_OTP_COOKIE, cookieValue, trustedDeviceCookieOptions());
   return response;
 }
-

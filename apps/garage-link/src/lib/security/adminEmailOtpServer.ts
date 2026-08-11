@@ -1,7 +1,18 @@
 import 'server-only';
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+
+const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
+const RELEASE_QA_EMAIL = /\+garage-link-[0-9a-f]{8}-[0-9a-f-]{27}@/i;
+
+function isStagingReleaseQaRequest(request: NextRequest) {
+  const host = request.nextUrl.hostname;
+  return process.env.VERCEL_PROJECT_ID === STAGING_PROJECT_ID
+    && process.env.VERCEL_ENV === 'preview'
+    && /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i.test(host);
+}
 
 export async function getAuthenticatedAdminContext(
   request: NextRequest,
@@ -11,11 +22,20 @@ export async function getAuthenticatedAdminContext(
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
   const service = createAdminClient();
   if (!url || !anonKey || !service) return null;
-  const supabase = createServerClient(url, anonKey, { cookies: { getAll: () => request.cookies.getAll(), setAll: () => undefined } });
-  const [{ data: userData }, { data: claimsData }] = await Promise.all([supabase.auth.getUser(), supabase.auth.getClaims()]);
+  const bearer = options.requireReleaseQa && isStagingReleaseQaRequest(request)
+    ? request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]
+    : undefined;
+  const supabase = bearer
+    ? createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } })
+    : createServerClient(url, anonKey, { cookies: { getAll: () => request.cookies.getAll(), setAll: () => undefined } });
+  const [{ data: userData }, { data: claimsData }] = await Promise.all([
+    supabase.auth.getUser(bearer),
+    supabase.auth.getClaims(bearer),
+  ]);
   const user = userData.user;
   const sessionId = typeof claimsData?.claims?.session_id === 'string' ? claimsData.claims.session_id : '';
   if (!user?.id || !user.email || !sessionId) return null;
+  if (bearer && !RELEASE_QA_EMAIL.test(user.email)) return null;
   const rpcCalls = options.requireReleaseQa
     ? [
         service.rpc('release_qa_admin_bootstrap_context', {

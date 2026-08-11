@@ -212,6 +212,7 @@ async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,passwo
   try {
     const {data:login,error:loginError}=await subject.auth.signInWithPassword({email,password});
     if(loginError||!login.session?.user){if(optional)return null;fail(`RELEASE_CRITICAL_FIXTURE_OWNER_LOGIN:${safeProviderCode(loginError)}`);}
+    await trustReleaseQaAdminSession({baseUrl,bypassSecret,accessToken:login.session.access_token});
     const emailMarker=email.split('@')[0]?.split('+')[1];
     if(!/^garage-link-[0-9a-f-]{36}$/i.test(emailMarker??''))fail('RELEASE_CRITICAL_FIXTURE_EMAIL_MARKER_INVALID');
     const headers={authorization:`Bearer ${login.session.access_token}`,'content-type':'application/json','x-vercel-protection-bypass':bypassSecret};
@@ -225,6 +226,16 @@ async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,passwo
     if(fixture.discovery_path==='JWT_MEMBERSHIP_FALLBACK')emit({state:'RELEASE_CRITICAL_FIXTURE_VIEW_BOUNDARY_ISOLATED',primary_path:'ACTIVE_STORE_VIEW',fallback_path:'JWT_MEMBERSHIP_FALLBACK',subject_jwt_preserved:true,grant_or_rls_change:false});
     return {membershipId:fixture.membership_id,tenantId:fixture.tenant_id,storeId:fixture.store_id,tenantName:fixture.tenant_name,accountState:{garageUiContext:accountState.garage_ui_context,activeStore:accountState.active_store,onboardingCompleted:accountState.onboarding_completed,membershipRole:accountState.membership_role,membershipStatus:accountState.membership_status,contractAccessState:accountState.contract_access_state}};
   } finally {await subject.auth.signOut().catch(()=>undefined);}
+}
+async function trustReleaseQaAdminSession({baseUrl,bypassSecret,accessToken}){
+  const headers={authorization:`Bearer ${accessToken}`,'content-type':'application/json','x-vercel-protection-bypass':bypassSecret};
+  const requested=await fetchVerifiedVercelRequest(new URL('/api/auth/admin-email-otp/request',baseUrl),headers,fetch,{method:'POST',body:'{}'});
+  if(!requested.response.ok||requested.response.headers.has('location'))fail(`RELEASE_CRITICAL_FIXTURE_OTP_REQUEST:${requested.response.status}`);
+  const requestBody=await requested.response.json().catch(()=>null);
+  const code=typeof requestBody?.previewOtp==='string'&&/^\d{6}$/.test(requestBody.previewOtp)?requestBody.previewOtp:null;
+  if(!code)fail('RELEASE_CRITICAL_FIXTURE_OTP_CODE_UNAVAILABLE');
+  const verified=await fetchVerifiedVercelRequest(new URL('/api/auth/admin-email-otp/verify',baseUrl),headers,fetch,{method:'POST',body:JSON.stringify({code})});
+  if(!verified.response.ok||verified.response.headers.has('location'))fail(`RELEASE_CRITICAL_FIXTURE_OTP_VERIFY:${verified.response.status}`);
 }
 async function activeOwner(options){return ownerFixtureForUser(options)}
 async function maybeActiveOwner(options){return ownerFixtureForUser({...options,optional:true})}
