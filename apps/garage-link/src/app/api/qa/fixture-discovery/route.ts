@@ -7,6 +7,7 @@ const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
 const STAGING_REF = 'gaytoojzwqkpuvfofeql';
 const STAGING_HOST = /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i;
 const EMAIL_MARKER = /^(?:g[0-9a-f]{6}|garage-link-(?:[0-9a-f]{12}|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}))$/i;
+const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type SafeJwtDiagnostic = {
   sub_matches_user: 'YES' | 'NO';
@@ -62,12 +63,13 @@ export async function POST(request: Request) {
   if (!stagingRuntime(request)) return new Response(null, { status: 404 });
   const token = request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) return new Response(null, { status: 401 });
-  let body: { email_marker?: unknown };
+  let body: { email_marker?: unknown; run_id?: unknown };
   try { body = await request.json(); } catch { return new Response(null, { status: 400 }); }
   const emailMarker = typeof body.email_marker === 'string' && EMAIL_MARKER.test(body.email_marker)
     ? body.email_marker.toLowerCase()
     : null;
-  if (!emailMarker) return new Response(null, { status: 400 });
+  const runId = typeof body.run_id === 'string' && RUN_ID.test(body.run_id) ? body.run_id.toLowerCase() : null;
+  if ((!emailMarker && !runId) || (emailMarker && runId)) return new Response(null, { status: 400 });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
@@ -84,11 +86,13 @@ export async function POST(request: Request) {
     provider_error_code: safeClaim(error?.code, 'UNKNOWN'),
   }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
   const jwt = jwtDiagnostic(token, data.user.id, url);
-  const markerMatches = data.user.email?.toLowerCase().includes(`+${emailMarker}@`) === true;
+  const markerMatches = runId
+    ? data.user.app_metadata?.release_qa_run_id === runId
+    : data.user.email?.toLowerCase().includes(`+${emailMarker}@`) === true;
   if (!markerMatches) return Response.json({
     layer: 'ROUTE_MARKER',
     jwt,
-    marker_hash: await markerHash(emailMarker),
+    marker_hash: await markerHash(runId ?? emailMarker ?? ''),
   }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
 
   const lookup = await readReleaseQaFixture({ url, anonKey, accessToken: token, userId: data.user.id });
@@ -102,7 +106,7 @@ export async function POST(request: Request) {
     jwt,
     deployed_supabase_ref_matches: 'YES',
     deployed_anon_key_accepted: 'YES',
-    marker_hash: await markerHash(emailMarker),
+    marker_hash: await markerHash(runId ?? emailMarker ?? ''),
   }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
   const fixture = lookup.fixture;
   return Response.json({

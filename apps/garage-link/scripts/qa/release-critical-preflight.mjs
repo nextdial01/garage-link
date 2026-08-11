@@ -104,9 +104,10 @@ function manualGmailBaseAddress(value){
   if(!match)fail('MANUAL_GMAIL_PLUS_ADDRESS_UNAVAILABLE');
   return {localPart:match[1],domain:match[2]};
 }
-function manualGmailAddress(baseAddress,runMarker){
+function manualGmailAddress(baseAddress,runMarker,plusAddressing=true){
   const marker=requiredRunMarker(runMarker);
   const base=manualGmailBaseAddress(baseAddress);
+  if(!plusAddressing)return `${base.localPart}@${base.domain}`;
   const localPart=`${base.localPart}+${marker}`;
   if(localPart.length>64)fail('MANUAL_GMAIL_PLUS_ADDRESS_TOO_LONG');
   return `${localPart}@${base.domain}`;
@@ -125,9 +126,9 @@ export async function releaseCriticalBaseUrl(eventPath,fallback=process.env.PLAY
   return fallback.trim();
 }
 
-export function createManualGmailSession(baseAddress,runMarker=`garage-link-${crypto.randomUUID()}`){
+export function createManualGmailSession(baseAddress,runMarker=`garage-link-${crypto.randomUUID()}`,{plusAddressing=true}={}){
   const marker=requiredRunMarker(runMarker);
-  return {emailMode:'manual_gmail',runMarker:marker,emailAddress:manualGmailAddress(baseAddress,marker)};
+  return {emailMode:'manual_gmail',runMarker:marker,emailAddress:manualGmailAddress(baseAddress,marker,plusAddressing),plusAddressing};
 }
 
 export function manualGmailCheckpoint(session,purpose){

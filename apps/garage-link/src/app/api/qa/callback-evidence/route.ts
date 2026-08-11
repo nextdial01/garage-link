@@ -33,11 +33,6 @@ function callbackPurpose(nextPath: unknown, runId: string): CallbackPurpose | nu
   return null;
 }
 
-function syntheticQaUser(email: string | undefined, runId: string) {
-  const emailMarker = `g${runId.replaceAll('-', '').slice(0, 6)}`;
-  return Boolean(email?.toLowerCase().includes(`+${emailMarker}@`));
-}
-
 function validCallbackChain(
   value: Record<string, unknown>,
   purpose: CallbackPurpose,
@@ -80,7 +75,7 @@ export async function POST(request: Request) {
   if (!url || !anonKey || !admin) return new Response(null, { status: 404 });
   const verifier = createSupabaseClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const { data, error } = await verifier.auth.getUser(token);
-  if (error || !data.user || !syntheticQaUser(data.user.email, runId)) return new Response(null, { status: 403 });
+  if (error || !data.user?.email || data.user.app_metadata?.release_qa_run_id !== runId) return new Response(null, { status: 403 });
 
   const prior = data.user.app_metadata?.release_qa_callback;
   if (prior && typeof prior === 'object' && prior.run_id && prior.run_id !== runId) return new Response(null, { status: 409 });

@@ -152,7 +152,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(callbackEvidence,/store_created/);
   assert.match(callbackEvidence,/validCallbackChain/);
   assert.match(callbackEvidence,/server_bound_continuation: true/);
-  assert.match(callbackEvidence,/syntheticQaUser/);
+  assert.match(callbackEvidence,/release_qa_run_id/);
+  assert.match(fixtureDiscovery,/release_qa_run_id/);
+  assert.match(journeys,/plusAddressing:false/);
   assert.doesNotMatch(callbackEvidence,/PRODUCTION_PROJECT_ID/);
   assert.match(middleware,/pathname === '\/api\/qa\/callback-evidence'/);
   assert.match(middleware,/pathname === '\/api\/qa\/fixture-discovery'/);
@@ -252,6 +254,9 @@ test('Manual Gmail Bridge creates a plus address, redacts checkpoints, and polls
   const marker='g123456';
   const session=createManualGmailSession('Owner.Name+old@kannagi-co.com',marker);
   assert.equal(session.emailAddress,'owner.name+g123456@kannagi-co.com');
+  const exactSession=createManualGmailSession('Owner.Name+old@kannagi-co.com',marker,{plusAddressing:false});
+  assert.equal(exactSession.emailAddress,'owner.name@kannagi-co.com');
+  assert.equal(exactSession.plusAddressing,false);
   assert.deepEqual(manualGmailCheckpoint(session,'signup'),{state:'MANUAL_GMAIL_CHECKPOINT_SIGNUP',email_mode:'manual_gmail',run_marker:marker,recipient:'REDACTED_MANUAL_GMAIL_ADDRESS',operator_action:'Open the matching Staging-only Gmail message and click its Supabase confirmation link.'});
   assert.equal(manualGmailCheckpoint(session,'recovery').state,'MANUAL_GMAIL_CHECKPOINT_RESET');
   const admin={auth:{admin:{getUserById:async()=>({data:{user:{email:session.emailAddress,email_confirmed_at:'2026-08-10T00:00:00.000Z'}},error:null})}}};
