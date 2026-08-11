@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl } from '../../scripts/qa/release-critical-preflight.mjs';
-import { classifyCtaTrace, createReleaseCriticalRun, releaseCriticalSyntheticPassword, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
+import { classifyCtaTrace, createReleaseCriticalRun, installVercelBrowserBypass, releaseCriticalSyntheticPassword, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
 import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-stage-auth.mjs';
 
 const appRoot=resolve(import.meta.dirname,'../..');
@@ -189,6 +189,20 @@ test('Vercel bypass preserves a marker-bound POST body across its one safe retry
   assert.equal(calls[1].options.method,'POST');
   assert.equal(calls[1].options.body,calls[0].options.body);
   assert.match(calls[1].options.headers.cookie,/__vercel_bypass=issued/);
+});
+
+test('browser bypass is scoped to the exact Staging deployment origin',async()=>{
+  let matcher; let handler;
+  const context={route:async(nextMatcher,nextHandler)=>{matcher=nextMatcher;handler=nextHandler;}};
+  await installVercelBrowserBypass(context,'https://garage-link-staging-candidate-altos-projects-fa55063c.vercel.app','test-secret');
+  assert.equal(matcher(new URL('https://garage-link-staging-candidate-altos-projects-fa55063c.vercel.app/signup')),true);
+  assert.equal(matcher(new URL('https://gaytoojzwqkpuvfofeql.supabase.co/auth/v1/signup')),false);
+  assert.equal(matcher(new URL('https://garage-link.tech/signup')),false);
+  let continued;
+  await handler({request:()=>({headers:()=>({accept:'text/html'})}),continue:async options=>{continued=options;}});
+  assert.equal(continued.headers.accept,'text/html');
+  assert.equal(continued.headers['x-vercel-protection-bypass'],'test-secret');
+  assert.equal(continued.headers['x-vercel-set-bypass-cookie'],'true');
 });
 
 test('Vercel bypass does not follow a cross-origin redirect',async()=>{

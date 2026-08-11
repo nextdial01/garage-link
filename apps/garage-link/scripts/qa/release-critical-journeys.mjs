@@ -82,6 +82,18 @@ export function validateClientAuthRedirect(requestUrl,expectedRedirect,supabaseU
     return {origin:redirect.origin,path:redirect.pathname};
   } catch(error) {if(String(error?.message)==='RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID')throw error;fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID');}
 }
+export async function installVercelBrowserBypass(context,baseUrl,bypassSecret){
+  let base;
+  try {base=new URL(baseUrl)} catch {fail('RELEASE_CRITICAL_BROWSER_BYPASS_ORIGIN_INVALID')}
+  if(!/^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i.test(base.hostname)||typeof bypassSecret!=='string'||!bypassSecret)fail('RELEASE_CRITICAL_BROWSER_BYPASS_ORIGIN_INVALID');
+  // Scope the Protection credential to the exact Staging deployment origin.
+  // A context-wide header would leak it to Supabase and other third parties.
+  await context.route(url=>url.origin===base.origin,route=>route.continue({headers:{
+    ...route.request().headers(),
+    'x-vercel-protection-bypass':bypassSecret,
+    'x-vercel-set-bypass-cookie':'true',
+  }}));
+}
 async function verifyHostedRedirectContract({admin,manualBase,run,baseUrl,supabaseUrl}){
   const probeMarker=`${run.emailMarker}-contract`; const probe=createManualGmailSession(manualBase,probeMarker); const password=releaseCriticalSyntheticPassword(probeMarker);
   const callback=new URL('/auth/callback',baseUrl); callback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); callback.searchParams.set('qa_run',run.runId);
@@ -371,9 +383,9 @@ async function verifyKnownPartialLifecycle(admin,life,partialRunId){
   emit({state:'RELEASE_CRITICAL_PARTIAL_FIXTURE_CLEAN',marker:PARTIAL_MARKER,residual,qa_lifecycle:final.state});
   return final;
 }
-async function runMobileSmoke(baseUrl,browserType,name){
+async function runMobileSmoke(baseUrl,browserType,name,bypassSecret){
   const browser=await browserType.launch({headless:true});
-  try {const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true});const page=await context.newPage();await page.goto(baseUrl,{waitUntil:'domcontentloaded'});await page.getByRole('link',{name:'無料で始める'}).first().click();await page.waitForURL(/\/signup/,{timeout:30_000});await context.close();emit({journey:'J10',browser:name,status:'PASS'});} finally {await browser.close();}
+  try {const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true});await installVercelBrowserBypass(context,baseUrl,bypassSecret);const page=await context.newPage();await page.goto(baseUrl,{waitUntil:'domcontentloaded'});await page.getByRole('link',{name:'無料で始める'}).first().click();await page.waitForURL(/\/signup/,{timeout:30_000});await context.close();emit({journey:'J10',browser:name,status:'PASS'});} finally {await browser.close();}
 }
 async function main(){
   const eventPath=required('GITHUB_EVENT_PATH');
@@ -394,7 +406,7 @@ async function main(){
   let browser; let context; let page; let user; let life; let adopted=false; const results={};
   try {
     life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance);
-    browser=await chromium.launch({headless:true}); context=await browser.newContext(); page=await context.newPage();
+    browser=await chromium.launch({headless:true}); context=await browser.newContext(); await installVercelBrowserBypass(context,baseUrl,bypassSecret); page=await context.newPage();
     await page.goto(`${baseUrl}${baseUrl.includes('?')?'&':'?'}qa_run=${encodeURIComponent(run.runId)}`,{waitUntil:'domcontentloaded'});
     await clickAndWait(page,page.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
     const fillSignup=async(password)=>{await page.getByLabel('店舗名').fill(`${run.marker} Signup`);await page.getByLabel('担当者名').fill(`${run.marker} Owner`);await page.getByLabel('メールアドレス').fill(session.emailAddress);await page.locator('#password').fill(password);await page.locator('#passwordConfirmation').fill(password);await page.getByRole('checkbox').check();};
@@ -460,7 +472,7 @@ async function main(){
       if(!href?.startsWith('mailto:'))fail('RELEASE_CRITICAL_INQUIRY_ROUTE_UNAVAILABLE'); await formalContact.click(); await inquiry.close(); results.J8='PASS';
     } catch(error) {results.J8=`FAIL:${safeErrorCode(error)}`;deferredFailure=error;emit({journey:'J8',status:'FAIL',code:safeErrorCode(error)});}
     if(!(await page.getByText('提供準備中').count())||await page.getByText('L-LINK 利用可').count())fail('RELEASE_CRITICAL_LLINK_BOUNDARY_FAILED'); results.J9='PASS';
-    await runMobileSmoke(baseUrl,chromium,'chromium-mobile'); await runMobileSmoke(baseUrl,webkit,'webkit-mobile'); results.J10='PASS';
+    await runMobileSmoke(baseUrl,chromium,'chromium-mobile',bypassSecret); await runMobileSmoke(baseUrl,webkit,'webkit-mobile',bypassSecret); results.J10='PASS';
     if(deferredFailure)throw deferredFailure;
     emit({state:'RELEASE_CRITICAL_JOURNEYS_PASS',journeys:results,run_marker:run.emailMarker});
   } finally {
