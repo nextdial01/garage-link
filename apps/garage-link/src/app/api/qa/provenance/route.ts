@@ -4,6 +4,7 @@ const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
 const PRODUCTION_PROJECT_ID = 'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64';
 const BLOCKED_PROJECT_IDS = new Set([PRODUCTION_PROJECT_ID]);
 const PRODUCTION_HOSTS = new Set(['garage-link.tech', 'www.garage-link.tech']);
+const STAGING_HOST = /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i;
 
 function value(name: string) {
   return process.env[name]?.trim() ?? '';
@@ -35,16 +36,25 @@ export async function GET(request: Request) {
     : vercelEnvironment;
   const urlValue = deploymentUrl(url);
 
-  const valid = projectId === STAGING_PROJECT_ID
-    && !BLOCKED_PROJECT_IDS.has(projectId)
-    && !isProductionHost(runtimeHost)
-    && /^dpl_[A-Za-z0-9]+$/.test(deploymentId)
-    && /^[0-9a-f]{40}$/i.test(gitCommitSha)
-    && /^[A-Za-z0-9._/-]{1,255}$/.test(gitCommitRef)
-    && Boolean(urlValue)
-    && Boolean(environment);
-
-  if (!valid) return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
+  const checks = [
+    [projectId === STAGING_PROJECT_ID && !BLOCKED_PROJECT_IDS.has(projectId), 'PROJECT'],
+    [!isProductionHost(runtimeHost) && STAGING_HOST.test(runtimeHost), 'HOST'],
+    [/^dpl_[A-Za-z0-9]+$/.test(deploymentId), 'DEPLOYMENT_ID'],
+    [/^[0-9a-f]{40}$/i.test(gitCommitSha), 'GIT_SHA'],
+    [/^[A-Za-z0-9._/-]{1,255}$/.test(gitCommitRef), 'GIT_REF'],
+    [Boolean(urlValue), 'DEPLOYMENT_URL'],
+    [Boolean(environment), 'ENVIRONMENT'],
+  ] as const;
+  const failed = checks.find(([passed]) => !passed)?.[1];
+  if (failed) {
+    const headers: Record<string, string> = { 'Cache-Control': 'no-store' };
+    // Only an already-identified Staging project and hostname may disclose a
+    // non-secret format category. Production and ambiguous runtimes stay 404-only.
+    if (projectId === STAGING_PROJECT_ID && STAGING_HOST.test(runtimeHost)) {
+      headers['x-garage-qa-provenance-error'] = failed;
+    }
+    return new Response(null, { status: 404, headers });
+  }
 
   return Response.json({
     project_id: projectId,
