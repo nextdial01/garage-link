@@ -255,9 +255,10 @@ async function findKnownPartialUser(admin){
 }
 export function lifecycle(admin,run,provenance){
   const rpc=async(name,args={})=>{const {data,error}=await admin.rpc(name,args);if(error)fail(`RELEASE_CRITICAL_LIFECYCLE_${name}:${error.code??'FAILED'}`);return data};
+  const maybeStatus=async()=>{const {data,error}=await admin.rpc('qa_lifecycle_status',{p_run_id:run.runId});if(!error)return data;if(error.code==='P0001'&&String(error.message??'').includes('QA_RUN_NOT_FOUND'))return null;fail(`RELEASE_CRITICAL_LIFECYCLE_qa_lifecycle_status:${error.code??'FAILED'}`);};
   const transition=(expected,next,action,detail={})=>rpc('qa_lifecycle_transition',{p_run_id:run.runId,p_expected_state:expected,p_next_state:next,p_next_action:action,p_failure_class:null,p_safe_detail:detail});
   const evidence=(kind,detail={})=>{const payload={run_id:run.runId,source_sha:provenance.sourceSha,deployment_id:provenance.deploymentId,actor:'release-critical-gha',residual_count:0,observed_at:new Date().toISOString(),...detail};return rpc('qa_lifecycle_record_verified_evidence',{p_run_id:run.runId,p_evidence_kind:kind,p_observation:{...payload,proof_sha:sha256(JSON.stringify(payload))}})};
-  return {rpc,transition,evidence,status:()=>rpc('qa_lifecycle_status',{p_run_id:run.runId})};
+  return {rpc,transition,evidence,status:()=>rpc('qa_lifecycle_status',{p_run_id:run.runId}),maybeStatus};
 }
 export async function beginLifecycle(life,run,provenance){
   await life.rpc('qa_lifecycle_register_run',{p_run_id:run.runId,p_purpose:'release-critical-acquisition',p_source_sha:provenance.sourceSha,p_deployment_id:provenance.deploymentId,p_operator_reference:'release-critical-gha',p_cleanup_deadline:new Date(Date.now()+60*60_000).toISOString()});
@@ -337,7 +338,8 @@ async function recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,s
   if(!marker)fail('RELEASE_CRITICAL_PARTIAL_MARKER_UNPROVEN');
   const partialRunId=PARTIAL_MARKER.replace(/^garage-link-/,'');
   const run={runId:partialRunId,marker,emailMarker:PARTIAL_MARKER};
-  const statusLife=lifecycle(admin,run,provenance); const existing=await statusLife.status();
+  const statusLife=lifecycle(admin,run,provenance); let existing=await statusLife.maybeStatus();
+  if(!existing){await beginLifecycle(statusLife,run,provenance);existing=await statusLife.status();}
   if(!/^[0-9a-f]{40}$/i.test(existing.source_sha??'')||!/^dpl_[A-Za-z0-9]+$/.test(existing.deployment_id??''))fail('RELEASE_CRITICAL_PARTIAL_PROVENANCE_UNPROVEN');
   const life=lifecycle(admin,run,{sourceSha:existing.source_sha,deploymentId:existing.deployment_id});
   if(existing.state!=='PROVISIONING')fail(`RELEASE_CRITICAL_PARTIAL_LIFECYCLE_STATE:${existing.state}`);
