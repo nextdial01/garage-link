@@ -25,6 +25,14 @@ function signupAlertClassification(value){
   if(/valid email|メールアドレスの形式/.test(message))return 'EMAIL_FORMAT_REJECTED';
   return `UNKNOWN_MESSAGE_SHA256:${sha256(message)}`;
 }
+function safeSignupAlertDetail(value){
+  return String(value??'').trim()
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[REDACTED_EMAIL]')
+    .replace(/https?:\/\/\S+/gi,'[REDACTED_URL]')
+    .replace(/\b(?:sbp|sb_secret|eyJ)[A-Za-z0-9._-]+\b/g,'[REDACTED]')
+    .replace(/\s+/g,' ')
+    .slice(0,180)||'EMPTY';
+}
 
 export function createReleaseCriticalRun(runId=randomUUID()){
   if(!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_RUN_ID_INVALID');
@@ -170,7 +178,10 @@ async function main(){
     const fillSignup=async(password)=>{await page.getByLabel('店舗名').fill(`${run.marker} Signup`);await page.getByLabel('担当者名').fill(`${run.marker} Owner`);await page.getByLabel('メールアドレス').fill(session.emailAddress);await page.locator('#password').fill(password);await page.locator('#passwordConfirmation').fill(password);await page.getByRole('checkbox').check();};
     await fillSignup(initialPassword); await page.getByRole('button',{name:'無料でアカウントを作成する'}).click();
     const signupOutcome=await signupSubmitOutcome(page);
-    if(signupOutcome.kind==='alert')fail(`RELEASE_CRITICAL_SIGNUP_SUBMIT_ALERT:${signupAlertClassification(await page.getByRole('alert').textContent())}`);
+    if(signupOutcome.kind==='alert'){
+      const alertText=await page.getByRole('alert').textContent();
+      fail(`RELEASE_CRITICAL_SIGNUP_SUBMIT_ALERT:${signupAlertClassification(alertText)}:${safeSignupAlertDetail(alertText)}`);
+    }
     if(signupOutcome.kind==='onboarding'){
       user=await findUser(admin,session.emailAddress);
       const owner=await activeOwner(admin,user.id);
