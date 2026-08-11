@@ -37,11 +37,11 @@ export async function applyStagingPasswordMinimum(token,fetchImpl=fetch,origin){
   // not the post-callback next route.
   // Preview URLs are intentionally ephemeral. Keeping every exact preview
   // callback grows the hosted allowlist until Supabase rejects the PATCH.
-  // Keep non-Staging contracts, replace stale preview entries with the one
-  // documented wildcard contract that authorizes this exact preview origin.
+  // Keep non-Staging contracts, remove stale preview entries, and authorize
+  // only this run's exact Staging preview origin.
   const allowlist=new Set(allowedUrls(current.config).filter(value=>!isLocalhostRedirect(value)&&!isStagingPreviewRedirect(value)));
-  const stagingCallbackPattern='https://garage-link-staging-*.vercel.app/auth/callback**';
-  allowlist.add(stagingCallbackPattern);
+  allowlist.add(`${resolvedOrigin}/auth/callback`);
+  allowlist.add(`${resolvedOrigin}/auth/callback**`);
   // `additional_redirect_urls` is the local CLI config alias. The hosted
   // Management API accepts the documented `uri_allow_list` field only.
   const response=await fetchImpl(endpoint,{method:'PATCH',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:resolvedOrigin,uri_allow_list:[...allowlist].join(',')}),redirect:'manual',cache:'no-store'});
