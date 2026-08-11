@@ -92,7 +92,8 @@ function fixtureDiscoveryFailure(response,detail,emailMarker){
   const layer=String(detail?.layer??(response.status===401||response.status===403?'VERCEL_OR_ROUTE':'UNKNOWN')).replace(/[^A-Z0-9_]/g,'_');
   const code=String(detail?.code??detail?.provider_error_code??'UNKNOWN').replace(/[^A-Z0-9_]/g,'_');
   const postgrest=Number.isInteger(detail?.postgrest_response_code)?detail.postgrest_response_code:'NONE';
-  emit({state:'RELEASE_CRITICAL_FIXTURE_DISCOVERY_DIAGNOSTIC',layer,http_status:response.status,provider_error_code:code,jwt_sub_matches_user:detail?.jwt?.sub_matches_user??'UNKNOWN',jwt_role:detail?.jwt?.role??'UNKNOWN',jwt_aud:detail?.jwt?.aud??'UNKNOWN',jwt_exp_valid:detail?.jwt?.exp_valid??'UNKNOWN',project_ref_matches:detail?.jwt?.project_ref_matches??'UNKNOWN',postgrest_response_code:postgrest,bypass_applied:'YES',fixture_marker_hash:sha256(emailMarker)});
+  const postgrestProviderCode=String(detail?.postgrest_provider_error_code??'NONE').replace(/[^A-Z0-9_]/gi,'_').slice(0,32);
+  emit({state:'RELEASE_CRITICAL_FIXTURE_DISCOVERY_DIAGNOSTIC',layer,http_status:response.status,provider_error_code:code,jwt_sub_matches_user:detail?.jwt?.sub_matches_user??'UNKNOWN',jwt_role:detail?.jwt?.role??'UNKNOWN',jwt_aud:detail?.jwt?.aud??'UNKNOWN',jwt_exp_valid:detail?.jwt?.exp_valid??'UNKNOWN',project_ref_matches:detail?.jwt?.project_ref_matches??'UNKNOWN',deployed_supabase_ref_matches:detail?.deployed_supabase_ref_matches??'UNKNOWN',deployed_anon_key_accepted:detail?.deployed_anon_key_accepted??'UNKNOWN',postgrest_response_code:postgrest,postgrest_provider_error_code:postgrestProviderCode,bypass_applied:'YES',fixture_marker_hash:sha256(emailMarker)});
   return `RELEASE_CRITICAL_FIXTURE_DISCOVERY:${response.status}:${layer}:${code}`;
 }
 async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,password,tenantNamePrefix,bypassSecret,optional=false}){

@@ -74,6 +74,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(await readFile(resolve(appRoot,'src/lib/auth/releaseQaFixture.ts'),'utf8'),/POSTGREST_MEMBERSHIP/);
   assert.match(fixtureDiscovery,/ROUTE_AUTH/);
   assert.match(fixtureDiscovery,/marker_hash/);
+  assert.match(fixtureDiscovery,/postgrest_provider_error_code/);
   assert.match(fixtureDiscovery,/status: 404/);
   assert.doesNotMatch(fixtureDiscovery,/createAdminClient|STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(journeys,/RELEASE_CRITICAL_PARTIAL_FIXTURE_CLEAN/);
@@ -90,6 +91,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/'x-vercel-protection-bypass':bypassSecret/);
   assert.match(journeys,/fetchVerifiedVercelRequest/);
   assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_DISCOVERY_DIAGNOSTIC/);
+  assert.match(journeys,/postgrest_provider_error_code/);
   assert.doesNotMatch(journeys,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(workflow,/environment: garage-link-commercial-staging/);
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);

@@ -4,6 +4,7 @@ import { readReleaseQaFixture } from '@/lib/auth/releaseQaFixture';
 export const dynamic = 'force-dynamic';
 
 const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
+const STAGING_REF = 'gaytoojzwqkpuvfofeql';
 const STAGING_HOST = /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i;
 const EMAIL_MARKER = /^garage-link-([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 
@@ -71,6 +72,11 @@ export async function POST(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
   if (!url || !anonKey) return new Response(null, { status: 404 });
+  try {
+    if (new URL(url).hostname !== `${STAGING_REF}.supabase.co`) return new Response(null, { status: 404 });
+  } catch {
+    return new Response(null, { status: 404 });
+  }
   const verifier = createSupabaseClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const { data, error } = await verifier.auth.getUser(token);
   if (error || !data.user) return Response.json({
@@ -90,7 +96,10 @@ export async function POST(request: Request) {
     layer: lookup.diagnostic.layer,
     code: lookup.code,
     postgrest_response_code: lookup.diagnostic.postgrestStatus,
+    postgrest_provider_error_code: lookup.diagnostic.providerErrorCode,
     jwt,
+    deployed_supabase_ref_matches: 'YES',
+    deployed_anon_key_accepted: 'YES',
     marker_hash: await markerHash(emailMarker),
   }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
   const fixture = lookup.fixture;
