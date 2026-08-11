@@ -108,15 +108,6 @@ function manualGmailAddress(baseAddress,runMarker){
   const base=manualGmailBaseAddress(baseAddress);
   return `${base.localPart}+${marker}@${base.domain}`;
 }
-export async function manualGmailWorkflowInput(eventPath,readFileImpl=readFile){
-  if(typeof eventPath!=='string'||!eventPath.trim())fail('MANUAL_GMAIL_WORKFLOW_EVENT_MISSING');
-  let event;
-  try {event=JSON.parse(await readFileImpl(eventPath,'utf8'))} catch {fail('MANUAL_GMAIL_WORKFLOW_EVENT_INVALID')}
-  const address=event?.inputs?.manual_gmail_address;
-  if(typeof address!=='string'||!address.trim())fail('MANUAL_GMAIL_WORKFLOW_INPUT_MISSING');
-  return address.trim();
-}
-
 export async function releaseCriticalBaseUrl(eventPath,fallback=process.env.PLAYWRIGHT_BASE_URL,readFileImpl=readFile){
   let event;
   try {event=JSON.parse(await readFileImpl(eventPath,'utf8'))} catch {fail('RELEASE_CRITICAL_WORKFLOW_EVENT_INVALID')}
@@ -224,7 +215,9 @@ async function main(){
   const serviceRole=required('E2E_TEST_SUPABASE_SERVICE_ROLE_KEY');
   const managementToken=required('GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN');
   const emailMode=required('RELEASE_CRITICAL_EMAIL_MODE');
-  const manualGmail=await manualGmailWorkflowInput(eventPath);
+  // The address is an Environment secret, never a workflow_dispatch input.
+  // Keep it out of both the GitHub event payload and Action logs.
+  const manualGmail=required('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS');
   const bypassSecret=required('VERCEL_AUTOMATION_BYPASS_SECRET');
   if(supabaseUrl.hostname!==`${STAGING_REF}.supabase.co`||supabaseUrl.hostname.includes(PRODUCTION_REF))fail('SUPABASE_STAGING_REF_MISMATCH');
   if(PRODUCTION_HOSTS.has(baseUrl.hostname)||baseUrl.hostname.endsWith('.garage-link.tech'))fail('VERCEL_PRODUCTION_HOST_DENIED');
