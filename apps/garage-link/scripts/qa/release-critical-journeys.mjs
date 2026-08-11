@@ -14,7 +14,7 @@ const CHECKPOINT_TIMEOUT_MS=20*60_000;
 
 function fail(code){throw new Error(code)}
 function required(name){const value=process.env[name]?.trim();if(!value)fail(`RELEASE_CRITICAL_JOURNEY_MISSING:${name}`);return value}
-function safeErrorCode(error){return String(error?.message??error).replace(/https?:\/\/\S+/g,'[REDACTED_URL]').replace(/\b(?:sbp|sb_secret|eyJ)[A-Za-z0-9._-]+\b/g,'[REDACTED]').slice(0,180)}
+function safeErrorCode(error){return String(error?.message??error).replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[REDACTED_EMAIL]').replace(/https?:\/\/\S+/g,'[REDACTED_URL]').replace(/\b(?:sbp|sb_secret|eyJ)[A-Za-z0-9._-]+\b/g,'[REDACTED]').slice(0,180)}
 function safeProviderCode(error){return String(error?.code??error?.status??'UNKNOWN').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,48)}
 function emit(value){process.stdout.write(`${JSON.stringify(value)}\n`)}
 function sha256(value){return createHash('sha256').update(value).digest('hex')}
@@ -436,7 +436,7 @@ async function submitResumeStore(page,baseUrl){
   const form=page.locator('form');
   const submitButton=page.getByRole('button',{name:'店舗を作成して次へ'});
   const traceKey=`release-critical-resume-${randomUUID()}`;
-  const trace={buttonClick:false,formSubmit:false,runtimeErrorCount:0};
+  const trace={buttonClick:false,formSubmit:false,runtimeErrorCount:0,runtimeErrorClasses:[]};
   let rpcResponse=null;
   const onResponse=response=>{
     try {
@@ -444,8 +444,9 @@ async function submitResumeStore(page,baseUrl){
       if(url.origin===new URL(baseUrl).origin&&url.pathname==='/rest/v1/rpc/create_store_for_current_user')rpcResponse=response;
     } catch {}
   };
-  const onPageError=()=>{trace.runtimeErrorCount+=1;};
-  const onConsole=message=>{if(message.type()==='error')trace.runtimeErrorCount+=1;};
+  const recordRuntimeError=error=>{trace.runtimeErrorCount+=1;trace.runtimeErrorClasses.push(safeErrorCode(error));};
+  const onPageError=error=>recordRuntimeError(error);
+  const onConsole=message=>{if(message.type()==='error')recordRuntimeError(message.text());};
   page.on('response',onResponse);
   page.on('pageerror',onPageError); page.on('console',onConsole);
   try {
@@ -470,10 +471,10 @@ async function submitResumeStore(page,baseUrl){
     }
     const finalPath=safeNavigationPath(page.url(),baseUrl);
     if(outcome?.kind==='arrival'){
-      emit({state:'RELEASE_CRITICAL_AUTH_CALLBACK_NAVIGATION',purpose:'signup',stage:'RESUME_STORE_ARRIVAL_PASS',final_path:finalPath,rpc_status:rpcStatus,rpc_code:rpcCode,button_disabled:buttonDisabled?'YES':'NO',form_valid:formValid?'YES':'NO',dom_button_click:trace.buttonClick?'YES':'NO',dom_form_submit:trace.formSubmit?'YES':'NO',browser_runtime_error_count:trace.runtimeErrorCount});
+      emit({state:'RELEASE_CRITICAL_AUTH_CALLBACK_NAVIGATION',purpose:'signup',stage:'RESUME_STORE_ARRIVAL_PASS',final_path:finalPath,rpc_status:rpcStatus,rpc_code:rpcCode,button_disabled:buttonDisabled?'YES':'NO',form_valid:formValid?'YES':'NO',dom_button_click:trace.buttonClick?'YES':'NO',dom_form_submit:trace.formSubmit?'YES':'NO',browser_runtime_error_count:trace.runtimeErrorCount,browser_runtime_error_classes:[...new Set(trace.runtimeErrorClasses)]});
       return;
     }
-    emit({state:'RELEASE_CRITICAL_AUTH_CALLBACK_NAVIGATION',purpose:'signup',stage:'RESUME_STORE_ARRIVAL_MISSING',final_path:finalPath,rpc_status:rpcStatus,rpc_code:rpcCode,form_alert:outcome?.kind==='alert'?signupAlertClassification(outcome.message):'NONE',button_disabled:buttonDisabled?'YES':'NO',form_valid:formValid?'YES':'NO',dom_button_click:trace.buttonClick?'YES':'NO',dom_form_submit:trace.formSubmit?'YES':'NO',browser_runtime_error_count:trace.runtimeErrorCount});
+    emit({state:'RELEASE_CRITICAL_AUTH_CALLBACK_NAVIGATION',purpose:'signup',stage:'RESUME_STORE_ARRIVAL_MISSING',final_path:finalPath,rpc_status:rpcStatus,rpc_code:rpcCode,form_alert:outcome?.kind==='alert'?signupAlertClassification(outcome.message):'NONE',button_disabled:buttonDisabled?'YES':'NO',form_valid:formValid?'YES':'NO',dom_button_click:trace.buttonClick?'YES':'NO',dom_form_submit:trace.formSubmit?'YES':'NO',browser_runtime_error_count:trace.runtimeErrorCount,browser_runtime_error_classes:[...new Set(trace.runtimeErrorClasses)]});
     fail('RELEASE_CRITICAL_SIGNUP_RESUME_STORE_ARRIVAL_MISSING');
   } finally {page.off('response',onResponse);page.off('pageerror',onPageError);page.off('console',onConsole);}
 }
