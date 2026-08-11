@@ -53,6 +53,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/REDIRECT_URL_NOT_ALLOWED/);
   assert.match(journeys,/UNKNOWN_MESSAGE_SHA256/);
   assert.match(journeys,/REDACTED_EMAIL/);
+  assert.match(journeys,/locator\('form'\)\.getByRole\('alert'\)/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_AUTO_CONFIRMED/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_OUTCOME_UNOBSERVED/);
   assert.match(journeys,/RELEASE_CRITICAL_INQUIRY_ROUTE_UNAVAILABLE/);
