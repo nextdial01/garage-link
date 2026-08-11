@@ -156,19 +156,26 @@ begin
       insert into public.stores(name,company_name,email,status,plan_code,tenant_id,created_by,updated_by,onboarding_completed_at)
       values(v_marker||' CTA '||v_state||' Store',v_marker||' CTA Tenant',v_subject_email,'active','free',v_tenant,v_subject,v_subject,
         case when v_state='onboarding_incomplete' then null else clock_timestamp() end) returning id into v_store;
+      -- Provision any entitlement needed by a later guarded INSERT before
+      -- that INSERT. The normal plan guard remains active throughout: the
+      -- synthetic state is made valid under its intended contract, not by
+      -- bypassing the guard.
+      if v_state in ('active_non_owner','selection_required') then
+        insert into public.company_subscriptions(company_id,tenant_id,plan,status,billing_state,included_staff_count,extra_staff_count,included_store_count,extra_store_count,storage_limit_mb,extra_storage_gb,current_inventory_limit,l_link_integration_enabled)
+        values(
+          v_store,v_tenant,
+          case when v_state='active_non_owner' then 'standard' else 'pro' end,
+          'active','active',
+          case when v_state='active_non_owner' then 3 else 10 end,0,
+          case when v_state='selection_required' then 3 else 1 end,0,
+          case when v_state='active_non_owner' then 10240 else 51200 end,0,
+          case when v_state='active_non_owner' then 200 else 500 end,false
+        );
+      end if;
       v_second_store:=null;
       if v_state='selection_required' then
         insert into public.stores(name,company_name,email,status,plan_code,tenant_id,created_by,updated_by,onboarding_completed_at)
         values(v_marker||' CTA '||v_state||' Store B',v_marker||' CTA Tenant',v_subject_email,'active','free',v_tenant,v_subject,v_subject,clock_timestamp()) returning id into v_second_store;
-      end if;
-      -- Provision the Standard entitlement before the second active
-      -- membership. The normal Free-plan guard runs on membership INSERT and
-      -- intentionally permits only one staff member, so creating the support
-      -- owner first would otherwise make this synthetic non-owner state
-      -- impossible to construct.
-      if v_state='active_non_owner' then
-        insert into public.company_subscriptions(company_id,tenant_id,plan,status,billing_state,included_staff_count,extra_staff_count,included_store_count,extra_store_count,storage_limit_mb,extra_storage_gb,current_inventory_limit,l_link_integration_enabled)
-        values(v_store,v_tenant,'standard','active','active',3,0,1,0,10240,0,200,false);
       end if;
       if v_state='active_non_owner' then
         insert into public.memberships(tenant_id,store_id,user_id,email,role,status,joined_at,invite_accepted_at,created_by,updated_by)
@@ -189,17 +196,14 @@ begin
           insert into public.membership_store_assignments(membership_id,tenant_id,store_id,created_by) values(v_membership,v_tenant,v_second_store,v_subject);
         end if;
       end if;
-      if v_state<>'active_non_owner' then
+      if v_state not in ('active_non_owner','selection_required') then
         insert into public.company_subscriptions(company_id,tenant_id,plan,status,billing_state,included_staff_count,extra_staff_count,included_store_count,extra_store_count,storage_limit_mb,extra_storage_gb,current_inventory_limit,l_link_integration_enabled)
         values(
           v_store,v_tenant,
-          case when v_state='selection_required' then 'pro' else 'free' end,
+          'free',
           case when v_state='contract_restricted' then 'suspended' else 'active' end,
           case when v_state='contract_restricted' then 'restricted' else 'active' end,
-          case when v_state='selection_required' then 10 else 1 end,0,
-          case when v_state='selection_required' then 3 else 1 end,0,
-          case when v_state='selection_required' then 51200 else 500 end,0,
-          case when v_state='selection_required' then 500 else 5 end,false
+          1,0,1,0,500,0,5,false
         );
       end if;
       insert into qa_internal.cta_matrix_fixtures(run_id,state,marker,subject_user_id,support_user_id,tenant_id,primary_store_id,secondary_store_id,subject_membership_id,support_membership_id)

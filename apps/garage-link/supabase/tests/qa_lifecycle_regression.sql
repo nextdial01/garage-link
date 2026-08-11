@@ -121,6 +121,16 @@ begin
       and s.status='active'
       and s.included_staff_count=3
   ) then raise exception 'CTA_MATRIX_NON_OWNER_PLAN_CONTRACT'; end if;
+  if not exists(
+    select 1
+    from qa_internal.cta_matrix_fixtures f
+    join public.company_subscriptions s on s.tenant_id=f.tenant_id and s.company_id=f.primary_store_id
+    where f.run_id='63000000-0000-4000-8000-000000000001'
+      and f.state='selection_required'
+      and s.plan='pro'
+      and s.status='active'
+      and s.included_store_count=3
+  ) then raise exception 'CTA_MATRIX_SELECTION_PLAN_CONTRACT'; end if;
   begin
     delete from public.memberships where id=(select subject_membership_id from qa_internal.cta_matrix_fixtures where run_id='63000000-0000-4000-8000-000000000001' and state='active_owner');
     raise exception 'CTA_MATRIX_DIRECT_OWNER_DELETE_ACCEPTED';
