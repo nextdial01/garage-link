@@ -54,7 +54,7 @@ declare module '@supabase/ssr' {
   type SupabaseClient = {
     auth: {
       getSession(): Promise<{
-        data: { session: { user: AuthUser | null } | null };
+        data: { session: { user: AuthUser | null; access_token?: string } | null };
         error: AuthError | null;
       }>;
       getUser(): Promise<{

@@ -1,10 +1,11 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { translateAuthError } from '@/lib/auth/auth-errors';
 import { hasMinimumPasswordLength, MIN_PASSWORD_LENGTH } from '@/lib/auth/password-policy';
+import { recordReleaseQaCallback, releaseQaNextPath, releaseQaRunId } from '@/lib/auth/releaseQaCallback';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -13,6 +14,13 @@ export default function ResetPasswordPage() {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDone, setIsDone] = useState(false);
+
+  useEffect(() => {
+    const qaRunId = releaseQaRunId(new URLSearchParams(window.location.search).get('qa_run'));
+    if (qaRunId) {
+      void recordReleaseQaCallback(qaRunId, 'arrival', releaseQaNextPath('/auth/reset-password', qaRunId));
+    }
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,6 +42,8 @@ export default function ResetPasswordPage() {
         setMessage(translateAuthError(error.message));
         return;
       }
+      const qaRunId = releaseQaRunId(new URLSearchParams(window.location.search).get('qa_run'));
+      await recordReleaseQaCallback(qaRunId, 'password_updated', releaseQaNextPath('/auth/reset-password', qaRunId));
       setIsDone(true);
       await createClient().auth.signOut();
       window.setTimeout(() => router.replace('/login?notice=password_updated'), 1200);

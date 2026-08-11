@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { translateAuthError } from '@/lib/auth/auth-errors';
+import { rememberedReleaseQaRun, releaseQaNextPath } from '@/lib/auth/releaseQaCallback';
 import { createClient } from '@/lib/supabase/client';
 
 export default function ForgotPasswordPage() {
@@ -18,8 +19,13 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     const supabase = createClient();
+    const qaRunId = rememberedReleaseQaRun();
+    const nextPath = releaseQaNextPath('/auth/reset-password', qaRunId);
+    const callbackUrl = new URL('/auth/callback', window.location.origin);
+    callbackUrl.searchParams.set('next', nextPath);
+    if (qaRunId) callbackUrl.searchParams.set('qa_run', qaRunId);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
+      redirectTo: callbackUrl.toString(),
     });
 
     setIsLoading(false);

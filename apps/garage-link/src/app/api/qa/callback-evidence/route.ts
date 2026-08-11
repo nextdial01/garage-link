@@ -1,0 +1,83 @@
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
+
+export const dynamic = 'force-dynamic';
+
+const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
+const STAGING_HOST = /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i;
+const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+type CallbackPhase = 'callback' | 'arrival' | 'store_created' | 'password_updated';
+type CallbackPurpose = 'signup' | 'recovery';
+
+function stagingRuntime(request: Request) {
+  const url = new URL(request.url);
+  const environment = process.env.VERCEL_TARGET_ENV || process.env.VERCEL_ENV;
+  return process.env.VERCEL_PROJECT_ID === STAGING_PROJECT_ID
+    && ['preview', 'staging'].includes(environment ?? '')
+    && STAGING_HOST.test(url.hostname);
+}
+
+function callbackPurpose(nextPath: unknown, runId: string): CallbackPurpose | null {
+  if (typeof nextPath !== 'string') return null;
+  const url = new URL(nextPath, 'https://garage-link.invalid');
+  if (url.searchParams.get('qa_run') !== runId) return null;
+  if (url.pathname === '/signup' && url.searchParams.get('resume') === '1') return 'signup';
+  if (url.pathname === '/auth/reset-password') return 'recovery';
+  return null;
+}
+
+function syntheticQaUser(email: string | undefined, runId: string) {
+  return Boolean(email?.toLowerCase().includes(`+garage-link-${runId}@`));
+}
+
+export async function POST(request: Request) {
+  if (!stagingRuntime(request)) return new Response(null, { status: 404 });
+  const token = request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) return new Response(null, { status: 401 });
+
+  let body: { run_id?: unknown; phase?: unknown; next_path?: unknown };
+  try { body = await request.json(); } catch { return new Response(null, { status: 400 }); }
+  const runId = typeof body.run_id === 'string' && RUN_ID.test(body.run_id) ? body.run_id.toLowerCase() : null;
+  const phase: CallbackPhase | null = body.phase === 'callback' || body.phase === 'arrival' || body.phase === 'store_created' || body.phase === 'password_updated' ? body.phase : null;
+  if (!runId || !phase) return new Response(null, { status: 400 });
+  const purpose = callbackPurpose(body.next_path, runId);
+  if (!purpose) return new Response(null, { status: 400 });
+  if (phase === 'password_updated' && purpose !== 'recovery') return new Response(null, { status: 400 });
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  const admin = createAdminClient();
+  if (!url || !anonKey || !admin) return new Response(null, { status: 404 });
+  const verifier = createSupabaseClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
+  const { data, error } = await verifier.auth.getUser(token);
+  if (error || !data.user || !syntheticQaUser(data.user.email, runId)) return new Response(null, { status: 403 });
+
+  const prior = data.user.app_metadata?.release_qa_callback;
+  if (prior && typeof prior === 'object' && prior.run_id && prior.run_id !== runId) return new Response(null, { status: 409 });
+  const existingPurpose = prior && typeof prior === 'object' && prior[purpose] && typeof prior[purpose] === 'object' ? prior[purpose] : {};
+  if (phase === 'store_created') {
+    if (purpose !== 'signup' || !existingPurpose.callback || !existingPurpose.arrival) return new Response(null, { status: 409 });
+    const { data: owner, error: ownerError } = await admin
+      .from('memberships')
+      .select('id')
+      .eq('user_id', data.user.id)
+      .eq('role', 'owner')
+      .maybeSingle();
+    if (ownerError) return new Response(null, { status: 500 });
+    if (!owner?.id) return new Response(null, { status: 409 });
+  }
+  const evidence = {
+    ...(prior && typeof prior === 'object' ? prior : {}),
+    run_id: runId,
+    [purpose]: {
+      ...existingPurpose,
+      [phase]: { next_path: body.next_path, origin: new URL(request.url).origin, recorded_at: new Date().toISOString() },
+    },
+  };
+  const { error: updateError } = await admin.auth.admin.updateUserById(data.user.id, {
+    app_metadata: { ...data.user.app_metadata, release_qa_callback: evidence },
+  });
+  if (updateError) return new Response(null, { status: 500 });
+  return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+}

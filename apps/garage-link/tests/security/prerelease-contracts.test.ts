@@ -2,6 +2,7 @@ import { access, readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { GET as healthGET } from '../../src/app/api/health/route';
 import { GET as provenanceGET } from '../../src/app/api/qa/provenance/route';
+import { POST as callbackEvidencePOST } from '../../src/app/api/qa/callback-evidence/route';
 import { buildStoragePath, privateStorageBucket } from '../../src/lib/storage/pathsCore';
 
 // 認証・実DB・Secretを使わずに、main push前に壊れやすい契約を自動確認するテストです。
@@ -84,6 +85,24 @@ test.describe('Pre-release contracts (認証不要)', () => {
 
       process.env.VERCEL_GIT_COMMIT_SHA = 'not-a-sha';
       expect((await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'))).status).toBe(404);
+    } finally {
+      for (const [key, value] of saved) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
+
+  test('/api/qa/callback-evidence: Productionでは常に無効で、StagingでもBearerなしは拒否する', async () => {
+    const keys = ['VERCEL_PROJECT_ID', 'VERCEL_ENV', 'VERCEL_TARGET_ENV'];
+    const saved = new Map(keys.map((key) => [key, process.env[key]]));
+    const payload = { run_id: '550e8400-e29b-41d4-a716-446655440000', phase: 'callback', next_path: '/signup?resume=1&qa_run=550e8400-e29b-41d4-a716-446655440000' };
+    try {
+      Object.assign(process.env, { VERCEL_PROJECT_ID: 'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64', VERCEL_ENV: 'production', VERCEL_TARGET_ENV: 'production' });
+      expect((await callbackEvidencePOST(new Request('https://garage-link.tech/api/qa/callback-evidence', { method: 'POST', body: JSON.stringify(payload) }))).status).toBe(404);
+
+      Object.assign(process.env, { VERCEL_PROJECT_ID: 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3', VERCEL_ENV: 'preview', VERCEL_TARGET_ENV: 'preview' });
+      expect((await callbackEvidencePOST(new Request('https://garage-link-staging-qa.vercel.app/api/qa/callback-evidence', { method: 'POST', body: JSON.stringify(payload) }))).status).toBe(401);
     } finally {
       for (const [key, value] of saved) {
         if (value === undefined) delete process.env[key];

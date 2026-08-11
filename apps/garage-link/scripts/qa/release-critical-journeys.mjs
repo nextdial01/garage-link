@@ -8,6 +8,7 @@ import { createManualGmailSession, manualGmailCheckpoint, manualGmailWorkflowInp
 const STAGING_REF='gaytoojzwqkpuvfofeql';
 const STAGING_PROJECT_ID='prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
 const PRODUCTION_PROJECT_ID='prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64';
+const PARTIAL_MARKER='garage-link-139f4794-3a9b-4332-ad72-6ba56e2c8377';
 const CHECKPOINT_TIMEOUT_MS=20*60_000;
 
 function fail(code){throw new Error(code)}
@@ -91,27 +92,58 @@ async function activeOwner(admin,userId){
   if(error||!data?.id||!data.tenant_id||!data.store_id||typeof data.tenants?.name!=='string')fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_FAILED');
   return {membershipId:data.id,tenantId:data.tenant_id,storeId:data.store_id,tenantName:data.tenants.name};
 }
+async function maybeActiveOwner(admin,userId){
+  const {data,error}=await admin.from('memberships').select('id,tenant_id,store_id,tenants!inner(name)').eq('user_id',userId).eq('role','owner').maybeSingle();
+  if(error)fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_FAILED');
+  if(!data?.id||!data.tenant_id||!data.store_id||typeof data.tenants?.name!=='string')return null;
+  return {membershipId:data.id,tenantId:data.tenant_id,storeId:data.store_id,tenantName:data.tenants.name};
+}
 async function findUser(admin,email){
   for(let page=1;page<=10;page+=1){const {data,error}=await admin.auth.admin.listUsers({page,perPage:1000});if(error)fail(`RELEASE_CRITICAL_AUTH_LOOKUP:${error.status??0}`);const user=data?.users?.find(item=>item.email?.toLowerCase()===email.toLowerCase());if(user)return user;if((data?.users?.length??0)<1000)break;}
   fail('RELEASE_CRITICAL_AUTH_USER_NOT_FOUND');
 }
-function lifecycle(admin,run,provenance){
+async function maybeFindUser(admin,email){
+  for(let page=1;page<=10;page+=1){const {data,error}=await admin.auth.admin.listUsers({page,perPage:1000});if(error)fail(`RELEASE_CRITICAL_AUTH_LOOKUP:${error.status??0}`);const user=data?.users?.find(item=>item.email?.toLowerCase()===email.toLowerCase());if(user)return user;if((data?.users?.length??0)<1000)break;}
+  return null;
+}
+async function findKnownPartialUser(admin){
+  const matches=[];
+  for(let page=1;page<=10;page+=1){const {data,error}=await admin.auth.admin.listUsers({page,perPage:1000});if(error)fail(`RELEASE_CRITICAL_PARTIAL_AUTH_LOOKUP:${error.status??0}`);matches.push(...(data?.users??[]).filter(item=>item.email?.toLowerCase().includes(`+${PARTIAL_MARKER}@`)));if((data?.users?.length??0)<1000)break;}
+  if(matches.length>1)fail(`RELEASE_CRITICAL_PARTIAL_FIXTURE_CARDINALITY:${matches.length}`);
+  return matches[0]??null;
+}
+export function lifecycle(admin,run,provenance){
   const rpc=async(name,args={})=>{const {data,error}=await admin.rpc(name,args);if(error)fail(`RELEASE_CRITICAL_LIFECYCLE_${name}:${error.code??'FAILED'}`);return data};
   const transition=(expected,next,action,detail={})=>rpc('qa_lifecycle_transition',{p_run_id:run.runId,p_expected_state:expected,p_next_state:next,p_next_action:action,p_failure_class:null,p_safe_detail:detail});
   const evidence=(kind,detail={})=>{const payload={run_id:run.runId,source_sha:provenance.sourceSha,deployment_id:provenance.deploymentId,actor:'release-critical-gha',residual_count:0,observed_at:new Date().toISOString(),...detail};return rpc('qa_lifecycle_record_verified_evidence',{p_run_id:run.runId,p_evidence_kind:kind,p_observation:{...payload,proof_sha:sha256(JSON.stringify(payload))}})};
   return {rpc,transition,evidence,status:()=>rpc('qa_lifecycle_status',{p_run_id:run.runId})};
 }
-async function beginLifecycle(life,run,provenance,fixture){
+export async function beginLifecycle(life,run,provenance){
   await life.rpc('qa_lifecycle_register_run',{p_run_id:run.runId,p_purpose:'release-critical-acquisition',p_source_sha:provenance.sourceSha,p_deployment_id:provenance.deploymentId,p_operator_reference:'release-critical-gha',p_cleanup_deadline:new Date(Date.now()+60*60_000).toISOString()});
   await life.transition('CREATED','PREFLIGHT_RUNNING','preflight-evidence');
-  await life.transition('PREFLIGHT_RUNNING','PREFLIGHT_READY','adopt-signup-fixture',{baseline_evidence:'31406030364'});
+  await life.transition('PREFLIGHT_RUNNING','PREFLIGHT_READY','signup-lifecycle-registered',{baseline_evidence:'31406030364'});
   await life.transition('PREFLIGHT_READY','PROVISIONING','adopt-signup-fixture');
+}
+export async function adoptLifecycleFixture(life,run,fixture){
   await life.rpc('qa_lifecycle_adopt_fixture',{p_run_id:run.runId,p_tenant_id:fixture.tenantId,p_expected_tenant_name:fixture.tenantName,p_store_id:fixture.storeId,p_user_id:fixture.userId,p_membership_id:fixture.membershipId,p_fixture_type:'release',p_marker:run.marker,p_expires_at:new Date(Date.now()+60*60_000).toISOString()});
   await life.transition('PROVISIONING','PROVISIONED','auth');
   await life.transition('PROVISIONED','AUTH_READY','run');
   await life.transition('AUTH_READY','TEST_RUNNING','run');
 }
-async function cleanupLifecycle(life,admin,userId,runId){
+async function pollCallbackEvidence({admin,userId,run,baseUrl,purpose,requireStoreCreated=false,requirePasswordUpdate=false,timeoutMs=CHECKPOINT_TIMEOUT_MS,intervalMs=5_000,sleep=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds))}){
+  const expectedNext=purpose==='signup'?`/signup?resume=1&qa_run=${run.runId}`:`/auth/reset-password?qa_run=${run.runId}`;
+  const deadline=Date.now()+timeoutMs;
+  while(Date.now()<deadline){
+    const {data,error}=await admin.auth.admin.getUserById(userId); const evidence=data?.user?.app_metadata?.release_qa_callback?.[purpose];
+    if(error)fail(`RELEASE_CRITICAL_CALLBACK_EVIDENCE_READ_FAILED:${error.status??0}`);
+    const callback=evidence?.callback; const arrival=evidence?.arrival; const storeCreated=evidence?.store_created; const passwordUpdated=evidence?.password_updated;
+    const valid=value=>value&&value.next_path===expectedNext&&value.origin===new URL(baseUrl).origin&&typeof value.recorded_at==='string';
+    if(valid(callback)&&valid(arrival)&&(!requireStoreCreated||valid(storeCreated))&&(!requirePasswordUpdate||valid(passwordUpdated)))return {state:'RELEASE_CRITICAL_CALLBACK_EVIDENCE_PASS',purpose,run_marker:run.emailMarker};
+    await sleep(intervalMs);
+  }
+  fail(`RELEASE_CRITICAL_CALLBACK_EVIDENCE_TIMEOUT:${purpose}`);
+}
+export async function cleanupLifecycle(life,admin,userId,runId){
   let current=await life.status();
   if(current.state==='TEST_RUNNING')await life.transition('TEST_RUNNING','TEST_COMPLETE','teardown-dry-run');
   current=await life.status();
@@ -155,6 +187,34 @@ async function cleanupLifecycle(life,admin,userId,runId){
   }
   return current;
 }
+async function recoverKnownPartialFixture(admin,provenance){
+  const user=await findKnownPartialUser(admin); if(!user)return {state:'RELEASE_CRITICAL_PARTIAL_FIXTURE_ABSENT'};
+  const owner=await activeOwner(admin,user.id);
+  const marker=/^\[RELEASE QA \d{8}\]/.exec(owner.tenantName)?.[0];
+  if(!marker)fail('RELEASE_CRITICAL_PARTIAL_MARKER_UNPROVEN');
+  const partialRunId=PARTIAL_MARKER.replace(/^garage-link-/,'');
+  const run={runId:partialRunId,marker,emailMarker:PARTIAL_MARKER};
+  const statusLife=lifecycle(admin,run,provenance); const existing=await statusLife.status();
+  if(!/^[0-9a-f]{40}$/i.test(existing.source_sha??'')||!/^dpl_[A-Za-z0-9]+$/.test(existing.deployment_id??''))fail('RELEASE_CRITICAL_PARTIAL_PROVENANCE_UNPROVEN');
+  const life=lifecycle(admin,run,{sourceSha:existing.source_sha,deploymentId:existing.deployment_id});
+  if(existing.state!=='PROVISIONING')fail(`RELEASE_CRITICAL_PARTIAL_LIFECYCLE_STATE:${existing.state}`);
+  await adoptLifecycleFixture(life,run,{...owner,userId:user.id});
+  const final=await cleanupLifecycle(life,admin,user.id,run.runId);
+  const [membership,store,tenant,subscription,auth]=await Promise.all([
+    admin.from('memberships').select('id',{count:'exact',head:true}).eq('user_id',user.id),
+    admin.from('stores').select('id',{count:'exact',head:true}).eq('id',owner.storeId),
+    admin.from('tenants').select('id',{count:'exact',head:true}).eq('id',owner.tenantId),
+    admin.from('company_subscriptions').select('id',{count:'exact',head:true}).or(`tenant_id.eq.${owner.tenantId},company_id.eq.${owner.storeId}`),
+    admin.auth.admin.getUserById(user.id),
+  ]);
+  if(membership.error||store.error||tenant.error||subscription.error||(auth.error&&auth.error.status!==404))fail('RELEASE_CRITICAL_PARTIAL_READBACK_FAILED');
+  const {data:buckets,error:bucketsError}=await admin.storage.listBuckets(); if(bucketsError)fail('RELEASE_CRITICAL_PARTIAL_STORAGE_LIST_FAILED'); let storage=0;
+  for(const bucket of buckets??[]){const {data,error}=await admin.storage.from(bucket.name).list(`qa/${partialRunId}`,{limit:100});if(error)fail('RELEASE_CRITICAL_PARTIAL_STORAGE_LIST_FAILED');storage+=(data??[]).length;}
+  const residual={auth_user:auth.data?.user?1:0,membership:membership.count??0,store:store.count??0,tenant:tenant.count??0,subscription:subscription.count??0,storage,artifact:0};
+  if(final.state!=='COMPLETE'||Object.values(residual).some(value=>value!==0))fail('RELEASE_CRITICAL_PARTIAL_FIXTURE_RESIDUAL');
+  emit({state:'RELEASE_CRITICAL_PARTIAL_FIXTURE_CLEAN',marker:PARTIAL_MARKER,residual,qa_lifecycle:final.state});
+  return final;
+}
 async function runMobileSmoke(baseUrl,browserType,name){
   const browser=await browserType.launch({headless:true});
   try {const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true});const page=await context.newPage();await page.goto(baseUrl,{waitUntil:'domcontentloaded'});await page.getByRole('link',{name:'無料で始める'}).first().click();await page.waitForURL(/\/signup/,{timeout:30_000});await context.close();emit({journey:'J10',browser:name,status:'PASS'});} finally {await browser.close();}
@@ -171,11 +231,13 @@ async function main(){
   const provenanceResponse=await fetch(new URL('/api/qa/provenance',baseUrl),{redirect:'manual',cache:'no-store'}); if(!provenanceResponse.ok||provenanceResponse.headers.has('location'))fail('RELEASE_CRITICAL_PROVENANCE_UNREACHED');
   const provenance=validateReleaseCriticalProvenance(await provenanceResponse.json(),baseUrl); if(provenance.sourceSha!==expectedCandidateSha)fail('RELEASE_CRITICAL_CANDIDATE_SHA_MISMATCH');
   const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
-  const run=createReleaseCriticalRun(); const session=createManualGmailSession(manualBase,run.emailMarker); const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker); const resetPassword=`${initialPassword}R`;
+  await recoverKnownPartialFixture(admin,provenance);
+  const run=createReleaseCriticalRun(); const session=createManualGmailSession(manualBase,run.emailMarker); const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker); const resetPassword='GL-Release-Reset-8!';
   let browser; let context; let page; let user; let life; let adopted=false; const results={};
   try {
+    life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance);
     browser=await chromium.launch({headless:true}); context=await browser.newContext(); page=await context.newPage();
-    await page.goto(baseUrl,{waitUntil:'domcontentloaded'});
+    await page.goto(`${baseUrl}${baseUrl.includes('?')?'&':'?'}qa_run=${encodeURIComponent(run.runId)}`,{waitUntil:'domcontentloaded'});
     await clickAndWait(page,page.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
     const fillSignup=async(password)=>{await page.getByLabel('店舗名').fill(`${run.marker} Signup`);await page.getByLabel('担当者名').fill(`${run.marker} Owner`);await page.getByLabel('メールアドレス').fill(session.emailAddress);await page.locator('#password').fill(password);await page.locator('#passwordConfirmation').fill(password);await page.getByRole('checkbox').check();};
     await fillSignup(initialPassword); await page.getByRole('button',{name:'無料でアカウントを作成する'}).click();
@@ -187,34 +249,52 @@ async function main(){
     if(signupOutcome.kind==='onboarding'){
       user=await findUser(admin,session.emailAddress);
       const owner=await activeOwner(admin,user.id);
-      life=lifecycle(admin,run,provenance);
-      await beginLifecycle(life,run,provenance,{...owner,userId:user.id});
+      await adoptLifecycleFixture(life,run,{...owner,userId:user.id});
       adopted=true;
       fail('RELEASE_CRITICAL_SIGNUP_AUTO_CONFIRMED');
     }
     if(!/確認メールを送信しました/.test(await page.getByRole('status').textContent()??''))fail('RELEASE_CRITICAL_CONFIRMATION_REQUIRED_NOT_PROVEN');
-    user=await findUser(admin,session.emailAddress); results.J2='CHECKPOINT'; emit(manualGmailCheckpoint(session,'signup'));
+    user=await findUser(admin,session.emailAddress); results.J2='CHECKPOINT'; emit({...manualGmailCheckpoint(session,'signup'),operator_action:'Open the matching Staging-only Gmail confirmation message, verify its redirect target is the Staging HTTPS origin, click it, then keep Gmail open. A reset message will follow; click it and set the synthetic password GL-Release-Reset-8!.'});
     await pollManualGmailConfirmation({admin,userId:user.id,session,purpose:'signup',timeoutMs:CHECKPOINT_TIMEOUT_MS});
+    await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup'});
     await page.getByRole('link',{name:'ログイン',exact:true}).last().click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,initialPassword,/\/signup\?resume=1/);
     await page.getByLabel('店舗名').fill(`${run.marker} 店舗`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await page.getByRole('button',{name:'店舗を作成して次へ'}).click(); await page.waitForURL(/\/(onboarding|security\/email-otp)/,{timeout:30_000}); await completeSecurityOtp(page); await page.waitForURL(/\/onboarding/,{timeout:30_000}); await onboarding(page,run.marker); results.J1='PASS';
+    await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true});
     const owner=await activeOwner(admin,user.id); if(!owner.tenantName.startsWith(run.marker))fail('RELEASE_CRITICAL_MARKER_TENANT_MISMATCH');
-    life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance,{...owner,userId:user.id}); adopted=true;
+    await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true; results.J2='PASS';
     const invalid=await context.newPage(); await invalid.goto(baseUrl,{waitUntil:'domcontentloaded'}); await clickAndWait(invalid,invalid.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
     // The separate page keeps the main owner session intact; fill by concrete UI locators.
     const invalidAlert=invalid.locator('form').getByRole('alert');
     await invalid.getByLabel('店舗名').fill(`${run.marker} Reject`); await invalid.getByLabel('担当者名').fill(`${run.marker} Reject`); await invalid.getByLabel('メールアドレス').fill(session.emailAddress); await invalid.locator('#password').fill('short1'); await invalid.locator('#passwordConfirmation').fill('short1'); await invalid.getByRole('checkbox').check(); await invalid.getByRole('button',{name:'無料でアカウントを作成する'}).click(); await invalidAlert.waitFor(); if(!/8文字以上/.test(await invalidAlert.textContent()??''))fail('RELEASE_CRITICAL_PASSWORD_6_NOT_REJECTED'); await invalid.locator('#password').fill('short12'); await invalid.locator('#passwordConfirmation').fill('short12'); await invalid.getByRole('button',{name:'無料でアカウントを作成する'}).click(); if(!/8文字以上/.test(await invalidAlert.textContent()??''))fail('RELEASE_CRITICAL_PASSWORD_7_NOT_REJECTED'); await invalid.close(); results.J3='PASS';
-    await page.getByRole('link',{name:'ログアウト'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,initialPassword,/\/dashboard/); await page.getByRole('link',{name:'忘れた方はこちら'}).click(); await page.waitForURL(/\/forgot-password/,{timeout:30_000}); await page.getByLabel('メールアドレス').fill(session.emailAddress); const requestedAt=new Date().toISOString(); await page.getByRole('button',{name:'メールを送る'}).click(); await page.getByText('再設定メールを送りました。').waitFor({timeout:30_000}); emit({...manualGmailCheckpoint(session,'recovery'),operator_action:'Open the matching Staging-only Gmail reset message, set the synthetic reset password supplied for this run, then submit.'}); await pollManualGmailConfirmation({admin,userId:user.id,session,purpose:'recovery',requestedAt,timeoutMs:CHECKPOINT_TIMEOUT_MS}); await page.getByRole('link',{name:'ログインへ戻る'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,resetPassword,/\/dashboard/); results.J4='PASS';
+    await page.getByRole('link',{name:'ログアウト'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,initialPassword,/\/dashboard/); await page.getByRole('link',{name:'ログアウト'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await page.getByRole('link',{name:'忘れた方はこちら'}).click(); await page.waitForURL(/\/forgot-password/,{timeout:30_000}); await page.getByLabel('メールアドレス').fill(session.emailAddress); await page.getByRole('button',{name:'メールを送る'}).click(); await page.getByText('再設定メールを送りました。').waitFor({timeout:30_000}); emit({...manualGmailCheckpoint(session,'recovery'),operator_action:'Use the already-open Staging-only Gmail session: click the matching reset link and set the synthetic password GL-Release-Reset-8!.'}); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'recovery',requirePasswordUpdate:true}); await page.getByRole('link',{name:'ログインへ戻る'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,resetPassword,/\/dashboard/); results.J4='PASS';
     for(const label of ['車両','商談','顧客','メニュー']){await page.getByRole('link',{name:label,exact:true}).first().click();await page.waitForTimeout(250);} results.J5='PASS';
     await page.getByRole('link',{name:'顧客',exact:true}).first().click(); await page.getByRole('link',{name:'顧客を登録'}).click(); await page.getByLabel('顧客/会社名').fill(`${run.marker} First Value`); await page.getByRole('button',{name:'顧客を登録する'}).click(); await page.waitForURL(/\/customers/,{timeout:30_000}); await page.getByText(`${run.marker} First Value`).waitFor({timeout:30_000}); results.J6='PASS';
     await page.getByRole('link',{name:'メニュー',exact:true}).first().click(); await page.getByRole('link',{name:'プラン・契約',exact:true}).click(); await page.getByText('Free',{exact:true}).first().waitFor(); await page.getByText('無料プラン',{exact:true}).waitFor(); if(await page.getByRole('button',{name:'支払方法・契約を管理'}).count())fail('RELEASE_CRITICAL_FREE_CARDLESS_FAILED'); results.J7='PASS';
     let deferredFailure=null;
-    try {if(!(await page.getByText(/通常のお問い合わせは、株式会社かんなぎ公式LINE/).count())||await page.getByText('公式LINEリンク設定待ち').count())fail('RELEASE_CRITICAL_INQUIRY_ROUTE_UNAVAILABLE'); results.J8='PASS';} catch(error) {results.J8=`FAIL:${safeErrorCode(error)}`;deferredFailure=error;emit({journey:'J8',status:'FAIL',code:safeErrorCode(error)});}
+    try {
+      const inquiry=await context.newPage(); await inquiry.goto(baseUrl,{waitUntil:'domcontentloaded'}); await inquiry.keyboard.press('End');
+      await clickAndWait(inquiry,inquiry.getByRole('link',{name:'ヘルプ',exact:true}),/\/help/);
+      const formalContact=inquiry.getByRole('link',{name:'正式窓口へ問い合わせる'}); const href=await formalContact.getAttribute('href');
+      if(!href?.startsWith('mailto:'))fail('RELEASE_CRITICAL_INQUIRY_ROUTE_UNAVAILABLE'); await formalContact.click(); await inquiry.close(); results.J8='PASS';
+    } catch(error) {results.J8=`FAIL:${safeErrorCode(error)}`;deferredFailure=error;emit({journey:'J8',status:'FAIL',code:safeErrorCode(error)});}
     if(!(await page.getByText('提供準備中').count())||await page.getByText('L-LINK 利用可').count())fail('RELEASE_CRITICAL_LLINK_BOUNDARY_FAILED'); results.J9='PASS';
     await runMobileSmoke(baseUrl,chromium,'chromium-mobile'); await runMobileSmoke(baseUrl,webkit,'webkit-mobile'); results.J10='PASS';
     if(deferredFailure)throw deferredFailure;
     emit({state:'RELEASE_CRITICAL_JOURNEYS_PASS',journeys:results,run_marker:run.emailMarker});
   } finally {
-    try {if(adopted)await cleanupLifecycle(life,admin,user?.id,run.runId); else if(user?.id){const {error}=await admin.auth.admin.deleteUser(user.id,false);if(error&&error.status!==404)fail(`RELEASE_CRITICAL_EARLY_AUTH_DELETE:${error.status??0}`);}} finally {await context?.close();await browser?.close();}
+    try {
+      if(!adopted&&life){
+        user??=await maybeFindUser(admin,session.emailAddress);
+        if(user?.id){
+          const owner=await maybeActiveOwner(admin,user.id);
+          if(owner){await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true;}
+          else {const {error}=await admin.auth.admin.deleteUser(user.id,false);if(error&&error.status!==404)fail(`RELEASE_CRITICAL_EARLY_AUTH_DELETE:${error.status??0}`);await life.rpc('qa_lifecycle_abort_clean',{p_run_id:run.runId,p_reason:'early_auth_cleanup'});}
+        } else {
+          await life.rpc('qa_lifecycle_abort_clean',{p_run_id:run.runId,p_reason:'pre_auth_cleanup'});
+        }
+      }
+      if(adopted)await cleanupLifecycle(life,admin,user?.id,run.runId);
+    } finally {await context?.close();await browser?.close();}
   }
 }
 

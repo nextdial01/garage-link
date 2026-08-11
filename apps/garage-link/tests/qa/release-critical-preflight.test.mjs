@@ -9,10 +9,14 @@ import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-s
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,journeys,workflow]=await Promise.all([
+  const [runner,journeys,workflow,signup,callback,recovery,callbackEvidence]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
+    readFile(resolve(appRoot,'src/app/signup/page.tsx'),'utf8'),
+    readFile(resolve(appRoot,'src/app/auth/callback/page.tsx'),'utf8'),
+    readFile(resolve(appRoot,'src/app/auth/reset-password/page.tsx'),'utf8'),
+    readFile(resolve(appRoot,'src/app/api/qa/callback-evidence/route.ts'),'utf8'),
   ]);
   assert.match(runner,/gaytoojzwqkpuvfofeql/);
   assert.match(runner,/wmlpuzuskfiwdipluglz/);
@@ -49,6 +53,15 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/qa_lifecycle_verify_clean/);
   assert.match(journeys,/manualGmailCheckpoint\(session,'signup'\)/);
   assert.match(journeys,/manualGmailCheckpoint\(session,'recovery'\)/);
+  assert.match(journeys,/pollCallbackEvidence\(\{admin,userId:user\.id,run,baseUrl,purpose:'signup'\}\)/);
+  assert.match(journeys,/requireStoreCreated:true/);
+  assert.match(journeys,/user\?\?=await maybeFindUser/);
+  assert.match(journeys,/requirePasswordUpdate:true/);
+  assert.match(journeys,/beginLifecycle\(life,run,provenance\)/);
+  assert.match(journeys,/maybeActiveOwner/);
+  assert.match(journeys,/qa_lifecycle_abort_clean/);
+  assert.match(journeys,/recoverKnownPartialFixture\(admin,provenance\)/);
+  assert.match(journeys,/RELEASE_CRITICAL_PARTIAL_FIXTURE_CLEAN/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_SUBMIT_ALERT/);
   assert.match(journeys,/REDIRECT_URL_NOT_ALLOWED/);
   assert.match(journeys,/UNKNOWN_MESSAGE_SHA256/);
@@ -63,6 +76,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
   assert.match(workflow,/manual_gmail_address/);
   assert.match(workflow,/staging_base_url/);
+  assert.match(workflow,/description: Exact garage-link-staging preview URL/);
+  assert.match(workflow,/required: true/);
   assert.match(workflow,/candidate_sha/);
   assert.doesNotMatch(workflow,/MANUAL_GMAIL_ADDRESS/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_VERCEL_READ_TOKEN|GARAGE_STAGING_VERCEL_PROJECT_ID|GARAGE_STAGING_VERCEL_TEAM_ID/);
@@ -72,6 +87,16 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(workflow,/STRIPE_SECRET_KEY|E2E_ALLOW_BILLING_MUTATIONS|STRIPE_WEBHOOK_SECRET/);
   assert.match(workflow,/Release-critical acquisition journeys/);
   assert.match(workflow,/release-critical-journeys\.mjs/);
+  assert.match(workflow,/stage-auth-contract/);
+  assert.doesNotMatch(workflow,/apply_staging_password_minimum/);
+  assert.match(signup,/qa_run/);
+  assert.match(callback,/recordReleaseQaCallback\(qaRunId, 'callback', nextPath\)/);
+  assert.match(recovery,/recordReleaseQaCallback\(qaRunId, 'password_updated'/);
+  assert.match(callbackEvidence,/STAGING_PROJECT_ID/);
+  assert.match(callbackEvidence,/release_qa_callback/);
+  assert.match(callbackEvidence,/store_created/);
+  assert.match(callbackEvidence,/syntheticQaUser/);
+  assert.doesNotMatch(callbackEvidence,/PRODUCTION_PROJECT_ID/);
 });
 
 test('Vercel bypass carries the issued cookie once for a same-origin same-path redirect',async()=>{
@@ -174,11 +199,34 @@ test('hosted Auth update is Staging-only and requires password plus confirmation
   await applyStagingPasswordMinimum('token',async(url,options)=>{
     calls.push({url:String(url),options});
     if(options.method==='PATCH')return new Response('{}',{status:200});
-    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false}),{status:200,headers:{'content-type':'application/json'}});
-  });
-  assert.equal(calls.length,2);
-  assert.equal(calls[0].options.method,'PATCH');
-  assert.deepEqual(JSON.parse(calls[0].options.body),{password_min_length:8,mailer_autoconfirm:false});
+    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
+  },'https://garage-link-staging-test.vercel.app');
+  assert.equal(calls.length,3);
+  assert.equal(calls[1].options.method,'PATCH');
+  assert.deepEqual(JSON.parse(calls[1].options.body),{password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'});
   assert.ok(calls.every(call=>call.url.includes('gaytoojzwqkpuvfofeql')));
-  await assert.rejects(()=>applyStagingPasswordMinimum('token',async()=>new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:true}),{status:200,headers:{'content-type':'application/json'}})),/STAGING_AUTH_CONTRACT_READBACK_FAILED/);
+  await assert.rejects(()=>applyStagingPasswordMinimum('token',async()=>new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:true}),{status:200,headers:{'content-type':'application/json'}}),'https://garage-link-staging-test.vercel.app'),/STAGING_AUTH_CONTRACT_READBACK_FAILED/);
+});
+
+test('hosted Auth contract preserves non-local redirects but removes localhost fallbacks',async()=>{
+  const calls=[];
+  await applyStagingPasswordMinimum('token',async(url,options)=>{
+    calls.push({url:String(url),options});
+    if(options.method==='PATCH')return new Response('{}',{status:200});
+    const firstRead=calls.length===1;
+    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:firstRead?'http://localhost:3000,https://external.example/callback,https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**':'https://external.example/callback,https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
+  },'https://garage-link-staging-test.vercel.app');
+  assert.equal(JSON.parse(calls[1].options.body).uri_allow_list,'https://external.example/callback,https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**');
+});
+
+test('hosted Auth contract uses the configured additional_redirect_urls alias when present',async()=>{
+  const calls=[];
+  await applyStagingPasswordMinimum('token',async(url,options)=>{
+    calls.push({url:String(url),options});
+    if(options.method==='PATCH')return new Response('{}',{status:200});
+    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',additional_redirect_urls:'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
+  },'https://garage-link-staging-test.vercel.app');
+  const payload=JSON.parse(calls[1].options.body);
+  assert.equal(payload.uri_allow_list,undefined);
+  assert.match(payload.additional_redirect_urls,/auth\/callback\*\*/);
 });

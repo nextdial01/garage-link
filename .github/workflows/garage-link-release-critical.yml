@@ -15,18 +15,13 @@ on:
         required: true
         type: string
       staging_base_url:
-        description: Optional exact garage-link-staging preview URL for this QA run
-        required: false
+        description: Exact garage-link-staging preview URL for this QA run
+        required: true
         type: string
       candidate_sha:
         description: Exact 40-character SHA returned by the target Staging runtime provenance endpoint
         required: true
         type: string
-      apply_staging_password_minimum:
-        description: Apply the approved Staging-only 8-character Auth minimum and read it back
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -36,33 +31,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  stage-auth-password-minimum:
-    name: Staging Auth password minimum 8 (write window only)
-    if: ${{ inputs.apply_staging_password_minimum }}
-    runs-on: ubuntu-latest
-    environment: garage-link-commercial-staging
-    timeout-minutes: 10
-    env:
-      GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Apply and read back the Staging-only minimum
-        run: node apps/garage-link/scripts/qa/release-critical-stage-auth.mjs
-
   preflight:
-    if: ${{ !inputs.apply_staging_password_minimum }}
     name: Staging-only preflight (no billing)
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
-    timeout-minutes: 15
+    timeout-minutes: 10
     env:
       RELEASE_CRITICAL_EMAIL_MODE: ${{ inputs.email_mode }}
       PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
@@ -83,9 +56,30 @@ jobs:
       - name: Verify Staging-only execution contract
         run: node apps/garage-link/scripts/qa/release-critical-preflight.mjs
 
+  stage-auth-contract:
+    name: Staging Auth redirect and password contract
+    needs: preflight
+    runs-on: ubuntu-latest
+    environment: garage-link-commercial-staging
+    timeout-minutes: 15
+    env:
+      GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply and read back the Staging-only Auth contract
+        run: node apps/garage-link/scripts/qa/release-critical-stage-auth.mjs
+
   journeys:
     name: Release-critical acquisition journeys
-    needs: preflight
+    needs: stage-auth-contract
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 50

@@ -6,6 +6,7 @@ import { FormEvent, Suspense, useEffect, useRef, useState } from 'react';
 import BrandLogo from '@/components/BrandLogo';
 import { isEmailConfirmationRequired, translateAuthError } from '@/lib/auth/auth-errors';
 import { hasMinimumPasswordLength, MIN_PASSWORD_LENGTH } from '@/lib/auth/password-policy';
+import { rememberReleaseQaRun, releaseQaNextPath, releaseQaRunId, recordReleaseQaCallback } from '@/lib/auth/releaseQaCallback';
 import { readSignupAttribution, trackConversion } from '@/lib/analytics/conversion';
 import { createClient } from '@/lib/supabase/client';
 
@@ -13,6 +14,7 @@ function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isResumeMode = searchParams.get('resume') === '1';
+  const qaRunId = releaseQaRunId(searchParams.get('qa_run'));
   const hasTrackedSignupStart = useRef(false);
 
   const [storeName, setStoreName] = useState('');
@@ -33,6 +35,13 @@ function SignupForm() {
     const attribution = readSignupAttribution(new URLSearchParams(searchParams.toString()));
     trackConversion('signup_start', attribution);
   }, [searchParams]);
+
+  useEffect(() => {
+    rememberReleaseQaRun(qaRunId);
+    if (isResumeMode && qaRunId) {
+      void recordReleaseQaCallback(qaRunId, 'arrival', releaseQaNextPath('/signup?resume=1', qaRunId));
+    }
+  }, [isResumeMode, qaRunId]);
 
   useEffect(() => {
     async function detectResumeMode() {
@@ -89,6 +98,7 @@ function SignupForm() {
     setIsSubmitting(false);
 
     if (ok) {
+      await recordReleaseQaCallback(qaRunId, 'store_created', releaseQaNextPath('/signup?resume=1', qaRunId));
       trackConversion('signup_complete');
       router.replace('/onboarding');
     }
@@ -119,11 +129,15 @@ function SignupForm() {
     setIsSubmitting(true);
     const supabase = createClient();
 
+    const nextPath = releaseQaNextPath('/signup?resume=1', qaRunId);
+    const callbackUrl = new URL('/auth/callback', window.location.origin);
+    callbackUrl.searchParams.set('next', nextPath);
+    if (qaRunId) callbackUrl.searchParams.set('qa_run', qaRunId);
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/signup?resume=1')}`,
+        emailRedirectTo: callbackUrl.toString(),
       },
     });
 
@@ -145,6 +159,7 @@ function SignupForm() {
     setIsSubmitting(false);
 
     if (ok) {
+      await recordReleaseQaCallback(qaRunId, 'store_created', releaseQaNextPath('/signup?resume=1', qaRunId));
       trackConversion('signup_complete');
       router.replace('/onboarding');
     }

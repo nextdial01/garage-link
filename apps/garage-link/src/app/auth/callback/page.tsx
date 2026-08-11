@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { recordReleaseQaCallback, releaseQaRunId } from '@/lib/auth/releaseQaCallback';
 
 function safeNextPath(value: string | null): string {
   if (!value || !value.startsWith('/') || value.startsWith('//')) {
@@ -22,6 +23,7 @@ function AuthCallbackContent() {
     async function completeAuth() {
       const supabase = createClient();
       const nextPath = safeNextPath(searchParams.get('next'));
+      const qaRunId = releaseQaRunId(searchParams.get('qa_run'));
       const code = searchParams.get('code');
 
       try {
@@ -45,6 +47,9 @@ function AuthCallbackContent() {
           }
         }
 
+        // In Production the evidence endpoint is intentionally 404; that is
+        // not an authentication failure and must not block the redirect.
+        await recordReleaseQaCallback(qaRunId, 'callback', nextPath);
         if (!cancelled) router.replace(nextPath);
       } catch {
         if (!cancelled) {
