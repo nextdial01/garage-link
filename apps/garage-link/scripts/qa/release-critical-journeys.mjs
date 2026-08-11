@@ -121,7 +121,7 @@ export async function verifyHostedRedirectContract({admin,run,baseUrl,supabaseUr
   }
 }
 function releaseQaNextPathForRunner(path,runId){const url=new URL(path,'https://release-qa.invalid');url.searchParams.set('qa_run',runId);return `${url.pathname}${url.search}`;}
-async function tracePointerCta(page,{baseUrl,label,locator,expectedPath,accountState,expectedClassification='PASS',expectedFinalPath=null}){
+async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,expectedRender=null,accountState,expectedClassification='PASS',expectedFinalPath=null}){
   const initialPath=safeNavigationPath(page.url(),baseUrl);
   const trace={domClick:false,expected:false,initialPath,finalPath:initialPath,navigationRequestCount:0,runtimeErrorCount:0};
   const clickKey=`release-critical-cta-${label}`;
@@ -155,14 +155,14 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath,accountS
     trace.domClick=await page.evaluate(key=>sessionStorage.getItem(key)==='1',clickKey);
     await page.evaluate(key=>sessionStorage.removeItem(key),clickKey);
     try {
-      await page.waitForURL(url=>{
+      if(expectedRender){await expectedRender.waitFor({state:'visible',timeout:30_000});}
+      else if(expectedPath){await page.waitForURL(url=>{
         const pathname=new URL(url).pathname;
         return expectedPath.endsWith('/') ? pathname.startsWith(expectedPath) : pathname===expectedPath;
-      },{timeout:30_000});
+      },{timeout:30_000});}
+      else fail('RELEASE_CRITICAL_CTA_EXPECTATION_MISSING');
       trace.expected=true;
-    } catch {
-      await page.waitForTimeout(750);
-    }
+    } catch {await page.waitForTimeout(750);}
     const classification=emitTrace();
     if(classification!==expectedClassification||(
       expectedFinalPath!==null&&trace.finalPath.split('?')[0]!==expectedFinalPath
@@ -187,7 +187,7 @@ async function verifyVehicleAccountStateGate({browser,sourceContext,baseUrl,bypa
     await tracePointerCta(gatedPage,{baseUrl,label:'VEHICLE_CREATE_ADMIN_SECURITY_GATE',locator:gatedPage.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState,expectedClassification:'ROUTE_STARTED_REDIRECTED',expectedFinalPath:'/security/email-otp'});
     const gateUrl=new URL(gatedPage.url());
     if(gateUrl.searchParams.get('from')!=='/vehicles/new')fail('RELEASE_CRITICAL_CTA_ADMIN_SECURITY_RETURN_PATH_INVALID');
-    emit({state:'RELEASE_CRITICAL_CTA_ACCOUNT_STATE_DIFFERENTIAL',cta:'VEHICLE_CREATE',normal_owner:'PASS',customer_like_state:'ROUTE_STARTED_REDIRECTED',gate:'admin_security',final_destination:'/security/email-otp',return_path:'/vehicles/new'});
+    emit({state:'RELEASE_CRITICAL_CTA_ACCOUNT_STATE_DIFFERENTIAL',cta:'VEHICLE_CREATE',normal_active_owner:'PASS',admin_security_unverified:'ROUTE_STARTED_REDIRECTED',gate:'admin_security',final_destination:'/security/email-otp',return_path:'/vehicles/new',customer_equivalence:'NOT_ASSERTED',root_cause:'NOT_REPRODUCED'});
   } finally {await gatedContext.close();}
 }
 async function signupSubmitOutcome(page){
@@ -431,7 +431,7 @@ async function followHostedAction(page,actionLink,{baseUrl,expectedPath,purpose}
   }
   emit({state:'RELEASE_CRITICAL_AUTH_CALLBACK_NAVIGATION',purpose,stage:'STAGING_ARRIVAL_PASS',final_path:safeNavigationPath(page.url(),baseUrl)});
 }
-async function submitResumeStore(page,baseUrl){
+async function submitResumeStore(page,baseUrl,supabaseUrl){
   const formAlert=page.locator('form').getByRole('alert');
   const form=page.locator('form');
   const submitButton=page.getByRole('button',{name:'店舗を作成して次へ'});
@@ -441,7 +441,7 @@ async function submitResumeStore(page,baseUrl){
   const onResponse=response=>{
     try {
       const url=new URL(response.url());
-      if(url.origin===new URL(baseUrl).origin&&url.pathname==='/rest/v1/rpc/create_store_for_current_user')rpcResponse=response;
+      if(url.origin===new URL(supabaseUrl).origin&&url.pathname==='/rest/v1/rpc/create_store_for_current_user')rpcResponse=response;
     } catch {}
   };
   const recordRuntimeError=error=>{trace.runtimeErrorCount+=1;trace.runtimeErrorClasses.push(safeErrorCode(error));};
@@ -502,10 +502,13 @@ async function runMachineOnly({baseUrl,supabaseUrl,serviceRole,bypassSecret,prov
     const signupCallback=new URL('/auth/callback',baseUrl); signupCallback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); signupCallback.searchParams.set('qa_run',run.runId);
     const signupAction=await hostedActionLink(admin,{type:'signup',email,password:initialPassword,redirectTo:signupCallback.toString(),supabaseUrl});
     await followHostedAction(page,signupAction,{baseUrl,expectedPath:'/signup',purpose:'signup'}); if(!new URL(page.url()).searchParams.has('resume'))fail('RELEASE_CRITICAL_AUTH_CALLBACK_RESUME_MISSING'); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup'});
-    await page.getByLabel('店舗名').fill(`${run.marker} 店舗`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await submitResumeStore(page,baseUrl); await completeSecurityOtp(page); await page.waitForURL(/\/onboarding/,{timeout:30_000}); await onboarding(page,run.marker); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true});
+    await page.getByLabel('店舗名').fill(`${run.marker} 店舗`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await submitResumeStore(page,baseUrl,supabaseUrl); await completeSecurityOtp(page); await page.waitForURL(/\/onboarding/,{timeout:30_000}); await onboarding(page,run.marker); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true});
     const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email,password:initialPassword,tenantNamePrefix:run.marker,bypassSecret,runId:run.runId}); await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true; results.J2='MECHANICS_PASS';
     await clickAndWait(page,page.getByRole('link',{name:'車両',exact:true}).first(),/\/vehicles(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'VEHICLE_CREATE',locator:page.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState:owner.accountState}); await page.getByText('車両登録',{exact:true}).waitFor({timeout:30_000}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/vehicles(?:\?|$)/,{timeout:30_000}); await verifyVehicleAccountStateGate({browser,sourceContext:context,baseUrl,bypassSecret,accountState:owner.accountState});
-    await clickAndWait(page,page.getByRole('link',{name:'顧客',exact:true}).first(),/\/customers(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'CUSTOMER_CREATE',locator:page.getByRole('link',{name:'顧客を登録',exact:true}),expectedPath:'/customers/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/customers(?:\?|$)/,{timeout:30_000}); await clickAndWait(page,page.getByRole('link',{name:'商談',exact:true}).first(),/\/deals(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'DEAL_CREATE',locator:page.getByRole('link',{name:'商談を登録',exact:true}),expectedPath:'/deals/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/deals(?:\?|$)/,{timeout:30_000}); results.J5='PASS';
+    await clickAndWait(page,page.getByRole('link',{name:'顧客',exact:true}).first(),/\/customers(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'CUSTOMER_CREATE',locator:page.getByRole('link',{name:'顧客を登録',exact:true}),expectedPath:'/customers/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/customers(?:\?|$)/,{timeout:30_000}); await clickAndWait(page,page.getByRole('link',{name:'商談',exact:true}).first(),/\/deals(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'DEAL_CREATE',locator:page.getByRole('link',{name:'商談を登録',exact:true}),expectedPath:'/deals/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/deals(?:\?|$)/,{timeout:30_000});
+    await clickAndWait(page,page.getByRole('link',{name:'見積書',exact:true}).first(),/\/quotes(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'QUOTE_CREATE',locator:page.getByRole('link',{name:'見積書を作成',exact:true}),expectedPath:'/quotes/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/quotes(?:\?|$)/,{timeout:30_000});
+    await clickAndWait(page,page.getByRole('link',{name:'請求書',exact:true}).first(),/\/invoices(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'INVOICE_CREATE',locator:page.getByRole('link',{name:'請求書を作成',exact:true}),expectedPath:'/invoices/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/invoices(?:\?|$)/,{timeout:30_000});
+    await clickAndWait(page,page.getByRole('link',{name:'来店・試乗予約',exact:true}).first(),/\/appointments(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'APPOINTMENT_CREATE',locator:page.getByRole('button',{name:'新しい予約を登録',exact:true}),expectedRender:page.getByRole('button',{name:'予約を登録する',exact:true}),accountState:owner.accountState}); results.J5='PASS';
     await clickAndWait(page,page.getByRole('link',{name:'車両',exact:true}).first(),/\/vehicles(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'VEHICLE_FIRST_VALUE',locator:page.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState:owner.accountState}); await page.getByLabel('車台No').fill(`${run.emailMarker.slice(-12).toUpperCase()}-QA`); await page.getByLabel('メーカー名').fill(`${run.marker} Make`); await page.getByLabel('車名').fill(`${run.marker} Vehicle`); await page.getByRole('button',{name:'車両を登録する'}).click(); await page.waitForURL(/\/vehicles(?:\?|$)/,{timeout:30_000}); const vehicleRow=page.getByRole('button').filter({hasText:`${run.marker} Vehicle`}); await vehicleRow.click(); await tracePointerCta(page,{baseUrl,label:'VEHICLE_DETAIL',locator:page.getByRole('link',{name:'車両詳細を開く',exact:true}),expectedPath:'/vehicles/',accountState:owner.accountState}); await page.getByLabel('メーカー').fill(`${run.marker} Edited`); await page.getByRole('button',{name:'保存する',exact:true}).click(); await page.getByText('車両情報を保存しました。').waitFor({timeout:30_000}); await page.getByRole('link',{name:'車両一覧に戻る',exact:true}).click(); await page.waitForURL(/\/vehicles(?:\?|$)/,{timeout:30_000});
     await clickAndWait(page,page.getByRole('link',{name:'顧客',exact:true}).first(),/\/customers(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'CUSTOMER_FIRST_VALUE',locator:page.getByRole('link',{name:'顧客を登録',exact:true}),expectedPath:'/customers/new',accountState:owner.accountState}); await page.getByLabel('顧客/会社名').fill(`${run.marker} First Value`); await page.getByRole('button',{name:'顧客を登録する'}).click(); await page.waitForURL(/\/customers/,{timeout:30_000}); await page.getByText(`${run.marker} First Value`).waitFor({timeout:30_000}); results.J6='PASS';
     await page.getByRole('link',{name:'メニュー',exact:true}).first().click(); await page.getByRole('link',{name:'プラン・契約',exact:true}).click(); await page.getByText('Free',{exact:true}).first().waitFor(); await page.getByText('無料プラン',{exact:true}).waitFor(); if(await page.getByRole('button',{name:'支払方法・契約を管理'}).count())fail('RELEASE_CRITICAL_FREE_CARDLESS_FAILED'); results.J7='PASS';

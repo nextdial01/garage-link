@@ -40,7 +40,10 @@ export async function recordReleaseQaCallback(runId: string | null, phase: Relea
   });
   // The evidence route is deliberately absent from Production. A forged
   // qa_run query parameter must never make a real user's callback fail.
-  if (response.status === 404) return false;
-  if (!response.ok) throw new Error(`RELEASE_QA_CALLBACK_EVIDENCE_FAILED:${response.status}`);
+  // QA evidence is never an application control plane. In particular, a
+  // synthetic-run marker supplied by a real Staging user must not turn a
+  // successful confirmation, store creation, or password reset into a failed
+  // user journey merely because the private evidence endpoint rejects it.
+  if (!response.ok) return false;
   return true;
 }

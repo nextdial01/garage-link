@@ -136,7 +136,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/staging_base_url/);
   assert.match(workflow,/description: Exact garage-link-staging preview URL/);
   assert.match(workflow,/required: true/);
-  assert.equal((workflow.match(/PLAYWRIGHT_BASE_URL: \$\{\{ inputs\.staging_base_url \}\}/g)??[]).length,2);
+  assert.equal((workflow.match(/PLAYWRIGHT_BASE_URL: \$\{\{ inputs\.staging_base_url \}\}/g)??[]).length,3);
   assert.doesNotMatch(workflow,/PLAYWRIGHT_BASE_URL: \$\{\{ secrets\.GARAGE_STAGING_BASE_URL \}\}/);
   assert.match(workflow,/candidate_sha/);
   assert.doesNotMatch(workflow,/manual_gmail_address/);
@@ -148,6 +148,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/Release-critical machine-only gates/);
   assert.match(workflow,/release-critical-journeys\.mjs/);
   assert.match(workflow,/stage-auth-contract/);
+  assert.match(workflow,/actual-email-gates/);
+  assert.match(workflow,/final-clean-verdict/);
+  assert.match(workflow,/production-email-transport/);
   assert.doesNotMatch(workflow,/apply_staging_password_minimum/);
   assert.match(signup,/qa_run/);
   assert.match(callback,/recordReleaseQaCallback\(qaRunId, 'callback', nextPath\)/);

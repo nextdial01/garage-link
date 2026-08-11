@@ -1,6 +1,5 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { readReleaseQaFixture } from '@/lib/auth/releaseQaFixture';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,8 +82,6 @@ export async function POST(request: Request) {
   const origin = new URL(request.url).origin;
   if (phase === 'store_created') {
     if (purpose !== 'signup' || !validCallbackChain(existingPurpose, purpose, runId, origin)) return new Response(null, { status: 409 });
-    const lookup = await readReleaseQaFixture({ url, anonKey, accessToken: token, userId: data.user.id });
-    if (!lookup.fixture) return new Response(null, { status: 409 });
   }
   if (phase === 'password_updated' && !validCallbackChain(existingPurpose, purpose, runId, origin)) {
     return new Response(null, { status: 409 });

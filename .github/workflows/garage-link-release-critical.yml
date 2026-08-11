@@ -117,14 +117,97 @@ jobs:
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 5
+    outputs:
+      transport_ready: ${{ steps.transport.outputs.ready }}
     steps:
-      - name: Record separated email transport state
+      - id: transport
+        name: Record separated email transport state
         env:
           RELEASE_CRITICAL_EMAIL_MODE: ${{ inputs.email_mode }}
           RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_RELEASE_QA_EMAIL }}
         run: |
           if [ "$RELEASE_CRITICAL_EMAIL_MODE" = "manual_gmail" ] && [ -n "$RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS" ]; then
             echo '{"state":"EMAIL_TRANSPORT_READY","mode":"manual_gmail"}'
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
           else
             echo '{"state":"EMAIL_TRANSPORT_WAITING","reason":"NO_PERMANENT_QA_TRANSPORT"}'
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
           fi
+
+  actual-email-gates:
+    name: Actual email transport and callback gates
+    needs: [preflight, machine-gates, email-transport-state]
+    if: ${{ always() && needs.preflight.result == 'success' && needs.machine-gates.result == 'success' && needs.email-transport-state.outputs.transport_ready == 'true' }}
+    runs-on: ubuntu-latest
+    environment: garage-link-commercial-staging
+    timeout-minutes: 45
+    env:
+      PLAYWRIGHT_BASE_URL: ${{ inputs.staging_base_url }}
+      RELEASE_CRITICAL_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
+      E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
+      RELEASE_CRITICAL_EXECUTION_MODE: email_transport
+      RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_RELEASE_QA_EMAIL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install release-critical browsers
+        run: pnpm --filter @apps/garage-link exec playwright install --with-deps chromium webkit
+      - name: Run actual signup and recovery email journeys
+        run: node apps/garage-link/scripts/qa/release-critical-journeys.mjs
+
+  production-email-transport:
+    name: Production email transport classification (read-only)
+    needs: preflight
+    if: ${{ always() && needs.preflight.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      classification: ${{ steps.classify.outputs.classification }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: classify
+        name: Classify Production transport without mutation
+        run: node apps/garage-link/scripts/qa/release-critical-production-transport.mjs
+
+  final-clean-verdict:
+    name: Release Critical convergence verdict
+    needs: [preflight, stage-auth-contract, machine-gates, email-transport-state, actual-email-gates, production-email-transport]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Emit one converged verdict
+        env:
+          PREFLIGHT: ${{ needs.preflight.result }}
+          AUTH_CONTRACT: ${{ needs.stage-auth-contract.result }}
+          MACHINE: ${{ needs.machine-gates.result }}
+          TRANSPORT_READY: ${{ needs.email-transport-state.outputs.transport_ready }}
+          ACTUAL_EMAIL: ${{ needs.actual-email-gates.result }}
+          PRODUCTION_TRANSPORT: ${{ needs.production-email-transport.outputs.classification }}
+        run: |
+          if [ "$PREFLIGHT" != success ] || [ "$MACHINE" != success ]; then
+            echo '{"state":"RELEASE_CRITICAL_NOT_READY","reason":"MACHINE_OR_PRODUCTION_TRANSPORT_GATE_FAILED"}'
+            exit 1
+          fi
+          if [ "$PRODUCTION_TRANSPORT" != PRODUCTION_CUSTOM_SMTP_PROVEN ]; then
+            echo '{"state":"RELEASE_CRITICAL_WAITING_PRODUCTION_TRANSPORT","classification":"'"$PRODUCTION_TRANSPORT"'"}'
+            exit 0
+          fi
+          if [ "$TRANSPORT_READY" != true ]; then
+            echo '{"state":"RELEASE_CRITICAL_WAITING_TRANSPORT","reason":"NO_PERMANENT_QA_TRANSPORT"}'
+            exit 0
+          fi
+          if [ "$ACTUAL_EMAIL" != success ]; then
+            echo '{"state":"RELEASE_CRITICAL_NOT_READY","reason":"ACTUAL_EMAIL_GATE_FAILED"}'
+            exit 1
+          fi
+          echo '{"state":"RELEASE_CRITICAL_CONVERGED_PASS"}'
