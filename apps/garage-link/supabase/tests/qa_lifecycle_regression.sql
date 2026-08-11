@@ -111,6 +111,16 @@ begin
     'admin_security_unverified',jsonb_build_object('subject_user_id','64000000-0000-4000-8000-000000000006')
   ));
   if v->>'state'<>'PROVISIONED' or (v->>'fixture_count')::integer<>6 or (select count(*) from qa_internal.cta_matrix_fixtures where run_id='63000000-0000-4000-8000-000000000001')<>6 then raise exception 'CTA_MATRIX_PROVISION_CONTRACT'; end if;
+  if not exists(
+    select 1
+    from qa_internal.cta_matrix_fixtures f
+    join public.company_subscriptions s on s.tenant_id=f.tenant_id and s.company_id=f.primary_store_id
+    where f.run_id='63000000-0000-4000-8000-000000000001'
+      and f.state='active_non_owner'
+      and s.plan='standard'
+      and s.status='active'
+      and s.included_staff_count=3
+  ) then raise exception 'CTA_MATRIX_NON_OWNER_PLAN_CONTRACT'; end if;
   begin
     delete from public.memberships where id=(select subject_membership_id from qa_internal.cta_matrix_fixtures where run_id='63000000-0000-4000-8000-000000000001' and state='active_owner');
     raise exception 'CTA_MATRIX_DIRECT_OWNER_DELETE_ACCEPTED';
