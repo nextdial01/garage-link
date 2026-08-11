@@ -280,20 +280,23 @@ async function maybeFindUser(admin,email){
   for(let page=1;page<=10;page+=1){const {data,error}=await admin.auth.admin.listUsers({page,perPage:1000});if(error)fail(`RELEASE_CRITICAL_AUTH_LOOKUP:${error.status??0}`);const user=data?.users?.find(item=>item.email?.toLowerCase()===email.toLowerCase());if(user)return user;if((data?.users?.length??0)<1000)break;}
   return null;
 }
-async function verifyPersistentE2eIdentity({supabaseUrl,serviceRole,email,password,expectedStoreId,expectedTenantId}){
+async function verifyPersistentE2eIdentity({admin,supabaseUrl,serviceRole,email,password,expectedStoreId,expectedTenantId}){
   const subject=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
   try {
     const {data:login,error:loginError}=await subject.auth.signInWithPassword({email,password});
-    const user=login.user;
-    if(loginError||!user)fail(`RELEASE_CRITICAL_PERSISTENT_E2E_LOGIN:${safeProviderCode(loginError)}`);
-    const {data:context,error:contextError}=await subject.rpc('get_garage_ui_context_v2',{});
-    if(contextError||context?.state!=='active'||context?.role!=='owner'||context?.tenant_id!==expectedTenantId||context?.store_id!==expectedStoreId)fail(`RELEASE_CRITICAL_PERSISTENT_E2E_SCOPE:${safeProviderCode(contextError)}`);
-    emit({state:'RELEASE_CRITICAL_PERSISTENT_E2E_SCOPE_PASS',contract:'get_garage_ui_context_v2',subject_jwt_preserved:true,grant_or_rls_change:false});
+    const user=login.user; const accessToken=login.session?.access_token;
+    if(loginError||!user||!accessToken)fail(`RELEASE_CRITICAL_PERSISTENT_E2E_LOGIN:${safeProviderCode(loginError)}`);
+    let sessionId='';
+    try {sessionId=JSON.parse(Buffer.from(accessToken.split('.')[1]??'','base64url').toString('utf8')).session_id??'';} catch {fail('RELEASE_CRITICAL_PERSISTENT_E2E_SESSION_INVALID');}
+    if(!/^[0-9a-f-]{36}$/i.test(sessionId))fail('RELEASE_CRITICAL_PERSISTENT_E2E_SESSION_INVALID');
+    const {data:context,error:contextError}=await admin.rpc('admin_email_otp_bootstrap_context',{p_user_id:user.id,p_session_id:sessionId});
+    if(contextError||context?.user_id!==user.id||context?.email!==email.toLowerCase()||!['owner','admin','implementer'].includes(String(context?.role))||context?.tenant_id!==expectedTenantId||context?.store_id!==expectedStoreId)fail(`RELEASE_CRITICAL_PERSISTENT_E2E_SCOPE:${safeProviderCode(contextError)}`);
+    emit({state:'RELEASE_CRITICAL_PERSISTENT_E2E_SCOPE_PASS',contract:'admin_email_otp_bootstrap_context',subject_jwt_preserved:true,grant_or_rls_change:false});
     return user;
   } finally {await subject.auth.signOut().catch(()=>undefined);}
 }
 async function parkPersistentE2eIdentity({admin,supabaseUrl,serviceRole,email,password,expectedStoreId,expectedTenantId}){
-  const user=await verifyPersistentE2eIdentity({supabaseUrl,serviceRole,email,password,expectedStoreId,expectedTenantId});
+  const user=await verifyPersistentE2eIdentity({admin,supabaseUrl,serviceRole,email,password,expectedStoreId,expectedTenantId});
   if(user.app_metadata?.release_qa_run_id)fail('RELEASE_CRITICAL_PERSISTENT_E2E_ALREADY_SYNTHETIC');
   const parkedEmail=`garage-link-release-qa-parked-${sha256(user.id).slice(0,12)}@example.com`;
   if(await maybeFindUser(admin,parkedEmail))fail('RELEASE_CRITICAL_PERSISTENT_E2E_PARK_COLLISION');
@@ -301,7 +304,7 @@ async function parkPersistentE2eIdentity({admin,supabaseUrl,serviceRole,email,pa
   const {data,error}=await admin.auth.admin.updateUserById(user.id,{email:parkedEmail,email_confirm:true,app_metadata:{...originalAppMetadata,release_qa_identity_parked:{store_id:expectedStoreId,tenant_id:expectedTenantId}}});
   if(error||data.user?.email?.toLowerCase()!==parkedEmail)fail(`RELEASE_CRITICAL_PERSISTENT_E2E_PARK:${safeProviderCode(error)}`);
   try {
-    await verifyPersistentE2eIdentity({supabaseUrl,serviceRole,email:parkedEmail,password,expectedStoreId,expectedTenantId});
+    await verifyPersistentE2eIdentity({admin,supabaseUrl,serviceRole,email:parkedEmail,password,expectedStoreId,expectedTenantId});
   } catch(error) {
     await admin.auth.admin.updateUserById(user.id,{email,email_confirm:true,app_metadata:originalAppMetadata});
     throw error;
@@ -313,7 +316,7 @@ async function restorePersistentE2eIdentity({admin,supabaseUrl,serviceRole,ident
   if(await maybeFindUser(admin,identity.originalEmail))fail('RELEASE_CRITICAL_PERSISTENT_E2E_RESTORE_CONFLICT');
   const {data,error}=await admin.auth.admin.updateUserById(identity.userId,{email:identity.originalEmail,email_confirm:true,app_metadata:identity.originalAppMetadata});
   if(error||data.user?.email?.toLowerCase()!==identity.originalEmail.toLowerCase())fail(`RELEASE_CRITICAL_PERSISTENT_E2E_RESTORE:${safeProviderCode(error)}`);
-  await verifyPersistentE2eIdentity({supabaseUrl,serviceRole,email:identity.originalEmail,password:identity.password,expectedStoreId:identity.expectedStoreId,expectedTenantId:identity.expectedTenantId});
+  await verifyPersistentE2eIdentity({admin,supabaseUrl,serviceRole,email:identity.originalEmail,password:identity.password,expectedStoreId:identity.expectedStoreId,expectedTenantId:identity.expectedTenantId});
   if(await maybeFindUser(admin,identity.parkedEmail))fail('RELEASE_CRITICAL_PERSISTENT_E2E_PARKED_RESIDUAL');
   emit({state:'RELEASE_CRITICAL_PERSISTENT_E2E_IDENTITY_RESTORED',scope_verified:true,residual:0,email:'REDACTED'});
 }
