@@ -65,6 +65,11 @@ function isPublicPath(pathname: string) {
   // Vercel project ID and Production host deny-list. The Release Critical
   // runner reaches it through Vercel Automation Bypass, not a user session.
   if (pathname === '/api/qa/provenance') return true;
+  // These two QA routes enforce a Staging-preview runtime, an exact synthetic
+  // marker, and a bearer session in the route itself. They must reach that
+  // route-level contract rather than being rejected by middleware before the
+  // synthetic owner's token can be verified. Production still returns 404.
+  if (pathname === '/api/qa/callback-evidence' || pathname === '/api/qa/fixture-discovery') return true;
   return false;
 }
 

@@ -9,13 +9,14 @@ import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-s
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,journeys,workflow,signup,callback,recovery,callbackEvidence,fixtureDiscovery]=await Promise.all([
+  const [runner,journeys,workflow,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
     readFile(resolve(appRoot,'src/app/signup/page.tsx'),'utf8'),
     readFile(resolve(appRoot,'src/app/auth/callback/page.tsx'),'utf8'),
     readFile(resolve(appRoot,'src/app/auth/reset-password/page.tsx'),'utf8'),
+    readFile(resolve(appRoot,'src/middleware.ts'),'utf8'),
     readFile(resolve(appRoot,'src/app/api/qa/callback-evidence/route.ts'),'utf8'),
     readFile(resolve(appRoot,'src/app/api/qa/fixture-discovery/route.ts'),'utf8'),
   ]);
@@ -110,6 +111,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(callbackEvidence,/store_created/);
   assert.match(callbackEvidence,/syntheticQaUser/);
   assert.doesNotMatch(callbackEvidence,/PRODUCTION_PROJECT_ID/);
+  assert.match(middleware,/pathname === '\/api\/qa\/callback-evidence'/);
+  assert.match(middleware,/pathname === '\/api\/qa\/fixture-discovery'/);
 });
 
 test('Vercel bypass carries the issued cookie once for a same-origin same-path redirect',async()=>{
