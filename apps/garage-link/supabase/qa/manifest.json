@@ -91,9 +91,25 @@
         "20260811144934"
       ],
       "checksum": "4098392659f527f353921adb996e26043cf67946d018d30d8c4b9c5e3fa36e80"
+    },
+    {
+      "version": "20260811152300",
+      "name": "qa_lifecycle_state_machine_repair",
+      "kind": "repair",
+      "file": "migrations/20260811152300_qa_lifecycle_state_machine_repair.sql",
+      "dependsOn": [
+        "20260811144934",
+        "20260811151006"
+      ],
+      "checksum": "ca693070740284613d6896322fbbbfb8e2cb2143aaaddf12f92a0defc079f3a1"
     }
   ],
   "rollbacks": [
+    {
+      "version": "20260811152300",
+      "file": "rollback/20260811152300_qa_lifecycle_state_machine_repair.down.sql",
+      "checksum": "e848797e4d2d0bb42f02d5d50392320a5665de951be5e3ba8b4eff5eceaeb88d"
+    },
     {
       "version": "20260811151006",
       "file": "rollback/20260811151006_qa_lifecycle_evidence_table.down.sql",
