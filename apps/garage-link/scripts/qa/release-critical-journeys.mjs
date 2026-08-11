@@ -280,46 +280,6 @@ async function maybeFindUser(admin,email){
   for(let page=1;page<=10;page+=1){const {data,error}=await admin.auth.admin.listUsers({page,perPage:1000});if(error)fail(`RELEASE_CRITICAL_AUTH_LOOKUP:${error.status??0}`);const user=data?.users?.find(item=>item.email?.toLowerCase()===email.toLowerCase());if(user)return user;if((data?.users?.length??0)<1000)break;}
   return null;
 }
-async function verifyPersistentE2eIdentity({admin,supabaseUrl,serviceRole,email,password,expectedStoreId,expectedTenantId}){
-  const subject=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
-  try {
-    const {data:login,error:loginError}=await subject.auth.signInWithPassword({email,password});
-    const user=login.user; const accessToken=login.session?.access_token;
-    if(loginError||!user||!accessToken)fail(`RELEASE_CRITICAL_PERSISTENT_E2E_LOGIN:${safeProviderCode(loginError)}`);
-    let sessionId='';
-    try {sessionId=JSON.parse(Buffer.from(accessToken.split('.')[1]??'','base64url').toString('utf8')).session_id??'';} catch {fail('RELEASE_CRITICAL_PERSISTENT_E2E_SESSION_INVALID');}
-    if(!/^[0-9a-f-]{36}$/i.test(sessionId))fail('RELEASE_CRITICAL_PERSISTENT_E2E_SESSION_INVALID');
-    const {data:context,error:contextError}=await admin.rpc('admin_email_otp_bootstrap_context',{p_user_id:user.id,p_session_id:sessionId});
-    if(contextError||context?.user_id!==user.id||context?.email!==email.toLowerCase()||!['owner','admin','implementer'].includes(String(context?.role))||context?.tenant_id!==expectedTenantId||context?.store_id!==expectedStoreId)fail(`RELEASE_CRITICAL_PERSISTENT_E2E_SCOPE:${safeProviderCode(contextError)}`);
-    emit({state:'RELEASE_CRITICAL_PERSISTENT_E2E_SCOPE_PASS',contract:'admin_email_otp_bootstrap_context',subject_jwt_preserved:true,grant_or_rls_change:false});
-    return user;
-  } finally {await subject.auth.signOut().catch(()=>undefined);}
-}
-async function parkPersistentE2eIdentity({admin,supabaseUrl,serviceRole,email,password,expectedStoreId,expectedTenantId}){
-  const user=await verifyPersistentE2eIdentity({admin,supabaseUrl,serviceRole,email,password,expectedStoreId,expectedTenantId});
-  if(user.app_metadata?.release_qa_run_id)fail('RELEASE_CRITICAL_PERSISTENT_E2E_ALREADY_SYNTHETIC');
-  const parkedEmail=`garage-link-release-qa-parked-${sha256(user.id).slice(0,12)}@example.com`;
-  if(await maybeFindUser(admin,parkedEmail))fail('RELEASE_CRITICAL_PERSISTENT_E2E_PARK_COLLISION');
-  const originalAppMetadata={...(user.app_metadata??{})};
-  const {data,error}=await admin.auth.admin.updateUserById(user.id,{email:parkedEmail,email_confirm:true,app_metadata:{...originalAppMetadata,release_qa_identity_parked:{store_id:expectedStoreId,tenant_id:expectedTenantId}}});
-  if(error||data.user?.email?.toLowerCase()!==parkedEmail)fail(`RELEASE_CRITICAL_PERSISTENT_E2E_PARK:${safeProviderCode(error)}`);
-  try {
-    await verifyPersistentE2eIdentity({admin,supabaseUrl,serviceRole,email:parkedEmail,password,expectedStoreId,expectedTenantId});
-  } catch(error) {
-    await admin.auth.admin.updateUserById(user.id,{email,email_confirm:true,app_metadata:originalAppMetadata});
-    throw error;
-  }
-  emit({state:'RELEASE_CRITICAL_PERSISTENT_E2E_IDENTITY_PARKED',scope_verified:true,real_customer:false,email:'REDACTED'});
-  return {userId:user.id,parkedEmail,originalEmail:email,originalAppMetadata,password,expectedStoreId,expectedTenantId};
-}
-async function restorePersistentE2eIdentity({admin,supabaseUrl,serviceRole,identity}){
-  if(await maybeFindUser(admin,identity.originalEmail))fail('RELEASE_CRITICAL_PERSISTENT_E2E_RESTORE_CONFLICT');
-  const {data,error}=await admin.auth.admin.updateUserById(identity.userId,{email:identity.originalEmail,email_confirm:true,app_metadata:identity.originalAppMetadata});
-  if(error||data.user?.email?.toLowerCase()!==identity.originalEmail.toLowerCase())fail(`RELEASE_CRITICAL_PERSISTENT_E2E_RESTORE:${safeProviderCode(error)}`);
-  await verifyPersistentE2eIdentity({admin,supabaseUrl,serviceRole,email:identity.originalEmail,password:identity.password,expectedStoreId:identity.expectedStoreId,expectedTenantId:identity.expectedTenantId});
-  if(await maybeFindUser(admin,identity.parkedEmail))fail('RELEASE_CRITICAL_PERSISTENT_E2E_PARKED_RESIDUAL');
-  emit({state:'RELEASE_CRITICAL_PERSISTENT_E2E_IDENTITY_RESTORED',scope_verified:true,residual:0,email:'REDACTED'});
-}
 async function bindSyntheticIdentity(admin,user,run){
   const {data,error}=await admin.auth.admin.updateUserById(user.id,{app_metadata:{...user.app_metadata,release_qa_run_id:run.runId}});
   if(error||data.user?.app_metadata?.release_qa_run_id!==run.runId)fail(`RELEASE_CRITICAL_SYNTHETIC_IDENTITY_BIND:${safeProviderCode(error)}`);
@@ -465,13 +425,12 @@ async function main(){
   const provenanceResponse=await fetch(new URL('/api/qa/provenance',baseUrl),{headers:{'x-vercel-protection-bypass':bypassSecret},redirect:'manual',cache:'no-store'}); if(!provenanceResponse.ok||provenanceResponse.headers.has('location'))fail('RELEASE_CRITICAL_PROVENANCE_UNREACHED');
   const provenance=validateReleaseCriticalProvenance(await provenanceResponse.json(),baseUrl); if(provenance.sourceSha!==expectedCandidateSha)fail('RELEASE_CRITICAL_CANDIDATE_SHA_MISMATCH');
   const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
-  // Default SMTP accepts the organization member's exact address but rejects
-  // its Workspace plus alias. Temporarily park only the pre-proved persistent
-  // Staging QA identity, then restore it in the outer finally block.
+  // Default SMTP accepts only an authorized organization-member recipient.
+  // Keep that mailbox separate from the persistent E2E login identity.
   const run=createReleaseCriticalRun(); const session=createManualGmailSession(manualBase,run.emailMarker,{plusAddressing:false}); const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker); const resetPassword='GL-Release-Reset-8!';
   await verifyHostedRedirectContract({admin,manualBase,run,baseUrl,supabaseUrl});
   await recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);
-  const parkedIdentity=await parkPersistentE2eIdentity({admin,supabaseUrl,serviceRole,email:session.emailAddress,password:required('RELEASE_CRITICAL_PERSISTENT_E2E_PASSWORD'),expectedStoreId:required('RELEASE_CRITICAL_PERSISTENT_E2E_STORE_ID'),expectedTenantId:required('RELEASE_CRITICAL_PERSISTENT_E2E_TENANT_ID')});
+  if(await maybeFindUser(admin,session.emailAddress))fail('RELEASE_CRITICAL_MANUAL_GMAIL_BASE_USER_CONFLICT');
   let browser; let context; let page; let user; let life; let adopted=false; const results={};
   try {
     life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance);
@@ -563,10 +522,7 @@ async function main(){
         }
       }
       if(adopted)await cleanupLifecycle(life,admin,user?.id,run.runId);
-    } finally {
-      try {await context?.close();await browser?.close();}
-      finally {await restorePersistentE2eIdentity({admin,supabaseUrl,serviceRole,identity:parkedIdentity});}
-    }
+    } finally {await context?.close();await browser?.close();}
   }
 }
 
