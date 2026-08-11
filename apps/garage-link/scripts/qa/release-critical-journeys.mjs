@@ -120,7 +120,7 @@ async function verifyHostedRedirectContract({admin,manualBase,run,baseUrl,supaba
   }
 }
 function releaseQaNextPathForRunner(path,runId){const url=new URL(path,'https://release-qa.invalid');url.searchParams.set('qa_run',runId);return `${url.pathname}${url.search}`;}
-async function tracePointerCta(page,{baseUrl,label,locator,expectedPath,accountState}){
+async function tracePointerCta(page,{baseUrl,label,locator,expectedPath,accountState,expectedClassification='PASS',expectedFinalPath=null}){
   const initialPath=safeNavigationPath(page.url(),baseUrl);
   const trace={domClick:false,expected:false,initialPath,finalPath:initialPath,navigationRequestCount:0,runtimeErrorCount:0};
   const clickKey=`release-critical-cta-${label}`;
@@ -163,7 +163,9 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath,accountS
       await page.waitForTimeout(750);
     }
     const classification=emitTrace();
-    if(classification!=='PASS')fail(`RELEASE_CRITICAL_CTA_${label}:${classification}`);
+    if(classification!==expectedClassification||(
+      expectedFinalPath!==null&&trace.finalPath.split('?')[0]!==expectedFinalPath
+    ))fail(`RELEASE_CRITICAL_CTA_${label}:${classification}`);
   } catch(error) {
     const classification=emitTrace();
     if(String(error?.message??error).startsWith(`RELEASE_CRITICAL_CTA_${label}:`))throw error;
@@ -171,6 +173,21 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath,accountS
   } finally {
     page.off('request',onRequest); page.off('pageerror',onPageError); page.off('console',onConsole);
   }
+}
+async function verifyVehicleAccountStateGate({browser,sourceContext,baseUrl,bypassSecret,accountState}){
+  const storageState=await sourceContext.storageState();
+  const gatedContext=await browser.newContext({storageState});
+  try {
+    await installVercelBrowserBypass(gatedContext,baseUrl,bypassSecret);
+    const gatedPage=await gatedContext.newPage();
+    await gatedPage.goto(new URL('/vehicles',baseUrl),{waitUntil:'domcontentloaded'});
+    await gatedPage.getByRole('link',{name:'車両を登録',exact:true}).waitFor({state:'visible',timeout:30_000});
+    await gatedContext.clearCookies({name:/^garage_admin_email_verified$/});
+    await tracePointerCta(gatedPage,{baseUrl,label:'VEHICLE_CREATE_ADMIN_SECURITY_GATE',locator:gatedPage.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState,expectedClassification:'ROUTE_STARTED_REDIRECTED',expectedFinalPath:'/security/email-otp'});
+    const gateUrl=new URL(gatedPage.url());
+    if(gateUrl.searchParams.get('from')!=='/vehicles/new')fail('RELEASE_CRITICAL_CTA_ADMIN_SECURITY_RETURN_PATH_INVALID');
+    emit({state:'RELEASE_CRITICAL_CTA_ACCOUNT_STATE_DIFFERENTIAL',cta:'VEHICLE_CREATE',normal_owner:'PASS',customer_like_state:'ROUTE_STARTED_REDIRECTED',gate:'admin_security',final_destination:'/security/email-otp',return_path:'/vehicles/new'});
+  } finally {await gatedContext.close();}
 }
 async function signupSubmitOutcome(page){
   const formAlert=page.locator('form').getByRole('alert');
@@ -414,6 +431,7 @@ async function main(){
   const run=createReleaseCriticalRun(); const session=createManualGmailSession(manualBase,run.emailMarker,{plusAddressing:false}); const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker); const resetPassword='GL-Release-Reset-8!';
   await verifyHostedRedirectContract({admin,manualBase,run,baseUrl,supabaseUrl});
   await recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);
+  if(await maybeFindUser(admin,session.emailAddress))fail('RELEASE_CRITICAL_MANUAL_GMAIL_BASE_USER_CONFLICT');
   let browser; let context; let page; let user; let life; let adopted=false; const results={};
   try {
     life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance);
@@ -460,6 +478,7 @@ async function main(){
     await tracePointerCta(page,{baseUrl,label:'VEHICLE_CREATE',locator:page.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState:owner.accountState});
     await page.getByText('車両登録',{exact:true}).waitFor({timeout:30_000});
     await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/vehicles(?:\?|$)/,{timeout:30_000});
+    await verifyVehicleAccountStateGate({browser,sourceContext:context,baseUrl,bypassSecret,accountState:owner.accountState});
     await clickAndWait(page,page.getByRole('link',{name:'顧客',exact:true}).first(),/\/customers(?:\?|$)/);
     await tracePointerCta(page,{baseUrl,label:'CUSTOMER_CREATE',locator:page.getByRole('link',{name:'顧客を登録',exact:true}),expectedPath:'/customers/new',accountState:owner.accountState});
     await page.getByText('顧客登録',{exact:true}).waitFor({timeout:30_000});
