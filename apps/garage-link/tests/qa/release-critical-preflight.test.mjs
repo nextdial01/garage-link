@@ -58,6 +58,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/qa_lifecycle_verify_clean/);
   assert.match(journeys,/manualGmailCheckpoint\(session,'signup'\)/);
   assert.match(journeys,/manualGmailCheckpoint\(session,'recovery'\)/);
+  assert.doesNotMatch(journeys,/run\.emailMarker}-contract/);
   assert.match(journeys,/pollCallbackEvidence\(\{admin,userId:user\.id,run,baseUrl,purpose:'signup'\}\)/);
   assert.match(journeys,/requireStoreCreated:true/);
   assert.match(journeys,/user\?\?=await maybeFindUser/);

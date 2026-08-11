@@ -95,7 +95,8 @@ export async function installVercelBrowserBypass(context,baseUrl,bypassSecret){
   }}));
 }
 async function verifyHostedRedirectContract({admin,manualBase,run,baseUrl,supabaseUrl}){
-  const probeMarker=`${run.emailMarker}-contract`; const probe=createManualGmailSession(manualBase,probeMarker); const password=releaseCriticalSyntheticPassword(probeMarker);
+  const probeMarker=`garage-link-${run.runId.replaceAll('-','').slice(12,24).toLowerCase()}`; const probe=createManualGmailSession(manualBase,probeMarker); const password=releaseCriticalSyntheticPassword(probeMarker);
+  if(probeMarker===run.emailMarker)fail('RELEASE_CRITICAL_REDIRECT_PROBE_MARKER_COLLISION');
   const callback=new URL('/auth/callback',baseUrl); callback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); callback.searchParams.set('qa_run',run.runId);
   let userId=''; let subject=null;
   try {
