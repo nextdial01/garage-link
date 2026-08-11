@@ -70,6 +70,11 @@ function isPublicPath(pathname: string) {
   // route-level contract rather than being rejected by middleware before the
   // synthetic owner's token can be verified. Production still returns 404.
   if (pathname === '/api/qa/callback-evidence' || pathname === '/api/qa/fixture-discovery') return true;
+  // These routes authenticate again inside the handler. Keeping the exact
+  // endpoints reachable lets a Staging-only synthetic Bearer session satisfy
+  // the same administrator OTP pre-request gate; Production Bearer access is
+  // still rejected by the route's staging runtime contract.
+  if (pathname === '/api/auth/admin-email-otp/request' || pathname === '/api/auth/admin-email-otp/verify') return true;
   return false;
 }
 
