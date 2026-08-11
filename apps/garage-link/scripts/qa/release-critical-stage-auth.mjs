@@ -27,8 +27,9 @@ export async function applyStagingPasswordMinimum(token,fetchImpl=fetch,origin){
   const allowlist=new Set(allowedUrls(current.config).filter(value=>!isLocalhostRedirect(value)));
   allowlist.add(`${resolvedOrigin}/auth/callback`);
   allowlist.add(`${resolvedOrigin}/auth/callback**`);
-  const redirectField=Object.prototype.hasOwnProperty.call(current.config??{},'additional_redirect_urls')?'additional_redirect_urls':'uri_allow_list';
-  const response=await fetchImpl(endpoint,{method:'PATCH',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:resolvedOrigin,[redirectField]:[...allowlist].join(',')}),redirect:'manual',cache:'no-store'});
+  // `additional_redirect_urls` is the local CLI config alias. The hosted
+  // Management API accepts the documented `uri_allow_list` field only.
+  const response=await fetchImpl(endpoint,{method:'PATCH',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:resolvedOrigin,uri_allow_list:[...allowlist].join(',')}),redirect:'manual',cache:'no-store'});
   if(!response.ok||response.status>=300)throw new Error(`STAGING_PASSWORD_MINIMUM_UPDATE_FAILED:${response.status}`);
   const readback=await readAuthConfig(STAGING_REF,token,fetchImpl);
   const minimum=readback.config?.password_min_length??readback.config?.minimum_password_length;

@@ -256,7 +256,7 @@ test('hosted Auth contract preserves non-local redirects but removes localhost f
   assert.equal(JSON.parse(calls[1].options.body).uri_allow_list,'https://external.example/callback,https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**');
 });
 
-test('hosted Auth contract uses the configured additional_redirect_urls alias when present',async()=>{
+test('hosted Auth contract reads the local additional_redirect_urls alias but PATCHes the Management API uri_allow_list field',async()=>{
   const calls=[];
   await applyStagingPasswordMinimum('token',async(url,options)=>{
     calls.push({url:String(url),options});
@@ -264,6 +264,6 @@ test('hosted Auth contract uses the configured additional_redirect_urls alias wh
     return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',additional_redirect_urls:'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
   },'https://garage-link-staging-test.vercel.app');
   const payload=JSON.parse(calls[1].options.body);
-  assert.equal(payload.uri_allow_list,undefined);
-  assert.match(payload.additional_redirect_urls,/auth\/callback\*\*/);
+  assert.match(payload.uri_allow_list,/auth\/callback\*\*/);
+  assert.equal(payload.additional_redirect_urls,undefined);
 });
