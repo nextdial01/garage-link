@@ -38,7 +38,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(runner,/auth\.admin\.getUserById/);
   assert.match(runner,/REDACTED_MANUAL_GMAIL_ADDRESS/);
   assert.match(runner,/GITHUB_EVENT_PATH/);
-  assert.match(runner,/RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS/);
+  assert.doesNotMatch(runner,/RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS/);
   assert.doesNotMatch(runner,/manual_gmail_address/);
   assert.match(runner,/RUNTIME_PROVENANCE_ACCESS_FAILED/);
   assert.match(runner,/PREFLIGHT_VERCEL_REDIRECT_DIAGNOSTIC/);
@@ -127,8 +127,11 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/verify_by_journey/);
   assert.match(workflow,/repair_staging_once/);
   assert.match(workflow,/inputs\.auth_config_mode == 'repair_staging_once'/);
-  assert.match(workflow,/RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS/);
-  assert.match(workflow,/journeys:[\s\S]*RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS/);
+  assert.match(workflow,/email-transport-state/);
+  assert.match(workflow,/EMAIL_TRANSPORT_WAITING/);
+  assert.match(workflow,/RELEASE_CRITICAL_EXECUTION_MODE: machine_only/);
+  const machineGateJob=workflow.slice(workflow.indexOf('\n  machine-gates:'),workflow.indexOf('\n  email-transport-state:'));
+  assert.doesNotMatch(machineGateJob,/GARAGE_STAGING_RELEASE_QA_EMAIL|RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS/);
   assert.match(workflow,/staging_base_url/);
   assert.match(workflow,/description: Exact garage-link-staging preview URL/);
   assert.match(workflow,/required: true/);
@@ -141,7 +144,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(workflow,/GARAGE_STAGING_MAILSLURP_API_KEY/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_QA_MAILBOX/);
   assert.doesNotMatch(workflow,/STRIPE_SECRET_KEY|E2E_ALLOW_BILLING_MUTATIONS|STRIPE_WEBHOOK_SECRET/);
-  assert.match(workflow,/Release-critical acquisition journeys/);
+  assert.match(workflow,/Release-critical machine-only gates/);
   assert.match(workflow,/release-critical-journeys\.mjs/);
   assert.match(workflow,/stage-auth-contract/);
   assert.doesNotMatch(workflow,/apply_staging_password_minimum/);
@@ -157,6 +160,10 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(callbackEvidence,/server_bound_continuation: true/);
   assert.match(callbackEvidence,/release_qa_run_id/);
   assert.match(fixtureDiscovery,/release_qa_run_id/);
+  assert.match(journeys,/executionMode==='machine_only'/);
+  assert.match(journeys,/EMAIL_TRANSPORT_WAITING/);
+  assert.match(journeys,/auth_callback_mechanics:'PASS'/);
+  assert.match(journeys,/qa\.machine\./);
   assert.match(journeys,/plusAddressing:false/);
   assert.match(journeys,/RELEASE_CRITICAL_MANUAL_GMAIL_BASE_USER_CONFLICT/);
   assert.match(workflow,/GARAGE_STAGING_RELEASE_QA_EMAIL/);

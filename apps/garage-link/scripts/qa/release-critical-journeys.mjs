@@ -94,8 +94,9 @@ export async function installVercelBrowserBypass(context,baseUrl,bypassSecret){
     'x-vercel-set-bypass-cookie':'true',
   }}));
 }
-async function verifyHostedRedirectContract({admin,manualBase,run,baseUrl,supabaseUrl}){
-  const probeMarker=`g${run.runId.replaceAll('-','').slice(6,12).toLowerCase()}`; const probe=createManualGmailSession(manualBase,probeMarker); const password=releaseCriticalSyntheticPassword(probeMarker);
+export async function verifyHostedRedirectContract({admin,run,baseUrl,supabaseUrl}){
+  const probeMarker=`g${run.runId.replaceAll('-','').slice(6,12).toLowerCase()}`;
+  const probe={emailAddress:`qa.redirect.${probeMarker}@example.invalid`}; const password=releaseCriticalSyntheticPassword(probeMarker);
   if(probeMarker===run.emailMarker)fail('RELEASE_CRITICAL_REDIRECT_PROBE_MARKER_COLLISION');
   const callback=new URL('/auth/callback',baseUrl); callback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); callback.searchParams.set('qa_run',run.runId);
   let userId=''; let subject=null;
@@ -412,23 +413,72 @@ async function runMobileSmoke(baseUrl,browserType,name,bypassSecret){
   const browser=await browserType.launch({headless:true});
   try {const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true});await installVercelBrowserBypass(context,baseUrl,bypassSecret);const page=await context.newPage();await page.goto(baseUrl,{waitUntil:'domcontentloaded'});await page.getByRole('link',{name:'無料で始める'}).first().click();await page.waitForURL(/\/signup/,{timeout:30_000});await context.close();emit({journey:'J10',browser:name,status:'PASS'});} finally {await browser.close();}
 }
+async function hostedActionLink(admin,{type,email,password,redirectTo,supabaseUrl}){
+  const {data,error}=await admin.auth.admin.generateLink({type,email,password,options:{redirectTo}});
+  const actionLink=data?.properties?.action_link;
+  if(error||typeof actionLink!=='string')fail(`RELEASE_CRITICAL_HOSTED_ACTION_LINK:${type}:${safeProviderCode(error)}`);
+  validateHostedGeneratedLink(actionLink,redirectTo,supabaseUrl);
+  return actionLink;
+}
+async function runMachineOnly({baseUrl,supabaseUrl,serviceRole,bypassSecret,provenance}){
+  const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
+  const run=createReleaseCriticalRun();
+  const email=`qa.machine.${run.runId.replaceAll('-','')}@example.invalid`;
+  const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker);
+  const resetPassword='GL-Release-Reset-8!';
+  const results={J1:'EMAIL_TRANSPORT_WAITING',J2:'MECHANICS_PENDING',J3:'PENDING',J4:'MECHANICS_PENDING',J5:'PENDING',J6:'PENDING',J7:'PENDING',J8:'PENDING',J9:'PENDING',J10:'PENDING'};
+  let browser; let context; let page; let user; let life; let adopted=false;
+  try {
+    await verifyHostedRedirectContract({admin,run,baseUrl,supabaseUrl});
+    await recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);
+    const created=await admin.auth.admin.createUser({email,password:initialPassword,email_confirm:false,app_metadata:{release_qa_run_id:run.runId}});
+    if(created.error||!created.data?.user?.id)fail(`RELEASE_CRITICAL_MACHINE_AUTH_CREATE:${safeProviderCode(created.error)}`);
+    user=created.data.user;
+    user=await bindSyntheticIdentity(admin,user,run);
+    life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance);
+    browser=await chromium.launch({headless:true}); context=await browser.newContext(); await installVercelBrowserBypass(context,baseUrl,bypassSecret); page=await context.newPage();
+    await page.goto(baseUrl,{waitUntil:'domcontentloaded'});
+    await clickAndWait(page,page.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
+    await page.getByLabel('店舗名').fill(`${run.marker} Reject`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await page.getByLabel('メールアドレス').fill(email); await page.locator('#password').fill('short1'); await page.locator('#passwordConfirmation').fill('short1'); await page.getByRole('checkbox').check(); await page.getByRole('button',{name:'無料でアカウントを作成する'}).click();
+    const invalidAlert=page.locator('form').getByRole('alert'); await invalidAlert.waitFor({timeout:30_000}); if(!/8文字以上/.test(await invalidAlert.textContent()??''))fail('RELEASE_CRITICAL_PASSWORD_6_NOT_REJECTED'); await page.locator('#password').fill('short12'); await page.locator('#passwordConfirmation').fill('short12'); await page.getByRole('button',{name:'無料でアカウントを作成する'}).click(); if(!/8文字以上/.test(await invalidAlert.textContent()??''))fail('RELEASE_CRITICAL_PASSWORD_7_NOT_REJECTED'); results.J3='PASS';
+    const signupCallback=new URL('/auth/callback',baseUrl); signupCallback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); signupCallback.searchParams.set('qa_run',run.runId);
+    const signupAction=await hostedActionLink(admin,{type:'signup',email,password:initialPassword,redirectTo:signupCallback.toString(),supabaseUrl});
+    await page.goto(signupAction,{waitUntil:'domcontentloaded'}); await page.waitForURL(/\/signup\?resume=1/, {timeout:30_000}); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup'});
+    await page.getByLabel('店舗名').fill(`${run.marker} 店舗`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await page.getByRole('button',{name:'店舗を作成して次へ'}).click(); await page.waitForURL(/\/(onboarding|security\/email-otp)/,{timeout:30_000}); await completeSecurityOtp(page); await page.waitForURL(/\/onboarding/,{timeout:30_000}); await onboarding(page,run.marker); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true});
+    const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email,password:initialPassword,tenantNamePrefix:run.marker,bypassSecret,runId:run.runId}); await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true; results.J2='MECHANICS_PASS';
+    await clickAndWait(page,page.getByRole('link',{name:'車両',exact:true}).first(),/\/vehicles(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'VEHICLE_CREATE',locator:page.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState:owner.accountState}); await page.getByText('車両登録',{exact:true}).waitFor({timeout:30_000}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/vehicles(?:\?|$)/,{timeout:30_000}); await verifyVehicleAccountStateGate({browser,sourceContext:context,baseUrl,bypassSecret,accountState:owner.accountState});
+    await clickAndWait(page,page.getByRole('link',{name:'顧客',exact:true}).first(),/\/customers(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'CUSTOMER_CREATE',locator:page.getByRole('link',{name:'顧客を登録',exact:true}),expectedPath:'/customers/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/customers(?:\?|$)/,{timeout:30_000}); await clickAndWait(page,page.getByRole('link',{name:'商談',exact:true}).first(),/\/deals(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'DEAL_CREATE',locator:page.getByRole('link',{name:'商談を登録',exact:true}),expectedPath:'/deals/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/deals(?:\?|$)/,{timeout:30_000}); results.J5='PASS';
+    await clickAndWait(page,page.getByRole('link',{name:'車両',exact:true}).first(),/\/vehicles(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'VEHICLE_FIRST_VALUE',locator:page.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState:owner.accountState}); await page.getByLabel('車台No').fill(`${run.emailMarker.slice(-12).toUpperCase()}-QA`); await page.getByLabel('メーカー名').fill(`${run.marker} Make`); await page.getByLabel('車名').fill(`${run.marker} Vehicle`); await page.getByRole('button',{name:'車両を登録する'}).click(); await page.waitForURL(/\/vehicles(?:\?|$)/,{timeout:30_000}); const vehicleRow=page.getByRole('button').filter({hasText:`${run.marker} Vehicle`}); await vehicleRow.click(); await tracePointerCta(page,{baseUrl,label:'VEHICLE_DETAIL',locator:page.getByRole('link',{name:'車両詳細を開く',exact:true}),expectedPath:'/vehicles/',accountState:owner.accountState}); await page.getByLabel('メーカー').fill(`${run.marker} Edited`); await page.getByRole('button',{name:'保存する',exact:true}).click(); await page.getByText('車両情報を保存しました。').waitFor({timeout:30_000}); await page.getByRole('link',{name:'車両一覧に戻る',exact:true}).click(); await page.waitForURL(/\/vehicles(?:\?|$)/,{timeout:30_000});
+    await clickAndWait(page,page.getByRole('link',{name:'顧客',exact:true}).first(),/\/customers(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'CUSTOMER_FIRST_VALUE',locator:page.getByRole('link',{name:'顧客を登録',exact:true}),expectedPath:'/customers/new',accountState:owner.accountState}); await page.getByLabel('顧客/会社名').fill(`${run.marker} First Value`); await page.getByRole('button',{name:'顧客を登録する'}).click(); await page.waitForURL(/\/customers/,{timeout:30_000}); await page.getByText(`${run.marker} First Value`).waitFor({timeout:30_000}); results.J6='PASS';
+    await page.getByRole('link',{name:'メニュー',exact:true}).first().click(); await page.getByRole('link',{name:'プラン・契約',exact:true}).click(); await page.getByText('Free',{exact:true}).first().waitFor(); await page.getByText('無料プラン',{exact:true}).waitFor(); if(await page.getByRole('button',{name:'支払方法・契約を管理'}).count())fail('RELEASE_CRITICAL_FREE_CARDLESS_FAILED'); results.J7='PASS';
+    const inquiry=await context.newPage(); await inquiry.goto(baseUrl,{waitUntil:'domcontentloaded'}); await inquiry.keyboard.press('End'); await clickAndWait(inquiry,inquiry.getByRole('link',{name:'ヘルプ',exact:true}),/\/help/); const formalContact=inquiry.getByRole('link',{name:'正式窓口へ問い合わせる'}); if(!(await formalContact.getAttribute('href'))?.startsWith('mailto:'))fail('RELEASE_CRITICAL_INQUIRY_ROUTE_UNAVAILABLE'); await formalContact.click(); await inquiry.close(); results.J8='PASS';
+    if(!(await page.getByText('提供準備中').count())||await page.getByText('L-LINK 利用可').count())fail('RELEASE_CRITICAL_LLINK_BOUNDARY_FAILED'); results.J9='PASS'; await runMobileSmoke(baseUrl,chromium,'chromium-mobile',bypassSecret); await runMobileSmoke(baseUrl,webkit,'webkit-mobile',bypassSecret); results.J10='PASS';
+    await page.getByRole('link',{name:'ログアウト'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); const recoveryCallback=new URL('/auth/callback',baseUrl); recoveryCallback.searchParams.set('next',releaseQaNextPathForRunner('/auth/reset-password',run.runId)); recoveryCallback.searchParams.set('qa_run',run.runId); const recoveryAction=await hostedActionLink(admin,{type:'recovery',email,password:initialPassword,redirectTo:recoveryCallback.toString(),supabaseUrl}); await page.goto(recoveryAction,{waitUntil:'domcontentloaded'}); await page.waitForURL(/\/auth\/reset-password/, {timeout:30_000}); await page.getByLabel('新しいパスワード').fill(resetPassword); await page.getByLabel('もう一度入力').fill(resetPassword); await page.getByRole('button',{name:'パスワードを変更する'}).click(); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'recovery',requirePasswordUpdate:true}); await page.getByRole('link',{name:'ログインへ戻る'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,email,resetPassword,/\/dashboard/); results.J4='MECHANICS_PASS';
+    emit({state:'RELEASE_CRITICAL_MACHINE_GATES_PASS',journeys:results,email_transport:'WAITING_TRANSPORT',auth_callback_mechanics:'PASS',run_marker:run.emailMarker});
+  } finally {
+    try {if(!adopted&&life&&user?.id){const owner=await maybeActiveOwner({baseUrl,supabaseUrl,serviceRole,email,password:initialPassword,tenantNamePrefix:run.marker,bypassSecret,runId:run.runId});if(owner){await adoptLifecycleFixture(life,run,{...owner,userId:user.id});adopted=true;}else {const {error}=await admin.auth.admin.deleteUser(user.id,false);if(error&&error.status!==404)fail(`RELEASE_CRITICAL_MACHINE_EARLY_AUTH_DELETE:${error.status??0}`);await life.rpc('qa_lifecycle_abort_clean',{p_run_id:run.runId,p_reason:'machine_early_auth_cleanup'});}} if(adopted)await cleanupLifecycle(life,admin,user?.id,run.runId);} finally {await context?.close();await browser?.close();}
+  }
+}
 async function main(){
   const eventPath=required('GITHUB_EVENT_PATH');
   const baseUrl=await releaseCriticalBaseUrl(eventPath);
   const supabaseUrl=required('E2E_TEST_SUPABASE_URL');
   const serviceRole=required('E2E_TEST_SUPABASE_SERVICE_ROLE_KEY');
   const bypassSecret=required('VERCEL_AUTOMATION_BYPASS_SECRET');
-  const manualBase=required('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS');
+  const executionMode=String(process.env.RELEASE_CRITICAL_EXECUTION_MODE??'email_transport').trim();
   const expectedCandidateSha=String(process.env.RELEASE_CRITICAL_CANDIDATE_SHA??'').trim().toLowerCase();
   if(!/^[0-9a-f]{40}$/.test(expectedCandidateSha))fail('RELEASE_CRITICAL_CANDIDATE_SHA_INPUT_INVALID');
   if(!new URL(supabaseUrl).hostname.startsWith(`${STAGING_REF}.`)||new URL(baseUrl).hostname.endsWith('.garage-link.tech'))fail('RELEASE_CRITICAL_STAGING_BOUNDARY_DENIED');
   const provenanceResponse=await fetch(new URL('/api/qa/provenance',baseUrl),{headers:{'x-vercel-protection-bypass':bypassSecret},redirect:'manual',cache:'no-store'}); if(!provenanceResponse.ok||provenanceResponse.headers.has('location'))fail('RELEASE_CRITICAL_PROVENANCE_UNREACHED');
   const provenance=validateReleaseCriticalProvenance(await provenanceResponse.json(),baseUrl); if(provenance.sourceSha!==expectedCandidateSha)fail('RELEASE_CRITICAL_CANDIDATE_SHA_MISMATCH');
+  if(executionMode==='machine_only')return runMachineOnly({baseUrl,supabaseUrl,serviceRole,bypassSecret,provenance});
+  if(executionMode!=='email_transport')fail('RELEASE_CRITICAL_EXECUTION_MODE_INVALID');
+  const manualBase=required('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS');
   const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
   // Default SMTP accepts only an authorized organization-member recipient.
   // Keep that mailbox separate from the persistent E2E login identity.
   const run=createReleaseCriticalRun(); const session=createManualGmailSession(manualBase,run.emailMarker,{plusAddressing:false}); const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker); const resetPassword='GL-Release-Reset-8!';
-  await verifyHostedRedirectContract({admin,manualBase,run,baseUrl,supabaseUrl});
+  await verifyHostedRedirectContract({admin,run,baseUrl,supabaseUrl});
   await recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);
   if(await maybeFindUser(admin,session.emailAddress))fail('RELEASE_CRITICAL_MANUAL_GMAIL_BASE_USER_CONFLICT');
   let browser; let context; let page; let user; let life; let adopted=false; const results={};
