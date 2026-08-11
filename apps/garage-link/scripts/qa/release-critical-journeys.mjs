@@ -433,6 +433,10 @@ async function followHostedAction(page,actionLink,{baseUrl,expectedPath,purpose}
 }
 async function submitResumeStore(page,baseUrl){
   const formAlert=page.locator('form').getByRole('alert');
+  const form=page.locator('form');
+  const submitButton=page.getByRole('button',{name:'店舗を作成して次へ'});
+  const traceKey=`release-critical-resume-${randomUUID()}`;
+  const trace={buttonClick:false,formSubmit:false,runtimeErrorCount:0};
   let rpcResponse=null;
   const onResponse=response=>{
     try {
@@ -440,12 +444,24 @@ async function submitResumeStore(page,baseUrl){
       if(url.origin===new URL(baseUrl).origin&&url.pathname==='/rest/v1/rpc/create_store_for_current_user')rpcResponse=response;
     } catch {}
   };
+  const onPageError=()=>{trace.runtimeErrorCount+=1;};
+  const onConsole=message=>{if(message.type()==='error')trace.runtimeErrorCount+=1;};
   page.on('response',onResponse);
+  page.on('pageerror',onPageError); page.on('console',onConsole);
   try {
+    await submitButton.evaluate((button,key)=>{
+      button.addEventListener('click',()=>sessionStorage.setItem(`${key}:click`,'1'),{once:true});
+      button.form?.addEventListener('submit',()=>sessionStorage.setItem(`${key}:submit`,'1'),{once:true});
+    },traceKey);
+    const buttonDisabled=await submitButton.isDisabled();
+    const formValid=await form.evaluate(node=>node.checkValidity());
     const arrival=page.waitForURL(/\/(onboarding|security\/email-otp)/,{timeout:30_000}).then(()=>({kind:'arrival'})).catch(()=>null);
     const alert=formAlert.waitFor({state:'visible',timeout:30_000}).then(async()=>({kind:'alert',message:await formAlert.textContent()})).catch(()=>null);
     emit({state:'RELEASE_CRITICAL_AUTH_CALLBACK_NAVIGATION',purpose:'signup',stage:'RESUME_STORE_SUBMIT'});
-    await page.getByRole('button',{name:'店舗を作成して次へ'}).click();
+    await submitButton.click();
+    trace.buttonClick=await page.evaluate(key=>sessionStorage.getItem(`${key}:click`)==='1',traceKey);
+    trace.formSubmit=await page.evaluate(key=>sessionStorage.getItem(`${key}:submit`)==='1',traceKey);
+    await page.evaluate(key=>{sessionStorage.removeItem(`${key}:click`);sessionStorage.removeItem(`${key}:submit`);},traceKey);
     const outcome=await Promise.race([arrival,alert,page.waitForTimeout(30_000).then(()=>null)]);
     let rpcStatus='NOT_OBSERVED'; let rpcCode='NONE';
     if(rpcResponse){
@@ -454,12 +470,12 @@ async function submitResumeStore(page,baseUrl){
     }
     const finalPath=safeNavigationPath(page.url(),baseUrl);
     if(outcome?.kind==='arrival'){
-      emit({state:'RELEASE_CRITICAL_AUTH_CALLBACK_NAVIGATION',purpose:'signup',stage:'RESUME_STORE_ARRIVAL_PASS',final_path:finalPath,rpc_status:rpcStatus,rpc_code:rpcCode});
+      emit({state:'RELEASE_CRITICAL_AUTH_CALLBACK_NAVIGATION',purpose:'signup',stage:'RESUME_STORE_ARRIVAL_PASS',final_path:finalPath,rpc_status:rpcStatus,rpc_code:rpcCode,button_disabled:buttonDisabled?'YES':'NO',form_valid:formValid?'YES':'NO',dom_button_click:trace.buttonClick?'YES':'NO',dom_form_submit:trace.formSubmit?'YES':'NO',browser_runtime_error_count:trace.runtimeErrorCount});
       return;
     }
-    emit({state:'RELEASE_CRITICAL_AUTH_CALLBACK_NAVIGATION',purpose:'signup',stage:'RESUME_STORE_ARRIVAL_MISSING',final_path:finalPath,rpc_status:rpcStatus,rpc_code:rpcCode,form_alert:outcome?.kind==='alert'?signupAlertClassification(outcome.message):'NONE'});
+    emit({state:'RELEASE_CRITICAL_AUTH_CALLBACK_NAVIGATION',purpose:'signup',stage:'RESUME_STORE_ARRIVAL_MISSING',final_path:finalPath,rpc_status:rpcStatus,rpc_code:rpcCode,form_alert:outcome?.kind==='alert'?signupAlertClassification(outcome.message):'NONE',button_disabled:buttonDisabled?'YES':'NO',form_valid:formValid?'YES':'NO',dom_button_click:trace.buttonClick?'YES':'NO',dom_form_submit:trace.formSubmit?'YES':'NO',browser_runtime_error_count:trace.runtimeErrorCount});
     fail('RELEASE_CRITICAL_SIGNUP_RESUME_STORE_ARRIVAL_MISSING');
-  } finally {page.off('response',onResponse);}
+  } finally {page.off('response',onResponse);page.off('pageerror',onPageError);page.off('console',onConsole);}
 }
 async function runMachineOnly({baseUrl,supabaseUrl,serviceRole,bypassSecret,provenance}){
   const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
