@@ -157,8 +157,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(callbackEvidence,/server_bound_continuation: true/);
   assert.match(callbackEvidence,/release_qa_run_id/);
   assert.match(fixtureDiscovery,/release_qa_run_id/);
-  assert.match(journeys,/plusAddressing:false/);
-  assert.match(journeys,/RELEASE_CRITICAL_MANUAL_GMAIL_BASE_USER_CONFLICT/);
+  assert.match(journeys,/plusAddressing:true/);
+  assert.match(journeys,/RELEASE_CRITICAL_MANUAL_GMAIL_RUN_USER_CONFLICT/);
   assert.match(journeys,/VEHICLE_CREATE_ADMIN_SECURITY_GATE/);
   assert.match(journeys,/RELEASE_CRITICAL_CTA_ACCOUNT_STATE_DIFFERENTIAL/);
   assert.match(journeys,/expectedClassification:'ROUTE_STARTED_REDIRECTED'/);
