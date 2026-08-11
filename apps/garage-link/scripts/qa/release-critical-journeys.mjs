@@ -25,6 +25,14 @@ function signupAlertClassification(value){
   if(/valid email|メールアドレスの形式/.test(message))return 'EMAIL_FORMAT_REJECTED';
   return `UNKNOWN_MESSAGE_SHA256:${sha256(message)}`;
 }
+function safeSignupAlertDetail(value){
+  return String(value??'').trim()
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[REDACTED_EMAIL]')
+    .replace(/https?:\/\/\S+/gi,'[REDACTED_URL]')
+    .replace(/\b(?:sbp|sb_secret|eyJ)[A-Za-z0-9._-]+\b/g,'[REDACTED]')
+    .replace(/\s+/g,' ')
+    .slice(0,180)||'EMPTY';
+}
 
 export function createReleaseCriticalRun(runId=randomUUID()){
   if(!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_RUN_ID_INVALID');
@@ -44,10 +52,11 @@ export function validateReleaseCriticalProvenance(value,baseUrl){
 
 async function clickAndWait(page,locator,url){await Promise.all([page.waitForURL(url,{timeout:30_000}),locator.click()])}
 async function signupSubmitOutcome(page){
+  const formAlert=page.locator('form').getByRole('alert');
   try {
     return await Promise.any([
       page.getByRole('status').waitFor({state:'visible',timeout:30_000}).then(()=>({kind:'confirmation'})),
-      page.getByRole('alert').waitFor({state:'visible',timeout:30_000}).then(()=>({kind:'alert'})),
+      formAlert.waitFor({state:'visible',timeout:30_000}).then(()=>({kind:'alert'})),
       page.waitForURL(/\/onboarding(?:\?|$)/,{timeout:30_000}).then(()=>({kind:'onboarding'})),
     ]);
   } catch {fail('RELEASE_CRITICAL_SIGNUP_OUTCOME_UNOBSERVED')}
@@ -170,7 +179,10 @@ async function main(){
     const fillSignup=async(password)=>{await page.getByLabel('店舗名').fill(`${run.marker} Signup`);await page.getByLabel('担当者名').fill(`${run.marker} Owner`);await page.getByLabel('メールアドレス').fill(session.emailAddress);await page.locator('#password').fill(password);await page.locator('#passwordConfirmation').fill(password);await page.getByRole('checkbox').check();};
     await fillSignup(initialPassword); await page.getByRole('button',{name:'無料でアカウントを作成する'}).click();
     const signupOutcome=await signupSubmitOutcome(page);
-    if(signupOutcome.kind==='alert')fail(`RELEASE_CRITICAL_SIGNUP_SUBMIT_ALERT:${signupAlertClassification(await page.getByRole('alert').textContent())}`);
+    if(signupOutcome.kind==='alert'){
+      const alertText=await page.locator('form').getByRole('alert').textContent();
+      fail(`RELEASE_CRITICAL_SIGNUP_SUBMIT_ALERT:${signupAlertClassification(alertText)}:${safeSignupAlertDetail(alertText)}`);
+    }
     if(signupOutcome.kind==='onboarding'){
       user=await findUser(admin,session.emailAddress);
       const owner=await activeOwner(admin,user.id);
@@ -188,7 +200,8 @@ async function main(){
     life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance,{...owner,userId:user.id}); adopted=true;
     const invalid=await context.newPage(); await invalid.goto(baseUrl,{waitUntil:'domcontentloaded'}); await clickAndWait(invalid,invalid.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
     // The separate page keeps the main owner session intact; fill by concrete UI locators.
-    await invalid.getByLabel('店舗名').fill(`${run.marker} Reject`); await invalid.getByLabel('担当者名').fill(`${run.marker} Reject`); await invalid.getByLabel('メールアドレス').fill(session.emailAddress); await invalid.locator('#password').fill('short1'); await invalid.locator('#passwordConfirmation').fill('short1'); await invalid.getByRole('checkbox').check(); await invalid.getByRole('button',{name:'無料でアカウントを作成する'}).click(); await invalid.getByRole('alert').waitFor(); if(!/8文字以上/.test(await invalid.getByRole('alert').textContent()??''))fail('RELEASE_CRITICAL_PASSWORD_6_NOT_REJECTED'); await invalid.locator('#password').fill('short12'); await invalid.locator('#passwordConfirmation').fill('short12'); await invalid.getByRole('button',{name:'無料でアカウントを作成する'}).click(); if(!/8文字以上/.test(await invalid.getByRole('alert').textContent()??''))fail('RELEASE_CRITICAL_PASSWORD_7_NOT_REJECTED'); await invalid.close(); results.J3='PASS';
+    const invalidAlert=invalid.locator('form').getByRole('alert');
+    await invalid.getByLabel('店舗名').fill(`${run.marker} Reject`); await invalid.getByLabel('担当者名').fill(`${run.marker} Reject`); await invalid.getByLabel('メールアドレス').fill(session.emailAddress); await invalid.locator('#password').fill('short1'); await invalid.locator('#passwordConfirmation').fill('short1'); await invalid.getByRole('checkbox').check(); await invalid.getByRole('button',{name:'無料でアカウントを作成する'}).click(); await invalidAlert.waitFor(); if(!/8文字以上/.test(await invalidAlert.textContent()??''))fail('RELEASE_CRITICAL_PASSWORD_6_NOT_REJECTED'); await invalid.locator('#password').fill('short12'); await invalid.locator('#passwordConfirmation').fill('short12'); await invalid.getByRole('button',{name:'無料でアカウントを作成する'}).click(); if(!/8文字以上/.test(await invalidAlert.textContent()??''))fail('RELEASE_CRITICAL_PASSWORD_7_NOT_REJECTED'); await invalid.close(); results.J3='PASS';
     await page.getByRole('link',{name:'ログアウト'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,initialPassword,/\/dashboard/); await page.getByRole('link',{name:'忘れた方はこちら'}).click(); await page.waitForURL(/\/forgot-password/,{timeout:30_000}); await page.getByLabel('メールアドレス').fill(session.emailAddress); const requestedAt=new Date().toISOString(); await page.getByRole('button',{name:'メールを送る'}).click(); await page.getByText('再設定メールを送りました。').waitFor({timeout:30_000}); emit({...manualGmailCheckpoint(session,'recovery'),operator_action:'Open the matching Staging-only Gmail reset message, set the synthetic reset password supplied for this run, then submit.'}); await pollManualGmailConfirmation({admin,userId:user.id,session,purpose:'recovery',requestedAt,timeoutMs:CHECKPOINT_TIMEOUT_MS}); await page.getByRole('link',{name:'ログインへ戻る'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,resetPassword,/\/dashboard/); results.J4='PASS';
     for(const label of ['車両','商談','顧客','メニュー']){await page.getByRole('link',{name:label,exact:true}).first().click();await page.waitForTimeout(250);} results.J5='PASS';
     await page.getByRole('link',{name:'顧客',exact:true}).first().click(); await page.getByRole('link',{name:'顧客を登録'}).click(); await page.getByLabel('顧客/会社名').fill(`${run.marker} First Value`); await page.getByRole('button',{name:'顧客を登録する'}).click(); await page.waitForURL(/\/customers/,{timeout:30_000}); await page.getByText(`${run.marker} First Value`).waitFor({timeout:30_000}); results.J6='PASS';
