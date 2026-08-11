@@ -213,10 +213,10 @@ begin
       delete from public.store_members where store_id in (x.primary_store_id,x.secondary_store_id) and user_id in (x.subject_user_id,x.support_user_id);
       delete from public.memberships where id in (x.subject_membership_id,x.support_membership_id) and tenant_id=x.tenant_id;
       get diagnostics v_membership_count=row_count;
-      if v_membership_count<>case when x.support_membership_id is null then 1 else 2 end then raise exception 'CTA_MATRIX_MEMBERSHIP_DELETE_COUNT'; end if;
+      if v_membership_count<>(case when x.support_membership_id is null then 1 else 2 end) then raise exception 'CTA_MATRIX_MEMBERSHIP_DELETE_COUNT'; end if;
       delete from public.stores where id in (x.primary_store_id,x.secondary_store_id) and tenant_id=x.tenant_id;
       get diagnostics v_store_count=row_count;
-      if v_store_count<>case when x.secondary_store_id is null then 1 else 2 end then raise exception 'CTA_MATRIX_STORE_DELETE_COUNT'; end if;
+      if v_store_count<>(case when x.secondary_store_id is null then 1 else 2 end) then raise exception 'CTA_MATRIX_STORE_DELETE_COUNT'; end if;
       delete from public.tenants where id=x.tenant_id and name=x.marker||' CTA '||x.state||' Tenant';
       if not found then raise exception 'CTA_MATRIX_TENANT_DELETE_COUNT'; end if;
       v_auth_ids:=v_auth_ids || jsonb_build_array(x.subject_user_id::text);
