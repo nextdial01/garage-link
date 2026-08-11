@@ -267,7 +267,7 @@ test('Manual Gmail Bridge creates a plus address, redacts checkpoints, and polls
 test('release-critical journeys accept only the Staging runtime and marker-bound synthetic fixtures',()=>{
   const run=createReleaseCriticalRun('550e8400-e29b-41d4-a716-446655440000');
   assert.equal(run.marker,'[RELEASE QA 20260811]');
-  assert.match(run.emailMarker,/^garage-link-[a-z0-9-]{8,}$/);
+  assert.equal(run.emailMarker,'garage-link-550e8400e29b');
   assert.match(releaseCriticalSyntheticPassword(run.emailMarker),/^GL-[a-z0-9-]+-8!$/);
   assert.deepEqual(validateReleaseCriticalProvenance({
     project_id:'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3',deployment_id:'dpl_Abc123',git_commit_sha:'d7974d6b9adc78064010cc6b4502f54adbc39ba5',git_commit_ref:'codex/garage-link-supabase-redirect-rca',deployment_url:'https://garage-link-staging-test.vercel.app',environment:'preview',

@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
 const STAGING_REF = 'gaytoojzwqkpuvfofeql';
 const STAGING_HOST = /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i;
-const EMAIL_MARKER = /^garage-link-([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
+const EMAIL_MARKER = /^garage-link-(?:[0-9a-f]{12}|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 
 type SafeJwtDiagnostic = {
   sub_matches_user: 'YES' | 'NO';

@@ -34,7 +34,8 @@ function callbackPurpose(nextPath: unknown, runId: string): CallbackPurpose | nu
 }
 
 function syntheticQaUser(email: string | undefined, runId: string) {
-  return Boolean(email?.toLowerCase().includes(`+garage-link-${runId}@`));
+  const emailMarker = `garage-link-${runId.replaceAll('-', '').slice(0, 12)}`;
+  return Boolean(email?.toLowerCase().includes(`+${emailMarker}@`));
 }
 
 function validCallbackChain(

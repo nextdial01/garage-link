@@ -107,7 +107,9 @@ function manualGmailBaseAddress(value){
 function manualGmailAddress(baseAddress,runMarker){
   const marker=requiredRunMarker(runMarker);
   const base=manualGmailBaseAddress(baseAddress);
-  return `${base.localPart}+${marker}@${base.domain}`;
+  const localPart=`${base.localPart}+${marker}`;
+  if(localPart.length>64)fail('MANUAL_GMAIL_PLUS_ADDRESS_TOO_LONG');
+  return `${localPart}@${base.domain}`;
 }
 export async function releaseCriticalBaseUrl(eventPath,fallback=process.env.PLAYWRIGHT_BASE_URL,readFileImpl=readFile){
   let event;

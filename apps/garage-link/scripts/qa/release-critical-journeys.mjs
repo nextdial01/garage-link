@@ -24,7 +24,7 @@ function signupAlertClassification(value){
   if(/email.*rate limit|少し時間/.test(message))return 'EMAIL_RATE_LIMITED';
   if(/already registered|既に登録/.test(message))return 'DUPLICATE_USER';
   if(/valid password|有効なパスワード|8文字以上/.test(message))return 'PASSWORD_POLICY_REJECTED';
-  if(/valid email|メールアドレスの形式/.test(message))return 'EMAIL_FORMAT_REJECTED';
+  if(/valid email|email address .* invalid|メールアドレスの形式/i.test(message))return 'EMAIL_FORMAT_REJECTED';
   return `UNKNOWN_MESSAGE_SHA256:${sha256(message)}`;
 }
 function safeSignupAlertDetail(value){
@@ -38,7 +38,7 @@ function safeSignupAlertDetail(value){
 
 export function createReleaseCriticalRun(runId=randomUUID()){
   if(!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_RUN_ID_INVALID');
-  return {runId,marker:'[RELEASE QA 20260811]',emailMarker:`garage-link-${runId.toLowerCase()}`};
+  return {runId,marker:'[RELEASE QA 20260811]',emailMarker:`garage-link-${runId.replaceAll('-','').slice(0,12).toLowerCase()}`};
 }
 export function releaseCriticalSyntheticPassword(emailMarker){
   if(!/^garage-link-[a-z0-9-]{8,}$/i.test(emailMarker))fail('RELEASE_CRITICAL_MARKER_INVALID');
@@ -227,7 +227,7 @@ async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,passwo
     if(loginError||!login.session?.user){if(optional)return null;fail(`RELEASE_CRITICAL_FIXTURE_OWNER_LOGIN:${safeProviderCode(loginError)}`);}
     await trustReleaseQaAdminSession({baseUrl,bypassSecret,accessToken:login.session.access_token});
     const emailMarker=email.split('@')[0]?.split('+')[1];
-    if(!/^garage-link-[0-9a-f-]{36}$/i.test(emailMarker??''))fail('RELEASE_CRITICAL_FIXTURE_EMAIL_MARKER_INVALID');
+    if(!/^garage-link-(?:[0-9a-f]{12}|[0-9a-f-]{36})$/i.test(emailMarker??''))fail('RELEASE_CRITICAL_FIXTURE_EMAIL_MARKER_INVALID');
     const headers={authorization:`Bearer ${login.session.access_token}`,'content-type':'application/json','x-vercel-protection-bypass':bypassSecret};
     const request=await fetchVerifiedVercelRequest(new URL('/api/qa/fixture-discovery',baseUrl),headers,fetch,{method:'POST',body:JSON.stringify({email_marker:emailMarker})});
     const response=request.response;
