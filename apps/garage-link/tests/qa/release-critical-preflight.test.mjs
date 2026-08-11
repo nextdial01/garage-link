@@ -57,11 +57,13 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_AUTO_CONFIRMED/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_OUTCOME_UNOBSERVED/);
   assert.match(journeys,/RELEASE_CRITICAL_INQUIRY_ROUTE_UNAVAILABLE/);
+  assert.match(journeys,/RELEASE_CRITICAL_CANDIDATE_SHA_INPUT_INVALID/);
   assert.doesNotMatch(journeys,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(workflow,/environment: garage-link-commercial-staging/);
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
   assert.match(workflow,/manual_gmail_address/);
   assert.match(workflow,/staging_base_url/);
+  assert.match(workflow,/candidate_sha/);
   assert.doesNotMatch(workflow,/MANUAL_GMAIL_ADDRESS/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_VERCEL_READ_TOKEN|GARAGE_STAGING_VERCEL_PROJECT_ID|GARAGE_STAGING_VERCEL_TEAM_ID/);
   assert.doesNotMatch(workflow,/release_sha|release_branch|EXPECTED_RELEASE_SHA|EXPECTED_RELEASE_BRANCH/);
@@ -167,16 +169,16 @@ test('release-critical journeys accept only the Staging runtime and marker-bound
   },'https://garage-link.tech'),/RELEASE_CRITICAL_PROVENANCE_DENIED/);
 });
 
-test('hosted Auth password update is Staging-only and requires an 8-character read-back',async()=>{
+test('hosted Auth update is Staging-only and requires password plus confirmation read-back',async()=>{
   const calls=[];
   await applyStagingPasswordMinimum('token',async(url,options)=>{
     calls.push({url:String(url),options});
     if(options.method==='PATCH')return new Response('{}',{status:200});
-    return new Response(JSON.stringify({password_min_length:8}),{status:200,headers:{'content-type':'application/json'}});
+    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false}),{status:200,headers:{'content-type':'application/json'}});
   });
   assert.equal(calls.length,2);
   assert.equal(calls[0].options.method,'PATCH');
-  assert.deepEqual(JSON.parse(calls[0].options.body),{password_min_length:8});
+  assert.deepEqual(JSON.parse(calls[0].options.body),{password_min_length:8,mailer_autoconfirm:false});
   assert.ok(calls.every(call=>call.url.includes('gaytoojzwqkpuvfofeql')));
-  await assert.rejects(()=>applyStagingPasswordMinimum('token',async()=>new Response(JSON.stringify({password_min_length:6}),{status:200,headers:{'content-type':'application/json'}})),/STAGING_PASSWORD_MINIMUM_READBACK_FAILED/);
+  await assert.rejects(()=>applyStagingPasswordMinimum('token',async()=>new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:true}),{status:200,headers:{'content-type':'application/json'}})),/STAGING_AUTH_CONTRACT_READBACK_FAILED/);
 });
