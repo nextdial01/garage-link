@@ -38,10 +38,10 @@ function safeSignupAlertDetail(value){
 
 export function createReleaseCriticalRun(runId=randomUUID()){
   if(!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_RUN_ID_INVALID');
-  return {runId,marker:'[RELEASE QA 20260811]',emailMarker:`garage-link-${runId.replaceAll('-','').slice(0,12).toLowerCase()}`};
+  return {runId,marker:'[RELEASE QA 20260811]',emailMarker:`gl${runId.replaceAll('-','').slice(0,8).toLowerCase()}`};
 }
 export function releaseCriticalSyntheticPassword(emailMarker){
-  if(!/^garage-link-[a-z0-9-]{8,}$/i.test(emailMarker))fail('RELEASE_CRITICAL_MARKER_INVALID');
+  if(!/^(?:garage-link-[a-z0-9-]{8,}|gl[0-9a-f]{8})$/i.test(emailMarker))fail('RELEASE_CRITICAL_MARKER_INVALID');
   return `GL-${emailMarker}-8!`;
 }
 export function validateReleaseCriticalProvenance(value,baseUrl){
@@ -95,7 +95,7 @@ export async function installVercelBrowserBypass(context,baseUrl,bypassSecret){
   }}));
 }
 async function verifyHostedRedirectContract({admin,manualBase,run,baseUrl,supabaseUrl}){
-  const probeMarker=`garage-link-${run.runId.replaceAll('-','').slice(12,24).toLowerCase()}`; const probe=createManualGmailSession(manualBase,probeMarker); const password=releaseCriticalSyntheticPassword(probeMarker);
+  const probeMarker=`gl${run.runId.replaceAll('-','').slice(8,16).toLowerCase()}`; const probe=createManualGmailSession(manualBase,probeMarker); const password=releaseCriticalSyntheticPassword(probeMarker);
   if(probeMarker===run.emailMarker)fail('RELEASE_CRITICAL_REDIRECT_PROBE_MARKER_COLLISION');
   const callback=new URL('/auth/callback',baseUrl); callback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); callback.searchParams.set('qa_run',run.runId);
   let userId=''; let subject=null;
@@ -228,7 +228,7 @@ async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,passwo
     if(loginError||!login.session?.user){if(optional)return null;fail(`RELEASE_CRITICAL_FIXTURE_OWNER_LOGIN:${safeProviderCode(loginError)}`);}
     await trustReleaseQaAdminSession({baseUrl,bypassSecret,accessToken:login.session.access_token});
     const emailMarker=email.split('@')[0]?.split('+')[1];
-    if(!/^garage-link-(?:[0-9a-f]{12}|[0-9a-f-]{36})$/i.test(emailMarker??''))fail('RELEASE_CRITICAL_FIXTURE_EMAIL_MARKER_INVALID');
+    if(!/^(?:gl[0-9a-f]{8}|garage-link-(?:[0-9a-f]{12}|[0-9a-f-]{36}))$/i.test(emailMarker??''))fail('RELEASE_CRITICAL_FIXTURE_EMAIL_MARKER_INVALID');
     const headers={authorization:`Bearer ${login.session.access_token}`,'content-type':'application/json','x-vercel-protection-bypass':bypassSecret};
     const request=await fetchVerifiedVercelRequest(new URL('/api/qa/fixture-discovery',baseUrl),headers,fetch,{method:'POST',body:JSON.stringify({email_marker:emailMarker})});
     const response=request.response;
