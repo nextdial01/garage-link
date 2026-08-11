@@ -87,17 +87,23 @@ async function onboarding(page,marker){
   await page.getByRole('button',{name:'次へ'}).click();
   await clickAndWait(page,page.getByRole('button',{name:'設定を完了してダッシュボードへ進む'}),/\/dashboard/);
 }
-async function activeOwner(admin,userId){
-  const {data,error}=await admin.from('memberships').select('id,tenant_id,store_id,tenants!inner(name)').eq('user_id',userId).eq('role','owner').maybeSingle();
-  if(error||!data?.id||!data.tenant_id||!data.store_id||typeof data.tenants?.name!=='string')fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_FAILED');
-  return {membershipId:data.id,tenantId:data.tenant_id,storeId:data.store_id,tenantName:data.tenants.name};
+async function ownerFixture(admin,userId,{optional=false}={}){
+  // Resolve the two canonical records independently.  The embedded PostgREST
+  // relation is not part of the fixture-lifecycle contract and can become
+  // ambiguous when a historical partial fixture is being recovered.
+  const {data:memberships,error:membershipError}=await admin.from('memberships').select('id,tenant_id,store_id').eq('user_id',userId).eq('role','owner');
+  if(membershipError)fail('RELEASE_CRITICAL_FIXTURE_MEMBERSHIP_LOOKUP_FAILED');
+  if((memberships?.length??0)===0){if(optional)return null;fail('RELEASE_CRITICAL_FIXTURE_OWNER_ABSENT');}
+  if(memberships.length!==1)fail(`RELEASE_CRITICAL_FIXTURE_OWNER_CARDINALITY:${memberships.length}`);
+  const membership=memberships[0];
+  if(!membership?.id||!membership.tenant_id||!membership.store_id)fail('RELEASE_CRITICAL_FIXTURE_MEMBERSHIP_SHAPE_INVALID');
+  const {data:tenant,error:tenantError}=await admin.from('tenants').select('name').eq('id',membership.tenant_id).maybeSingle();
+  if(tenantError)fail('RELEASE_CRITICAL_FIXTURE_TENANT_LOOKUP_FAILED');
+  if(typeof tenant?.name!=='string'||!tenant.name)fail('RELEASE_CRITICAL_FIXTURE_TENANT_ABSENT');
+  return {membershipId:membership.id,tenantId:membership.tenant_id,storeId:membership.store_id,tenantName:tenant.name};
 }
-async function maybeActiveOwner(admin,userId){
-  const {data,error}=await admin.from('memberships').select('id,tenant_id,store_id,tenants!inner(name)').eq('user_id',userId).eq('role','owner').maybeSingle();
-  if(error)fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_FAILED');
-  if(!data?.id||!data.tenant_id||!data.store_id||typeof data.tenants?.name!=='string')return null;
-  return {membershipId:data.id,tenantId:data.tenant_id,storeId:data.store_id,tenantName:data.tenants.name};
-}
+async function activeOwner(admin,userId){return ownerFixture(admin,userId)}
+async function maybeActiveOwner(admin,userId){return ownerFixture(admin,userId,{optional:true})}
 async function findUser(admin,email){
   for(let page=1;page<=10;page+=1){const {data,error}=await admin.auth.admin.listUsers({page,perPage:1000});if(error)fail(`RELEASE_CRITICAL_AUTH_LOOKUP:${error.status??0}`);const user=data?.users?.find(item=>item.email?.toLowerCase()===email.toLowerCase());if(user)return user;if((data?.users?.length??0)<1000)break;}
   fail('RELEASE_CRITICAL_AUTH_USER_NOT_FOUND');
