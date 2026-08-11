@@ -84,16 +84,25 @@ export function validateClientAuthRedirect(requestUrl,expectedRedirect,supabaseU
 async function verifyHostedRedirectContract({admin,manualBase,run,baseUrl,supabaseUrl}){
   const probeMarker=`${run.emailMarker}-contract`; const probe=createManualGmailSession(manualBase,probeMarker); const password=releaseCriticalSyntheticPassword(probeMarker);
   const callback=new URL('/auth/callback',baseUrl); callback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); callback.searchParams.set('qa_run',run.runId);
-  let userId='';
+  let userId=''; let subject=null;
   try {
     const {data:created,error:createError}=await admin.auth.admin.createUser({email:probe.emailAddress,password,email_confirm:true,app_metadata:{release_qa_redirect_probe:run.runId}});
     userId=created?.user?.id??''; if(createError||!userId)fail(`RELEASE_CRITICAL_REDIRECT_PROBE_CREATE:${safeProviderCode(createError)}`);
+    // The Staging service role intentionally has no direct table grants. Verify
+    // this Auth-only probe through the same authenticated-user RLS boundary as
+    // the application instead of treating a service-role table 403 as residue.
+    subject=createClient(supabaseUrl,required('E2E_TEST_SUPABASE_SERVICE_ROLE_KEY'),{auth:{autoRefreshToken:false,persistSession:false}});
+    const {data:login,error:loginError}=await subject.auth.signInWithPassword({email:probe.emailAddress,password});
+    if(loginError||login.user?.id!==userId)fail(`RELEASE_CRITICAL_REDIRECT_PROBE_LOGIN:${safeProviderCode(loginError)}`);
+    const {count:membershipCount,error:membershipError}=await subject.from('current_user_active_store_membership').select('id',{count:'exact',head:true});
+    if(membershipError||(membershipCount??0)!==0)fail(`RELEASE_CRITICAL_REDIRECT_PROBE_MEMBERSHIP:${safeProviderCode(membershipError)}`);
     const {data:generated,error:generateError}=await admin.auth.admin.generateLink({type:'recovery',email:probe.emailAddress,options:{redirectTo:callback.toString()}});
     if(generateError||typeof generated?.properties?.action_link!=='string')fail(`RELEASE_CRITICAL_REDIRECT_PROBE_GENERATE:${safeProviderCode(generateError)}`);
     const verified=validateHostedGeneratedLink(generated.properties.action_link,callback.toString(),supabaseUrl);
     emit({state:'RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_PASS',candidate_origin:verified.origin,callback_path:verified.path,localhost:false,management_pat_required:false,baseline_run_id:'31488195475'});
   } finally {
-    if(userId){const {error}=await admin.auth.admin.deleteUser(userId,false);if(error&&error.status!==404)fail(`RELEASE_CRITICAL_REDIRECT_PROBE_DELETE:${error.status??0}`);const [{data,error:lookupError},membership]=await Promise.all([admin.auth.admin.getUserById(userId),admin.from('memberships').select('id',{count:'exact',head:true}).eq('user_id',userId)]);if((lookupError&&lookupError.status!==404)||data?.user||membership.error||(membership.count??0)!==0)fail('RELEASE_CRITICAL_REDIRECT_PROBE_RESIDUAL');}
+    await subject?.auth.signOut().catch(()=>undefined);
+    if(userId){const {error}=await admin.auth.admin.deleteUser(userId,false);if(error&&error.status!==404)fail(`RELEASE_CRITICAL_REDIRECT_PROBE_DELETE:${error.status??0}`);const {data,error:lookupError}=await admin.auth.admin.getUserById(userId);if((lookupError&&lookupError.status!==404)||data?.user)fail('RELEASE_CRITICAL_REDIRECT_PROBE_RESIDUAL');}
   }
 }
 function releaseQaNextPathForRunner(path,runId){const url=new URL(path,'https://release-qa.invalid');url.searchParams.set('qa_run',runId);return `${url.pathname}${url.search}`;}
@@ -256,7 +265,9 @@ async function pollCallbackEvidence({admin,userId,run,baseUrl,purpose,requireSto
     if(error)fail(`RELEASE_CRITICAL_CALLBACK_EVIDENCE_READ_FAILED:${error.status??0}`);
     const callback=evidence?.callback; const arrival=evidence?.arrival; const storeCreated=evidence?.store_created; const passwordUpdated=evidence?.password_updated;
     const valid=value=>value&&value.next_path===expectedNext&&value.origin===new URL(baseUrl).origin&&typeof value.recorded_at==='string';
-    if(valid(callback)&&valid(arrival)&&(!requireStoreCreated||valid(storeCreated))&&(!requirePasswordUpdate||valid(passwordUpdated)))return {state:'RELEASE_CRITICAL_CALLBACK_EVIDENCE_PASS',purpose,run_marker:run.emailMarker};
+    const ordered=valid(callback)&&valid(arrival)&&Date.parse(callback.recorded_at)<=Date.parse(arrival.recorded_at);
+    const continued=value=>valid(value)&&value.server_bound_continuation===true&&value.continuation_of_callback_at===callback.recorded_at&&Date.parse(value.recorded_at)>=Date.parse(arrival.recorded_at);
+    if(ordered&&(!requireStoreCreated||continued(storeCreated))&&(!requirePasswordUpdate||continued(passwordUpdated)))return {state:'RELEASE_CRITICAL_CALLBACK_EVIDENCE_PASS',purpose,run_marker:run.emailMarker,actual_callback_chain:true,activation_chain:requireStoreCreated,server_bound_continuation:requireStoreCreated||requirePasswordUpdate};
     await sleep(intervalMs);
   }
   fail(`RELEASE_CRITICAL_CALLBACK_EVIDENCE_TIMEOUT:${purpose}`);
@@ -317,19 +328,15 @@ async function recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,s
   const life=lifecycle(admin,run,{sourceSha:existing.source_sha,deploymentId:existing.deployment_id});
   if(existing.state!=='PROVISIONING')fail(`RELEASE_CRITICAL_PARTIAL_LIFECYCLE_STATE:${existing.state}`);
   await adoptLifecycleFixture(life,run,{...owner,userId:user.id});
-  const final=await cleanupLifecycle(life,admin,user.id,run.runId);
-  const [membership,store,tenant,subscription,auth]=await Promise.all([
-    admin.from('memberships').select('id',{count:'exact',head:true}).eq('user_id',user.id),
-    admin.from('stores').select('id',{count:'exact',head:true}).eq('id',owner.storeId),
-    admin.from('tenants').select('id',{count:'exact',head:true}).eq('id',owner.tenantId),
-    admin.from('company_subscriptions').select('id',{count:'exact',head:true}).or(`tenant_id.eq.${owner.tenantId},company_id.eq.${owner.storeId}`),
-    admin.auth.admin.getUserById(user.id),
-  ]);
-  if(membership.error||store.error||tenant.error||subscription.error||(auth.error&&auth.error.status!==404))fail('RELEASE_CRITICAL_PARTIAL_READBACK_FAILED');
+  await cleanupLifecycle(life,admin,user.id,run.runId);
+  const final=await life.status();
+  const verified=final.final_evidence;
+  const counts=verified?.db_counts;
+  if(final.state!=='COMPLETE'||verified?.clean!==true||verified?.auth_users!==0||verified?.auth_sessions!==0||verified?.db_total!==0||!counts||Object.values(counts).some(value=>Number(value)!==0))fail('RELEASE_CRITICAL_PARTIAL_READBACK_FAILED');
   const {data:buckets,error:bucketsError}=await admin.storage.listBuckets(); if(bucketsError)fail('RELEASE_CRITICAL_PARTIAL_STORAGE_LIST_FAILED'); let storage=0;
   for(const bucket of buckets??[]){const {data,error}=await admin.storage.from(bucket.name).list(`qa/${partialRunId}`,{limit:100});if(error)fail('RELEASE_CRITICAL_PARTIAL_STORAGE_LIST_FAILED');storage+=(data??[]).length;}
-  const residual={auth_user:auth.data?.user?1:0,membership:membership.count??0,store:store.count??0,tenant:tenant.count??0,subscription:subscription.count??0,storage,artifact:0};
-  if(final.state!=='COMPLETE'||Object.values(residual).some(value=>value!==0))fail('RELEASE_CRITICAL_PARTIAL_FIXTURE_RESIDUAL');
+  const residual={auth_user:verified.auth_users,membership:Number(counts.memberships??0),store:Number(counts.stores??0),tenant:Number(counts.tenants??0),subscription:Number(counts.company_subscriptions??0),storage,artifact:0};
+  if(Object.values(residual).some(value=>value!==0))fail('RELEASE_CRITICAL_PARTIAL_FIXTURE_RESIDUAL');
   emit({state:'RELEASE_CRITICAL_PARTIAL_FIXTURE_CLEAN',marker:PARTIAL_MARKER,residual,qa_lifecycle:final.state});
   return final;
 }

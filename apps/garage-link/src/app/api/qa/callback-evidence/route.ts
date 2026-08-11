@@ -37,6 +37,28 @@ function syntheticQaUser(email: string | undefined, runId: string) {
   return Boolean(email?.toLowerCase().includes(`+garage-link-${runId}@`));
 }
 
+function validCallbackChain(
+  value: Record<string, unknown>,
+  purpose: CallbackPurpose,
+  runId: string,
+  origin: string,
+) {
+  const expectedNext = purpose === 'signup'
+    ? `/signup?resume=1&qa_run=${runId}`
+    : `/auth/reset-password?qa_run=${runId}`;
+  const callback = value.callback as { next_path?: unknown; origin?: unknown; recorded_at?: unknown } | undefined;
+  const arrival = value.arrival as { next_path?: unknown; origin?: unknown; recorded_at?: unknown } | undefined;
+  const callbackAt = Date.parse(typeof callback?.recorded_at === 'string' ? callback.recorded_at : '');
+  const arrivalAt = Date.parse(typeof arrival?.recorded_at === 'string' ? arrival.recorded_at : '');
+  return callback?.next_path === expectedNext
+    && arrival?.next_path === expectedNext
+    && callback.origin === origin
+    && arrival.origin === origin
+    && Number.isFinite(callbackAt)
+    && Number.isFinite(arrivalAt)
+    && callbackAt <= arrivalAt;
+}
+
 export async function POST(request: Request) {
   if (!stagingRuntime(request)) return new Response(null, { status: 404 });
   const token = request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
@@ -62,17 +84,25 @@ export async function POST(request: Request) {
   const prior = data.user.app_metadata?.release_qa_callback;
   if (prior && typeof prior === 'object' && prior.run_id && prior.run_id !== runId) return new Response(null, { status: 409 });
   const existingPurpose = prior && typeof prior === 'object' && prior[purpose] && typeof prior[purpose] === 'object' ? prior[purpose] : {};
+  const origin = new URL(request.url).origin;
   if (phase === 'store_created') {
-    if (purpose !== 'signup' || !existingPurpose.callback || !existingPurpose.arrival) return new Response(null, { status: 409 });
+    if (purpose !== 'signup' || !validCallbackChain(existingPurpose, purpose, runId, origin)) return new Response(null, { status: 409 });
     const lookup = await readReleaseQaFixture({ url, anonKey, accessToken: token, userId: data.user.id });
     if (!lookup.fixture) return new Response(null, { status: 409 });
   }
+  if (phase === 'password_updated' && !validCallbackChain(existingPurpose, purpose, runId, origin)) {
+    return new Response(null, { status: 409 });
+  }
+  const recordedAt = new Date().toISOString();
+  const continuation = phase === 'store_created' || phase === 'password_updated'
+    ? { server_bound_continuation: true, continuation_of_callback_at: (existingPurpose.callback as { recorded_at?: unknown }).recorded_at }
+    : {};
   const evidence = {
     ...(prior && typeof prior === 'object' ? prior : {}),
     run_id: runId,
     [purpose]: {
       ...existingPurpose,
-      [phase]: { next_path: body.next_path, origin: new URL(request.url).origin, recorded_at: new Date().toISOString() },
+      [phase]: { next_path: body.next_path, origin, recorded_at: recordedAt, ...continuation },
     },
   };
   const { error: updateError } = await admin.auth.admin.updateUserById(data.user.id, {

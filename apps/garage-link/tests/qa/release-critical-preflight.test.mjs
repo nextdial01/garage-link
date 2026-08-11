@@ -104,6 +104,10 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/contract_access_state/);
   assert.match(journeys,/RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_PASS/);
   assert.match(journeys,/management_pat_required:false/);
+  assert.match(journeys,/current_user_active_store_membership/);
+  assert.match(journeys,/final\.final_evidence/);
+  assert.doesNotMatch(journeys,/admin\.from\('memberships'\)/);
+  assert.match(journeys,/server_bound_continuation/);
   assert.doesNotMatch(journeys,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(workflow,/environment: garage-link-commercial-staging/);
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
@@ -137,6 +141,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(callbackEvidence,/process\.env\.VERCEL_ENV/);
   assert.match(callbackEvidence,/release_qa_callback/);
   assert.match(callbackEvidence,/store_created/);
+  assert.match(callbackEvidence,/validCallbackChain/);
+  assert.match(callbackEvidence,/server_bound_continuation: true/);
   assert.match(callbackEvidence,/syntheticQaUser/);
   assert.doesNotMatch(callbackEvidence,/PRODUCTION_PROJECT_ID/);
   assert.match(middleware,/pathname === '\/api\/qa\/callback-evidence'/);
