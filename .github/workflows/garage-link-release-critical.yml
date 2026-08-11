@@ -18,6 +18,11 @@ on:
         description: Optional exact garage-link-staging preview URL for this QA run
         required: false
         type: string
+      apply_staging_password_minimum:
+        description: Apply the approved Staging-only 8-character Auth minimum and read it back
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -27,7 +32,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  stage-auth-password-minimum:
+    name: Staging Auth password minimum 8 (write window only)
+    if: ${{ inputs.apply_staging_password_minimum }}
+    runs-on: ubuntu-latest
+    environment: garage-link-commercial-staging
+    timeout-minutes: 10
+    env:
+      GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply and read back the Staging-only minimum
+        run: node apps/garage-link/scripts/qa/release-critical-stage-auth.mjs
+
   preflight:
+    if: ${{ !inputs.apply_staging_password_minimum }}
     name: Staging-only preflight (no billing)
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
@@ -51,3 +78,28 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Verify Staging-only execution contract
         run: node apps/garage-link/scripts/qa/release-critical-preflight.mjs
+
+  journeys:
+    name: Release-critical acquisition journeys
+    needs: preflight
+    runs-on: ubuntu-latest
+    environment: garage-link-commercial-staging
+    timeout-minutes: 50
+    env:
+      PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
+      E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
+      E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install release-critical browsers
+        run: pnpm --filter @apps/garage-link exec playwright install --with-deps chromium webkit
+      - name: Run Staging acquisition journeys with guaranteed teardown
+        run: node apps/garage-link/scripts/qa/release-critical-journeys.mjs

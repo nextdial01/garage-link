@@ -3,12 +3,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, manualGmailWorkflowInput, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl } from '../../scripts/qa/release-critical-preflight.mjs';
+import { createReleaseCriticalRun, releaseCriticalSyntheticPassword, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
+import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-stage-auth.mjs';
 
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,workflow]=await Promise.all([
+  const [runner,journeys,workflow]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
+    readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
   ]);
   assert.match(runner,/gaytoojzwqkpuvfofeql/);
@@ -42,6 +45,12 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(runner,/GARAGE_STAGING_QA_MAILBOX/);
   assert.doesNotMatch(runner,/method:'PATCH'/);
   assert.doesNotMatch(runner,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
+  assert.match(journeys,/qa_lifecycle_adopt_fixture/);
+  assert.match(journeys,/qa_lifecycle_verify_clean/);
+  assert.match(journeys,/manualGmailCheckpoint\(session,'signup'\)/);
+  assert.match(journeys,/manualGmailCheckpoint\(session,'recovery'\)/);
+  assert.match(journeys,/RELEASE_CRITICAL_INQUIRY_ROUTE_UNAVAILABLE/);
+  assert.doesNotMatch(journeys,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(workflow,/environment: garage-link-commercial-staging/);
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
   assert.match(workflow,/manual_gmail_address/);
@@ -52,6 +61,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(workflow,/GARAGE_STAGING_MAILSLURP_API_KEY/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_QA_MAILBOX/);
   assert.doesNotMatch(workflow,/STRIPE_SECRET_KEY|E2E_ALLOW_BILLING_MUTATIONS|STRIPE_WEBHOOK_SECRET/);
+  assert.match(workflow,/Release-critical acquisition journeys/);
+  assert.match(workflow,/release-critical-journeys\.mjs/);
 });
 
 test('Vercel bypass carries the issued cookie once for a same-origin same-path redirect',async()=>{
@@ -132,4 +143,33 @@ test('Manual Gmail Bridge creates a plus address, redacts checkpoints, and polls
   await assert.rejects(()=>manualGmailWorkflowInput('/github/event.json',async()=>JSON.stringify({inputs:{}})),/MANUAL_GMAIL_WORKFLOW_INPUT_MISSING/);
   assert.equal(await releaseCriticalBaseUrl('/github/event.json','https://fallback.invalid',async()=>JSON.stringify({inputs:{staging_base_url:'https://garage-link-staging-3ilbylboz-altos-projects-fa55063c.vercel.app'}})),'https://garage-link-staging-3ilbylboz-altos-projects-fa55063c.vercel.app/');
   await assert.rejects(()=>releaseCriticalBaseUrl('/github/event.json','https://fallback.invalid',async()=>JSON.stringify({inputs:{staging_base_url:'https://example.invalid'}})),/RELEASE_CRITICAL_STAGING_BASE_URL_DENIED/);
+});
+
+test('release-critical journeys accept only the Staging runtime and marker-bound synthetic fixtures',()=>{
+  const run=createReleaseCriticalRun('550e8400-e29b-41d4-a716-446655440000');
+  assert.equal(run.marker,'[RELEASE QA 20260811]');
+  assert.match(run.emailMarker,/^garage-link-[a-z0-9-]{8,}$/);
+  assert.match(releaseCriticalSyntheticPassword(run.emailMarker),/^GL-[a-z0-9-]+-8!$/);
+  assert.deepEqual(validateReleaseCriticalProvenance({
+    project_id:'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3',deployment_id:'dpl_Abc123',git_commit_sha:'d7974d6b9adc78064010cc6b4502f54adbc39ba5',git_commit_ref:'codex/garage-link-supabase-redirect-rca',deployment_url:'https://garage-link-staging-test.vercel.app',environment:'preview',
+  },'https://garage-link-staging-test.vercel.app'),{
+    projectId:'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3',deploymentId:'dpl_Abc123',sourceSha:'d7974d6b9adc78064010cc6b4502f54adbc39ba5',branch:'codex/garage-link-supabase-redirect-rca',deploymentUrl:'https://garage-link-staging-test.vercel.app',
+  });
+  assert.throws(()=>validateReleaseCriticalProvenance({
+    project_id:'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64',deployment_id:'dpl_Abc123',git_commit_sha:'d7974d6b9adc78064010cc6b4502f54adbc39ba5',git_commit_ref:'main',deployment_url:'https://garage-link.tech',environment:'production',
+  },'https://garage-link.tech'),/RELEASE_CRITICAL_PROVENANCE_DENIED/);
+});
+
+test('hosted Auth password update is Staging-only and requires an 8-character read-back',async()=>{
+  const calls=[];
+  await applyStagingPasswordMinimum('token',async(url,options)=>{
+    calls.push({url:String(url),options});
+    if(options.method==='PATCH')return new Response('{}',{status:200});
+    return new Response(JSON.stringify({password_min_length:8}),{status:200,headers:{'content-type':'application/json'}});
+  });
+  assert.equal(calls.length,2);
+  assert.equal(calls[0].options.method,'PATCH');
+  assert.deepEqual(JSON.parse(calls[0].options.body),{password_min_length:8});
+  assert.ok(calls.every(call=>call.url.includes('gaytoojzwqkpuvfofeql')));
+  await assert.rejects(()=>applyStagingPasswordMinimum('token',async()=>new Response(JSON.stringify({password_min_length:6}),{status:200,headers:{'content-type':'application/json'}})),/STAGING_PASSWORD_MINIMUM_READBACK_FAILED/);
 });
