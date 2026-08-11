@@ -102,9 +102,25 @@
         "20260811151006"
       ],
       "checksum": "ca693070740284613d6896322fbbbfb8e2cb2143aaaddf12f92a0defc079f3a1"
+    },
+    {
+      "version": "20260812000100",
+      "name": "qa_lifecycle_cta_account_state_matrix",
+      "kind": "contract",
+      "file": "migrations/20260812000100_qa_lifecycle_cta_account_state_matrix.sql",
+      "dependsOn": [
+        "20260804133000",
+        "20260811152300"
+      ],
+      "checksum": "a922b5e885f87fae5efa0059e702caa611f248abc36e1d1bb441d6a4247b9fca"
     }
   ],
   "rollbacks": [
+    {
+      "version": "20260812000100",
+      "file": "rollback/20260812000100_qa_lifecycle_cta_account_state_matrix.down.sql",
+      "checksum": "bdd491185406ea17680ffdeaf16ce23a64e0614cef1523548a7b76ed187422b7"
+    },
     {
       "version": "20260811152300",
       "file": "rollback/20260811152300_qa_lifecycle_state_machine_repair.down.sql",

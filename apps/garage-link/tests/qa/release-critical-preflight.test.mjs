@@ -5,11 +5,12 @@ import { resolve } from 'node:path';
 import { createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl } from '../../scripts/qa/release-critical-preflight.mjs';
 import { classifyCtaTrace, createReleaseCriticalRun, installVercelBrowserBypass, releaseCriticalSyntheticPassword, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
 import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-stage-auth.mjs';
+import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critical-qa-lifecycle-contract.mjs';
 
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,journeys,workflow,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer]=await Promise.all([
+  const [runner,journeys,workflow,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
@@ -21,6 +22,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
     readFile(resolve(appRoot,'src/app/api/qa/fixture-discovery/route.ts'),'utf8'),
     readFile(resolve(appRoot,'src/app/api/qa/provenance/route.ts'),'utf8'),
     readFile(resolve(appRoot,'src/lib/security/adminEmailOtpServer.ts'),'utf8'),
+    readFile(resolve(appRoot,'supabase/qa/migrations/20260812000100_qa_lifecycle_cta_account_state_matrix.sql'),'utf8'),
+    readFile(resolve(appRoot,'supabase/qa/rollback/20260812000100_qa_lifecycle_cta_account_state_matrix.down.sql'),'utf8'),
   ]);
   assert.match(runner,/gaytoojzwqkpuvfofeql/);
   assert.match(runner,/wmlpuzuskfiwdipluglz/);
@@ -140,9 +143,13 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/staging_base_url/);
   assert.match(workflow,/description: Exact garage-link-staging preview URL/);
   assert.match(workflow,/required: true/);
-  assert.equal((workflow.match(/PLAYWRIGHT_BASE_URL: \$\{\{ inputs\.staging_base_url \}\}/g)??[]).length,3);
+  assert.equal((workflow.match(/PLAYWRIGHT_BASE_URL: \$\{\{ inputs\.staging_base_url \}\}/g)??[]).length,1);
+  assert.equal((workflow.match(/PLAYWRIGHT_BASE_URL: \$\{\{ needs\.preflight\.outputs\.base_url \}\}/g)??[]).length,2);
   assert.doesNotMatch(workflow,/PLAYWRIGHT_BASE_URL: \$\{\{ secrets\.GARAGE_STAGING_BASE_URL \}\}/);
-  assert.match(workflow,/candidate_sha/);
+  assert.doesNotMatch(workflow,/candidate_sha/);
+  assert.match(workflow,/RELEASE_CRITICAL_EXPECTED_SHA: \$\{\{ github\.sha \}\}/);
+  assert.match(workflow,/source_sha: \$\{\{ steps\.contract\.outputs\.source_sha \}\}/);
+  assert.match(runner,/RUNTIME_PROVENANCE_SHA_MISMATCH/);
   assert.doesNotMatch(workflow,/manual_gmail_address/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_VERCEL_READ_TOKEN|GARAGE_STAGING_VERCEL_PROJECT_ID|GARAGE_STAGING_VERCEL_TEAM_ID/);
   assert.doesNotMatch(workflow,/release_sha|release_branch|EXPECTED_RELEASE_SHA|EXPECTED_RELEASE_BRANCH/);
@@ -152,6 +159,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/Release-critical machine-only gates/);
   assert.match(workflow,/release-critical-journeys\.mjs/);
   assert.match(workflow,/stage-auth-contract/);
+  assert.match(workflow,/qa-lifecycle-contract/);
+  assert.match(workflow,/release-critical-qa-lifecycle-contract\.mjs/);
   assert.match(workflow,/actual-email-gates/);
   assert.match(workflow,/final-clean-verdict/);
   assert.match(workflow,/production-email-transport/);
@@ -185,6 +194,18 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/VEHICLE_CREATE_ADMIN_SECURITY_GATE/);
   assert.match(journeys,/RELEASE_CRITICAL_CTA_ACCOUNT_STATE_DIFFERENTIAL/);
   assert.match(journeys,/expectedClassification:'ROUTE_STARTED_REDIRECTED'/);
+  assert.match(journeys,/CTA_MATRIX_STATES/);
+  for(const state of ['active_owner','active_non_owner','selection_required','onboarding_incomplete','contract_restricted','admin_security_unverified']) assert.match(journeys,new RegExp(`'${state}'`));
+  assert.match(journeys,/qa_lifecycle_cta_matrix/);
+  assert.match(journeys,/RELEASE_CRITICAL_CTA_ACCOUNT_STATE_MATRIX/);
+  assert.match(journeys,/customer_equivalence:reproduced\?'ACTIVE_NON_OWNER_REPRODUCED':'NOT_ASSERTED'/);
+  assert.match(journeys,/root_cause:reproduced\?'ACTIVE_NON_OWNER_GATE':'NOT_REPRODUCED'/);
+  assert.match(ctaMatrixMigration,/qa_internal\.cta_matrix_fixtures/);
+  assert.match(ctaMatrixMigration,/qa_lifecycle_cta_matrix/);
+  assert.match(ctaMatrixMigration,/grant execute on function public\.qa_lifecycle_cta_matrix\(uuid,text,jsonb\) to service_role/);
+  assert.doesNotMatch(ctaMatrixMigration,/disable\s+trigger|session_replication_role|grant\s+(?:all|select|insert|update|delete)\b[^;]*\bto\s+(?:anon|authenticated)/i);
+  assert.match(ctaMatrixRollback,/drop function if exists public\.qa_lifecycle_cta_matrix\(uuid,text,jsonb\)/);
+  assert.doesNotMatch(ctaMatrixRollback,/disable\s+trigger|session_replication_role/i);
   assert.match(adminOtpServer,/release_qa_run_id/);
   assert.match(adminOtpServer,/RELEASE_QA_RUN_ID/);
   assert.doesNotMatch(callbackEvidence,/PRODUCTION_PROJECT_ID/);
@@ -381,4 +402,37 @@ test('hosted Auth contract compacts stale Staging preview callbacks before the M
     return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:calls.length===1?'https://garage-link-staging-test.vercel.app':'https://garage-link-staging-nextdial01-altos-projects-fa55063c.vercel.app',uri_allow_list:calls.length===1?stale:'https://*-altos-projects-fa55063c.vercel.app/**'}),{status:200,headers:{'content-type':'application/json'}});
   },'https://garage-link-staging-test-altos-projects-fa55063c.vercel.app');
   assert.equal(JSON.parse(calls[1].options.body).uri_allow_list,'https://*-altos-projects-fa55063c.vercel.app/**');
+});
+
+test('CTA matrix contract uses the Management API only for its one-time Staging migration bootstrap',async()=>{
+  const manifest={entries:[{version:'20260812000100',name:'qa_lifecycle_cta_account_state_matrix',kind:'contract',file:'migrations/20260812000100_qa_lifecycle_cta_account_state_matrix.sql',checksum:'a'.repeat(64)}]};
+  let readinessCalls=0; let writes=0; let reads=0; let capturedSql='';
+  const createClientImpl=()=>({rpc:async()=>{
+    readinessCalls+=1;
+    return {data:readinessCalls===1?{ready:true,service_execute_count:13}:{ready:true,service_execute_count:14,cta_matrix:'registry_bound'},error:null};
+  }});
+  const fetchImpl=async(url,options)=>{
+    assert.match(String(url),/https:\/\/api\.supabase\.com\/v1\/projects\/gaytoojzwqkpuvfofeql\/database\/query/);
+    if(String(url).endsWith('/read-only')){
+      reads+=1;
+      return new Response(JSON.stringify(reads===1?[]:[{version:'20260812000100',name:'qa_lifecycle_cta_account_state_matrix',checksum:'a'.repeat(64),state:'applied'}]),{status:200,headers:{'content-type':'application/json'}});
+    }
+    writes+=1; capturedSql=JSON.parse(options.body).query;
+    return new Response('[]',{status:200,headers:{'content-type':'application/json'}});
+  };
+  const result=await ensureReleaseCriticalCtaMatrix({supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',managementToken:'token',manifest,readFileImpl:async()=>`begin;\ncreate table qa_internal.example(id integer);\ncommit;`,fetchImpl,createClientImpl});
+  assert.deepEqual(result,{state:'RELEASE_CRITICAL_QA_MATRIX_READY',applied:true,management_pat_required:true});
+  assert.equal(reads,2); assert.equal(writes,1);
+  assert.match(capturedSql,/begin;/); assert.match(capturedSql,/migration_integrity/); assert.doesNotMatch(capturedSql,/wmlpuzuskfiwdipluglz/);
+});
+
+test('CTA matrix contract remains PAT-independent after the Staging fixture contract is present',async()=>{
+  let fetchCalls=0;
+  const result=await ensureReleaseCriticalCtaMatrix({
+    supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',managementToken:'',manifest:{entries:[]},
+    createClientImpl:()=>({rpc:async()=>({data:{ready:true,service_execute_count:14,cta_matrix:'registry_bound'},error:null})}),
+    fetchImpl:async()=>{fetchCalls+=1;throw new Error('Management API should not be used');},
+  });
+  assert.deepEqual(result,{state:'RELEASE_CRITICAL_QA_MATRIX_READY',applied:false,management_pat_required:false});
+  assert.equal(fetchCalls,0);
 });
