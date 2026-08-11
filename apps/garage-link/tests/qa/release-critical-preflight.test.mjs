@@ -88,6 +88,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/environment: garage-link-commercial-staging/);
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
   assert.match(workflow,/RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS/);
+  assert.match(workflow,/journeys:[\s\S]*RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS/);
   assert.match(workflow,/staging_base_url/);
   assert.match(workflow,/description: Exact garage-link-staging preview URL/);
   assert.match(workflow,/required: true/);
