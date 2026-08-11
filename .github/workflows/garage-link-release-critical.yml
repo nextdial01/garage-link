@@ -18,6 +18,10 @@ on:
         description: Optional exact garage-link-staging preview URL for this QA run
         required: false
         type: string
+      candidate_sha:
+        description: Exact 40-character SHA returned by the target Staging runtime provenance endpoint
+        required: true
+        type: string
       apply_staging_password_minimum:
         description: Apply the approved Staging-only 8-character Auth minimum and read it back
         required: false
@@ -87,6 +91,7 @@ jobs:
     timeout-minutes: 50
     env:
       PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
+      RELEASE_CRITICAL_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
       E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
     steps:

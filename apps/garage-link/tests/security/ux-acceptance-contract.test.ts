@@ -13,6 +13,7 @@ test.describe('UX acceptance regression contracts', () => {
     expect(source).toContain("process.env.NODE_ENV === 'production'");
     expect(source).toContain('requestHost');
     expect(serverContext).toContain("'ux_acceptance_admin_bootstrap_context'");
+    expect(serverContext).toContain("'admin_email_otp_bootstrap_context'");
     expect(migration).toContain('ux_acceptance_admin_bootstrap_context');
     expect(migration).toContain("p_environment <> 'preview'");
     expect(migration).toContain("raw_app_meta_data ->> 'purpose'");

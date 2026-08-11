@@ -8,7 +8,6 @@ import { createManualGmailSession, manualGmailCheckpoint, manualGmailWorkflowInp
 const STAGING_REF='gaytoojzwqkpuvfofeql';
 const STAGING_PROJECT_ID='prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
 const PRODUCTION_PROJECT_ID='prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64';
-const EXPECTED_CANDIDATE_SHA='d7974d6b9adc78064010cc6b4502f54adbc39ba5';
 const CHECKPOINT_TIMEOUT_MS=20*60_000;
 
 function fail(code){throw new Error(code)}
@@ -68,7 +67,7 @@ async function completeSecurityOtp(page){
   const otp=(await preview.textContent())?.match(/\b(\d{6})\b/)?.[1];
   if(!otp)fail('RELEASE_CRITICAL_SECURITY_OTP_UNAVAILABLE');
   await page.getByLabel('メールに届いた6桁コード').fill(otp);
-  await clickAndWait(page,page.getByRole('button',{name:'この端末を承認する'}),/\/(signup\?resume=1|dashboard)/);
+  await clickAndWait(page,page.getByRole('button',{name:'この端末を承認する'}),/\/(signup\?resume=1|onboarding|dashboard)/);
 }
 async function login(page,email,password,nextPattern){
   await page.getByLabel('メールアドレス').fill(email);
@@ -166,9 +165,11 @@ async function main(){
   const supabaseUrl=required('E2E_TEST_SUPABASE_URL');
   const serviceRole=required('E2E_TEST_SUPABASE_SERVICE_ROLE_KEY');
   const manualBase=await manualGmailWorkflowInput(eventPath);
+  const expectedCandidateSha=String(process.env.RELEASE_CRITICAL_CANDIDATE_SHA??'').trim().toLowerCase();
+  if(!/^[0-9a-f]{40}$/.test(expectedCandidateSha))fail('RELEASE_CRITICAL_CANDIDATE_SHA_INPUT_INVALID');
   if(!new URL(supabaseUrl).hostname.startsWith(`${STAGING_REF}.`)||new URL(baseUrl).hostname.endsWith('.garage-link.tech'))fail('RELEASE_CRITICAL_STAGING_BOUNDARY_DENIED');
   const provenanceResponse=await fetch(new URL('/api/qa/provenance',baseUrl),{redirect:'manual',cache:'no-store'}); if(!provenanceResponse.ok||provenanceResponse.headers.has('location'))fail('RELEASE_CRITICAL_PROVENANCE_UNREACHED');
-  const provenance=validateReleaseCriticalProvenance(await provenanceResponse.json(),baseUrl); if(provenance.sourceSha!==EXPECTED_CANDIDATE_SHA)fail('RELEASE_CRITICAL_CANDIDATE_SHA_MISMATCH');
+  const provenance=validateReleaseCriticalProvenance(await provenanceResponse.json(),baseUrl); if(provenance.sourceSha!==expectedCandidateSha)fail('RELEASE_CRITICAL_CANDIDATE_SHA_MISMATCH');
   const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
   const run=createReleaseCriticalRun(); const session=createManualGmailSession(manualBase,run.emailMarker); const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker); const resetPassword=`${initialPassword}R`;
   let browser; let context; let page; let user; let life; let adopted=false; const results={};
@@ -195,7 +196,7 @@ async function main(){
     user=await findUser(admin,session.emailAddress); results.J2='CHECKPOINT'; emit(manualGmailCheckpoint(session,'signup'));
     await pollManualGmailConfirmation({admin,userId:user.id,session,purpose:'signup',timeoutMs:CHECKPOINT_TIMEOUT_MS});
     await page.getByRole('link',{name:'ログイン',exact:true}).last().click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,initialPassword,/\/signup\?resume=1/);
-    await page.getByLabel('店舗名').fill(`${run.marker} 店舗`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await clickAndWait(page,page.getByRole('button',{name:'店舗を作成して次へ'}),/\/onboarding/); await onboarding(page,run.marker); results.J1='PASS';
+    await page.getByLabel('店舗名').fill(`${run.marker} 店舗`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await page.getByRole('button',{name:'店舗を作成して次へ'}).click(); await page.waitForURL(/\/(onboarding|security\/email-otp)/,{timeout:30_000}); await completeSecurityOtp(page); await page.waitForURL(/\/onboarding/,{timeout:30_000}); await onboarding(page,run.marker); results.J1='PASS';
     const owner=await activeOwner(admin,user.id); if(!owner.tenantName.startsWith(run.marker))fail('RELEASE_CRITICAL_MARKER_TENANT_MISMATCH');
     life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance,{...owner,userId:user.id}); adopted=true;
     const invalid=await context.newPage(); await invalid.goto(baseUrl,{waitUntil:'domcontentloaded'}); await clickAndWait(invalid,invalid.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);

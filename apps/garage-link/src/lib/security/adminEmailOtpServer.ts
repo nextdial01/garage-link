@@ -28,6 +28,10 @@ export async function getAuthenticatedAdminContext(
           p_session_id: sessionId,
           p_environment: process.env.VERCEL_ENV ?? 'development',
         }),
+        // Public signup creates the synthetic owner through the real Auth
+        // flow, so it has no fixture-only app metadata. The authorized
+        // Preview OTP sink must still let this Staging owner finish MFA.
+        service.rpc('admin_email_otp_bootstrap_context', { p_user_id: user.id, p_session_id: sessionId }),
       ]
     : [service.rpc('admin_email_otp_bootstrap_context', { p_user_id: user.id, p_session_id: sessionId })];
   let bootstrap: unknown = null;
