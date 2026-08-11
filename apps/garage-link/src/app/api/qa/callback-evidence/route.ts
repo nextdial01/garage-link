@@ -13,7 +13,12 @@ type CallbackPurpose = 'signup' | 'recovery';
 
 function stagingRuntime(request: Request) {
   const url = new URL(request.url);
-  const environment = process.env.VERCEL_TARGET_ENV || process.env.VERCEL_ENV;
+  const targetEnvironment = process.env.VERCEL_TARGET_ENV?.toLowerCase();
+  // Preview deployments can retain a project target of "production". The
+  // runtime environment is authoritative unless the target is explicitly safe.
+  const environment = ['preview', 'staging'].includes(targetEnvironment ?? '')
+    ? targetEnvironment
+    : process.env.VERCEL_ENV?.toLowerCase();
   return process.env.VERCEL_PROJECT_ID === STAGING_PROJECT_ID
     && ['preview', 'staging'].includes(environment ?? '')
     && STAGING_HOST.test(url.hostname);

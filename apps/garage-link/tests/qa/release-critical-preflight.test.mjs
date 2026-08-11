@@ -65,6 +65,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/ownerFixtureForUser/);
   assert.match(journeys,/\/api\/qa\/fixture-discovery/);
   assert.match(fixtureDiscovery,/STAGING_PROJECT_ID/);
+  assert.match(fixtureDiscovery,/targetEnvironment/);
+  assert.match(fixtureDiscovery,/process\.env\.VERCEL_ENV/);
   assert.match(fixtureDiscovery,/readReleaseQaFixture/);
   assert.match(fixtureDiscovery,/status: 404/);
   assert.doesNotMatch(fixtureDiscovery,/createAdminClient|STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
@@ -102,6 +104,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(callback,/recordReleaseQaCallback\(qaRunId, 'callback', nextPath\)/);
   assert.match(recovery,/recordReleaseQaCallback\(qaRunId, 'password_updated'/);
   assert.match(callbackEvidence,/STAGING_PROJECT_ID/);
+  assert.match(callbackEvidence,/targetEnvironment/);
+  assert.match(callbackEvidence,/process\.env\.VERCEL_ENV/);
   assert.match(callbackEvidence,/release_qa_callback/);
   assert.match(callbackEvidence,/store_created/);
   assert.match(callbackEvidence,/syntheticQaUser/);
