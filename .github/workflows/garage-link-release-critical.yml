@@ -200,11 +200,11 @@ jobs:
           fi
           if [ "$PRODUCTION_TRANSPORT" != PRODUCTION_CUSTOM_SMTP_PROVEN ]; then
             echo '{"state":"RELEASE_CRITICAL_WAITING_PRODUCTION_TRANSPORT","classification":"'"$PRODUCTION_TRANSPORT"'"}'
-            exit 0
+            exit 1
           fi
           if [ "$TRANSPORT_READY" != true ]; then
             echo '{"state":"RELEASE_CRITICAL_WAITING_TRANSPORT","reason":"NO_PERMANENT_QA_TRANSPORT"}'
-            exit 0
+            exit 1
           fi
           if [ "$ACTUAL_EMAIL" != success ]; then
             echo '{"state":"RELEASE_CRITICAL_NOT_READY","reason":"ACTUAL_EMAIL_GATE_FAILED"}'

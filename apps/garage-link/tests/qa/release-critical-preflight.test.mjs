@@ -155,6 +155,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/actual-email-gates/);
   assert.match(workflow,/final-clean-verdict/);
   assert.match(workflow,/production-email-transport/);
+  assert.match(workflow,/RELEASE_CRITICAL_WAITING_PRODUCTION_TRANSPORT/);
+  assert.match(workflow,/RELEASE_CRITICAL_WAITING_TRANSPORT/);
+  assert.match(workflow,/RELEASE_CRITICAL_CONVERGED_PASS/);
   assert.doesNotMatch(workflow,/apply_staging_password_minimum/);
   assert.match(signup,/qa_run/);
   assert.match(callback,/recordReleaseQaCallback\(qaRunId, 'callback', nextPath\)/);
