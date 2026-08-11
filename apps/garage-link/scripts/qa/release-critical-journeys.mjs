@@ -16,6 +16,15 @@ function required(name){const value=process.env[name]?.trim();if(!value)fail(`RE
 function safeErrorCode(error){return String(error?.message??error).replace(/https?:\/\/\S+/g,'[REDACTED_URL]').replace(/\b(?:sbp|sb_secret|eyJ)[A-Za-z0-9._-]+\b/g,'[REDACTED]').slice(0,180)}
 function emit(value){process.stdout.write(`${JSON.stringify(value)}\n`)}
 function sha256(value){return createHash('sha256').update(value).digest('hex')}
+function signupAlertClassification(value){
+  const message=String(value??'').trim();
+  if(/redirect.*(?:not allowed|not permitted|allow)/i.test(message))return 'REDIRECT_URL_NOT_ALLOWED';
+  if(/email.*rate limit|少し時間/.test(message))return 'EMAIL_RATE_LIMITED';
+  if(/already registered|既に登録/.test(message))return 'DUPLICATE_USER';
+  if(/valid password|有効なパスワード|8文字以上/.test(message))return 'PASSWORD_POLICY_REJECTED';
+  if(/valid email|メールアドレスの形式/.test(message))return 'EMAIL_FORMAT_REJECTED';
+  return `UNKNOWN_MESSAGE_SHA256:${sha256(message)}`;
+}
 
 export function createReleaseCriticalRun(runId=randomUUID()){
   if(!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_RUN_ID_INVALID');
@@ -161,7 +170,7 @@ async function main(){
     const fillSignup=async(password)=>{await page.getByLabel('店舗名').fill(`${run.marker} Signup`);await page.getByLabel('担当者名').fill(`${run.marker} Owner`);await page.getByLabel('メールアドレス').fill(session.emailAddress);await page.locator('#password').fill(password);await page.locator('#passwordConfirmation').fill(password);await page.getByRole('checkbox').check();};
     await fillSignup(initialPassword); await page.getByRole('button',{name:'無料でアカウントを作成する'}).click();
     const signupOutcome=await signupSubmitOutcome(page);
-    if(signupOutcome.kind==='alert')fail('RELEASE_CRITICAL_SIGNUP_SUBMIT_ALERT');
+    if(signupOutcome.kind==='alert')fail(`RELEASE_CRITICAL_SIGNUP_SUBMIT_ALERT:${signupAlertClassification(await page.getByRole('alert').textContent())}`);
     if(signupOutcome.kind==='onboarding'){
       user=await findUser(admin,session.emailAddress);
       const owner=await activeOwner(admin,user.id);
