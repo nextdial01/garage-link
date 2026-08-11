@@ -109,6 +109,10 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/VEHICLE_DETAIL/);
   assert.match(journeys,/CUSTOMER_CREATE/);
   assert.match(journeys,/DEAL_CREATE/);
+  assert.match(journeys,/QUOTE_CREATE/);
+  assert.match(journeys,/INVOICE_CREATE/);
+  assert.match(journeys,/APPOINTMENT_CREATE/);
+  assert.match(journeys,/customer_equivalence:'NOT_ASSERTED'/);
   assert.match(journeys,/middleware_final_destination/);
   assert.match(journeys,/browser_runtime_error_count/);
   assert.match(journeys,/garage_ui_context/);
