@@ -7,6 +7,14 @@ const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
 const STAGING_HOST = /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i;
 const EMAIL_MARKER = /^garage-link-([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 
+type SafeJwtDiagnostic = {
+  sub_matches_user: 'YES' | 'NO';
+  role: string;
+  aud: string;
+  exp_valid: 'YES' | 'NO';
+  project_ref_matches: 'YES' | 'NO';
+};
+
 function stagingRuntime(request: Request) {
   const url = new URL(request.url);
   const targetEnvironment = process.env.VERCEL_TARGET_ENV?.toLowerCase();
@@ -18,6 +26,35 @@ function stagingRuntime(request: Request) {
   return process.env.VERCEL_PROJECT_ID === STAGING_PROJECT_ID
     && ['preview', 'staging'].includes(environment ?? '')
     && STAGING_HOST.test(url.hostname);
+}
+
+function safeClaim(value: unknown, fallback: string) {
+  return typeof value === 'string' && /^[A-Za-z0-9_.:-]{1,80}$/.test(value) ? value : fallback;
+}
+
+function jwtDiagnostic(token: string, userId: string, supabaseUrl: string): SafeJwtDiagnostic {
+  try {
+    const encodedPayload = token.split('.')[1];
+    if (!encodedPayload) throw new Error('missing payload');
+    const payload = JSON.parse(atob(encodedPayload.replace(/-/g, '+').replace(/_/g, '/'))) as Record<string, unknown>;
+    const expectedIssuer = `${new URL(supabaseUrl).origin}/auth/v1`;
+    const audience = Array.isArray(payload.aud) ? payload.aud.join(',') : payload.aud;
+    return {
+      sub_matches_user: payload.sub === userId ? 'YES' : 'NO',
+      role: safeClaim(payload.role, 'UNKNOWN'),
+      aud: safeClaim(audience, 'UNKNOWN'),
+      exp_valid: typeof payload.exp === 'number' && payload.exp * 1000 > Date.now() ? 'YES' : 'NO',
+      project_ref_matches: payload.iss === expectedIssuer ? 'YES' : 'NO',
+    };
+  } catch {
+    return { sub_matches_user: 'NO', role: 'UNKNOWN', aud: 'UNKNOWN', exp_valid: 'NO', project_ref_matches: 'NO' };
+  }
+}
+
+async function markerHash(marker: string) {
+  const bytes = new TextEncoder().encode(marker);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export async function POST(request: Request) {
@@ -36,10 +73,26 @@ export async function POST(request: Request) {
   if (!url || !anonKey) return new Response(null, { status: 404 });
   const verifier = createSupabaseClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const { data, error } = await verifier.auth.getUser(token);
-  if (error || !data.user || !data.user.email?.toLowerCase().includes(`+${emailMarker}@`)) return new Response(null, { status: 403 });
+  if (error || !data.user) return Response.json({
+    layer: 'ROUTE_AUTH',
+    provider_error_code: safeClaim(error?.code, 'UNKNOWN'),
+  }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
+  const jwt = jwtDiagnostic(token, data.user.id, url);
+  const markerMatches = data.user.email?.toLowerCase().includes(`+${emailMarker}@`) === true;
+  if (!markerMatches) return Response.json({
+    layer: 'ROUTE_MARKER',
+    jwt,
+    marker_hash: await markerHash(emailMarker),
+  }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
 
   const lookup = await readReleaseQaFixture({ url, anonKey, accessToken: token, userId: data.user.id });
-  if (!lookup.fixture) return Response.json({ code: lookup.code }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
+  if (!lookup.fixture) return Response.json({
+    layer: lookup.diagnostic.layer,
+    code: lookup.code,
+    postgrest_response_code: lookup.diagnostic.postgrestStatus,
+    jwt,
+    marker_hash: await markerHash(emailMarker),
+  }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
   const fixture = lookup.fixture;
   return Response.json({
     membership_id: fixture.membershipId,

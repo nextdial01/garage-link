@@ -63,7 +63,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/beginLifecycle\(life,run,provenance\)/);
   assert.match(journeys,/maybeActiveOwner/);
   assert.match(journeys,/qa_lifecycle_abort_clean/);
-  assert.match(journeys,/recoverKnownPartialFixture\(admin,provenance,baseUrl,supabaseUrl,serviceRole\)/);
+  assert.match(journeys,/recoverKnownPartialFixture\(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret\)/);
   assert.match(journeys,/ownerFixtureForUser/);
   assert.match(journeys,/\/api\/qa\/fixture-discovery/);
   assert.match(await readFile(resolve(appRoot,'src/lib/auth/releaseQaFixture.ts'),'utf8'),/current_user_active_store_membership/);
@@ -71,6 +71,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(fixtureDiscovery,/targetEnvironment/);
   assert.match(fixtureDiscovery,/process\.env\.VERCEL_ENV/);
   assert.match(fixtureDiscovery,/readReleaseQaFixture/);
+  assert.match(await readFile(resolve(appRoot,'src/lib/auth/releaseQaFixture.ts'),'utf8'),/POSTGREST_MEMBERSHIP/);
+  assert.match(fixtureDiscovery,/ROUTE_AUTH/);
+  assert.match(fixtureDiscovery,/marker_hash/);
   assert.match(fixtureDiscovery,/status: 404/);
   assert.doesNotMatch(fixtureDiscovery,/createAdminClient|STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(journeys,/RELEASE_CRITICAL_PARTIAL_FIXTURE_CLEAN/);
@@ -85,6 +88,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/RELEASE_CRITICAL_CANDIDATE_SHA_INPUT_INVALID/);
   assert.match(journeys,/VERCEL_AUTOMATION_BYPASS_SECRET/);
   assert.match(journeys,/'x-vercel-protection-bypass':bypassSecret/);
+  assert.match(journeys,/fetchVerifiedVercelRequest/);
+  assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_DISCOVERY_DIAGNOSTIC/);
   assert.doesNotMatch(journeys,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(workflow,/environment: garage-link-commercial-staging/);
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
@@ -135,6 +140,21 @@ test('Vercel bypass carries the issued cookie once for a same-origin same-path r
   assert.equal(calls[1].options.headers['x-vercel-protection-bypass'],'secret');
   assert.equal(calls[1].options.headers.cookie,'__vercel_bypass=issued');
   assert.ok(calls.every(call=>call.options.redirect==='manual'));
+});
+
+test('Vercel bypass preserves a marker-bound POST body across its one safe retry',async()=>{
+  const calls=[];
+  const url=new URL('https://garage-link-staging.example.vercel.app/api/qa/fixture-discovery');
+  const result=await fetchVerifiedVercelRequest(url,{'x-vercel-protection-bypass':'secret'},async(requestUrl,requestOptions)=>{
+    calls.push({url:String(requestUrl),options:requestOptions});
+    if(calls.length===1)return new Response(null,{status:307,headers:{location:`${url}?__vercel_retry=1`,'set-cookie':'__vercel_bypass=issued; Path=/; HttpOnly'}});
+    return new Response(JSON.stringify({ok:true}),{status:200,headers:{'content-type':'application/json'}});
+  },{method:'POST',body:'{"email_marker":"garage-link-01234567-89ab-4cde-8123-456789abcdef"}'});
+  assert.equal(result.response.status,200);
+  assert.equal(calls.length,2);
+  assert.equal(calls[1].options.method,'POST');
+  assert.equal(calls[1].options.body,calls[0].options.body);
+  assert.match(calls[1].options.headers.cookie,/__vercel_bypass=issued/);
 });
 
 test('Vercel bypass does not follow a cross-origin redirect',async()=>{

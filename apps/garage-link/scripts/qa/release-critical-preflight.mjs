@@ -57,15 +57,16 @@ function bypassCookie(response){
   return cookies.length?cookies.join('; '):null;
 }
 
-export async function fetchVerifiedVercelRequest(url,headers,fetchImpl=fetch){
-  const first=await fetchImpl(url,{headers,redirect:'manual',cache:'no-store'});
+export async function fetchVerifiedVercelRequest(url,headers,fetchImpl=fetch,requestInit={}){
+  const request={...requestInit,headers,redirect:'manual',cache:'no-store'};
+  const first=await fetchImpl(url,request);
   const firstLocation=first.headers.get('location');
   const firstDiagnostic=diagnosticResponse(first,firstLocation,url);
   if(first.status<300||first.status>=400||!firstDiagnostic.same_origin||!firstDiagnostic.same_path)return {response:first,initial:firstDiagnostic};
   const cookie=bypassCookie(first);
   if(!cookie)return {response:first,initial:firstDiagnostic};
   const target=new URL(firstLocation,url);
-  const response=await fetchImpl(target,{headers:{...headers,cookie},redirect:'manual',cache:'no-store'});
+  const response=await fetchImpl(target,{...requestInit,headers:{...headers,cookie},redirect:'manual',cache:'no-store'});
   return {response,initial:firstDiagnostic};
 }
 

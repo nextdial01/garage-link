@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { chromium, webkit } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { createManualGmailSession, manualGmailCheckpoint, pollManualGmailConfirmation, releaseCriticalBaseUrl } from './release-critical-preflight.mjs';
+import { createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, releaseCriticalBaseUrl } from './release-critical-preflight.mjs';
 
 const STAGING_REF='gaytoojzwqkpuvfofeql';
 const STAGING_PROJECT_ID='prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
@@ -88,7 +88,14 @@ async function onboarding(page,marker){
   await page.getByRole('button',{name:'次へ'}).click();
   await clickAndWait(page,page.getByRole('button',{name:'設定を完了してダッシュボードへ進む'}),/\/dashboard/);
 }
-async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,password,tenantNamePrefix,optional=false}){
+function fixtureDiscoveryFailure(response,detail,emailMarker){
+  const layer=String(detail?.layer??(response.status===401||response.status===403?'VERCEL_OR_ROUTE':'UNKNOWN')).replace(/[^A-Z0-9_]/g,'_');
+  const code=String(detail?.code??detail?.provider_error_code??'UNKNOWN').replace(/[^A-Z0-9_]/g,'_');
+  const postgrest=Number.isInteger(detail?.postgrest_response_code)?detail.postgrest_response_code:'NONE';
+  emit({state:'RELEASE_CRITICAL_FIXTURE_DISCOVERY_DIAGNOSTIC',layer,http_status:response.status,provider_error_code:code,jwt_sub_matches_user:detail?.jwt?.sub_matches_user??'UNKNOWN',jwt_role:detail?.jwt?.role??'UNKNOWN',jwt_aud:detail?.jwt?.aud??'UNKNOWN',jwt_exp_valid:detail?.jwt?.exp_valid??'UNKNOWN',project_ref_matches:detail?.jwt?.project_ref_matches??'UNKNOWN',postgrest_response_code:postgrest,bypass_applied:'YES',fixture_marker_hash:sha256(emailMarker)});
+  return `RELEASE_CRITICAL_FIXTURE_DISCOVERY:${response.status}:${layer}:${code}`;
+}
+async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,password,tenantNamePrefix,bypassSecret,optional=false}){
   // The lifecycle service role intentionally has no direct table grants. The
   // Staging-only endpoint verifies the synthetic owner token and reads through
   // that owner's existing RLS boundary without widening any database grant.
@@ -98,9 +105,11 @@ async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,passwo
     if(loginError||!login.session?.user){if(optional)return null;fail(`RELEASE_CRITICAL_FIXTURE_OWNER_LOGIN:${safeProviderCode(loginError)}`);}
     const emailMarker=email.split('@')[0]?.split('+')[1];
     if(!/^garage-link-[0-9a-f-]{36}$/i.test(emailMarker??''))fail('RELEASE_CRITICAL_FIXTURE_EMAIL_MARKER_INVALID');
-    const response=await fetch(new URL('/api/qa/fixture-discovery',baseUrl),{method:'POST',headers:{authorization:`Bearer ${login.session.access_token}`,'content-type':'application/json'},body:JSON.stringify({email_marker:emailMarker}),redirect:'manual',cache:'no-store'});
+    const headers={authorization:`Bearer ${login.session.access_token}`,'content-type':'application/json','x-vercel-protection-bypass':bypassSecret};
+    const request=await fetchVerifiedVercelRequest(new URL('/api/qa/fixture-discovery',baseUrl),headers,fetch,{method:'POST',body:JSON.stringify({email_marker:emailMarker})});
+    const response=request.response;
     if(response.headers.has('location'))fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_REDIRECT');
-    if(!response.ok){const detail=await response.json().catch(()=>null);if(optional&&response.status===409)return null;fail(`RELEASE_CRITICAL_FIXTURE_DISCOVERY:${response.status}:${String(detail?.code??'UNKNOWN').replace(/[^A-Z0-9_]/g,'_')}`);}
+    if(!response.ok){const detail=await response.json().catch(()=>null);if(optional&&response.status===409)return null;fail(fixtureDiscoveryFailure(response,detail,emailMarker));}
     const fixture=await response.json();
     if(typeof fixture?.membership_id!=='string'||typeof fixture?.tenant_id!=='string'||typeof fixture?.store_id!=='string'||typeof fixture?.tenant_name!=='string'||!fixture.tenant_name.startsWith(tenantNamePrefix))fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_INVALID');
     return {membershipId:fixture.membership_id,tenantId:fixture.tenant_id,storeId:fixture.store_id,tenantName:fixture.tenant_name};
@@ -197,9 +206,9 @@ export async function cleanupLifecycle(life,admin,userId,runId){
   }
   return current;
 }
-async function recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole){
+async function recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret){
   const user=await findKnownPartialUser(admin); if(!user)return {state:'RELEASE_CRITICAL_PARTIAL_FIXTURE_ABSENT'};
-  const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email:user.email,password:releaseCriticalSyntheticPassword(PARTIAL_MARKER),tenantNamePrefix:'[RELEASE QA '});
+  const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email:user.email,password:releaseCriticalSyntheticPassword(PARTIAL_MARKER),tenantNamePrefix:'[RELEASE QA ',bypassSecret});
   const marker=/^\[RELEASE QA \d{8}\]/.exec(owner.tenantName)?.[0];
   if(!marker)fail('RELEASE_CRITICAL_PARTIAL_MARKER_UNPROVEN');
   const partialRunId=PARTIAL_MARKER.replace(/^garage-link-/,'');
@@ -242,7 +251,7 @@ async function main(){
   const provenanceResponse=await fetch(new URL('/api/qa/provenance',baseUrl),{headers:{'x-vercel-protection-bypass':bypassSecret},redirect:'manual',cache:'no-store'}); if(!provenanceResponse.ok||provenanceResponse.headers.has('location'))fail('RELEASE_CRITICAL_PROVENANCE_UNREACHED');
   const provenance=validateReleaseCriticalProvenance(await provenanceResponse.json(),baseUrl); if(provenance.sourceSha!==expectedCandidateSha)fail('RELEASE_CRITICAL_CANDIDATE_SHA_MISMATCH');
   const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
-  await recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole);
+  await recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);
   const run=createReleaseCriticalRun(); const session=createManualGmailSession(manualBase,run.emailMarker); const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker); const resetPassword='GL-Release-Reset-8!';
   let browser; let context; let page; let user; let life; let adopted=false; const results={};
   try {
@@ -259,7 +268,7 @@ async function main(){
     }
     if(signupOutcome.kind==='onboarding'){
       user=await findUser(admin,session.emailAddress);
-      const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email:session.emailAddress,password:initialPassword,tenantNamePrefix:run.marker});
+      const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email:session.emailAddress,password:initialPassword,tenantNamePrefix:run.marker,bypassSecret});
       await adoptLifecycleFixture(life,run,{...owner,userId:user.id});
       adopted=true;
       fail('RELEASE_CRITICAL_SIGNUP_AUTO_CONFIRMED');
@@ -271,7 +280,7 @@ async function main(){
     await page.getByRole('link',{name:'ログイン',exact:true}).last().click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,initialPassword,/\/signup\?resume=1/);
     await page.getByLabel('店舗名').fill(`${run.marker} 店舗`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await page.getByRole('button',{name:'店舗を作成して次へ'}).click(); await page.waitForURL(/\/(onboarding|security\/email-otp)/,{timeout:30_000}); await completeSecurityOtp(page); await page.waitForURL(/\/onboarding/,{timeout:30_000}); await onboarding(page,run.marker); results.J1='PASS';
     await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true});
-    const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email:session.emailAddress,password:initialPassword,tenantNamePrefix:run.marker}); if(!owner.tenantName.startsWith(run.marker))fail('RELEASE_CRITICAL_MARKER_TENANT_MISMATCH');
+    const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email:session.emailAddress,password:initialPassword,tenantNamePrefix:run.marker,bypassSecret}); if(!owner.tenantName.startsWith(run.marker))fail('RELEASE_CRITICAL_MARKER_TENANT_MISMATCH');
     await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true; results.J2='PASS';
     const invalid=await context.newPage(); await invalid.goto(baseUrl,{waitUntil:'domcontentloaded'}); await clickAndWait(invalid,invalid.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
     // The separate page keeps the main owner session intact; fill by concrete UI locators.
@@ -297,7 +306,7 @@ async function main(){
       if(!adopted&&life){
         user??=await maybeFindUser(admin,session.emailAddress);
         if(user?.id){
-          const owner=await maybeActiveOwner({baseUrl,supabaseUrl,serviceRole,email:session.emailAddress,password:initialPassword,tenantNamePrefix:run.marker});
+          const owner=await maybeActiveOwner({baseUrl,supabaseUrl,serviceRole,email:session.emailAddress,password:initialPassword,tenantNamePrefix:run.marker,bypassSecret});
           if(owner){await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true;}
           else {const {error}=await admin.auth.admin.deleteUser(user.id,false);if(error&&error.status!==404)fail(`RELEASE_CRITICAL_EARLY_AUTH_DELETE:${error.status??0}`);await life.rpc('qa_lifecycle_abort_clean',{p_run_id:run.runId,p_reason:'early_auth_cleanup'});}
         } else {

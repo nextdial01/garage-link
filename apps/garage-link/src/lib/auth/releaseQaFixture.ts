@@ -7,7 +7,14 @@ export type ReleaseQaFixture = {
 
 export type ReleaseQaFixtureLookup =
   | { fixture: ReleaseQaFixture; code: 'OK' }
-  | { fixture: null; code: `MEMBERSHIP_READ_${number}` | 'MEMBERSHIP_CARDINALITY' | 'MEMBERSHIP_SHAPE' | 'STORE_READ' | 'STORE_CARDINALITY' | 'STORE_SHAPE' };
+  | {
+    fixture: null;
+    code: `MEMBERSHIP_READ_${number}` | 'MEMBERSHIP_CARDINALITY' | 'MEMBERSHIP_SHAPE' | `STORE_READ_${number}` | 'STORE_CARDINALITY' | 'STORE_SHAPE';
+    diagnostic: {
+      layer: 'POSTGREST_MEMBERSHIP' | 'POSTGREST_STORE';
+      postgrestStatus: number;
+    };
+  };
 
 export async function readReleaseQaFixture({
   url,
@@ -38,18 +45,38 @@ export async function readReleaseQaFixture({
   membershipsUrl.searchParams.set('user_id', `eq.${userId}`);
   membershipsUrl.searchParams.set('role', 'eq.owner');
   const membershipsResponse = await fetch(membershipsUrl, { headers, cache: 'no-store' });
-  if (!membershipsResponse.ok) return { fixture: null, code: `MEMBERSHIP_READ_${membershipsResponse.status}` };
+  if (!membershipsResponse.ok) return {
+    fixture: null,
+    code: `MEMBERSHIP_READ_${membershipsResponse.status}`,
+    diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status },
+  };
   const memberships = await membershipsResponse.json() as Array<{ id?: string; tenant_id?: string; store_id?: string; user_id?: string; role?: string }>;
-  if (!Array.isArray(memberships) || memberships.length !== 1) return { fixture: null, code: 'MEMBERSHIP_CARDINALITY' };
+  if (!Array.isArray(memberships) || memberships.length !== 1) return {
+    fixture: null,
+    code: 'MEMBERSHIP_CARDINALITY',
+    diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status },
+  };
 
   const membership = memberships[0];
-  if (!membership.id || !membership.tenant_id || !membership.store_id || membership.user_id !== userId || membership.role !== 'owner') return { fixture: null, code: 'MEMBERSHIP_SHAPE' };
+  if (!membership.id || !membership.tenant_id || !membership.store_id || membership.user_id !== userId || membership.role !== 'owner') return {
+    fixture: null,
+    code: 'MEMBERSHIP_SHAPE',
+    diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status },
+  };
   const storesResponse = await fetch(new URL('/rest/v1/rpc/list_accessible_garage_stores', url), {
     method: 'POST', headers, cache: 'no-store',
   });
-  if (!storesResponse.ok) return { fixture: null, code: 'STORE_READ' };
+  if (!storesResponse.ok) return {
+    fixture: null,
+    code: `STORE_READ_${storesResponse.status}`,
+    diagnostic: { layer: 'POSTGREST_STORE', postgrestStatus: storesResponse.status },
+  };
   const stores = await storesResponse.json() as Array<{ id?: string; tenant_id?: string; name?: string }>;
-  if (!Array.isArray(stores)) return { fixture: null, code: 'STORE_READ' };
+  if (!Array.isArray(stores)) return {
+    fixture: null,
+    code: 'STORE_SHAPE',
+    diagnostic: { layer: 'POSTGREST_STORE', postgrestStatus: storesResponse.status },
+  };
   const matchingStores = (stores ?? []).filter(
     (store: { id?: string; tenant_id?: string; name?: string }) =>
       store?.id === membership.store_id &&
@@ -57,9 +84,17 @@ export async function readReleaseQaFixture({
       typeof store?.name === 'string' &&
       /^\[RELEASE QA \d{8}\]/.test(store.name)
   );
-  if (matchingStores.length !== 1) return { fixture: null, code: 'STORE_CARDINALITY' };
+  if (matchingStores.length !== 1) return {
+    fixture: null,
+    code: 'STORE_CARDINALITY',
+    diagnostic: { layer: 'POSTGREST_STORE', postgrestStatus: storesResponse.status },
+  };
   const tenantName = matchingStores[0].name;
-  if (typeof tenantName !== 'string') return { fixture: null, code: 'STORE_SHAPE' };
+  if (typeof tenantName !== 'string') return {
+    fixture: null,
+    code: 'STORE_SHAPE',
+    diagnostic: { layer: 'POSTGREST_STORE', postgrestStatus: storesResponse.status },
+  };
 
   return { code: 'OK', fixture: { membershipId: membership.id, tenantId: membership.tenant_id, storeId: membership.store_id, tenantName } };
 }
