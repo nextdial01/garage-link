@@ -70,9 +70,24 @@
         "20260804130008"
       ],
       "checksum": "078fde0c193b0639630f02814ba047575e7b4251a856e86abc191cc5a2b56834"
+    },
+    {
+      "version": "20260811144934",
+      "name": "qa_lifecycle_evidence_helpers",
+      "kind": "repair",
+      "file": "migrations/20260811144934_qa_lifecycle_evidence_helpers.sql",
+      "dependsOn": [
+        "20260804033831"
+      ],
+      "checksum": "2cd28770d064362797a73a25bfde524842251a71034678dcba6a1d55537bc1a2"
     }
   ],
   "rollbacks": [
+    {
+      "version": "20260811144934",
+      "file": "rollback/20260811144934_qa_lifecycle_evidence_helpers.down.sql",
+      "checksum": "fd3e27f4ad8516fed6b4190f033d3b528b7a04142274afc66f226b33495b22c5"
+    },
     {
       "version": "20260804133000",
       "file": "rollback/20260804133000_owner_preview_reset_hardening.down.sql",

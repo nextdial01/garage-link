@@ -83,6 +83,10 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(provenanceRoute,/x-garage-qa-provenance-error/);
   assert.match(provenanceRoute,/projectId === STAGING_PROJECT_ID && STAGING_HOST\.test\(runtimeHost\)/);
   assert.match(journeys,/RELEASE_CRITICAL_PARTIAL_FIXTURE_CLEAN/);
+  assert.match(journeys,/PARTIAL_USER_ID/);
+  assert.match(journeys,/RELEASE_CRITICAL_PARTIAL_AUTH_ABSENT_STATE/);
+  assert.match(journeys,/temporary_protection_mutation:false/);
+  assert.match(journeys,/life\.evidence\('BYPASS'/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_SUBMIT_ALERT/);
   assert.match(journeys,/REDIRECT_URL_NOT_ALLOWED/);
   assert.match(journeys,/UNKNOWN_MESSAGE_SHA256/);

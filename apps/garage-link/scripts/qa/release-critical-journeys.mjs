@@ -9,6 +9,7 @@ const STAGING_REF='gaytoojzwqkpuvfofeql';
 const STAGING_PROJECT_ID='prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
 const PRODUCTION_PROJECT_ID='prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64';
 const PARTIAL_MARKER='garage-link-139f4794-3a9b-4332-ad72-6ba56e2c8377';
+const PARTIAL_USER_ID='809dc953-e604-48a7-a4b1-606a57aae461';
 const CHECKPOINT_TIMEOUT_MS=20*60_000;
 
 function fail(code){throw new Error(code)}
@@ -321,6 +322,7 @@ export async function cleanupLifecycle(life,admin,userId,runId){
   current=await life.status();
   if(current.state==='STORAGE_CLEANED'){
     await life.evidence('ARTIFACT',{artifact_count:0});
+    await life.evidence('BYPASS',{temporary_protection_mutation:false,temporary_bypass_created:false});
     await life.rpc('qa_lifecycle_advance_cleanup',{p_run_id:current.run_id,p_expected_state:'STORAGE_CLEANED',p_next_state:'ARTIFACTS_CLEANED',p_next_action:'verify-clean'});
   }
   current=await life.status();
@@ -332,19 +334,32 @@ export async function cleanupLifecycle(life,admin,userId,runId){
   return current;
 }
 async function recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret){
-  const user=await findKnownPartialUser(admin); if(!user)return {state:'RELEASE_CRITICAL_PARTIAL_FIXTURE_ABSENT'};
+  const partialRunId=PARTIAL_MARKER.replace(/^garage-link-/,'');
+  const partialRun={runId:partialRunId,marker:'[RELEASE QA 20260811]',emailMarker:PARTIAL_MARKER};
+  const statusLife=lifecycle(admin,partialRun,provenance); let existing=await statusLife.maybeStatus();
+  const user=await findKnownPartialUser(admin);
+  if(!user){
+    if(!existing)return {state:'RELEASE_CRITICAL_PARTIAL_FIXTURE_ABSENT'};
+    if(!/^[0-9a-f]{40}$/i.test(existing.source_sha??'')||!/^dpl_[A-Za-z0-9]+$/.test(existing.deployment_id??''))fail('RELEASE_CRITICAL_PARTIAL_PROVENANCE_UNPROVEN');
+    const life=lifecycle(admin,partialRun,{sourceSha:existing.source_sha,deploymentId:existing.deployment_id});
+    if(!['DB_CLEANED','AUTH_CLEANED','STORAGE_CLEANED','ARTIFACTS_CLEANED','COMPLETE'].includes(existing.state))fail(`RELEASE_CRITICAL_PARTIAL_AUTH_ABSENT_STATE:${existing.state}`);
+    if(existing.state!=='COMPLETE')await cleanupLifecycle(life,admin,PARTIAL_USER_ID,partialRunId);
+    return verifyKnownPartialLifecycle(admin,life,partialRunId);
+  }
   const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email:user.email,password:releaseCriticalSyntheticPassword(PARTIAL_MARKER),tenantNamePrefix:'[RELEASE QA ',bypassSecret});
   const marker=/^\[RELEASE QA \d{8}\]/.exec(owner.tenantName)?.[0];
   if(!marker)fail('RELEASE_CRITICAL_PARTIAL_MARKER_UNPROVEN');
-  const partialRunId=PARTIAL_MARKER.replace(/^garage-link-/,'');
   const run={runId:partialRunId,marker,emailMarker:PARTIAL_MARKER};
-  const statusLife=lifecycle(admin,run,provenance); let existing=await statusLife.maybeStatus();
+  existing=await statusLife.maybeStatus();
   if(!existing){await beginLifecycle(statusLife,run,provenance);existing=await statusLife.status();}
   if(!/^[0-9a-f]{40}$/i.test(existing.source_sha??'')||!/^dpl_[A-Za-z0-9]+$/.test(existing.deployment_id??''))fail('RELEASE_CRITICAL_PARTIAL_PROVENANCE_UNPROVEN');
   const life=lifecycle(admin,run,{sourceSha:existing.source_sha,deploymentId:existing.deployment_id});
   if(existing.state!=='PROVISIONING')fail(`RELEASE_CRITICAL_PARTIAL_LIFECYCLE_STATE:${existing.state}`);
   await adoptLifecycleFixture(life,run,{...owner,userId:user.id});
   await cleanupLifecycle(life,admin,user.id,run.runId);
+  return verifyKnownPartialLifecycle(admin,life,partialRunId);
+}
+async function verifyKnownPartialLifecycle(admin,life,partialRunId){
   const final=await life.status();
   const verified=final.final_evidence;
   const counts=verified?.db_counts;
