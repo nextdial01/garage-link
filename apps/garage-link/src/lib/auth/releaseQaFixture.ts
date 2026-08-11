@@ -14,7 +14,17 @@ export type ReleaseQaFixture = {
 };
 
 type PostgrestErrorClass = 'RELATION_PRIVILEGE' | 'SCHEMA_USAGE' | 'ROW_SECURITY' | 'FUNCTION_PRIVILEGE' | 'OTHER';
-type PostgrestKnownObject = 'current_user_active_store_membership' | 'memberships' | 'tenants' | 'stores';
+type PostgrestKnownObject =
+  | 'current_user_active_store_membership'
+  | 'memberships'
+  | 'tenants'
+  | 'stores'
+  | 'membership_store_assignments'
+  | 'user_active_store_preferences'
+  | 'current_user_accessible_store_ids'
+  | 'current_user_active_store_id'
+  | 'current_user_can_access_store'
+  | 'store_is_authorization_eligible';
 
 export type ReleaseQaFixtureLookup =
   | { fixture: ReleaseQaFixture; code: 'OK' }
@@ -35,19 +45,35 @@ async function postgrestErrorDiagnostic(response: Response): Promise<{
   providerErrorClass: PostgrestErrorClass | null;
   providerObject: PostgrestKnownObject | null;
 }> {
-  const body = await response.clone().json().catch(() => null) as { code?: unknown; message?: unknown; details?: unknown } | null;
+  const body = await response.clone().json().catch(() => null) as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown } | null;
   const code = typeof body?.code === 'string' && /^[A-Z0-9]{4,12}$/i.test(body.code) ? body.code.toUpperCase() : null;
-  const text = `${typeof body?.message === 'string' ? body.message : ''} ${typeof body?.details === 'string' ? body.details : ''}`.toLowerCase();
-  const knownObjects = ['current_user_active_store_membership', 'memberships', 'tenants', 'stores'] as const;
+  const text = [body?.message, body?.details, body?.hint]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+    .toLowerCase();
+  const knownObjects = [
+    'current_user_active_store_membership',
+    'membership_store_assignments',
+    'user_active_store_preferences',
+    'current_user_accessible_store_ids',
+    'current_user_active_store_id',
+    'current_user_can_access_store',
+    'store_is_authorization_eligible',
+    'memberships',
+    'tenants',
+    'stores',
+  ] as const;
   const providerObject = knownObjects.find(value => text.includes(value)) ?? null;
-  const providerErrorClass: PostgrestErrorClass | null = /permission denied for (?:table|relation|view)/.test(text)
+  const providerErrorClass: PostgrestErrorClass | null = /permission denied(?: for)? (?:table|relation|view)|insufficient privilege.*(?:table|relation|view)/.test(text)
     ? 'RELATION_PRIVILEGE'
-    : /permission denied for schema/.test(text)
+    : /permission denied(?: for)? schema|insufficient privilege.*schema/.test(text)
       ? 'SCHEMA_USAGE'
       : /row-level security|violates row security/.test(text)
         ? 'ROW_SECURITY'
-        : /permission denied for function/.test(text)
+        : /permission denied(?: for)? (?:function|routine)|insufficient privilege.*(?:function|routine)/.test(text)
           ? 'FUNCTION_PRIVILEGE'
+          : /permission denied|insufficient privilege/.test(text)
+            ? 'RELATION_PRIVILEGE'
           : text ? 'OTHER' : null;
   return { code, providerErrorClass, providerObject };
 }
