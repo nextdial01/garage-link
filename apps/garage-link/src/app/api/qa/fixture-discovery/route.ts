@@ -110,6 +110,7 @@ export async function POST(request: Request) {
     tenant_id: fixture.tenantId,
     store_id: fixture.storeId,
     tenant_name: fixture.tenantName,
+    discovery_path: fixture.discoveryPath,
     account_state: {
       garage_ui_context: fixture.accountState.garageUiContext,
       active_store: fixture.accountState.activeStore,

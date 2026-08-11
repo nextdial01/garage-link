@@ -11,6 +11,7 @@ export type ReleaseQaFixture = {
     membershipStatus: 'active';
     contractAccessState: string;
   };
+  discoveryPath: 'ACTIVE_STORE_VIEW' | 'JWT_MEMBERSHIP_FALLBACK';
 };
 
 type PostgrestErrorClass = 'RELATION_PRIVILEGE' | 'SCHEMA_USAGE' | 'ROW_SECURITY' | 'FUNCTION_PRIVILEGE' | 'OTHER';
@@ -127,15 +128,42 @@ export async function readReleaseQaFixture({
   membershipsUrl.searchParams.set('user_id', `eq.${userId}`);
   membershipsUrl.searchParams.set('role', 'eq.owner');
   const membershipsResponse = await fetch(membershipsUrl, { headers, cache: 'no-store' });
-  if (!membershipsResponse.ok) {
+  let discoveryPath: ReleaseQaFixture['discoveryPath'] = 'ACTIVE_STORE_VIEW';
+  let memberships: Array<{ id?: string; tenant_id?: string; store_id?: string; user_id?: string; role?: string }>;
+  if (membershipsResponse.ok) {
+    memberships = await membershipsResponse.json();
+  } else {
     const provider = await postgrestErrorDiagnostic(membershipsResponse);
-    return {
-      fixture: null,
-      code: `MEMBERSHIP_READ_${membershipsResponse.status}`,
-      diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status, providerErrorCode: provider.code, providerErrorClass: provider.providerErrorClass, providerObject: provider.providerObject },
-    };
+    // Some deployed PostgREST schemas can reject the security-invoker view
+    // even though the same authenticated role can read its own membership.
+    // Prove that boundary before using the already-authorized base relation;
+    // never broaden a grant or bypass the subject JWT for fixture discovery.
+    if (membershipsResponse.status !== 403 || provider.code !== '42501') {
+      return {
+        fixture: null,
+        code: `MEMBERSHIP_READ_${membershipsResponse.status}`,
+        diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status, providerErrorCode: provider.code, providerErrorClass: provider.providerErrorClass, providerObject: provider.providerObject },
+      };
+    }
+    const fallbackUrl = new URL('/rest/v1/memberships', url);
+    fallbackUrl.searchParams.set('select', 'id,tenant_id,store_id,user_id,role');
+    fallbackUrl.searchParams.set('user_id', `eq.${userId}`);
+    fallbackUrl.searchParams.set('role', 'eq.owner');
+    fallbackUrl.searchParams.set('status', 'eq.active');
+    fallbackUrl.searchParams.set('disabled_at', 'is.null');
+    fallbackUrl.searchParams.set('deleted_at', 'is.null');
+    const fallbackResponse = await fetch(fallbackUrl, { headers, cache: 'no-store' });
+    if (!fallbackResponse.ok) {
+      const fallbackProvider = await postgrestErrorDiagnostic(fallbackResponse);
+      return {
+        fixture: null,
+        code: `MEMBERSHIP_READ_${fallbackResponse.status}`,
+        diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: fallbackResponse.status, providerErrorCode: fallbackProvider.code, providerErrorClass: fallbackProvider.providerErrorClass, providerObject: fallbackProvider.providerObject },
+      };
+    }
+    memberships = await fallbackResponse.json();
+    discoveryPath = 'JWT_MEMBERSHIP_FALLBACK';
   }
-  const memberships = await membershipsResponse.json() as Array<{ id?: string; tenant_id?: string; store_id?: string; user_id?: string; role?: string }>;
   if (!Array.isArray(memberships) || memberships.length !== 1) return {
     fixture: null,
     code: 'MEMBERSHIP_CARDINALITY',
@@ -219,5 +247,5 @@ export async function readReleaseQaFixture({
     diagnostic: { layer: 'POSTGREST_UI_CONTEXT', postgrestStatus: uiContextResponse.status, providerErrorCode: null, providerErrorClass: null, providerObject: null },
   };
 
-  return { code: 'OK', fixture: { membershipId: membership.id, tenantId: membership.tenant_id, storeId: membership.store_id, tenantName, accountState } };
+  return { code: 'OK', fixture: { membershipId: membership.id, tenantId: membership.tenant_id, storeId: membership.store_id, tenantName, accountState, discoveryPath } };
 }
