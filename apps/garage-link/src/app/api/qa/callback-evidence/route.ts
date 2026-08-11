@@ -64,8 +64,8 @@ export async function POST(request: Request) {
   const existingPurpose = prior && typeof prior === 'object' && prior[purpose] && typeof prior[purpose] === 'object' ? prior[purpose] : {};
   if (phase === 'store_created') {
     if (purpose !== 'signup' || !existingPurpose.callback || !existingPurpose.arrival) return new Response(null, { status: 409 });
-    const fixture = await readReleaseQaFixture({ url, anonKey, accessToken: token, userId: data.user.id });
-    if (!fixture) return new Response(null, { status: 409 });
+    const lookup = await readReleaseQaFixture({ url, anonKey, accessToken: token, userId: data.user.id });
+    if (!lookup.fixture) return new Response(null, { status: 409 });
   }
   const evidence = {
     ...(prior && typeof prior === 'object' ? prior : {}),

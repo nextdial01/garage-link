@@ -38,8 +38,9 @@ export async function POST(request: Request) {
   const { data, error } = await verifier.auth.getUser(token);
   if (error || !data.user || !data.user.email?.toLowerCase().includes(`+${emailMarker}@`)) return new Response(null, { status: 403 });
 
-  const fixture = await readReleaseQaFixture({ url, anonKey, accessToken: token, userId: data.user.id });
-  if (!fixture) return new Response(null, { status: 409 });
+  const lookup = await readReleaseQaFixture({ url, anonKey, accessToken: token, userId: data.user.id });
+  if (!lookup.fixture) return Response.json({ code: lookup.code }, { status: 409, headers: { 'Cache-Control': 'no-store' } });
+  const fixture = lookup.fixture;
   return Response.json({
     membership_id: fixture.membershipId,
     tenant_id: fixture.tenantId,

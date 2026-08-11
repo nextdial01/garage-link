@@ -5,6 +5,10 @@ export type ReleaseQaFixture = {
   tenantName: string;
 };
 
+export type ReleaseQaFixtureLookup =
+  | { fixture: ReleaseQaFixture; code: 'OK' }
+  | { fixture: null; code: 'MEMBERSHIP_READ' | 'MEMBERSHIP_CARDINALITY' | 'MEMBERSHIP_SHAPE' | 'STORE_READ' | 'STORE_CARDINALITY' | 'STORE_SHAPE' };
+
 export async function readReleaseQaFixture({
   url,
   anonKey,
@@ -15,7 +19,7 @@ export async function readReleaseQaFixture({
   anonKey: string;
   accessToken: string;
   userId: string;
-}): Promise<ReleaseQaFixture | null> {
+}): Promise<ReleaseQaFixtureLookup> {
   // Send the owner's JWT directly to PostgREST. A server Supabase client with
   // no persisted session can otherwise fall back to its anon key before the
   // RLS query is sent, which makes the formal fixture lookup indistinguishable
@@ -30,18 +34,18 @@ export async function readReleaseQaFixture({
   membershipsUrl.searchParams.set('user_id', `eq.${userId}`);
   membershipsUrl.searchParams.set('role', 'eq.owner');
   const membershipsResponse = await fetch(membershipsUrl, { headers, cache: 'no-store' });
-  if (!membershipsResponse.ok) return null;
+  if (!membershipsResponse.ok) return { fixture: null, code: 'MEMBERSHIP_READ' };
   const memberships = await membershipsResponse.json() as Array<{ id?: string; tenant_id?: string; store_id?: string }>;
-  if (!Array.isArray(memberships) || memberships.length !== 1) return null;
+  if (!Array.isArray(memberships) || memberships.length !== 1) return { fixture: null, code: 'MEMBERSHIP_CARDINALITY' };
 
   const membership = memberships[0];
-  if (!membership.id || !membership.tenant_id || !membership.store_id) return null;
+  if (!membership.id || !membership.tenant_id || !membership.store_id) return { fixture: null, code: 'MEMBERSHIP_SHAPE' };
   const storesResponse = await fetch(new URL('/rest/v1/rpc/list_accessible_garage_stores', url), {
     method: 'POST', headers, cache: 'no-store',
   });
-  if (!storesResponse.ok) return null;
+  if (!storesResponse.ok) return { fixture: null, code: 'STORE_READ' };
   const stores = await storesResponse.json() as Array<{ id?: string; tenant_id?: string; name?: string }>;
-  if (!Array.isArray(stores)) return null;
+  if (!Array.isArray(stores)) return { fixture: null, code: 'STORE_READ' };
   const matchingStores = (stores ?? []).filter(
     (store: { id?: string; tenant_id?: string; name?: string }) =>
       store?.id === membership.store_id &&
@@ -49,14 +53,9 @@ export async function readReleaseQaFixture({
       typeof store?.name === 'string' &&
       /^\[RELEASE QA \d{8}\]/.test(store.name)
   );
-  if (matchingStores.length !== 1) return null;
+  if (matchingStores.length !== 1) return { fixture: null, code: 'STORE_CARDINALITY' };
   const tenantName = matchingStores[0].name;
-  if (typeof tenantName !== 'string') return null;
+  if (typeof tenantName !== 'string') return { fixture: null, code: 'STORE_SHAPE' };
 
-  return {
-    membershipId: membership.id,
-    tenantId: membership.tenant_id,
-    storeId: membership.store_id,
-    tenantName,
-  };
+  return { code: 'OK', fixture: { membershipId: membership.id, tenantId: membership.tenant_id, storeId: membership.store_id, tenantName } };
 }
