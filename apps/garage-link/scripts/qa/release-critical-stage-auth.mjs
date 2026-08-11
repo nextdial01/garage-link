@@ -14,6 +14,11 @@ function allowedUrls(config){
   return raw.flatMap(value=>String(value??'').split(',')).map(value=>value.trim()).filter(Boolean);
 }
 function isLocalhostRedirect(value){try {return ['localhost','127.0.0.1','[::1]'].includes(new URL(value.replace(/\*+$/,'')).hostname)} catch {return false}}
+function isStagingPreviewRedirect(value){try {return /^garage-link-staging-[a-z0-9*-]+\.vercel\.app$/i.test(new URL(value.replace(/\*+$/,'')).hostname)} catch {return false}}
+function redirectAllowed(pattern,target){
+  const escaped=pattern.replace(/[.+^${}()|[\]\\]/g,'\\$&').replace(/\*\*/g,'__GLOBSTAR__').replace(/\*/g,'[^/?]*').replace(/__GLOBSTAR__/g,'.*');
+  return new RegExp(`^${escaped}$`).test(target);
+}
 async function stagingOrigin(){const event=JSON.parse(await readFile(required('GITHUB_EVENT_PATH'),'utf8'));const value=String(event?.inputs?.staging_base_url??'').trim();const url=new URL(value);if(url.protocol!=='https:'||!/^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i.test(url.hostname))throw new Error('STAGING_AUTH_ORIGIN_INVALID');return url.origin}
 function safePatchFailure(response,body,allowlist){
   const providerCode=String(body?.code??body?.error_code??'UNKNOWN').replace(/[^A-Z0-9_-]/gi,'_').slice(0,48);
@@ -30,9 +35,13 @@ export async function applyStagingPasswordMinimum(token,fetchImpl=fetch,origin){
   // localhost fallback that caused the prior confirmation callback to leave
   // Staging. Supabase evaluates emailRedirectTo against the callback URL,
   // not the post-callback next route.
-  const allowlist=new Set(allowedUrls(current.config).filter(value=>!isLocalhostRedirect(value)));
-  allowlist.add(`${resolvedOrigin}/auth/callback`);
-  allowlist.add(`${resolvedOrigin}/auth/callback**`);
+  // Preview URLs are intentionally ephemeral. Keeping every exact preview
+  // callback grows the hosted allowlist until Supabase rejects the PATCH.
+  // Keep non-Staging contracts, replace stale preview entries with the one
+  // documented wildcard contract that authorizes this exact preview origin.
+  const allowlist=new Set(allowedUrls(current.config).filter(value=>!isLocalhostRedirect(value)&&!isStagingPreviewRedirect(value)));
+  const stagingCallbackPattern='https://garage-link-staging-*.vercel.app/auth/callback**';
+  allowlist.add(stagingCallbackPattern);
   // `additional_redirect_urls` is the local CLI config alias. The hosted
   // Management API accepts the documented `uri_allow_list` field only.
   const response=await fetchImpl(endpoint,{method:'PATCH',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:resolvedOrigin,uri_allow_list:[...allowlist].join(',')}),redirect:'manual',cache:'no-store'});
@@ -43,7 +52,7 @@ export async function applyStagingPasswordMinimum(token,fetchImpl=fetch,origin){
   const readback=await readAuthConfig(STAGING_REF,token,fetchImpl);
   const minimum=readback.config?.password_min_length??readback.config?.minimum_password_length;
   const readbackAllowlist=allowedUrls(readback.config);
-  const callbackAllowed=[`${resolvedOrigin}/auth/callback`,`${resolvedOrigin}/auth/callback**`].every(expected=>readbackAllowlist.includes(expected));
+  const callbackAllowed=readbackAllowlist.some(pattern=>redirectAllowed(pattern,`${resolvedOrigin}/auth/callback`));
   const localhostFallback=readbackAllowlist.some(isLocalhostRedirect);
   if(minimum!==8||readback.config?.mailer_autoconfirm!==false||readback.config?.site_url!==resolvedOrigin||!callbackAllowed||localhostFallback)throw new Error('STAGING_AUTH_CONTRACT_READBACK_FAILED');
   return {project_ref:STAGING_REF,password_minimum:minimum,email_confirmation_required:true,staging_origin:resolvedOrigin,callback_allowed:callbackAllowed,recovery_allowed:callbackAllowed,localhost_redirects_removed:!localhostFallback};

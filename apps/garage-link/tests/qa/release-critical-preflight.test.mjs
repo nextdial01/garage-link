@@ -236,11 +236,11 @@ test('hosted Auth update is Staging-only and requires password plus confirmation
   await applyStagingPasswordMinimum('token',async(url,options)=>{
     calls.push({url:String(url),options});
     if(options.method==='PATCH')return new Response('{}',{status:200});
-    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
+    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:'https://garage-link-staging-*.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
   },'https://garage-link-staging-test.vercel.app');
   assert.equal(calls.length,3);
   assert.equal(calls[1].options.method,'PATCH');
-  assert.deepEqual(JSON.parse(calls[1].options.body),{password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'});
+  assert.deepEqual(JSON.parse(calls[1].options.body),{password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:'https://garage-link-staging-*.vercel.app/auth/callback**'});
   assert.ok(calls.every(call=>call.url.includes('gaytoojzwqkpuvfofeql')));
   await assert.rejects(()=>applyStagingPasswordMinimum('token',async()=>new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:true}),{status:200,headers:{'content-type':'application/json'}}),'https://garage-link-staging-test.vercel.app'),/STAGING_AUTH_CONTRACT_READBACK_FAILED/);
 });
@@ -251,9 +251,9 @@ test('hosted Auth contract preserves non-local redirects but removes localhost f
     calls.push({url:String(url),options});
     if(options.method==='PATCH')return new Response('{}',{status:200});
     const firstRead=calls.length===1;
-    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:firstRead?'http://localhost:3000,https://external.example/callback,https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**':'https://external.example/callback,https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
+    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:firstRead?'http://localhost:3000,https://external.example/callback,https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-old.vercel.app/auth/callback**':'https://external.example/callback,https://garage-link-staging-*.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
   },'https://garage-link-staging-test.vercel.app');
-  assert.equal(JSON.parse(calls[1].options.body).uri_allow_list,'https://external.example/callback,https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**');
+  assert.equal(JSON.parse(calls[1].options.body).uri_allow_list,'https://external.example/callback,https://garage-link-staging-*.vercel.app/auth/callback**');
 });
 
 test('hosted Auth contract reads the local additional_redirect_urls alias but PATCHes the Management API uri_allow_list field',async()=>{
@@ -261,9 +261,20 @@ test('hosted Auth contract reads the local additional_redirect_urls alias but PA
   await applyStagingPasswordMinimum('token',async(url,options)=>{
     calls.push({url:String(url),options});
     if(options.method==='PATCH')return new Response('{}',{status:200});
-    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',additional_redirect_urls:'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
+    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',additional_redirect_urls:'https://garage-link-staging-test.vercel.app/auth/callback,https://garage-link-staging-test.vercel.app/auth/callback**',uri_allow_list:'https://garage-link-staging-*.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
   },'https://garage-link-staging-test.vercel.app');
   const payload=JSON.parse(calls[1].options.body);
-  assert.match(payload.uri_allow_list,/auth\/callback\*\*/);
+  assert.equal(payload.uri_allow_list,'https://garage-link-staging-*.vercel.app/auth/callback**');
   assert.equal(payload.additional_redirect_urls,undefined);
+});
+
+test('hosted Auth contract compacts stale Staging preview callbacks before the Management PATCH',async()=>{
+  const calls=[];
+  const stale=Array.from({length:24},(_,index)=>`https://garage-link-staging-${index.toString(16).padStart(8,'a')}.vercel.app/auth/callback**`).join(',');
+  await applyStagingPasswordMinimum('token',async(url,options)=>{
+    calls.push({url:String(url),options});
+    if(options.method==='PATCH')return new Response('{}',{status:200});
+    return new Response(JSON.stringify({password_min_length:8,mailer_autoconfirm:false,site_url:'https://garage-link-staging-test.vercel.app',uri_allow_list:calls.length===1?stale:'https://garage-link-staging-*.vercel.app/auth/callback**'}),{status:200,headers:{'content-type':'application/json'}});
+  },'https://garage-link-staging-test.vercel.app');
+  assert.equal(JSON.parse(calls[1].options.body).uri_allow_list,'https://garage-link-staging-*.vercel.app/auth/callback**');
 });
