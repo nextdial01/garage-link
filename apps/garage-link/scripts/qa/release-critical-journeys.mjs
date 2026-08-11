@@ -100,7 +100,7 @@ async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,passwo
     if(!/^garage-link-[0-9a-f-]{36}$/i.test(emailMarker??''))fail('RELEASE_CRITICAL_FIXTURE_EMAIL_MARKER_INVALID');
     const response=await fetch(new URL('/api/qa/fixture-discovery',baseUrl),{method:'POST',headers:{authorization:`Bearer ${login.session.access_token}`,'content-type':'application/json'},body:JSON.stringify({email_marker:emailMarker}),redirect:'manual',cache:'no-store'});
     if(response.headers.has('location'))fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_REDIRECT');
-    if(!response.ok){const detail=await response.json().catch(()=>null);if(optional&&response.status===409)return null;fail(`RELEASE_CRITICAL_FIXTURE_DISCOVERY:${response.status}:${String(detail?.code??'UNKNOWN').replace(/[^A-Z_]/g,'_')}`);}
+    if(!response.ok){const detail=await response.json().catch(()=>null);if(optional&&response.status===409)return null;fail(`RELEASE_CRITICAL_FIXTURE_DISCOVERY:${response.status}:${String(detail?.code??'UNKNOWN').replace(/[^A-Z0-9_]/g,'_')}`);}
     const fixture=await response.json();
     if(typeof fixture?.membership_id!=='string'||typeof fixture?.tenant_id!=='string'||typeof fixture?.store_id!=='string'||typeof fixture?.tenant_name!=='string'||!fixture.tenant_name.startsWith(tenantNamePrefix))fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_INVALID');
     return {membershipId:fixture.membership_id,tenantId:fixture.tenant_id,storeId:fixture.store_id,tenantName:fixture.tenant_name};

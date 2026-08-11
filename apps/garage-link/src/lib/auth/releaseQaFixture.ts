@@ -7,7 +7,7 @@ export type ReleaseQaFixture = {
 
 export type ReleaseQaFixtureLookup =
   | { fixture: ReleaseQaFixture; code: 'OK' }
-  | { fixture: null; code: 'MEMBERSHIP_READ' | 'MEMBERSHIP_CARDINALITY' | 'MEMBERSHIP_SHAPE' | 'STORE_READ' | 'STORE_CARDINALITY' | 'STORE_SHAPE' };
+  | { fixture: null; code: `MEMBERSHIP_READ_${number}` | 'MEMBERSHIP_CARDINALITY' | 'MEMBERSHIP_SHAPE' | 'STORE_READ' | 'STORE_CARDINALITY' | 'STORE_SHAPE' };
 
 export async function readReleaseQaFixture({
   url,
@@ -38,7 +38,7 @@ export async function readReleaseQaFixture({
   membershipsUrl.searchParams.set('user_id', `eq.${userId}`);
   membershipsUrl.searchParams.set('role', 'eq.owner');
   const membershipsResponse = await fetch(membershipsUrl, { headers, cache: 'no-store' });
-  if (!membershipsResponse.ok) return { fixture: null, code: 'MEMBERSHIP_READ' };
+  if (!membershipsResponse.ok) return { fixture: null, code: `MEMBERSHIP_READ_${membershipsResponse.status}` };
   const memberships = await membershipsResponse.json() as Array<{ id?: string; tenant_id?: string; store_id?: string; user_id?: string; role?: string }>;
   if (!Array.isArray(memberships) || memberships.length !== 1) return { fixture: null, code: 'MEMBERSHIP_CARDINALITY' };
 
