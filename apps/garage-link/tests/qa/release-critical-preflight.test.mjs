@@ -60,7 +60,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/manualGmailCheckpoint\(session,'signup'\)/);
   assert.match(journeys,/manualGmailCheckpoint\(session,'recovery'\)/);
   assert.doesNotMatch(journeys,/run\.emailMarker}-contract/);
-  assert.match(journeys,/pollCallbackEvidence\(\{admin,userId:user\.id,run,baseUrl,purpose:'signup'\}\)/);
+  assert.match(journeys,/requireOnboardingCompleted:true/);
   assert.match(journeys,/requireStoreCreated:true/);
   assert.match(journeys,/user\?\?=await maybeFindUser/);
   assert.match(journeys,/requirePasswordUpdate:true/);
@@ -155,6 +155,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/actual-email-gates/);
   assert.match(workflow,/final-clean-verdict/);
   assert.match(workflow,/production-email-transport/);
+  assert.match(await readFile(resolve(appRoot,'scripts/qa/release-critical-production-transport.mjs'),'utf8'),/HISTORICAL_EVIDENCE_SOURCES/);
+  assert.match(await readFile(resolve(appRoot,'scripts/qa/release-critical-production-transport.mjs'),'utf8'),/NO_MACHINE_READABLE_HOSTED_AUTH_SMTP_EVIDENCE/);
   assert.match(workflow,/RELEASE_CRITICAL_WAITING_PRODUCTION_TRANSPORT/);
   assert.match(workflow,/RELEASE_CRITICAL_WAITING_TRANSPORT/);
   assert.match(workflow,/RELEASE_CRITICAL_CONVERGED_PASS/);
@@ -167,6 +169,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(callbackEvidence,/process\.env\.VERCEL_ENV/);
   assert.match(callbackEvidence,/release_qa_callback/);
   assert.match(callbackEvidence,/store_created/);
+  assert.match(callbackEvidence,/onboarding_completed/);
   assert.match(callbackEvidence,/validCallbackChain/);
   assert.match(callbackEvidence,/server_bound_continuation: true/);
   assert.match(callbackEvidence,/release_qa_run_id/);

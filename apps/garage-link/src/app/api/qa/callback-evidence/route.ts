@@ -7,7 +7,7 @@ const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
 const STAGING_HOST = /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i;
 const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type CallbackPhase = 'callback' | 'arrival' | 'store_created' | 'password_updated';
+type CallbackPhase = 'callback' | 'arrival' | 'store_created' | 'onboarding_completed' | 'password_updated';
 type CallbackPurpose = 'signup' | 'recovery';
 
 function stagingRuntime(request: Request) {
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   let body: { run_id?: unknown; phase?: unknown; next_path?: unknown };
   try { body = await request.json(); } catch { return new Response(null, { status: 400 }); }
   const runId = typeof body.run_id === 'string' && RUN_ID.test(body.run_id) ? body.run_id.toLowerCase() : null;
-  const phase: CallbackPhase | null = body.phase === 'callback' || body.phase === 'arrival' || body.phase === 'store_created' || body.phase === 'password_updated' ? body.phase : null;
+  const phase: CallbackPhase | null = body.phase === 'callback' || body.phase === 'arrival' || body.phase === 'store_created' || body.phase === 'onboarding_completed' || body.phase === 'password_updated' ? body.phase : null;
   if (!runId || !phase) return new Response(null, { status: 400 });
   const purpose = callbackPurpose(body.next_path, runId);
   if (!purpose) return new Response(null, { status: 400 });
@@ -83,11 +83,19 @@ export async function POST(request: Request) {
   if (phase === 'store_created') {
     if (purpose !== 'signup' || !validCallbackChain(existingPurpose, purpose, runId, origin)) return new Response(null, { status: 409 });
   }
+  if (phase === 'onboarding_completed') {
+    const storeCreated = existingPurpose.store_created as { server_bound_continuation?: unknown } | undefined;
+    if (
+      purpose !== 'signup'
+      || !validCallbackChain(existingPurpose, purpose, runId, origin)
+      || storeCreated?.server_bound_continuation !== true
+    ) return new Response(null, { status: 409 });
+  }
   if (phase === 'password_updated' && !validCallbackChain(existingPurpose, purpose, runId, origin)) {
     return new Response(null, { status: 409 });
   }
   const recordedAt = new Date().toISOString();
-  const continuation = phase === 'store_created' || phase === 'password_updated'
+  const continuation = phase === 'store_created' || phase === 'onboarding_completed' || phase === 'password_updated'
     ? { server_bound_continuation: true, continuation_of_callback_at: (existingPurpose.callback as { recorded_at?: unknown }).recorded_at }
     : {};
   const evidence = {

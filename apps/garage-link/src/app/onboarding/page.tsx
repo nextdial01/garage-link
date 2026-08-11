@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import BrandLogo from '@/components/BrandLogo';
 import { trackConversion } from '@/lib/analytics/conversion';
 import { translateAuthError } from '@/lib/auth/auth-errors';
+import { rememberedReleaseQaRun, recordReleaseQaCallback, releaseQaNextPath } from '@/lib/auth/releaseQaCallback';
 import { fetchStoreForOnboarding, markOnboardingComplete } from '@/lib/auth/store-onboarding';
 import { createClient } from '@/lib/supabase/client';
 import { getGarageUiContext } from '@/lib/store/garageUiContext';
@@ -210,6 +211,12 @@ export default function OnboardingPage() {
     }
 
     trackConversion('onboarding_complete');
+    const qaRunId = rememberedReleaseQaRun();
+    await recordReleaseQaCallback(
+      qaRunId,
+      'onboarding_completed',
+      releaseQaNextPath('/signup?resume=1', qaRunId),
+    );
     router.replace('/dashboard');
   }
 

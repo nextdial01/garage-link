@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/client';
 const STORAGE_KEY = 'garage-link-release-qa-run';
 const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export type ReleaseQaCallbackPhase = 'callback' | 'arrival' | 'store_created' | 'password_updated';
+export type ReleaseQaCallbackPhase = 'callback' | 'arrival' | 'store_created' | 'onboarding_completed' | 'password_updated';
 
 export function releaseQaRunId(value: string | null | undefined): string | null {
   const normalized = value?.trim() ?? '';
