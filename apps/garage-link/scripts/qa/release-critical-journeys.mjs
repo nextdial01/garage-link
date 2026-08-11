@@ -88,25 +88,22 @@ async function onboarding(page,marker){
   await page.getByRole('button',{name:'次へ'}).click();
   await clickAndWait(page,page.getByRole('button',{name:'設定を完了してダッシュボードへ進む'}),/\/dashboard/);
 }
-async function ownerFixtureForUser({supabaseUrl,serviceRole,email,password,tenantNamePrefix,optional=false}){
-  // The lifecycle service role intentionally has no direct table grants. Read
-  // a synthetic owner's own membership through its authenticated RLS boundary,
-  // then use the existing authorized store-list RPC for the tenant name.
+async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,password,tenantNamePrefix,optional=false}){
+  // The lifecycle service role intentionally has no direct table grants. The
+  // Staging-only endpoint verifies the synthetic owner token and reads through
+  // that owner's existing RLS boundary without widening any database grant.
   const subject=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
   try {
     const {data:login,error:loginError}=await subject.auth.signInWithPassword({email,password});
     if(loginError||!login.session?.user){if(optional)return null;fail(`RELEASE_CRITICAL_FIXTURE_OWNER_LOGIN:${safeProviderCode(loginError)}`);}
-    const {data:memberships,error:membershipError}=await subject.from('memberships').select('id,tenant_id,store_id').eq('user_id',login.session.user.id).eq('role','owner');
-    if(membershipError)fail(`RELEASE_CRITICAL_FIXTURE_MEMBERSHIP_LOOKUP:${safeProviderCode(membershipError)}`);
-    if((memberships?.length??0)===0){if(optional)return null;fail('RELEASE_CRITICAL_FIXTURE_OWNER_ABSENT');}
-    if(memberships.length!==1)fail(`RELEASE_CRITICAL_FIXTURE_OWNER_CARDINALITY:${memberships.length}`);
-    const membership=memberships[0];
-    if(!membership?.id||!membership.tenant_id||!membership.store_id)fail('RELEASE_CRITICAL_FIXTURE_MEMBERSHIP_SHAPE_INVALID');
-    const {data:stores,error:storesError}=await subject.rpc('list_accessible_garage_stores');
-    if(storesError)fail(`RELEASE_CRITICAL_FIXTURE_STORE_LOOKUP:${safeProviderCode(storesError)}`);
-    const matches=(stores??[]).filter(store=>store?.id===membership.store_id&&store?.tenant_id===membership.tenant_id&&typeof store?.name==='string'&&store.name.startsWith(tenantNamePrefix));
-    if(matches.length!==1)fail(`RELEASE_CRITICAL_FIXTURE_STORE_CARDINALITY:${matches.length}`);
-    return {membershipId:membership.id,tenantId:membership.tenant_id,storeId:membership.store_id,tenantName:matches[0].name};
+    const emailMarker=email.split('@')[0]?.split('+')[1];
+    if(!/^garage-link-[0-9a-f-]{36}$/i.test(emailMarker??''))fail('RELEASE_CRITICAL_FIXTURE_EMAIL_MARKER_INVALID');
+    const response=await fetch(new URL('/api/qa/fixture-discovery',baseUrl),{method:'POST',headers:{authorization:`Bearer ${login.session.access_token}`,'content-type':'application/json'},body:JSON.stringify({email_marker:emailMarker}),redirect:'manual',cache:'no-store'});
+    if(response.headers.has('location'))fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_REDIRECT');
+    if(!response.ok){if(optional&&response.status===409)return null;fail(`RELEASE_CRITICAL_FIXTURE_DISCOVERY:${response.status}`);}
+    const fixture=await response.json();
+    if(typeof fixture?.membership_id!=='string'||typeof fixture?.tenant_id!=='string'||typeof fixture?.store_id!=='string'||typeof fixture?.tenant_name!=='string'||!fixture.tenant_name.startsWith(tenantNamePrefix))fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_INVALID');
+    return {membershipId:fixture.membership_id,tenantId:fixture.tenant_id,storeId:fixture.store_id,tenantName:fixture.tenant_name};
   } finally {await subject.auth.signOut().catch(()=>undefined);}
 }
 async function activeOwner(options){return ownerFixtureForUser(options)}
@@ -200,9 +197,9 @@ export async function cleanupLifecycle(life,admin,userId,runId){
   }
   return current;
 }
-async function recoverKnownPartialFixture(admin,provenance,supabaseUrl,serviceRole){
+async function recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole){
   const user=await findKnownPartialUser(admin); if(!user)return {state:'RELEASE_CRITICAL_PARTIAL_FIXTURE_ABSENT'};
-  const owner=await activeOwner({supabaseUrl,serviceRole,email:user.email,password:releaseCriticalSyntheticPassword(PARTIAL_MARKER),tenantNamePrefix:'[RELEASE QA '});
+  const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email:user.email,password:releaseCriticalSyntheticPassword(PARTIAL_MARKER),tenantNamePrefix:'[RELEASE QA '});
   const marker=/^\[RELEASE QA \d{8}\]/.exec(owner.tenantName)?.[0];
   if(!marker)fail('RELEASE_CRITICAL_PARTIAL_MARKER_UNPROVEN');
   const partialRunId=PARTIAL_MARKER.replace(/^garage-link-/,'');
@@ -245,7 +242,7 @@ async function main(){
   const provenanceResponse=await fetch(new URL('/api/qa/provenance',baseUrl),{headers:{'x-vercel-protection-bypass':bypassSecret},redirect:'manual',cache:'no-store'}); if(!provenanceResponse.ok||provenanceResponse.headers.has('location'))fail('RELEASE_CRITICAL_PROVENANCE_UNREACHED');
   const provenance=validateReleaseCriticalProvenance(await provenanceResponse.json(),baseUrl); if(provenance.sourceSha!==expectedCandidateSha)fail('RELEASE_CRITICAL_CANDIDATE_SHA_MISMATCH');
   const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
-  await recoverKnownPartialFixture(admin,provenance,supabaseUrl,serviceRole);
+  await recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole);
   const run=createReleaseCriticalRun(); const session=createManualGmailSession(manualBase,run.emailMarker); const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker); const resetPassword='GL-Release-Reset-8!';
   let browser; let context; let page; let user; let life; let adopted=false; const results={};
   try {
@@ -262,7 +259,7 @@ async function main(){
     }
     if(signupOutcome.kind==='onboarding'){
       user=await findUser(admin,session.emailAddress);
-      const owner=await activeOwner({supabaseUrl,serviceRole,email:session.emailAddress,password:initialPassword,tenantNamePrefix:run.marker});
+      const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email:session.emailAddress,password:initialPassword,tenantNamePrefix:run.marker});
       await adoptLifecycleFixture(life,run,{...owner,userId:user.id});
       adopted=true;
       fail('RELEASE_CRITICAL_SIGNUP_AUTO_CONFIRMED');
@@ -274,7 +271,7 @@ async function main(){
     await page.getByRole('link',{name:'ログイン',exact:true}).last().click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,initialPassword,/\/signup\?resume=1/);
     await page.getByLabel('店舗名').fill(`${run.marker} 店舗`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await page.getByRole('button',{name:'店舗を作成して次へ'}).click(); await page.waitForURL(/\/(onboarding|security\/email-otp)/,{timeout:30_000}); await completeSecurityOtp(page); await page.waitForURL(/\/onboarding/,{timeout:30_000}); await onboarding(page,run.marker); results.J1='PASS';
     await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true});
-    const owner=await activeOwner({supabaseUrl,serviceRole,email:session.emailAddress,password:initialPassword,tenantNamePrefix:run.marker}); if(!owner.tenantName.startsWith(run.marker))fail('RELEASE_CRITICAL_MARKER_TENANT_MISMATCH');
+    const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email:session.emailAddress,password:initialPassword,tenantNamePrefix:run.marker}); if(!owner.tenantName.startsWith(run.marker))fail('RELEASE_CRITICAL_MARKER_TENANT_MISMATCH');
     await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true; results.J2='PASS';
     const invalid=await context.newPage(); await invalid.goto(baseUrl,{waitUntil:'domcontentloaded'}); await clickAndWait(invalid,invalid.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
     // The separate page keeps the main owner session intact; fill by concrete UI locators.
@@ -300,7 +297,7 @@ async function main(){
       if(!adopted&&life){
         user??=await maybeFindUser(admin,session.emailAddress);
         if(user?.id){
-          const owner=await maybeActiveOwner({supabaseUrl,serviceRole,email:session.emailAddress,password:initialPassword,tenantNamePrefix:run.marker});
+          const owner=await maybeActiveOwner({baseUrl,supabaseUrl,serviceRole,email:session.emailAddress,password:initialPassword,tenantNamePrefix:run.marker});
           if(owner){await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true;}
           else {const {error}=await admin.auth.admin.deleteUser(user.id,false);if(error&&error.status!==404)fail(`RELEASE_CRITICAL_EARLY_AUTH_DELETE:${error.status??0}`);await life.rpc('qa_lifecycle_abort_clean',{p_run_id:run.runId,p_reason:'early_auth_cleanup'});}
         } else {

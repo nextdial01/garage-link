@@ -1,5 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { readReleaseQaFixture } from '@/lib/auth/releaseQaFixture';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,14 +59,8 @@ export async function POST(request: Request) {
   const existingPurpose = prior && typeof prior === 'object' && prior[purpose] && typeof prior[purpose] === 'object' ? prior[purpose] : {};
   if (phase === 'store_created') {
     if (purpose !== 'signup' || !existingPurpose.callback || !existingPurpose.arrival) return new Response(null, { status: 409 });
-    const { data: owner, error: ownerError } = await admin
-      .from('memberships')
-      .select('id')
-      .eq('user_id', data.user.id)
-      .eq('role', 'owner')
-      .maybeSingle();
-    if (ownerError) return new Response(null, { status: 500 });
-    if (!owner?.id) return new Response(null, { status: 409 });
+    const fixture = await readReleaseQaFixture({ url, anonKey, accessToken: token, userId: data.user.id });
+    if (!fixture) return new Response(null, { status: 409 });
   }
   const evidence = {
     ...(prior && typeof prior === 'object' ? prior : {}),

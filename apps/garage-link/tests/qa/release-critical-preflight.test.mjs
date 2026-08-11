@@ -9,7 +9,7 @@ import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-s
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,journeys,workflow,signup,callback,recovery,callbackEvidence]=await Promise.all([
+  const [runner,journeys,workflow,signup,callback,recovery,callbackEvidence,fixtureDiscovery]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
@@ -17,6 +17,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
     readFile(resolve(appRoot,'src/app/auth/callback/page.tsx'),'utf8'),
     readFile(resolve(appRoot,'src/app/auth/reset-password/page.tsx'),'utf8'),
     readFile(resolve(appRoot,'src/app/api/qa/callback-evidence/route.ts'),'utf8'),
+    readFile(resolve(appRoot,'src/app/api/qa/fixture-discovery/route.ts'),'utf8'),
   ]);
   assert.match(runner,/gaytoojzwqkpuvfofeql/);
   assert.match(runner,/wmlpuzuskfiwdipluglz/);
@@ -60,9 +61,13 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/beginLifecycle\(life,run,provenance\)/);
   assert.match(journeys,/maybeActiveOwner/);
   assert.match(journeys,/qa_lifecycle_abort_clean/);
-  assert.match(journeys,/recoverKnownPartialFixture\(admin,provenance,supabaseUrl,serviceRole\)/);
+  assert.match(journeys,/recoverKnownPartialFixture\(admin,provenance,baseUrl,supabaseUrl,serviceRole\)/);
   assert.match(journeys,/ownerFixtureForUser/);
-  assert.match(journeys,/list_accessible_garage_stores/);
+  assert.match(journeys,/\/api\/qa\/fixture-discovery/);
+  assert.match(fixtureDiscovery,/STAGING_PROJECT_ID/);
+  assert.match(fixtureDiscovery,/readReleaseQaFixture/);
+  assert.match(fixtureDiscovery,/status: 404/);
+  assert.doesNotMatch(fixtureDiscovery,/createAdminClient|STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(journeys,/RELEASE_CRITICAL_PARTIAL_FIXTURE_CLEAN/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_SUBMIT_ALERT/);
   assert.match(journeys,/REDIRECT_URL_NOT_ALLOWED/);
