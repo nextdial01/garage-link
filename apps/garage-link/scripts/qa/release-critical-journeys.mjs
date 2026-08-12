@@ -41,6 +41,9 @@ export function createReleaseCriticalRun(runId=randomUUID()){
   if(!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_RUN_ID_INVALID');
   return {runId,marker:'[RELEASE QA 20260811]',emailMarker:`g${runId.replaceAll('-','').slice(0,6).toLowerCase()}`};
 }
+export function isLifecycleCleanupResumableState(state){
+  return ['TEST_COMPLETE','TEARDOWN_DRY_RUN','TEARDOWN_READY','TEARING_DOWN','DB_CLEANED','AUTH_CLEANED','STORAGE_CLEANED','ARTIFACTS_CLEANED','VERIFIED_CLEAN'].includes(state);
+}
 export function releaseCriticalSyntheticPassword(emailMarker){
   if(!/^(?:garage-link-[a-z0-9-]{8,}|g[0-9a-f]{6})$/i.test(emailMarker))fail('RELEASE_CRITICAL_MARKER_INVALID');
   return `GL-${emailMarker}-8!`;
@@ -764,6 +767,18 @@ async function recoverInterruptedFixture(admin,provenance,baseUrl,supabaseUrl,se
   if(!user&&!existing)return {state:'RELEASE_CRITICAL_INTERRUPTED_FIXTURE_ABSENT'};
   if(!user)fail('RELEASE_CRITICAL_INTERRUPTED_AUTH_ABSENT');
   if(existing?.state==='COMPLETE')return verifyKnownPartialLifecycle(admin,statusLife,INTERRUPTED_RUN_ID);
+  // A prior worker can be interrupted after the fixture has been formally
+  // adopted and while the normal lifecycle is already entering teardown.  Do
+  // not recreate the browser identity or move the state backwards: resume the
+  // registered deletion sequence so the membership/store/tenant cleanup still
+  // precedes Auth deletion and the final read-back remains authoritative.
+  if(isLifecycleCleanupResumableState(existing?.state)){
+    if(!/^[0-9a-f]{40}$/i.test(existing.source_sha??'')||!/^dpl_[A-Za-z0-9]+$/.test(existing.deployment_id??''))fail('RELEASE_CRITICAL_INTERRUPTED_PROVENANCE_UNPROVEN');
+    const life=lifecycle(admin,provisionalRun,{sourceSha:existing.source_sha,deploymentId:existing.deployment_id});
+    await cleanupLifecycle(life,admin,user.id,INTERRUPTED_RUN_ID);
+    emit({state:'RELEASE_CRITICAL_INTERRUPTED_LIFECYCLE_CLEANUP_RESUMED',run_marker_hash:sha256(INTERRUPTED_RUN_ID),resumed_state:existing.state});
+    return verifyKnownPartialLifecycle(admin,life,INTERRUPTED_RUN_ID);
+  }
   if(existing?.state!=='PROVISIONING')fail(`RELEASE_CRITICAL_INTERRUPTED_LIFECYCLE_STATE:${existing?.state??'ABSENT'}`);
   const recoveryPassword=releaseCriticalSyntheticPassword(provisionalRun.emailMarker);
   const {data:updated,error:updateError}=await admin.auth.admin.updateUserById(user.id,{password:recoveryPassword});

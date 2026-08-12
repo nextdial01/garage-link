@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl } from '../../scripts/qa/release-critical-preflight.mjs';
-import { classifyCtaTrace, createReleaseCriticalRun, installVercelBrowserBypass, releaseCriticalSyntheticPassword, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
+import { classifyCtaTrace, createReleaseCriticalRun, installVercelBrowserBypass, isLifecycleCleanupResumableState, releaseCriticalSyntheticPassword, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
 import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-stage-auth.mjs';
 import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critical-qa-lifecycle-contract.mjs';
 
@@ -422,6 +422,11 @@ test('release-critical journeys accept only the Staging runtime and marker-bound
   assert.throws(()=>validateReleaseCriticalProvenance({
     project_id:'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64',deployment_id:'dpl_Abc123',git_commit_sha:'d7974d6b9adc78064010cc6b4502f54adbc39ba5',git_commit_ref:'main',deployment_url:'https://garage-link.tech',environment:'production',
   },'https://garage-link.tech'),/RELEASE_CRITICAL_PROVENANCE_DENIED/);
+});
+
+test('an interrupted registered fixture resumes only its formal cleanup states',()=>{
+  for(const state of ['TEST_COMPLETE','TEARDOWN_DRY_RUN','TEARDOWN_READY','TEARING_DOWN','DB_CLEANED','AUTH_CLEANED','STORAGE_CLEANED','ARTIFACTS_CLEANED','VERIFIED_CLEAN'])assert.equal(isLifecycleCleanupResumableState(state),true);
+  for(const state of ['CREATED','PREFLIGHT_READY','PROVISIONING','PROVISIONED','AUTH_READY','TEST_RUNNING','FAILED_RECOVERABLE','COMPLETE'])assert.equal(isLifecycleCleanupResumableState(state),false);
 });
 
 test('CTA trace separates pointer non-delivery, route redirects, and runtime errors',()=>{
