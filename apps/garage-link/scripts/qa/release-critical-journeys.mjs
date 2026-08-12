@@ -64,6 +64,12 @@ function safeNavigationPath(value,baseUrl){
     return `${url.pathname}${url.search}`.slice(0,180);
   } catch {return 'INVALID_URL';}
 }
+function isHostedInstrumentationScript(path){
+  // Vercel injects this opaque same-origin telemetry/protection bootstrap into
+  // protected previews. It is not an application route or Next chunk, and its
+  // optional 404 must not be reported as a GARAGE LINK runtime exception.
+  return /^\/[0-9a-f]{16}\/script\.js$/i.test(path);
+}
 export function classifyCtaTrace(trace){
   if(trace.runtimeErrorCount>0)return 'RUNTIME_ERROR';
   if(!trace.domClick)return 'CLICK_NOT_FIRED';
@@ -143,14 +149,20 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,exp
     if(path!=='CROSS_ORIGIN'&&path!=='INVALID_URL')trace.failedResponsePaths.push(`${response.status()}:${path}`);
   };
   const onPageError=error=>{trace.runtimeErrorCount+=1;trace.runtimeErrorClasses.push(`PAGE:${safeErrorCode(error)}`);};
-  const onConsole=message=>{if(message.type()==='error'){trace.runtimeErrorCount+=1;trace.runtimeErrorClasses.push(`CONSOLE:${safeErrorCode(message.text())}`);}};
+  const onConsole=message=>{
+    if(message.type()!=='error')return;
+    const locationPath=safeNavigationPath(message.location().url,baseUrl);
+    const isOptionalHostedScript=isHostedInstrumentationScript(locationPath)
+      && /^Failed to load resource: the server responded with a status of 404/i.test(message.text());
+    if(!isOptionalHostedScript){trace.runtimeErrorCount+=1;trace.runtimeErrorClasses.push(`CONSOLE:${safeErrorCode(message.text())}`);}
+  };
   let emittedClassification=null;
   const emitTrace=()=>{
     if(emittedClassification)return emittedClassification;
     trace.finalPath=safeNavigationPath(page.url(),baseUrl);
     trace.navigationRequestCount=observedRequests.length;
     const classification=classifyCtaTrace(trace);
-    emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:label,classification,dom_click:trace.domClick?'YES':'NO',navigation_request_count:trace.navigationRequestCount,middleware_final_destination:trace.finalPath,browser_runtime_error_count:trace.runtimeErrorCount,browser_runtime_error_classes:[...new Set(trace.runtimeErrorClasses)],failed_response_paths:[...new Set(trace.failedResponsePaths)],garage_ui_context:accountState?.garageUiContext??'UNKNOWN',active_store:accountState?.activeStore??'UNKNOWN',onboarding_completed:accountState?.onboardingCompleted??'UNKNOWN',membership_role:accountState?.membershipRole??'UNKNOWN',membership_status:accountState?.membershipStatus??'UNKNOWN',contract_access_state:accountState?.contractAccessState??'UNKNOWN',admin_security_requirement:trace.finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
+    emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:label,classification,dom_click:trace.domClick?'YES':'NO',navigation_request_count:trace.navigationRequestCount,middleware_final_destination:trace.finalPath,browser_runtime_error_count:trace.runtimeErrorCount,browser_runtime_error_classes:[...new Set(trace.runtimeErrorClasses)],failed_response_paths:[...new Set(trace.failedResponsePaths)],ignored_hosted_instrumentation_404s:trace.failedResponsePaths.filter(value=>isHostedInstrumentationScript(value.replace(/^\d+:/,''))).length,garage_ui_context:accountState?.garageUiContext??'UNKNOWN',active_store:accountState?.activeStore??'UNKNOWN',onboarding_completed:accountState?.onboardingCompleted??'UNKNOWN',membership_role:accountState?.membershipRole??'UNKNOWN',membership_status:accountState?.membershipStatus??'UNKNOWN',contract_access_state:accountState?.contractAccessState??'UNKNOWN',admin_security_requirement:trace.finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
     emittedClassification=classification;
     return emittedClassification;
   };
@@ -257,7 +269,7 @@ async function executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subj
     await installVercelBrowserBypass(context,baseUrl,bypassSecret);
     const page=await context.newPage();
     await page.goto(new URL('/login',baseUrl).toString(),{waitUntil:'domcontentloaded'});
-    await login(page,subject.email,password,/\/(dashboard|onboarding|billing|security)(?:\/|\?|$)/);
+    await login(page,subject.email,password,url=>new URL(url).pathname!=='/login');
     if(state==='admin_security_unverified')await context.clearCookies({name:/^garage_admin_email_verified$/});
     await page.goto(new URL('/vehicles',baseUrl).toString(),{waitUntil:'domcontentloaded'});
     const cta=page.getByRole('link',{name:'車両を登録',exact:true});
