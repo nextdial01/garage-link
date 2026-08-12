@@ -231,10 +231,10 @@ async function executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subj
   try {
     await installVercelBrowserBypass(context,baseUrl,bypassSecret);
     const page=await context.newPage();
-    await page.goto(new URL('/login',baseUrl),{waitUntil:'domcontentloaded'});
+    await page.goto(new URL('/login',baseUrl).toString(),{waitUntil:'domcontentloaded'});
     await login(page,subject.email,password,/\/(dashboard|onboarding)(?:\?|$)/);
     if(state==='admin_security_unverified')await context.clearCookies({name:/^garage_admin_email_verified$/});
-    await page.goto(new URL('/vehicles',baseUrl),{waitUntil:'domcontentloaded'});
+    await page.goto(new URL('/vehicles',baseUrl).toString(),{waitUntil:'domcontentloaded'});
     const cta=page.getByRole('link',{name:'車両を登録',exact:true});
     const trace=await cta.isVisible().catch(()=>false)
       ?await tracePointerCta(page,{baseUrl,label:`VEHICLE_CREATE_MATRIX_${state.toUpperCase()}`,locator:cta,expectedPath:'/vehicles/new',accountState,expectedClassification:null})
