@@ -122,14 +122,14 @@
       "dependsOn": [
         "20260812000100"
       ],
-      "checksum": "d589087eb2c222dd3814ff0d25102a7c5fe06c1cde6e57957aa8b785a65c7355"
+      "checksum": "dd7bed703f69251dc798b438ec69e32bc267ffe4f75f5bfd874430e4e96b8a6c"
     }
   ],
   "rollbacks": [
     {
       "version": "20260812101500",
       "file": "rollback/20260812101500_qa_lifecycle_expired_release_fixture_recovery.down.sql",
-      "checksum": "1a33bdfdfd41ae681c025f5ef6dbc8a1246226418cc0ffdadee956bf5ad91269"
+      "checksum": "e765b8b9050a9d0567745bff1efe0f624ecc12ba0b00ce22e451c8ac263bf026"
     },
     {
       "version": "20260812000100",

@@ -18,6 +18,7 @@ begin
   select * into strict r from qa_internal.runs where run_id=p_run_id for update;
   select * into strict f from qa_internal.fixtures where run_id=p_run_id for update;
   perform pg_advisory_xact_lock(hashtextextended(p_run_id::text, 0));
+  perform 1 from public.tenants where id=f.tenant_id for update;
 
   if r.product<>'garage-link' or r.environment<>'staging'
      or r.project_ref<>'gaytoojzwqkpuvfofeql'

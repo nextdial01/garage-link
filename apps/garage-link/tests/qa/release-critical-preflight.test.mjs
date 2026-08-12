@@ -10,7 +10,7 @@ import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critica
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,journeys,workflow,qaLifecycleContract,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback,expiredFixtureRecovery]=await Promise.all([
+  const [runner,journeys,workflow,qaLifecycleContract,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback,expiredFixtureRecovery,expiredFixtureRecoveryRollback]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
@@ -26,6 +26,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
     readFile(resolve(appRoot,'supabase/qa/migrations/20260812000100_qa_lifecycle_cta_account_state_matrix.sql'),'utf8'),
     readFile(resolve(appRoot,'supabase/qa/rollback/20260812000100_qa_lifecycle_cta_account_state_matrix.down.sql'),'utf8'),
     readFile(resolve(appRoot,'supabase/qa/migrations/20260812101500_qa_lifecycle_expired_release_fixture_recovery.sql'),'utf8'),
+    readFile(resolve(appRoot,'supabase/qa/rollback/20260812101500_qa_lifecycle_expired_release_fixture_recovery.down.sql'),'utf8'),
   ]);
   assert.match(runner,/gaytoojzwqkpuvfofeql/);
   assert.match(runner,/wmlpuzuskfiwdipluglz/);
@@ -226,10 +227,14 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(expiredFixtureRecovery,/qa_lifecycle_reclaim_expired_release_fixture/);
   assert.match(expiredFixtureRecovery,/revoke all on function public\.qa_lifecycle_reclaim_expired_release_fixture\(uuid\) from public, anon, authenticated/);
   assert.match(expiredFixtureRecovery,/grant execute on function public\.qa_lifecycle_reclaim_expired_release_fixture\(uuid\) to service_role/);
+  assert.match(expiredFixtureRecovery,/perform 1 from public\.tenants where id=f\.tenant_id for update/);
   assert.match(expiredFixtureRecovery,/v_service_execute=15/);
   assert.match(qaLifecycleContract,/service_execute_count===15/);
   assert.match(qaLifecycleContract,/expired_release_recovery==='service_role_only'/);
   assert.doesNotMatch(expiredFixtureRecovery,/stripe_customer_id\s*:=|stripe_subscription_id\s*:=|api\.line\.me/);
+  assert.match(expiredFixtureRecoveryRollback,/create or replace function public\.qa_lifecycle_cleanup_readiness/);
+  assert.match(expiredFixtureRecoveryRollback,/v_service_execute=14/);
+  assert.match(expiredFixtureRecoveryRollback,/drop function if exists public\.qa_lifecycle_reclaim_expired_release_fixture\(uuid\)/);
   assert.match(workflow,/release-critical-journeys\.mjs/);
   assert.match(workflow,/stage-auth-contract/);
   assert.match(workflow,/qa-lifecycle-contract/);
