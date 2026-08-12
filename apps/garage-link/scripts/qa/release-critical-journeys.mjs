@@ -336,7 +336,11 @@ async function executeVehicleMatrixCase({browser,baseUrl,supabaseUrl,bypassSecre
     stage='POST_LOGIN_DESTINATION_OBSERVED';
     if(/\/security\/email-otp/.test(page.url())){
       stage='OTP_GATE_COMPLETED';
-      await completeSecurityOtp(page,/\/vehicles(?:\?|$)/);
+      // The real OTP action may resume the requested vehicle route or a
+      // legitimate state gate such as onboarding/billing.  Record that next
+      // boundary below; requiring /vehicles here would turn a valid gate into
+      // an OTP UI reach false failure.
+      await completeSecurityOtp(page,url=>new URL(url).pathname!=='/security/email-otp');
     }
     if(state==='admin_security_unverified'){
       stage='ADMIN_SECURITY_DIFFERENTIAL_APPLIED';
