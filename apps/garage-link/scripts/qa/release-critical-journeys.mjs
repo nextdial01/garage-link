@@ -211,40 +211,43 @@ function matrixExpectedState(state){
     admin_security_unverified:{garageUiContext:'active',activeStore:'YES',onboardingCompleted:'YES',membershipRole:'owner',contractAccessState:'active'},
   }[state];
 }
-async function matrixAccountState({supabaseUrl,anonKey,email,password}){
-  // The browser uses the public Staging key plus the authenticated user's JWT.
-  // Mirror that boundary here: a service-role API key would exercise a
-  // different PostgREST role and can hide (or invent) authorization failures.
-  // Send the resulting JWT explicitly to PostgREST. This avoids coupling the
-  // matrix contract to supabase-js's in-memory session propagation semantics.
-  const subject=createClient(supabaseUrl,anonKey,{auth:{autoRefreshToken:false,persistSession:false}});
+async function matrixAccountState({supabaseUrl,serviceRole,email,password}){
+  // Fixture discovery is the released application contract for the
+  // authenticated subject boundary. Its route verifies the actual JWT, binds
+  // it to the run marker, and reads PostgREST with the Staging runtime anon
+  // key. Calling RPCs from this runner directly is not equivalent because
+  // the QA service-role key is intentionally not a browser/Data API key.
+  const subject=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
   try {
     const {data,error}=await subject.auth.signInWithPassword({email,password});
+    if(error||!data.user?.id)fail(`RELEASE_CRITICAL_CTA_MATRIX_AUTH:${safeProviderCode(error)}`);
     const accessToken=data.session?.access_token;
-    if(error||!data.user?.id||typeof accessToken!=='string'||!accessToken)fail(`RELEASE_CRITICAL_CTA_MATRIX_AUTH:${safeProviderCode(error)}`);
-    const headers={apikey:anonKey,authorization:`Bearer ${accessToken}`,'content-type':'application/json'};
-    const [uiResponse,contractResponse]=await Promise.all([
-      fetch(new URL('/rest/v1/rpc/get_garage_ui_context_v2',supabaseUrl),{method:'POST',headers,cache:'no-store'}),
-      fetch(new URL('/rest/v1/rpc/get_member_contract_access',supabaseUrl),{method:'POST',headers,cache:'no-store'}),
-    ]);
-    const [ui,contract]=await Promise.all([uiResponse.json().catch(()=>null),contractResponse.json().catch(()=>null)]);
-    if(!uiResponse.ok||!contractResponse.ok){
-      const rpc=!uiResponse.ok?'GARAGE_UI_CONTEXT':'CONTRACT_ACCESS';
-      const provider=!uiResponse.ok?ui:contract;
-      emit({state:'RELEASE_CRITICAL_CTA_MATRIX_RPC_DIAGNOSTIC',rpc,postgrest_status:!uiResponse.ok?uiResponse.status:contractResponse.status,postgrest_code:safeProviderCode(provider),jwt_role:'authenticated',project_ref:STAGING_REF});
-      fail(`RELEASE_CRITICAL_CTA_MATRIX_STATE:${rpc}:${safeProviderCode(provider)}`);
-    }
-    const value={
-      garageUiContext:ui?.state,
-      activeStore:ui?.store_id?'YES':'NO',
-      onboardingCompleted:ui?.onboarding_completed===true?'YES':'NO',
-      membershipRole:ui?.role,
-      membershipStatus:'active',
-      contractAccessState:contract?.state,
-    };
-    if(!['active','selection_required','no_access'].includes(value.garageUiContext)||!['YES','NO'].includes(value.activeStore)||!['YES','NO'].includes(value.onboardingCompleted)||!/^[a-z_]{2,32}$/i.test(String(value.membershipRole??''))||!/^[a-z_]{2,48}$/i.test(String(value.contractAccessState??'')))fail('RELEASE_CRITICAL_CTA_MATRIX_STATE_SHAPE');
-    return value;
+    if(typeof accessToken!=='string'||!accessToken)fail('RELEASE_CRITICAL_CTA_MATRIX_SESSION_MISSING');
+    return {accessToken,userId:data.user.id};
   } finally {await subject.auth.signOut().catch(()=>undefined);}
+}
+async function matrixAccountStateFromFixture({baseUrl,bypassSecret,accessToken,userId,runId}){
+  const headers={authorization:`Bearer ${accessToken}`,'content-type':'application/json','x-vercel-protection-bypass':bypassSecret};
+  const request=await fetchVerifiedVercelRequest(new URL('/api/qa/fixture-discovery',baseUrl),headers,fetch,{method:'POST',body:JSON.stringify({run_id:runId})});
+  const response=request.response;
+  if(!response.ok||response.headers.has('location')){
+    const detail=await response.json().catch(()=>null);
+    emit({state:'RELEASE_CRITICAL_CTA_MATRIX_RPC_DIAGNOSTIC',layer:detail?.layer??'VERCEL_OR_ROUTE',http_status:response.status,postgrest_status:detail?.postgrest_response_code??null,postgrest_code:String(detail?.postgrest_provider_error_code??detail?.code??'UNKNOWN').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,48),jwt_role:detail?.jwt?.role??'UNKNOWN',jwt_sub_matches_user:detail?.jwt?.sub_matches_user??'UNKNOWN',project_ref:STAGING_REF});
+    fail(`RELEASE_CRITICAL_CTA_MATRIX_STATE:${response.status}:${String(detail?.code??'UNKNOWN').replace(/[^A-Za-z0-9_-]/g,'_').slice(0,48)}`);
+  }
+  const fixture=await response.json();
+  if(fixture?.user_id!==undefined&&fixture.user_id!==userId)fail('RELEASE_CRITICAL_CTA_MATRIX_IDENTITY_MISMATCH');
+  const accountState=fixture?.account_state;
+  const value={
+    garageUiContext:accountState?.garage_ui_context,
+    activeStore:accountState?.active_store,
+    onboardingCompleted:accountState?.onboarding_completed,
+    membershipRole:accountState?.membership_role,
+    membershipStatus:accountState?.membership_status,
+    contractAccessState:accountState?.contract_access_state,
+  };
+  if(!['active','selection_required','no_access'].includes(value.garageUiContext)||!['YES','NO'].includes(value.activeStore)||!['YES','NO'].includes(value.onboardingCompleted)||!/^[a-z_]{2,32}$/i.test(String(value.membershipRole??''))||value.membershipStatus!=='active'||!/^[a-z_]{2,48}$/i.test(String(value.contractAccessState??'')))fail('RELEASE_CRITICAL_CTA_MATRIX_STATE_SHAPE');
+  return value;
 }
 function matrixStateMatches(actual,expected){
   return actual.garageUiContext===expected.garageUiContext
@@ -259,8 +262,9 @@ function emitUnavailableMatrixTrace({baseUrl,page,state,accountState}){
   emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:`VEHICLE_CREATE_MATRIX_${state.toUpperCase()}`,classification,dom_click:'NO',navigation_request_count:0,middleware_final_destination:finalPath,browser_runtime_error_count:0,garage_ui_context:accountState.garageUiContext,active_store:accountState.activeStore,onboarding_completed:accountState.onboardingCompleted,membership_role:accountState.membershipRole,membership_status:accountState.membershipStatus,contract_access_state:accountState.contractAccessState,admin_security_requirement:finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
   return {classification,finalPath,domClick:false,navigationRequestCount:0,runtimeErrorCount:0};
 }
-async function executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subject,password,supabaseUrl,anonKey}){
-  const accountState=await matrixAccountState({supabaseUrl,anonKey,email:subject.email,password});
+async function executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subject,password,supabaseUrl,serviceRole,runId}){
+  const session=await matrixAccountState({supabaseUrl,serviceRole,email:subject.email,password});
+  const accountState=await matrixAccountStateFromFixture({baseUrl,bypassSecret,accessToken:session.accessToken,userId:session.userId,runId});
   if(!matrixStateMatches(accountState,matrixExpectedState(state)))fail(`RELEASE_CRITICAL_CTA_MATRIX_EXPECTED_STATE_MISMATCH:${state}`);
   const context=await browser.newContext();
   try {
@@ -277,7 +281,7 @@ async function executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subj
     return {state,accountState,trace};
   } finally {await context.close();}
 }
-async function runVehicleAccountStateMatrix({admin,life,run,baseUrl,supabaseUrl,anonKey,bypassSecret}){
+async function runVehicleAccountStateMatrix({admin,life,run,baseUrl,supabaseUrl,serviceRole,bypassSecret}){
   const password=releaseCriticalSyntheticPassword(run.emailMarker);
   const subjects={}; const created=[]; let provisioned=false; let browser;
   try {
@@ -299,7 +303,7 @@ async function runVehicleAccountStateMatrix({admin,life,run,baseUrl,supabaseUrl,
     browser=await chromium.launch({headless:true});
     const results=[];
     for(const state of CTA_MATRIX_STATES){
-      results.push(await executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subject:subjects[state],password,supabaseUrl,anonKey}));
+      results.push(await executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subject:subjects[state],password,supabaseUrl,serviceRole,runId:run.runId}));
     }
     const normal=results.find(result=>result.state==='active_owner');
     const nonOwner=results.find(result=>result.state==='active_non_owner');
@@ -661,7 +665,7 @@ async function runMachineOnly({baseUrl,supabaseUrl,serviceRole,bypassSecret,prov
     await followHostedAction(page,signupAction,{baseUrl,expectedPath:'/signup',purpose:'signup'}); if(!new URL(page.url()).searchParams.has('resume'))fail('RELEASE_CRITICAL_AUTH_CALLBACK_RESUME_MISSING'); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup'});
     await page.getByLabel('店舗名').fill(`${run.marker} 店舗`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await submitResumeStore(page,baseUrl,supabaseUrl); await completeSecurityOtp(page); await page.waitForURL(/\/onboarding/,{timeout:30_000,waitUntil:'commit'}); await onboarding(page,run.marker); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true,requireOnboardingCompleted:true});
     const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email,password:initialPassword,tenantNamePrefix:run.marker,bypassSecret,runId:run.runId}); await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true; results.J2='MECHANICS_PASS';
-    await runVehicleAccountStateMatrix({admin,life,run,baseUrl,supabaseUrl,anonKey:required('E2E_TEST_SUPABASE_ANON_KEY'),bypassSecret});
+    await runVehicleAccountStateMatrix({admin,life,run,baseUrl,supabaseUrl,serviceRole,bypassSecret});
     await clickAndWait(page,page.getByRole('link',{name:'車両',exact:true}).first(),/\/vehicles(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'VEHICLE_CREATE',locator:page.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState:owner.accountState}); await page.getByText('車両登録',{exact:true}).waitFor({timeout:30_000}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/vehicles(?:\?|$)/,{timeout:30_000}); await verifyVehicleAccountStateGate({browser,sourceContext:context,baseUrl,bypassSecret,accountState:owner.accountState});
     await clickAndWait(page,page.getByRole('link',{name:'顧客',exact:true}).first(),/\/customers(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'CUSTOMER_CREATE',locator:page.getByRole('link',{name:'顧客を登録',exact:true}),expectedPath:'/customers/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/customers(?:\?|$)/,{timeout:30_000}); await clickAndWait(page,page.getByRole('link',{name:'商談',exact:true}).first(),/\/deals(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'DEAL_CREATE',locator:page.getByRole('link',{name:'商談を登録',exact:true}),expectedPath:'/deals/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/deals(?:\?|$)/,{timeout:30_000});
     await clickAndWait(page,page.getByRole('link',{name:'見積書',exact:true}).first(),/\/quotes(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'QUOTE_CREATE',locator:page.getByRole('link',{name:'見積書を作成',exact:true}),expectedPath:'/quotes/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/quotes(?:\?|$)/,{timeout:30_000});
