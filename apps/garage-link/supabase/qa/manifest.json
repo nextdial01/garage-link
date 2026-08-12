@@ -113,9 +113,24 @@
         "20260811152300"
       ],
       "checksum": "1b80dcee3d3b666fda3f7b5b32b3fb76bcde7c4d214e4e891f41f2a6fac54f9b"
+    },
+    {
+      "version": "20260812101500",
+      "name": "qa_lifecycle_expired_release_fixture_recovery",
+      "kind": "repair",
+      "file": "migrations/20260812101500_qa_lifecycle_expired_release_fixture_recovery.sql",
+      "dependsOn": [
+        "20260812000100"
+      ],
+      "checksum": "d589087eb2c222dd3814ff0d25102a7c5fe06c1cde6e57957aa8b785a65c7355"
     }
   ],
   "rollbacks": [
+    {
+      "version": "20260812101500",
+      "file": "rollback/20260812101500_qa_lifecycle_expired_release_fixture_recovery.down.sql",
+      "checksum": "1a33bdfdfd41ae681c025f5ef6dbc8a1246226418cc0ffdadee956bf5ad91269"
+    },
     {
       "version": "20260812000100",
       "file": "rollback/20260812000100_qa_lifecycle_cta_account_state_matrix.down.sql",
