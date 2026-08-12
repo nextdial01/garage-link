@@ -596,13 +596,17 @@ export function lifecycle(admin,run,provenance){
   return {rpc,transition,evidence,status:()=>rpc('qa_lifecycle_status',{p_run_id:run.runId}),maybeStatus};
 }
 export async function beginLifecycle(life,run,provenance){
-  await life.rpc('qa_lifecycle_register_run',{p_run_id:run.runId,p_purpose:'release-critical-acquisition',p_source_sha:provenance.sourceSha,p_deployment_id:provenance.deploymentId,p_operator_reference:'release-critical-gha',p_cleanup_deadline:new Date(Date.now()+60*60_000).toISOString()});
+  // Keep the registered deadline aligned with the established QA lifecycle.
+  // A manual confirmation session and its cleanup must never race a one-hour
+  // expiry window, which would make the formally registered fixture
+  // undeletable without operator intervention.
+  await life.rpc('qa_lifecycle_register_run',{p_run_id:run.runId,p_purpose:'release-critical-acquisition',p_source_sha:provenance.sourceSha,p_deployment_id:provenance.deploymentId,p_operator_reference:'release-critical-gha',p_cleanup_deadline:new Date(Date.now()+48*60*60_000).toISOString()});
   await life.transition('CREATED','PREFLIGHT_RUNNING','preflight-evidence');
   await life.transition('PREFLIGHT_RUNNING','PREFLIGHT_READY','signup-lifecycle-registered',{baseline_evidence:'31406030364'});
   await life.transition('PREFLIGHT_READY','PROVISIONING','adopt-signup-fixture');
 }
 export async function adoptLifecycleFixture(life,run,fixture){
-  await life.rpc('qa_lifecycle_adopt_fixture',{p_run_id:run.runId,p_tenant_id:fixture.tenantId,p_expected_tenant_name:fixture.tenantName,p_store_id:fixture.storeId,p_user_id:fixture.userId,p_membership_id:fixture.membershipId,p_fixture_type:'release',p_marker:run.marker,p_expires_at:new Date(Date.now()+60*60_000).toISOString()});
+  await life.rpc('qa_lifecycle_adopt_fixture',{p_run_id:run.runId,p_tenant_id:fixture.tenantId,p_expected_tenant_name:fixture.tenantName,p_store_id:fixture.storeId,p_user_id:fixture.userId,p_membership_id:fixture.membershipId,p_fixture_type:'release',p_marker:run.marker,p_expires_at:new Date(Date.now()+24*60*60_000).toISOString()});
   await life.transition('PROVISIONING','PROVISIONED','auth');
   await life.transition('PROVISIONED','AUTH_READY','run');
   await life.transition('AUTH_READY','TEST_RUNNING','run');
@@ -684,10 +688,26 @@ async function abortAuthOnlyLifecycle(life,admin,user,runId,reason){
   await life.rpc('qa_lifecycle_abort_clean',{p_run_id:runId,p_reason:reason});
   emit({state:'RELEASE_CRITICAL_EARLY_AUTH_ONLY_CLEAN',run_marker_hash:sha256(runId)});
 }
+function lifecycleDeadlineExpired(value){
+  return typeof value==='string'&&Number.isFinite(Date.parse(value))&&Date.parse(value)<=Date.now();
+}
+async function reclaimExpiredLifecycleIfRequired(life,existing,run){
+  const fixture=Array.isArray(existing?.fixtures)?existing.fixtures[0]:null;
+  const deadlineExpired=lifecycleDeadlineExpired(existing?.cleanup_deadline);
+  const fixtureExpired=lifecycleDeadlineExpired(fixture?.expires_at);
+  if(!deadlineExpired&&!fixtureExpired)return existing;
+  if(existing?.state!=='PROVISIONING'||!fixture||fixture.fixture_type!=='release')fail('RELEASE_CRITICAL_EXPIRED_LIFECYCLE_RECOVERY_UNSAFE');
+  await life.rpc('qa_lifecycle_reclaim_expired_release_fixture',{p_run_id:run.runId});
+  const recovered=await life.status();
+  if(lifecycleDeadlineExpired(recovered?.cleanup_deadline)||lifecycleDeadlineExpired(recovered?.fixtures?.[0]?.expires_at)||recovered?.state!=='PROVISIONING')fail('RELEASE_CRITICAL_EXPIRED_LIFECYCLE_RECOVERY_INVALID');
+  emit({state:'RELEASE_CRITICAL_EXPIRED_LIFECYCLE_RECOVERY_PASS',run_marker_hash:sha256(run.runId),reclaimed_deadline:true,reclaimed_fixture_expiry:true});
+  return recovered;
+}
 async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,user,run,password}){
   let statusLife=lifecycle(admin,run,provenance);
   let existing=await statusLife.maybeStatus();
   if(!existing){await beginLifecycle(statusLife,run,provenance);existing=await statusLife.status();}
+  existing=await reclaimExpiredLifecycleIfRequired(statusLife,existing,run);
   if(!/^[0-9a-f]{40}$/i.test(existing.source_sha??'')||!/^dpl_[A-Za-z0-9]+$/.test(existing.deployment_id??''))fail('RELEASE_CRITICAL_RECOVERY_PROVENANCE_UNPROVEN');
   let browser; let context;
   let fixture;

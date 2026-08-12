@@ -10,7 +10,7 @@ import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critica
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,journeys,workflow,qaLifecycleContract,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback]=await Promise.all([
+  const [runner,journeys,workflow,qaLifecycleContract,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback,expiredFixtureRecovery]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
@@ -25,6 +25,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
     readFile(resolve(appRoot,'src/lib/security/adminEmailOtpServer.ts'),'utf8'),
     readFile(resolve(appRoot,'supabase/qa/migrations/20260812000100_qa_lifecycle_cta_account_state_matrix.sql'),'utf8'),
     readFile(resolve(appRoot,'supabase/qa/rollback/20260812000100_qa_lifecycle_cta_account_state_matrix.down.sql'),'utf8'),
+    readFile(resolve(appRoot,'supabase/qa/migrations/20260812101500_qa_lifecycle_expired_release_fixture_recovery.sql'),'utf8'),
   ]);
   assert.match(runner,/gaytoojzwqkpuvfofeql/);
   assert.match(runner,/wmlpuzuskfiwdipluglz/);
@@ -78,6 +79,10 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/verifyFreshOtpGuard/);
   assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_RECOVERY_SAME_OTP_SESSION_PASS/);
   assert.match(journeys,/RELEASE_CRITICAL_FRESH_SESSION_OTP_GUARD_PASS/);
+  assert.match(journeys,/qa_lifecycle_reclaim_expired_release_fixture/);
+  assert.match(journeys,/RELEASE_CRITICAL_EXPIRED_LIFECYCLE_RECOVERY_PASS/);
+  assert.match(journeys,/48\*60\*60_000/);
+  assert.match(journeys,/24\*60\*60_000/);
   assert.match(journeys,/recoverInterruptedFixture/);
   assert.match(journeys,/INTERRUPTED_RUN_ID/);
   assert.doesNotMatch(journeys,/RELEASE_CRITICAL_MACHINE_EARLY_AUTH_DELETE|RELEASE_CRITICAL_EARLY_AUTH_DELETE/);
@@ -214,6 +219,17 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(qaLifecycleContract,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN|api\.supabase\.com|database\/query|fetch\(/);
   assert.doesNotMatch(workflow,/STRIPE_SECRET_KEY|E2E_ALLOW_BILLING_MUTATIONS|STRIPE_WEBHOOK_SECRET/);
   assert.match(workflow,/Release-critical machine-only gates/);
+  assert.match(expiredFixtureRecovery,/EXPIRED_RELEASE_RECOVERY_RUN_CONTRACT_INVALID/);
+  assert.match(expiredFixtureRecovery,/EXPIRED_RELEASE_RECOVERY_SCOPE_UNPROVEN/);
+  assert.match(expiredFixtureRecovery,/r\.environment<>'staging'/);
+  assert.match(expiredFixtureRecovery,/r\.project_ref<>'gaytoojzwqkpuvfofeql'/);
+  assert.match(expiredFixtureRecovery,/qa_lifecycle_reclaim_expired_release_fixture/);
+  assert.match(expiredFixtureRecovery,/revoke all on function public\.qa_lifecycle_reclaim_expired_release_fixture\(uuid\) from public, anon, authenticated/);
+  assert.match(expiredFixtureRecovery,/grant execute on function public\.qa_lifecycle_reclaim_expired_release_fixture\(uuid\) to service_role/);
+  assert.match(expiredFixtureRecovery,/v_service_execute=15/);
+  assert.match(qaLifecycleContract,/service_execute_count===15/);
+  assert.match(qaLifecycleContract,/expired_release_recovery==='service_role_only'/);
+  assert.doesNotMatch(expiredFixtureRecovery,/stripe_customer_id\s*:=|stripe_subscription_id\s*:=|api\.line\.me/);
   assert.match(workflow,/release-critical-journeys\.mjs/);
   assert.match(workflow,/stage-auth-contract/);
   assert.match(workflow,/qa-lifecycle-contract/);
@@ -479,14 +495,14 @@ test('CTA matrix contract requires the one-time external bootstrap when readines
 test('CTA matrix contract is Management-PAT-independent after the external Staging bootstrap',async()=>{
   const result=await ensureReleaseCriticalCtaMatrix({
     supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',
-    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:14,cta_matrix:'registry_bound'},error:null})}),
+    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:15,cta_matrix:'registry_bound',expired_release_recovery:'service_role_only'},error:null})}),
   });
-  assert.deepEqual(result,{state:'RELEASE_CRITICAL_QA_MATRIX_READY',bootstrap:'EXTERNAL_ADMIN_ONETIME',management_pat_required:false,readiness:{ready:true,cta_matrix:'registry_bound',private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:14}});
+  assert.deepEqual(result,{state:'RELEASE_CRITICAL_QA_MATRIX_READY',bootstrap:'EXTERNAL_ADMIN_ONETIME',management_pat_required:false,readiness:{ready:true,cta_matrix:'registry_bound',private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:15,expired_release_recovery:'service_role_only'}});
 });
 
 test('CTA matrix contract rejects incomplete service-role security read-back',async()=>{
   await assert.rejects(()=>ensureReleaseCriticalCtaMatrix({
     supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',
-    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:1,service_execute_count:14,cta_matrix:'registry_bound'},error:null})}),
+    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:1,service_execute_count:15,cta_matrix:'registry_bound',expired_release_recovery:'service_role_only'},error:null})}),
   }),/CTA_MATRIX_BOOTSTRAP_REQUIRED:READBACK/);
 });

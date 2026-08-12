@@ -15,7 +15,8 @@ function matrixReady(value){
     &&value?.private_schema===true
     &&value?.last_owner_guard_enabled===true
     &&value?.public_execute_count===0
-    &&value?.service_execute_count===14;
+    &&value?.service_execute_count===15
+    &&value?.expired_release_recovery==='service_role_only';
 }
 
 function safeReadback(value){
@@ -26,6 +27,7 @@ function safeReadback(value){
     last_owner_guard_enabled:value?.last_owner_guard_enabled===true,
     public_execute_count:Number.isInteger(value?.public_execute_count)?value.public_execute_count:null,
     service_execute_count:Number.isInteger(value?.service_execute_count)?value.service_execute_count:null,
+    expired_release_recovery:value?.expired_release_recovery==='service_role_only'?'service_role_only':'unavailable',
   };
 }
 
