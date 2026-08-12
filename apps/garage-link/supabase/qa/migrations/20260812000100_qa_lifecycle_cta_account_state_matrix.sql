@@ -15,8 +15,12 @@ create table if not exists qa_internal.cta_matrix_fixtures (
   tenant_id uuid not null references public.tenants(id) on delete restrict,
   primary_store_id uuid not null references public.stores(id) on delete restrict,
   secondary_store_id uuid references public.stores(id) on delete restrict,
-  subject_membership_id uuid not null references public.memberships(id) on delete restrict,
-  support_membership_id uuid references public.memberships(id) on delete restrict,
+  -- The registry must disappear only after its exact owner-deletion context
+  -- has been evaluated. Cascading from the owner membership lets that guard
+  -- see the registry, then removes the private reference before the remaining
+  -- staff membership is deleted.
+  subject_membership_id uuid not null references public.memberships(id) on delete cascade,
+  support_membership_id uuid references public.memberships(id) on delete cascade,
   created_at timestamptz not null default clock_timestamp(),
   primary key (run_id, state),
   unique (tenant_id),
@@ -226,9 +230,22 @@ begin
       delete from public.company_subscriptions where tenant_id=x.tenant_id and company_id in (x.primary_store_id,x.secondary_store_id);
       delete from public.membership_store_assignments where tenant_id=x.tenant_id and membership_id in (x.subject_membership_id,x.support_membership_id);
       delete from public.store_members where store_id in (x.primary_store_id,x.secondary_store_id) and user_id in (x.subject_user_id,x.support_user_id);
-      delete from public.memberships where id in (x.subject_membership_id,x.support_membership_id) and tenant_id=x.tenant_id;
-      get diagnostics v_membership_count=row_count;
-      if v_membership_count<>(case when x.support_membership_id is null then 1 else 2 end) then raise exception 'CTA_MATRIX_MEMBERSHIP_DELETE_COUNT'; end if;
+      if x.support_membership_id is not null then
+        -- Delete the support owner first. Its guarded deletion is allowed by
+        -- the exact registry row above and cascades that row; the subject is a
+        -- staff membership and can then be removed without weakening the
+        -- last-owner invariant.
+        delete from public.memberships where id=x.support_membership_id and tenant_id=x.tenant_id;
+        get diagnostics v_membership_count=row_count;
+        if v_membership_count<>1 then raise exception 'CTA_MATRIX_SUPPORT_OWNER_DELETE_COUNT'; end if;
+        delete from public.memberships where id=x.subject_membership_id and tenant_id=x.tenant_id;
+        get diagnostics v_membership_count=row_count;
+        if v_membership_count<>1 then raise exception 'CTA_MATRIX_SUBJECT_MEMBERSHIP_DELETE_COUNT'; end if;
+      else
+        delete from public.memberships where id=x.subject_membership_id and tenant_id=x.tenant_id;
+        get diagnostics v_membership_count=row_count;
+        if v_membership_count<>1 then raise exception 'CTA_MATRIX_MEMBERSHIP_DELETE_COUNT'; end if;
+      end if;
       delete from public.stores where id in (x.primary_store_id,x.secondary_store_id) and tenant_id=x.tenant_id;
       get diagnostics v_store_count=row_count;
       if v_store_count<>(case when x.secondary_store_id is null then 1 else 2 end) then raise exception 'CTA_MATRIX_STORE_DELETE_COUNT'; end if;
