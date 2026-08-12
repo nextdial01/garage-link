@@ -241,6 +241,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/customer_equivalence:reproduced/);
   assert.match(journeys,/admin_security_requirement/);
   assert.match(journeys,/CTA_MATRIX_STATES/);
+  assert.match(journeys,/release_qa_cta_matrix_run_id:run\.runId,release_qa_run_id:run\.runId/);
   for(const state of ['active_owner','active_non_owner','selection_required','onboarding_incomplete','contract_restricted','admin_security_unverified']) assert.match(journeys,new RegExp(`'${state}'`));
   assert.match(journeys,/qa_lifecycle_cta_matrix/);
   assert.match(journeys,/matrixFixtureContractState/);

@@ -334,12 +334,12 @@ async function runVehicleAccountStateMatrix({admin,life,run,baseUrl,bypassSecret
   try {
     for(const state of CTA_MATRIX_STATES){
       const subjectEmail=matrixSubjectEmail(run,state);
-      const {data,error}=await admin.auth.admin.createUser({email:subjectEmail,password,email_confirm:true,app_metadata:{purpose:'release-cta-matrix',release_qa_cta_matrix_run_id:run.runId}});
+      const {data,error}=await admin.auth.admin.createUser({email:subjectEmail,password,email_confirm:true,app_metadata:{purpose:'release-cta-matrix',release_qa_cta_matrix_run_id:run.runId,release_qa_run_id:run.runId}});
       if(error||!data.user?.id)fail(`RELEASE_CRITICAL_CTA_MATRIX_SUBJECT_CREATE:${state}:${safeProviderCode(error)}`);
       subjects[state]={subject_user_id:data.user.id,email:subjectEmail}; created.push(data.user.id);
       if(state==='active_non_owner'){
         const supportEmail=matrixSubjectEmail(run,state,'support');
-        const support=await admin.auth.admin.createUser({email:supportEmail,password,email_confirm:true,app_metadata:{purpose:'release-cta-matrix',release_qa_cta_matrix_run_id:run.runId}});
+        const support=await admin.auth.admin.createUser({email:supportEmail,password,email_confirm:true,app_metadata:{purpose:'release-cta-matrix',release_qa_cta_matrix_run_id:run.runId,release_qa_run_id:run.runId}});
         if(support.error||!support.data.user?.id)fail(`RELEASE_CRITICAL_CTA_MATRIX_SUPPORT_CREATE:${safeProviderCode(support.error)}`);
         subjects[state].support_user_id=support.data.user.id; subjects[state].support_email=supportEmail; created.push(support.data.user.id);
       }
