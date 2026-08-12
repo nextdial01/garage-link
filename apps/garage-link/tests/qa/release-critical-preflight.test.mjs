@@ -81,6 +81,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_RECOVERY_SAME_OTP_SESSION_PASS/);
   assert.match(journeys,/RELEASE_CRITICAL_FRESH_SESSION_OTP_GUARD_PASS/);
   assert.match(journeys,/qa_lifecycle_reclaim_expired_release_fixture/);
+  assert.match(journeys,/RELEASE_CRITICAL_LIFECYCLE_\$\{name\}:\$\{safeProviderCode\(error\)\}:\$\{safeErrorCode\(error\)\}/);
   assert.match(journeys,/RELEASE_CRITICAL_EXPIRED_LIFECYCLE_RECOVERY_PASS/);
   assert.match(journeys,/48\*60\*60_000/);
   assert.match(journeys,/24\*60\*60_000/);
