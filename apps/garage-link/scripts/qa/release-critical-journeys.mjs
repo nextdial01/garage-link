@@ -337,14 +337,14 @@ async function signupSubmitOutcome(page){
     ]);
   } catch {fail('RELEASE_CRITICAL_SIGNUP_OUTCOME_UNOBSERVED')}
 }
-async function completeSecurityOtp(page){
+async function completeSecurityOtp(page,nextPattern=/\/(signup\?resume=1|onboarding|dashboard)/){
   if(!/\/security\/email-otp/.test(page.url()))return;
   const preview=page.getByText(/Preview QA確認コード:\s*\d{6}/);
   await preview.waitFor({state:'visible',timeout:30_000});
   const otp=(await preview.textContent())?.match(/\b(\d{6})\b/)?.[1];
   if(!otp)fail('RELEASE_CRITICAL_SECURITY_OTP_UNAVAILABLE');
   await page.getByLabel('メールに届いた6桁コード').fill(otp);
-  await clickAndWait(page,page.getByRole('button',{name:'この端末を承認する'}),/\/(signup\?resume=1|onboarding|dashboard)/);
+  await clickAndWait(page,page.getByRole('button',{name:'この端末を承認する'}),nextPattern);
 }
 async function login(page,email,password,nextPattern){
   await page.getByLabel('メールアドレス').fill(email);
@@ -374,7 +374,12 @@ async function loginMatrixSubject(page,email,password){
   // following real /vehicles entry remains the authoritative middleware
   // boundary; do not turn App Router timing into a fake login failure.
   await page.waitForURL(url=>new URL(url).pathname!=='/login',{timeout:5_000}).catch(()=>undefined);
-  if(/\/security\/email-otp/.test(page.url()))await completeSecurityOtp(page);
+  // A restricted synthetic contract can legitimately leave the user outside
+  // the normal dashboard path after the real OTP click. The matrix's next
+  // /vehicles entry observes that contract boundary, so accept any committed
+  // departure from the security challenge here instead of timing out on an
+  // active-owner-only destination.
+  if(/\/security\/email-otp/.test(page.url()))await completeSecurityOtp(page,url=>new URL(url).pathname!=='/security/email-otp');
   return {kind:'redirect',finalPath:safeNavigationPath(page.url(),new URL(page.url()).origin)};
 }
 async function onboarding(page,marker){
