@@ -434,10 +434,25 @@ async function signupSubmitOutcome(page){
 }
 async function completeSecurityOtp(page,nextPattern=/\/(signup\?resume=1|onboarding|dashboard)/,otpRequest=null){
   if(!/\/security\/email-otp/.test(page.url()))return;
-  const request=otpRequest?await otpRequest:null;
+  let request=otpRequest?await otpRequest:null;
   if(request){
-    const status=request.status();
+    let status=request.status();
     emit({state:'RELEASE_CRITICAL_OTP_PREVIEW_SINK_UI_REACH',classification:request.ok()?'OTP_REQUEST_EMITTED':'OTP_REQUEST_FAILED',http_status:status,redirected:request.headers().location?'YES':'NO'});
+    if(status===429&&!request.headers().location){
+      // Preserve the production rate limit.  The QA journey waits for the
+      // real form's cooldown and uses its visible resend button once, rather
+      // than fabricating a code or retrying the API directly.
+      const retryAfter=Math.max(1,Number.parseInt(request.headers()['retry-after']??'60',10)||60);
+      emit({state:'RELEASE_CRITICAL_OTP_PREVIEW_SINK_RATE_LIMIT',retry_after_seconds:retryAfter,action:'WAIT_THEN_VISIBLE_RESEND'});
+      const resend=page.getByRole('button',{name:'確認コードを再送する',exact:true});
+      await page.waitForFunction(button=>button instanceof HTMLButtonElement&&!button.disabled,await resend.elementHandle(),{timeout:(retryAfter+10)*1000});
+      const retryResponse=page.waitForResponse(candidate=>{
+        try {return candidate.request().method()==='POST'&&new URL(candidate.url()).pathname==='/api/auth/admin-email-otp/request';}
+        catch {return false;}
+      },{timeout:30_000});
+      await resend.click(); request=await retryResponse; status=request.status();
+      emit({state:'RELEASE_CRITICAL_OTP_PREVIEW_SINK_UI_REACH',classification:request.ok()?'OTP_REQUEST_RETRY_EMITTED':'OTP_REQUEST_RETRY_FAILED',http_status:status,redirected:request.headers().location?'YES':'NO'});
+    }
     if(!request.ok()||request.headers().location)fail(`RELEASE_CRITICAL_SECURITY_OTP_REQUEST:${status}`);
   }
   const preview=page.getByText(/Preview QA確認コード:\s*\d{6}/);
