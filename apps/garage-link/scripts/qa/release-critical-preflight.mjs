@@ -233,7 +233,11 @@ async function main(){
   if(provenanceResponse.status<200||provenanceResponse.status>=300||provenanceResponse.headers.has('location')||new URL(provenanceResponse.url).origin!==baseUrl.origin){
     const runtimeContract=String(provenanceResponse.headers.get('x-garage-qa-provenance-error')??'UNCLASSIFIED').replace(/[^A-Z_]/g,'').slice(0,32);
     process.stdout.write(`${JSON.stringify({ok:false,state:'PREFLIGHT_VERCEL_REDIRECT_DIAGNOSTIC',runtime_contract:runtimeContract,vercel_provenance:{initial:provenanceRequest.initial,final:diagnosticResponse(provenanceResponse,provenanceResponse.headers.get('location'),provenanceUrl)}})}\n`);
-    fail(`RUNTIME_PROVENANCE_ACCESS_FAILED:${provenanceResponse.status}`);
+    // Preserve only the route's Staging-safe format category.  The deployed
+    // endpoint never returns an env value, token, or URL query; without this
+    // category a 404 cannot distinguish a missing runtime provenance variable
+    // from Deployment Protection and encourages blind reruns.
+    fail(`RUNTIME_PROVENANCE_ACCESS_FAILED:${provenanceResponse.status}:${runtimeContract}`);
   }
   const provenance=runtimeProvenance(await provenanceResponse.json().catch(()=>null),baseUrl);
   const expectedSha=process.env.RELEASE_CRITICAL_EXPECTED_SHA?.trim();
