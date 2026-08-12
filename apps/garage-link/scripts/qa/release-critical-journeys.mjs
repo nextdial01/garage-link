@@ -151,13 +151,28 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,exp
   };
   page.on('request',onRequest); page.on('pageerror',onPageError); page.on('console',onConsole);
   try {
-    await locator.evaluate(element=>{
-      element.addEventListener('click',()=>{sessionStorage.setItem(element.getAttribute('data-release-critical-click-key')??'release-critical-cta','1');},{once:true});
-    });
-    await locator.setAttribute('data-release-critical-click-key',clickKey);
+    const clickIdentity=await locator.evaluate(element=>({
+      label:(element.textContent??'').trim(),
+      href:element instanceof HTMLAnchorElement?element.getAttribute('href'):null,
+    }));
+    // React may replace the Link between locator.evaluate() and the actual
+    // pointer click. Capture at document level so DOM-delivery evidence stays
+    // tied to the element the browser really clicked, not a stale node.
+    await page.evaluate(({key,identity})=>{
+      const controller=new AbortController();
+      window.__releaseCriticalCtaControllers??={};
+      window.__releaseCriticalCtaClicks??={};
+      window.__releaseCriticalCtaControllers[key]=controller;
+      document.addEventListener('click',event=>{
+        const target=event.target instanceof Element?event.target.closest('a,button,[role="link"],[role="button"]'):null;
+        if(!target)return;
+        const label=(target.textContent??'').trim();
+        const href=target instanceof HTMLAnchorElement?target.getAttribute('href'):null;
+        if(label===identity.label&&href===identity.href)window.__releaseCriticalCtaClicks[key]=true;
+      },{capture:true,signal:controller.signal});
+    },{key:clickKey,identity:clickIdentity});
     await locator.click();
-    trace.domClick=await page.evaluate(key=>sessionStorage.getItem(key)==='1',clickKey);
-    await page.evaluate(key=>sessionStorage.removeItem(key),clickKey);
+    trace.domClick=await page.evaluate(key=>window.__releaseCriticalCtaClicks?.[key]===true,clickKey);
     try {
       if(expectedRender){await expectedRender.waitFor({state:'visible',timeout:30_000});}
       else if(expectedPath){await page.waitForURL(url=>{
@@ -177,6 +192,11 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,exp
     if(String(error?.message??error).startsWith(`RELEASE_CRITICAL_CTA_${label}:`))throw error;
     fail(`RELEASE_CRITICAL_CTA_${label}:${classification==='PASS'?'TRACE_EXECUTION_ERROR':classification}`);
   } finally {
+    await page.evaluate(key=>{
+      window.__releaseCriticalCtaControllers?.[key]?.abort();
+      delete window.__releaseCriticalCtaControllers?.[key];
+      delete window.__releaseCriticalCtaClicks?.[key];
+    },clickKey).catch(()=>undefined);
     page.off('request',onRequest); page.off('pageerror',onPageError); page.off('console',onConsole);
   }
 }

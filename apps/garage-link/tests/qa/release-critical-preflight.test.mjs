@@ -112,6 +112,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/retryAfter>60/);
   assert.match(journeys,/postgrest_provider_error_code/);
   assert.match(journeys,/RELEASE_CRITICAL_CTA_TRACE/);
+  assert.match(journeys,/document\.addEventListener\('click'/);
+  assert.match(journeys,/React may replace the Link/);
   assert.match(journeys,/VEHICLE_CREATE/);
   assert.match(journeys,/VEHICLE_DETAIL/);
   assert.match(journeys,/CUSTOMER_CREATE/);
