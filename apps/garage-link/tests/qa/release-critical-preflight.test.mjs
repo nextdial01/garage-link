@@ -121,7 +121,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/QUOTE_CREATE/);
   assert.match(journeys,/INVOICE_CREATE/);
   assert.match(journeys,/APPOINTMENT_CREATE/);
-  assert.match(journeys,/customer_equivalence:'NOT_ASSERTED'/);
+  assert.match(journeys,/customer_equivalence:reproduced\?'ACTIVE_NON_OWNER_REPRODUCED':'NOT_ASSERTED'/);
   assert.match(journeys,/middleware_final_destination/);
   assert.match(journeys,/browser_runtime_error_count/);
   assert.match(journeys,/browser_runtime_error_classes/);
@@ -133,7 +133,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/login_outcome/);
   assert.match(journeys,/api\/auth\/password-login/);
   assert.match(journeys,/errorClass:sha256/);
-  assert.match(journeys,/authoritative middleware boundary/);
+  assert.match(journeys,/following real \/vehicles entry remains the authoritative middleware/);
   assert.doesNotMatch(journeys,/\.goto\(new URL\('\/vehicles',baseUrl\),/);
   assert.match(journeys,/url=>new URL\(url\)\.pathname!==['"]\/login/);
   assert.match(journeys,/new URL\(url\)\.pathname!==['"]\/login/);
@@ -217,9 +217,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/RELEASE_CRITICAL_MANUAL_GMAIL_BASE_USER_CONFLICT/);
   assert.match(workflow,/GARAGE_STAGING_RELEASE_QA_EMAIL/);
   assert.doesNotMatch(workflow,/RELEASE_CRITICAL_PERSISTENT_E2E_/);
-  assert.match(journeys,/VEHICLE_CREATE_ADMIN_SECURITY_GATE/);
-  assert.match(journeys,/RELEASE_CRITICAL_CTA_ACCOUNT_STATE_DIFFERENTIAL/);
-  assert.match(journeys,/expectedClassification:'ROUTE_STARTED_REDIRECTED'/);
+  assert.match(journeys,/VEHICLE_CREATE_MATRIX_\$\{state\.toUpperCase\(\)\}/);
+  assert.match(journeys,/customer_equivalence:reproduced/);
+  assert.match(journeys,/admin_security_requirement/);
   assert.match(journeys,/CTA_MATRIX_STATES/);
   for(const state of ['active_owner','active_non_owner','selection_required','onboarding_incomplete','contract_restricted','admin_security_unverified']) assert.match(journeys,new RegExp(`'${state}'`));
   assert.match(journeys,/qa_lifecycle_cta_matrix/);

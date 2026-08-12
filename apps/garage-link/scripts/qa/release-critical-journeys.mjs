@@ -217,21 +217,6 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,exp
     page.off('request',onRequest); page.off('response',onResponse); page.off('pageerror',onPageError); page.off('console',onConsole);
   }
 }
-async function verifyVehicleAccountStateGate({browser,sourceContext,baseUrl,bypassSecret,accountState}){
-  const storageState=await sourceContext.storageState();
-  const gatedContext=await browser.newContext({storageState});
-  try {
-    await installVercelBrowserBypass(gatedContext,baseUrl,bypassSecret);
-    const gatedPage=await gatedContext.newPage();
-    await gatedPage.goto(new URL('/vehicles',baseUrl).toString(),{waitUntil:'domcontentloaded'});
-    await gatedPage.getByRole('link',{name:'車両を登録',exact:true}).waitFor({state:'visible',timeout:30_000});
-    await gatedContext.clearCookies({name:/^garage_admin_email_verified$/});
-    await tracePointerCta(gatedPage,{baseUrl,label:'VEHICLE_CREATE_ADMIN_SECURITY_GATE',locator:gatedPage.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState,expectedClassification:'ROUTE_STARTED_REDIRECTED',expectedFinalPath:'/security/email-otp'});
-    const gateUrl=new URL(gatedPage.url());
-    if(gateUrl.searchParams.get('from')!=='/vehicles/new')fail('RELEASE_CRITICAL_CTA_ADMIN_SECURITY_RETURN_PATH_INVALID');
-    emit({state:'RELEASE_CRITICAL_CTA_ACCOUNT_STATE_DIFFERENTIAL',cta:'VEHICLE_CREATE',normal_active_owner:'PASS',admin_security_unverified:'ROUTE_STARTED_REDIRECTED',gate:'admin_security',final_destination:'/security/email-otp',return_path:'/vehicles/new',customer_equivalence:'NOT_ASSERTED',root_cause:'NOT_REPRODUCED'});
-  } finally {await gatedContext.close();}
-}
 const CTA_MATRIX_STATES=['active_owner','active_non_owner','selection_required','onboarding_incomplete','contract_restricted','admin_security_unverified'];
 
 function matrixSubjectEmail(run,state,kind='subject'){
@@ -383,11 +368,12 @@ async function loginMatrixSubject(page,email,password){
     const detail=await response.json().catch(()=>null);
     return {kind:'login_error',httpStatus:response.status(),errorClass:sha256(String(detail?.error??''))};
   }
-  // The client route commit may lag the successful server response. The
-  // following real /vehicles entry is the authoritative middleware boundary
-  // for this matrix, so do not turn that App Router timing gap into a fake
-  // login failure before observing the boundary.
-  await page.waitForTimeout(1_000);
+  // The client route commit may lag the successful server response. Wait only
+  // briefly for a security challenge so a normal active-owner state can
+  // complete its real browser OTP flow. If no route commit arrives, the
+  // following real /vehicles entry remains the authoritative middleware
+  // boundary; do not turn App Router timing into a fake login failure.
+  await page.waitForURL(url=>new URL(url).pathname!=='/login',{timeout:5_000}).catch(()=>undefined);
   if(/\/security\/email-otp/.test(page.url()))await completeSecurityOtp(page);
   return {kind:'redirect',finalPath:safeNavigationPath(page.url(),new URL(page.url()).origin)};
 }
@@ -701,7 +687,7 @@ async function runMachineOnly({baseUrl,supabaseUrl,serviceRole,bypassSecret,prov
     await page.getByLabel('店舗名').fill(`${run.marker} 店舗`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await submitResumeStore(page,baseUrl,supabaseUrl); await completeSecurityOtp(page); await page.waitForURL(/\/onboarding/,{timeout:30_000,waitUntil:'commit'}); await onboarding(page,run.marker); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true,requireOnboardingCompleted:true});
     const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email,password:initialPassword,tenantNamePrefix:run.marker,bypassSecret,runId:run.runId}); await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true; results.J2='MECHANICS_PASS';
     await runVehicleAccountStateMatrix({admin,life,run,baseUrl,bypassSecret});
-    await clickAndWait(page,page.getByRole('link',{name:'車両',exact:true}).first(),/\/vehicles(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'VEHICLE_CREATE',locator:page.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState:owner.accountState}); await page.getByText('車両登録',{exact:true}).waitFor({timeout:30_000}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/vehicles(?:\?|$)/,{timeout:30_000}); await verifyVehicleAccountStateGate({browser,sourceContext:context,baseUrl,bypassSecret,accountState:owner.accountState});
+    await clickAndWait(page,page.getByRole('link',{name:'車両',exact:true}).first(),/\/vehicles(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'VEHICLE_CREATE',locator:page.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState:owner.accountState}); await page.getByText('車両登録',{exact:true}).waitFor({timeout:30_000}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/vehicles(?:\?|$)/,{timeout:30_000});
     await clickAndWait(page,page.getByRole('link',{name:'顧客',exact:true}).first(),/\/customers(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'CUSTOMER_CREATE',locator:page.getByRole('link',{name:'顧客を登録',exact:true}),expectedPath:'/customers/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/customers(?:\?|$)/,{timeout:30_000}); await clickAndWait(page,page.getByRole('link',{name:'商談',exact:true}).first(),/\/deals(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'DEAL_CREATE',locator:page.getByRole('link',{name:'商談を登録',exact:true}),expectedPath:'/deals/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/deals(?:\?|$)/,{timeout:30_000});
     await clickAndWait(page,page.getByRole('link',{name:'見積書',exact:true}).first(),/\/quotes(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'QUOTE_CREATE',locator:page.getByRole('link',{name:'見積書を作成',exact:true}),expectedPath:'/quotes/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/quotes(?:\?|$)/,{timeout:30_000});
     await clickAndWait(page,page.getByRole('link',{name:'請求書',exact:true}).first(),/\/invoices(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'INVOICE_CREATE',locator:page.getByRole('link',{name:'請求書を作成',exact:true}),expectedPath:'/invoices/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/invoices(?:\?|$)/,{timeout:30_000});
@@ -799,7 +785,6 @@ async function main(){
     await tracePointerCta(page,{baseUrl,label:'VEHICLE_CREATE',locator:page.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState:owner.accountState});
     await page.getByText('車両登録',{exact:true}).waitFor({timeout:30_000});
     await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/vehicles(?:\?|$)/,{timeout:30_000});
-    await verifyVehicleAccountStateGate({browser,sourceContext:context,baseUrl,bypassSecret,accountState:owner.accountState});
     await clickAndWait(page,page.getByRole('link',{name:'顧客',exact:true}).first(),/\/customers(?:\?|$)/);
     await tracePointerCta(page,{baseUrl,label:'CUSTOMER_CREATE',locator:page.getByRole('link',{name:'顧客を登録',exact:true}),expectedPath:'/customers/new',accountState:owner.accountState});
     await page.getByText('顧客登録',{exact:true}).waitFor({timeout:30_000});
