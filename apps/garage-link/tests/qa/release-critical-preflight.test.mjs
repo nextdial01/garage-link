@@ -85,6 +85,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/RELEASE_CRITICAL_EXPIRED_CLEANUP_RECOVERY_PASS/);
   assert.match(journeys,/RELEASE_CRITICAL_INTERRUPTED_POST_AUTH_CLEANUP_RESUMED/);
   assert.match(journeys,/RELEASE_CRITICAL_INTERRUPTED_AUTH_ABSENT_SCOPE_UNPROVEN/);
+  assert.match(journeys,/existing\?\.state==='COMPLETE'\)return verifyKnownPartialLifecycle/);
   assert.match(journeys,/'FIXTURE_LIFECYCLE'/);
   assert.match(journeys,/RELEASE_CRITICAL_LIFECYCLE_\$\{name\}:\$\{safeProviderCode\(error\)\}:\$\{safeErrorCode\(error\)\}/);
   assert.match(journeys,/RELEASE_CRITICAL_EXPIRED_LIFECYCLE_RECOVERY_PASS/);

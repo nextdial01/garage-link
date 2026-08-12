@@ -793,6 +793,10 @@ async function recoverInterruptedFixture(admin,provenance,baseUrl,supabaseUrl,se
   const statusLife=lifecycle(admin,provisionalRun,provenance);
   let existing=await statusLife.maybeStatus();
   if(!user&&!existing)return {state:'RELEASE_CRITICAL_INTERRUPTED_FIXTURE_ABSENT'};
+  // Finalization deliberately deletes the private fixture registry. A completed
+  // lifecycle therefore proves its own clean state without a remaining user_id.
+  // Check it before treating a missing registry record as an unsafe scope.
+  if(!user&&existing?.state==='COMPLETE')return verifyKnownPartialLifecycle(admin,statusLife,INTERRUPTED_RUN_ID);
   if(!user){
     // A preceding machine gate may already have executed the mandated Auth-last
     // deletion and been interrupted while recording storage/artifact evidence.
