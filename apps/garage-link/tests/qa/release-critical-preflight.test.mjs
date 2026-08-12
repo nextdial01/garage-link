@@ -116,6 +116,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/React may replace the Link/);
   assert.match(journeys,/VEHICLE_CREATE/);
   assert.match(journeys,/VEHICLE_DETAIL/);
+  assert.match(journeys,/getByRole\('link',\{name:'車両一覧に戻る',exact:true\}\)\.first\(\)\.click/);
   assert.match(journeys,/CUSTOMER_CREATE/);
   assert.match(journeys,/DEAL_CREATE/);
   assert.match(journeys,/QUOTE_CREATE/);
