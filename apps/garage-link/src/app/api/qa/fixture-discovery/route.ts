@@ -104,6 +104,9 @@ export async function POST(request: NextRequest) {
   }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
 
   const lookup = await readReleaseQaFixture({ url, anonKey, accessToken, userId: data.user.id });
+  if (lookup.code === 'MEMBERSHIP_ABSENT') {
+    return Response.json({ state: 'AUTH_ONLY_ABSENT' }, { headers: { 'Cache-Control': 'no-store' } });
+  }
   if (!lookup.fixture) return Response.json({
     layer: lookup.diagnostic.layer,
     code: lookup.code,

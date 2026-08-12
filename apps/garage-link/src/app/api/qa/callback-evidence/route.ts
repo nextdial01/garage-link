@@ -1,5 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { readReleaseQaFixture } from '@/lib/auth/releaseQaFixture';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,12 +99,42 @@ export async function POST(request: Request) {
   const continuation = phase === 'store_created' || phase === 'onboarding_completed' || phase === 'password_updated'
     ? { server_bound_continuation: true, continuation_of_callback_at: (existingPurpose.callback as { recorded_at?: unknown }).recorded_at }
     : {};
+  // Fixture adoption must stay bound to the browser session that completed
+  // administrator OTP.  Capture the synthetic owner's already-authorized
+  // membership only after onboarding: at that point the real callback,
+  // store, OTP, and onboarding continuation are all present in this one
+  // authenticated request.  The runner later reads this signed-by-Auth
+  // evidence; it never replaces it with a fresh password session.
+  let fixture: Record<string, unknown> | undefined;
+  if (phase === 'onboarding_completed') {
+    const lookup = await readReleaseQaFixture({
+      url,
+      anonKey,
+      accessToken: token,
+      userId: data.user.id,
+    });
+    if (!lookup.fixture) return new Response(null, { status: 409 });
+    fixture = {
+      membership_id: lookup.fixture.membershipId,
+      tenant_id: lookup.fixture.tenantId,
+      store_id: lookup.fixture.storeId,
+      tenant_name: lookup.fixture.tenantName,
+      account_state: {
+        garage_ui_context: lookup.fixture.accountState.garageUiContext,
+        active_store: lookup.fixture.accountState.activeStore,
+        onboarding_completed: lookup.fixture.accountState.onboardingCompleted,
+        membership_role: lookup.fixture.accountState.membershipRole,
+        membership_status: lookup.fixture.accountState.membershipStatus,
+        contract_access_state: lookup.fixture.accountState.contractAccessState,
+      },
+    };
+  }
   const evidence = {
     ...(prior && typeof prior === 'object' ? prior : {}),
     run_id: runId,
     [purpose]: {
       ...existingPurpose,
-      [phase]: { next_path: body.next_path, origin, recorded_at: recordedAt, ...continuation },
+      [phase]: { next_path: body.next_path, origin, recorded_at: recordedAt, ...continuation, ...(fixture ? { fixture } : {}) },
     },
   };
   const { error: updateError } = await admin.auth.admin.updateUserById(data.user.id, {

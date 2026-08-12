@@ -514,12 +514,15 @@ function fixtureDiscoveryFailure(response,detail,emailMarker){
   emit({state:'RELEASE_CRITICAL_FIXTURE_DISCOVERY_DIAGNOSTIC',layer,http_status:response.status,provider_error_code:code,jwt_sub_matches_user:detail?.jwt?.sub_matches_user??'UNKNOWN',jwt_role:detail?.jwt?.role??'UNKNOWN',jwt_aud:detail?.jwt?.aud??'UNKNOWN',jwt_exp_valid:detail?.jwt?.exp_valid??'UNKNOWN',project_ref_matches:detail?.jwt?.project_ref_matches??'UNKNOWN',deployed_supabase_ref_matches:detail?.deployed_supabase_ref_matches??'UNKNOWN',deployed_anon_key_accepted:detail?.deployed_anon_key_accepted??'UNKNOWN',postgrest_response_code:postgrest,postgrest_provider_error_code:postgrestProviderCode,postgrest_error_class:postgrestClass,postgrest_object:postgrestObject,bypass_applied:'YES',fixture_marker_hash:sha256(emailMarker)});
   return `RELEASE_CRITICAL_FIXTURE_DISCOVERY:${response.status}:${layer}:${code}`;
 }
-async function ownerFixtureForBrowserSession({page,tenantNamePrefix,runId}){
+async function browserFixtureDiscovery(page,runId){
   if(typeof runId!=='string'||!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_FIXTURE_MARKER_INVALID');
-  const fixture=await page.evaluate(async value=>{
+  return page.evaluate(async value=>{
     const response=await fetch('/api/qa/fixture-discovery',{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',body:JSON.stringify({run_id:value.runId})});
     return {status:response.status,redirected:response.redirected,body:await response.json().catch(()=>null)};
   },{runId});
+}
+async function ownerFixtureForBrowserSession({page,tenantNamePrefix,runId}){
+  const fixture=await browserFixtureDiscovery(page,runId);
   if(fixture.redirected)fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_REDIRECT');
   if(fixture.status!==200)fail(fixtureDiscoveryFailure({status:fixture.status},fixture.body,runId));
   const accountState=fixture.body?.account_state;
@@ -527,35 +530,32 @@ async function ownerFixtureForBrowserSession({page,tenantNamePrefix,runId}){
   emit({state:'RELEASE_CRITICAL_FIXTURE_DISCOVERY_SAME_OTP_SESSION_PASS',jwt_session_source:'BROWSER_COOKIE',run_marker_hash:sha256(runId)});
   return {membershipId:fixture.body.membership_id,tenantId:fixture.body.tenant_id,storeId:fixture.body.store_id,tenantName:fixture.body.tenant_name,accountState:{garageUiContext:accountState.garage_ui_context,activeStore:accountState.active_store,onboardingCompleted:accountState.onboarding_completed,membershipRole:accountState.membership_role,membershipStatus:accountState.membership_status,contractAccessState:accountState.contract_access_state}};
 }
-function readRunBoundRecoveryFixture(body,tenantNamePrefix){
-  if(body?.state==='AUTH_ONLY_ABSENT')return {state:'AUTH_ONLY_ABSENT'};
-  const accountState=body?.account_state;
-  if(body?.state!=='RUN_BOUND_FIXTURE'||typeof body.membership_id!=='string'||typeof body.tenant_id!=='string'||typeof body.store_id!=='string'||typeof body.tenant_name!=='string'||!body.tenant_name.startsWith(tenantNamePrefix)||!['active','selection_required','no_access'].includes(accountState?.garage_ui_context)||!['YES','NO'].includes(accountState?.active_store)||!['YES','NO'].includes(accountState?.onboarding_completed)||!/^\w{2,32}$/.test(accountState?.membership_role??'')||accountState?.membership_status!=='active'||accountState?.contract_access_state!=='recovery_bound')fail('RELEASE_CRITICAL_RUN_BOUND_RECOVERY_INVALID');
-  return {state:'RUN_BOUND_FIXTURE',membershipId:body.membership_id,tenantId:body.tenant_id,storeId:body.store_id,tenantName:body.tenant_name,accountState:{garageUiContext:accountState.garage_ui_context,activeStore:accountState.active_store,onboardingCompleted:accountState.onboarding_completed,membershipRole:accountState.membership_role,membershipStatus:accountState.membership_status,contractAccessState:accountState.contract_access_state}};
+async function recoveryFixtureForBrowserSession({page,tenantNamePrefix,runId}){
+  const fixture=await browserFixtureDiscovery(page,runId);
+  if(fixture.redirected)fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_REDIRECT');
+  if(fixture.status!==200)fail(fixtureDiscoveryFailure({status:fixture.status},fixture.body,runId));
+  if(fixture.body?.state==='AUTH_ONLY_ABSENT')return {state:'AUTH_ONLY_ABSENT'};
+  return {state:'RUN_BOUND_FIXTURE',fixture:await ownerFixtureForBrowserSession({page,tenantNamePrefix,runId})};
 }
-async function runBoundLifecycleRecoveryFixture({baseUrl,supabaseUrl,serviceRole,email,password,tenantNamePrefix,bypassSecret,runId,verifyFreshOtpGuard=false}){
+function readCallbackFixture(value,tenantNamePrefix){
+  const accountState=value?.account_state;
+  if(typeof value?.membership_id!=='string'||typeof value?.tenant_id!=='string'||typeof value?.store_id!=='string'||typeof value?.tenant_name!=='string'||!value.tenant_name.startsWith(tenantNamePrefix)||!['active','selection_required','no_access'].includes(accountState?.garage_ui_context)||!['YES','NO'].includes(accountState?.active_store)||!['YES','NO'].includes(accountState?.onboarding_completed)||!/^\w{2,32}$/.test(accountState?.membership_role??'')||accountState?.membership_status!=='active'||!/^\w{2,48}$/.test(accountState?.contract_access_state??''))fail('RELEASE_CRITICAL_CALLBACK_FIXTURE_INVALID');
+  return {membershipId:value.membership_id,tenantId:value.tenant_id,storeId:value.store_id,tenantName:value.tenant_name,accountState:{garageUiContext:accountState.garage_ui_context,activeStore:accountState.active_store,onboardingCompleted:accountState.onboarding_completed,membershipRole:accountState.membership_role,membershipStatus:accountState.membership_status,contractAccessState:accountState.contract_access_state}};
+}
+async function verifyFreshOtpGuard({baseUrl,supabaseUrl,serviceRole,email,password,bypassSecret,runId}){
   if(typeof runId!=='string'||!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_FIXTURE_MARKER_INVALID');
-  // This recovery path is deliberately distinct from normal discovery. The
-  // browser's OTP-trusted session owns normal RLS discovery; a new AAL1
-  // session is accepted here only to recover a lifecycle row already bound to
-  // the same synthetic Auth subject after an early failure.
+  // A second password login is a negative regression probe only.  It proves
+  // the database pre-request OTP guard remains enforced; it is never used to
+  // discover or adopt a fixture.
   const subject=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
   try {
     const {data:login,error:loginError}=await subject.auth.signInWithPassword({email,password});
-    if(loginError||!login.session?.user)fail(`RELEASE_CRITICAL_RUN_BOUND_RECOVERY_LOGIN:${safeProviderCode(loginError)}`);
+    if(loginError||!login.session?.user)fail(`RELEASE_CRITICAL_FRESH_SESSION_LOGIN:${safeProviderCode(loginError)}`);
     const headers={authorization:`Bearer ${login.session.access_token}`,'content-type':'application/json','x-vercel-protection-bypass':bypassSecret};
-    if(verifyFreshOtpGuard){
-      const probe=await fetchVerifiedVercelRequest(new URL('/api/qa/fixture-discovery',baseUrl),headers,fetch,{method:'POST',body:JSON.stringify({run_id:runId})});
-      const detail=await probe.response.json().catch(()=>null);
-      if(probe.response.status!==409||detail?.layer!=='POSTGREST_MEMBERSHIP'||detail?.postgrest_response_code!==403||String(detail?.postgrest_provider_error_code)!=='42501')fail('RELEASE_CRITICAL_FRESH_SESSION_OTP_GUARD_REGRESSION');
-      emit({state:'RELEASE_CRITICAL_FRESH_SESSION_OTP_GUARD_PASS',http_status:probe.response.status,postgrest_response_code:403,provider_error_code:'42501',run_marker_hash:sha256(runId)});
-    }
-    const recovery=await fetchVerifiedVercelRequest(new URL('/api/qa/lifecycle-recovery',baseUrl),headers,fetch,{method:'POST',body:JSON.stringify({run_id:runId})});
-    if(recovery.response.headers.has('location'))fail('RELEASE_CRITICAL_RUN_BOUND_RECOVERY_REDIRECT');
-    if(!recovery.response.ok)fail(`RELEASE_CRITICAL_RUN_BOUND_RECOVERY:${recovery.response.status}`);
-    const fixture=readRunBoundRecoveryFixture(await recovery.response.json(),tenantNamePrefix);
-    emit({state:'RELEASE_CRITICAL_RUN_BOUND_RECOVERY_PASS',fixture_state:fixture.state,run_marker_hash:sha256(runId)});
-    return fixture;
+    const probe=await fetchVerifiedVercelRequest(new URL('/api/qa/fixture-discovery',baseUrl),headers,fetch,{method:'POST',body:JSON.stringify({run_id:runId})});
+    const detail=await probe.response.json().catch(()=>null);
+    if(probe.response.status!==409||detail?.layer!=='POSTGREST_MEMBERSHIP'||detail?.postgrest_response_code!==403||String(detail?.postgrest_provider_error_code)!=='42501')fail('RELEASE_CRITICAL_FRESH_SESSION_OTP_GUARD_REGRESSION');
+    emit({state:'RELEASE_CRITICAL_FRESH_SESSION_OTP_GUARD_PASS',http_status:probe.response.status,postgrest_response_code:403,provider_error_code:'42501',run_marker_hash:sha256(runId)});
   } finally {await subject.auth.signOut().catch(()=>undefined);}
 }
 async function findUser(admin,email){
@@ -617,7 +617,7 @@ async function pollCallbackEvidence({admin,userId,run,baseUrl,purpose,requireSto
     const valid=value=>value&&value.next_path===expectedNext&&value.origin===new URL(baseUrl).origin&&typeof value.recorded_at==='string';
     const ordered=valid(callback)&&valid(arrival)&&Date.parse(callback.recorded_at)<=Date.parse(arrival.recorded_at);
     const continued=value=>valid(value)&&value.server_bound_continuation===true&&value.continuation_of_callback_at===callback.recorded_at&&Date.parse(value.recorded_at)>=Date.parse(arrival.recorded_at);
-    if(ordered&&(!requireStoreCreated||continued(storeCreated))&&(!requireOnboardingCompleted||continued(onboardingCompleted))&&(!requirePasswordUpdate||continued(passwordUpdated)))return {state:'RELEASE_CRITICAL_CALLBACK_EVIDENCE_PASS',purpose,run_marker:run.emailMarker,actual_callback_chain:true,activation_chain:requireStoreCreated||requireOnboardingCompleted,server_bound_continuation:requireStoreCreated||requireOnboardingCompleted||requirePasswordUpdate};
+    if(ordered&&(!requireStoreCreated||continued(storeCreated))&&(!requireOnboardingCompleted||continued(onboardingCompleted))&&(!requirePasswordUpdate||continued(passwordUpdated)))return {state:'RELEASE_CRITICAL_CALLBACK_EVIDENCE_PASS',purpose,run_marker:run.emailMarker,actual_callback_chain:true,activation_chain:requireStoreCreated||requireOnboardingCompleted,server_bound_continuation:requireStoreCreated||requireOnboardingCompleted||requirePasswordUpdate,fixture:onboardingCompleted?.fixture??null};
     await sleep(intervalMs);
   }
   fail(`RELEASE_CRITICAL_CALLBACK_EVIDENCE_TIMEOUT:${purpose}`);
@@ -684,18 +684,30 @@ async function abortAuthOnlyLifecycle(life,admin,user,runId,reason){
   await life.rpc('qa_lifecycle_abort_clean',{p_run_id:runId,p_reason:reason});
   emit({state:'RELEASE_CRITICAL_EARLY_AUTH_ONLY_CLEAN',run_marker_hash:sha256(runId)});
 }
-async function recoverLifecycleForUser({admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret,user,run,password,verifyFreshOtpGuard=false}){
+async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,user,run,password}){
   let statusLife=lifecycle(admin,run,provenance);
   let existing=await statusLife.maybeStatus();
   if(!existing){await beginLifecycle(statusLife,run,provenance);existing=await statusLife.status();}
   if(!/^[0-9a-f]{40}$/i.test(existing.source_sha??'')||!/^dpl_[A-Za-z0-9]+$/.test(existing.deployment_id??''))fail('RELEASE_CRITICAL_RECOVERY_PROVENANCE_UNPROVEN');
-  const recoveryRun={...run,marker:run.marker||'[RELEASE QA '};
-  const fixture=await runBoundLifecycleRecoveryFixture({baseUrl,supabaseUrl,serviceRole,email:user.email,password,tenantNamePrefix:recoveryRun.marker,bypassSecret,runId:run.runId,verifyFreshOtpGuard});
+  let browser; let context;
+  let fixture;
+  try {
+    browser=await chromium.launch({headless:true});
+    context=await browser.newContext();
+    await installVercelBrowserBypass(context,baseUrl,bypassSecret);
+    const page=await context.newPage();
+    const loginUrl=new URL('/login',baseUrl); loginUrl.searchParams.set('next','/dashboard');
+    await page.goto(loginUrl,{waitUntil:'domcontentloaded'});
+    await login(page,user.email,password,url=>['/dashboard','/onboarding','/signup'].includes(new URL(url).pathname));
+    fixture=await recoveryFixtureForBrowserSession({page,tenantNamePrefix:run.marker,runId:run.runId});
+    emit({state:'RELEASE_CRITICAL_FIXTURE_RECOVERY_SAME_OTP_SESSION_PASS',run_marker_hash:sha256(run.runId)});
+  } finally {await context?.close();await browser?.close();}
   const life=lifecycle(admin,run,{sourceSha:existing.source_sha,deploymentId:existing.deployment_id});
   if(fixture.state==='AUTH_ONLY_ABSENT'){
-    await abortAuthOnlyLifecycle(life,admin,user,run.runId,'run_bound_auth_only_cleanup');
+    await abortAuthOnlyLifecycle(life,admin,user,run.runId,'browser_otp_proven_auth_only_cleanup');
     return {state:'AUTH_ONLY_ABSENT',life};
   }
+  fixture=fixture.fixture;
   const marker=markerFromRecoveredTenant(fixture.tenantName);
   if(run.marker!==marker)fail('RELEASE_CRITICAL_RECOVERY_RUN_MARKER_MISMATCH');
   if(existing.state!=='PROVISIONING')fail(`RELEASE_CRITICAL_RECOVERY_LIFECYCLE_STATE:${existing.state}`);
@@ -719,7 +731,8 @@ async function recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,s
   existing=await statusLife.maybeStatus();
   if(!existing){await beginLifecycle(statusLife,run,provenance);existing=await statusLife.status();}
   if(!/^[0-9a-f]{40}$/i.test(existing.source_sha??'')||!/^dpl_[A-Za-z0-9]+$/.test(existing.deployment_id??''))fail('RELEASE_CRITICAL_PARTIAL_PROVENANCE_UNPROVEN');
-  const recovered=await recoverLifecycleForUser({admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret,user,run,password:releaseCriticalSyntheticPassword(PARTIAL_MARKER),verifyFreshOtpGuard:true});
+  await verifyFreshOtpGuard({baseUrl,supabaseUrl,serviceRole,email:user.email,password:releaseCriticalSyntheticPassword(PARTIAL_MARKER),bypassSecret,runId:run.runId});
+  const recovered=await recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,user,run,password:releaseCriticalSyntheticPassword(PARTIAL_MARKER)});
   if(recovered.state==='RUN_BOUND_FIXTURE')await cleanupLifecycle(recovered.life,admin,user.id,run.runId);
   return verifyKnownPartialLifecycle(admin,recovered.life,partialRunId);
 }
@@ -735,7 +748,8 @@ async function recoverInterruptedFixture(admin,provenance,baseUrl,supabaseUrl,se
   const recoveryPassword=releaseCriticalSyntheticPassword(provisionalRun.emailMarker);
   const {data:updated,error:updateError}=await admin.auth.admin.updateUserById(user.id,{password:recoveryPassword});
   if(updateError||updated.user?.id!==user.id)fail(`RELEASE_CRITICAL_INTERRUPTED_AUTH_RECOVERY_PASSWORD:${safeProviderCode(updateError)}`);
-  const recovered=await recoverLifecycleForUser({admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret,user,run:provisionalRun,password:recoveryPassword,verifyFreshOtpGuard:true});
+  await verifyFreshOtpGuard({baseUrl,supabaseUrl,serviceRole,email:user.email,password:recoveryPassword,bypassSecret,runId:provisionalRun.runId});
+  const recovered=await recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,user,run:provisionalRun,password:recoveryPassword});
   if(recovered.state==='RUN_BOUND_FIXTURE')await cleanupLifecycle(recovered.life,admin,user.id,INTERRUPTED_RUN_ID);
   return verifyKnownPartialLifecycle(admin,recovered.life,INTERRUPTED_RUN_ID);
 }
@@ -870,7 +884,7 @@ async function runMachineOnly({baseUrl,supabaseUrl,serviceRole,bypassSecret,prov
       if(!adopted&&life){
         user??=await maybeFindUser(admin,email);
         if(user?.id){
-          const recovered=await recoverLifecycleForUser({admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret,user,run,password:initialPassword});
+          const recovered=await recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,user,run,password:initialPassword});
           if(recovered.state==='RUN_BOUND_FIXTURE'){life=recovered.life;adopted=true;}
         } else {
           await life.rpc('qa_lifecycle_abort_clean',{p_run_id:run.runId,p_reason:'machine_pre_auth_cleanup'});
@@ -927,24 +941,23 @@ async function main(){
     if(signupOutcome.kind==='onboarding'){
       user=await findUser(admin,session.emailAddress);
       user=await bindSyntheticIdentity(admin,user,run);
-      const recovered=await recoverLifecycleForUser({admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret,user,run,password:initialPassword});
-      if(recovered.state==='RUN_BOUND_FIXTURE'){life=recovered.life;adopted=true;}
+      const owner=await ownerFixtureForBrowserSession({page,tenantNamePrefix:run.marker,runId:run.runId});
+      await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true;
       fail('RELEASE_CRITICAL_SIGNUP_AUTO_CONFIRMED');
     }
     if(!/確認メールを送信しました/.test(await page.getByRole('status').textContent()??''))fail('RELEASE_CRITICAL_CONFIRMATION_REQUIRED_NOT_PROVEN');
     user=await findUser(admin,session.emailAddress);
     user=await bindSyntheticIdentity(admin,user,run); results.J2='CHECKPOINT'; emit({...manualGmailCheckpoint(session,'signup'),operator_action:'Open the newest Staging-only Gmail confirmation message, verify its redirect target is the Staging HTTPS origin, click it, then complete the displayed store-creation and onboarding flow through the dashboard in that same browser session. A reset message will follow in this same Gmail session; click it and set the synthetic password GL-Release-Reset-8!.'});
     await pollManualGmailConfirmation({admin,userId:user.id,session,purpose:'signup',timeoutMs:CHECKPOINT_TIMEOUT_MS});
-    await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true,requireOnboardingCompleted:true}); results.J1='PASS';
-    const recovered=await recoverLifecycleForUser({admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret,user,run,password:initialPassword,verifyFreshOtpGuard:true});
-    if(recovered.state!=='RUN_BOUND_FIXTURE')fail('RELEASE_CRITICAL_MANUAL_GMAIL_FIXTURE_ABSENT');
-    life=recovered.life; const owner=recovered.fixture; adopted=true; results.J2='PASS';
+    const signupEvidence=await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true,requireOnboardingCompleted:true}); results.J1='PASS';
+    const owner=readCallbackFixture(signupEvidence.fixture,run.marker);
+    await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true; results.J2='PASS';
     await page.getByRole('link',{name:'ログイン',exact:true}).last().click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,initialPassword,/\/dashboard/);
     const invalid=await context.newPage(); await invalid.goto(baseUrl,{waitUntil:'domcontentloaded'}); await clickAndWait(invalid,invalid.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
     // The separate page keeps the main owner session intact; fill by concrete UI locators.
     await invalid.getByLabel('店舗名').fill(`${run.marker} Reject`); await invalid.getByLabel('担当者名').fill(`${run.marker} Reject`); await invalid.getByLabel('メールアドレス').fill(session.emailAddress); await invalid.locator('#password').fill('short1'); await invalid.locator('#passwordConfirmation').fill('short1'); await invalid.getByRole('checkbox').check();
     const invalidSignupButton=invalid.getByRole('button',{name:'無料でアカウントを作成する'}); if(!(await invalidSignupButton.isDisabled()))fail('RELEASE_CRITICAL_PASSWORD_6_NOT_REJECTED'); await invalid.locator('#password').fill('short12'); await invalid.locator('#passwordConfirmation').fill('short12'); if(!(await invalidSignupButton.isDisabled()))fail('RELEASE_CRITICAL_PASSWORD_7_NOT_REJECTED'); await invalid.close(); results.J3='PASS';
-    await page.getByRole('link',{name:'ログアウト'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,initialPassword,/\/dashboard/); await page.getByRole('link',{name:'ログアウト'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await page.getByRole('link',{name:'忘れた方はこちら'}).click(); await page.waitForURL(/\/forgot-password/,{timeout:30_000}); await page.getByLabel('メールアドレス').fill(session.emailAddress); const recoveryCallback=new URL('/auth/callback',baseUrl); recoveryCallback.searchParams.set('next',releaseQaNextPathForRunner('/auth/reset-password',run.runId)); recoveryCallback.searchParams.set('qa_run',run.runId); const recoveryRequest=page.waitForRequest(request=>request.method()==='POST'&&new URL(request.url()).pathname==='/auth/v1/recover',{timeout:30_000}); await page.getByRole('button',{name:'メールを送る'}).click(); const recoveryRedirect=validateClientAuthRedirect((await recoveryRequest).url(),recoveryCallback.toString(),supabaseUrl); emit({state:'RELEASE_CRITICAL_RECOVERY_REDIRECT_REQUEST_PASS',redirect_origin:recoveryRedirect.origin,redirect_path:recoveryRedirect.path,localhost:false}); await page.getByText('再設定メールを送りました。').waitFor({timeout:30_000}); emit({...manualGmailCheckpoint(session,'recovery'),operator_action:'Use the already-open Staging-only Gmail session: click the matching reset link and set the synthetic password GL-Release-Reset-8!.'}); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'recovery',requirePasswordUpdate:true}); await page.waitForURL(/\/login\?notice=password_updated/,{timeout:30_000}); await login(page,session.emailAddress,resetPassword,/\/dashboard/); results.J4='PASS';
+    await page.getByRole('link',{name:'ログアウト'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,initialPassword,/\/dashboard/); await page.getByRole('link',{name:'ログアウト'}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await page.getByRole('link',{name:'忘れた方はこちら'}).click(); await page.waitForURL(/\/forgot-password/,{timeout:30_000}); await page.getByLabel('メールアドレス').fill(session.emailAddress); const recoveryCallback=new URL('/auth/callback',baseUrl); recoveryCallback.searchParams.set('next',releaseQaNextPathForRunner('/auth/reset-password',run.runId)); recoveryCallback.searchParams.set('qa_run',run.runId); const recoveryRequest=page.waitForRequest(request=>request.method()==='POST'&&new URL(request.url()).pathname==='/auth/v1/recover',{timeout:30_000}); await page.getByRole('button',{name:'メールを送る'}).click(); const recoveryRedirect=validateClientAuthRedirect((await recoveryRequest).url(),recoveryCallback.toString(),supabaseUrl); emit({state:'RELEASE_CRITICAL_RECOVERY_REDIRECT_REQUEST_PASS',redirect_origin:recoveryRedirect.origin,redirect_path:recoveryRedirect.path,localhost:false}); await page.getByText('再設定メールを送りました。').waitFor({timeout:30_000}); emit({...manualGmailCheckpoint(session,'recovery'),operator_action:'Use the already-open Staging-only Gmail session: click the matching reset link and set the synthetic password GL-Release-Reset-8!.'}); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'recovery',requirePasswordUpdate:true}); await page.getByRole('link',{name:/ログインへ戻る/}).click(); await page.waitForURL(/\/login/,{timeout:30_000}); await login(page,session.emailAddress,resetPassword,/\/dashboard/); results.J4='PASS';
     await clickAndWait(page,page.getByRole('link',{name:'車両',exact:true}).first(),/\/vehicles(?:\?|$)/);
     await tracePointerCta(page,{baseUrl,label:'VEHICLE_CREATE',locator:page.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState:owner.accountState});
     await page.getByText('車両登録',{exact:true}).waitFor({timeout:30_000});
@@ -985,7 +998,7 @@ async function main(){
       if(!adopted&&life){
         user??=await maybeFindUser(admin,session.emailAddress);
         if(user?.id){
-          const recovered=await recoverLifecycleForUser({admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret,user,run,password:initialPassword});
+          const recovered=await recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,user,run,password:initialPassword});
           if(recovered.state==='RUN_BOUND_FIXTURE'){life=recovered.life;adopted=true;}
         } else {
           await life.rpc('qa_lifecycle_abort_clean',{p_run_id:run.runId,p_reason:'pre_auth_cleanup'});

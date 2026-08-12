@@ -31,7 +31,7 @@ export type ReleaseQaFixtureLookup =
   | { fixture: ReleaseQaFixture; code: 'OK' }
   | {
     fixture: null;
-    code: `MEMBERSHIP_READ_${number}` | 'MEMBERSHIP_CARDINALITY' | 'MEMBERSHIP_SHAPE' | `STORE_READ_${number}` | 'STORE_CARDINALITY' | 'STORE_SHAPE' | `UI_CONTEXT_READ_${number}` | 'UI_CONTEXT_SHAPE' | `CONTRACT_ACCESS_READ_${number}` | 'CONTRACT_ACCESS_SHAPE';
+    code: `MEMBERSHIP_READ_${number}` | 'MEMBERSHIP_ABSENT' | 'MEMBERSHIP_CARDINALITY' | 'MEMBERSHIP_SHAPE' | `STORE_READ_${number}` | 'STORE_CARDINALITY' | 'STORE_SHAPE' | `UI_CONTEXT_READ_${number}` | 'UI_CONTEXT_SHAPE' | `CONTRACT_ACCESS_READ_${number}` | 'CONTRACT_ACCESS_SHAPE';
     diagnostic: {
       layer: 'POSTGREST_MEMBERSHIP' | 'POSTGREST_STORE' | 'POSTGREST_UI_CONTEXT' | 'POSTGREST_CONTRACT_ACCESS';
       postgrestStatus: number;
@@ -164,7 +164,17 @@ export async function readReleaseQaFixture({
     memberships = await fallbackResponse.json();
     discoveryPath = 'JWT_MEMBERSHIP_FALLBACK';
   }
-  if (!Array.isArray(memberships) || memberships.length !== 1) return {
+  if (!Array.isArray(memberships)) return {
+    fixture: null,
+    code: 'MEMBERSHIP_CARDINALITY',
+    diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status, providerErrorCode: null, providerErrorClass: null, providerObject: null },
+  };
+  if (memberships.length === 0) return {
+    fixture: null,
+    code: 'MEMBERSHIP_ABSENT',
+    diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status, providerErrorCode: null, providerErrorClass: null, providerObject: null },
+  };
+  if (memberships.length !== 1) return {
     fixture: null,
     code: 'MEMBERSHIP_CARDINALITY',
     diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status, providerErrorCode: null, providerErrorClass: null, providerObject: null },
