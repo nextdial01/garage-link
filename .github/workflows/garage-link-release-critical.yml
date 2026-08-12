@@ -156,6 +156,7 @@ jobs:
       transport_ready: ${{ steps.transport.outputs.ready }}
       transport_state: ${{ steps.transport.outputs.state }}
     steps:
+      - uses: actions/checkout@v4
       - id: transport
         name: Record separated email transport state
         env:
