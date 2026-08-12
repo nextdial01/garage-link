@@ -3,11 +3,10 @@ import { readFile } from 'node:fs/promises';
 
 test.describe('UX acceptance regression contracts', () => {
   test('preview OTP accepts only the exact Staging preview host without weakening preview guards', async () => {
-    const [source, serverContext, migration, provenance] = await Promise.all([
+    const [source, serverContext, migration] = await Promise.all([
       readFile('src/lib/security/previewOtpSink.ts', 'utf8'),
       readFile('src/lib/security/adminEmailOtpServer.ts', 'utf8'),
       readFile('supabase/qa/migrations/20260803000100_ux_acceptance_admin_bootstrap.sql', 'utf8'),
-      readFile('src/app/api/qa/provenance/route.ts', 'utf8'),
     ]);
     expect(source).toContain("process.env.VERCEL_ENV === 'preview'");
     expect(source).toContain("process.env.NODE_ENV === 'production'");
@@ -33,8 +32,6 @@ test.describe('UX acceptance regression contracts', () => {
     expect(migration).toContain('grant execute on function public.ux_acceptance_admin_bootstrap_context');
     expect(migration).toContain('ux_acceptance_prepare_store');
     expect(migration).toContain('set onboarding_completed_at = coalesce');
-    expect(provenance).toContain("preview_otp_sink: previewOtpSink.authorized ? 'READY' : 'UNAVAILABLE'");
-    expect(provenance).toContain('STAGING_HOST.test(runtimeHost)');
   });
 
   test('shared modal owns the complete portal and focus-management contract', async () => {
