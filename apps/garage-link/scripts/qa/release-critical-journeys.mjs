@@ -445,12 +445,25 @@ async function completeSecurityOtp(page,nextPattern=/\/(signup\?resume=1|onboard
       const retryAfter=Math.max(1,Number.parseInt(request.headers()['retry-after']??'60',10)||60);
       emit({state:'RELEASE_CRITICAL_OTP_PREVIEW_SINK_RATE_LIMIT',retry_after_seconds:retryAfter,action:'WAIT_THEN_VISIBLE_RESEND'});
       const resend=page.getByRole('button',{name:'確認コードを再送する',exact:true});
-      await page.waitForFunction(button=>button instanceof HTMLButtonElement&&!button.disabled,await resend.elementHandle(),{timeout:(retryAfter+10)*1000});
-      const retryResponse=page.waitForResponse(candidate=>{
+      const waitForRetryResponse=()=>page.waitForResponse(candidate=>{
         try {return candidate.request().method()==='POST'&&new URL(candidate.url()).pathname==='/api/auth/admin-email-otp/request';}
         catch {return false;}
       },{timeout:30_000});
-      await resend.click(); request=await retryResponse; status=request.status();
+      if(await resend.isVisible().catch(()=>false)){
+        await page.waitForFunction(button=>button instanceof HTMLButtonElement&&!button.disabled,await resend.elementHandle(),{timeout:(retryAfter+10)*1000});
+        const retryResponse=waitForRetryResponse(); await resend.click(); request=await retryResponse;
+      } else {
+        // The recovery callback can leave the authenticated browser on the
+        // same OTP route before its client form is hydrated. Preserve the
+        // route and session, wait out the server-advertised cooldown, then
+        // reload that user-visible route so the form's normal mount effect
+        // issues exactly one new request. This never substitutes a callback
+        // or destination navigation.
+        emit({state:'RELEASE_CRITICAL_OTP_PREVIEW_SINK_RATE_LIMIT',retry_after_seconds:retryAfter,action:'WAIT_THEN_CURRENT_ROUTE_RELOAD'});
+        await page.waitForTimeout((retryAfter+1)*1000);
+        const retryResponse=waitForRetryResponse(); await page.reload({waitUntil:'domcontentloaded'}); request=await retryResponse;
+      }
+      status=request.status();
       emit({state:'RELEASE_CRITICAL_OTP_PREVIEW_SINK_UI_REACH',classification:request.ok()?'OTP_REQUEST_RETRY_EMITTED':'OTP_REQUEST_RETRY_FAILED',http_status:status,redirected:request.headers().location?'YES':'NO'});
     }
     if(!request.ok()||request.headers().location)fail(`RELEASE_CRITICAL_SECURITY_OTP_REQUEST:${status}`);

@@ -139,6 +139,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/OTP_REQUEST_FAILED/);
   assert.match(journeys,/RELEASE_CRITICAL_OTP_PREVIEW_SINK_RATE_LIMIT/);
   assert.match(journeys,/WAIT_THEN_VISIBLE_RESEND/);
+  assert.match(journeys,/WAIT_THEN_CURRENT_ROUTE_RELOAD/);
   assert.match(journeys,/確認コードを再送する/);
   assert.match(journeys,/postgrest_provider_error_code/);
   assert.match(journeys,/RELEASE_CRITICAL_CTA_TRACE/);
