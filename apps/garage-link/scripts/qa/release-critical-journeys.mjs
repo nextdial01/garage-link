@@ -127,7 +127,7 @@ export async function verifyHostedRedirectContract({admin,run,baseUrl,supabaseUr
 function releaseQaNextPathForRunner(path,runId){const url=new URL(path,'https://release-qa.invalid');url.searchParams.set('qa_run',runId);return `${url.pathname}${url.search}`;}
 async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,expectedRender=null,accountState,expectedClassification='PASS',expectedFinalPath=null}){
   const initialPath=safeNavigationPath(page.url(),baseUrl);
-  const trace={domClick:false,expected:false,initialPath,finalPath:initialPath,navigationRequestCount:0,runtimeErrorCount:0,runtimeErrorClasses:[]};
+  const trace={domClick:false,expected:false,initialPath,finalPath:initialPath,navigationRequestCount:0,runtimeErrorCount:0,runtimeErrorClasses:[],failedResponsePaths:[]};
   const clickKey=`release-critical-cta-${label}`;
   const observedRequests=[];
   const onRequest=request=>{
@@ -137,6 +137,11 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,exp
     const path=safeNavigationPath(request.url(),baseUrl);
     if(path!=='CROSS_ORIGIN'&&path!=='INVALID_URL')observedRequests.push(path);
   };
+  const onResponse=response=>{
+    if(response.status()<400)return;
+    const path=safeNavigationPath(response.url(),baseUrl);
+    if(path!=='CROSS_ORIGIN'&&path!=='INVALID_URL')trace.failedResponsePaths.push(`${response.status()}:${path}`);
+  };
   const onPageError=error=>{trace.runtimeErrorCount+=1;trace.runtimeErrorClasses.push(`PAGE:${safeErrorCode(error)}`);};
   const onConsole=message=>{if(message.type()==='error'){trace.runtimeErrorCount+=1;trace.runtimeErrorClasses.push(`CONSOLE:${safeErrorCode(message.text())}`);}};
   let emittedClassification=null;
@@ -145,11 +150,11 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,exp
     trace.finalPath=safeNavigationPath(page.url(),baseUrl);
     trace.navigationRequestCount=observedRequests.length;
     const classification=classifyCtaTrace(trace);
-    emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:label,classification,dom_click:trace.domClick?'YES':'NO',navigation_request_count:trace.navigationRequestCount,middleware_final_destination:trace.finalPath,browser_runtime_error_count:trace.runtimeErrorCount,browser_runtime_error_classes:[...new Set(trace.runtimeErrorClasses)],garage_ui_context:accountState?.garageUiContext??'UNKNOWN',active_store:accountState?.activeStore??'UNKNOWN',onboarding_completed:accountState?.onboardingCompleted??'UNKNOWN',membership_role:accountState?.membershipRole??'UNKNOWN',membership_status:accountState?.membershipStatus??'UNKNOWN',contract_access_state:accountState?.contractAccessState??'UNKNOWN',admin_security_requirement:trace.finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
+    emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:label,classification,dom_click:trace.domClick?'YES':'NO',navigation_request_count:trace.navigationRequestCount,middleware_final_destination:trace.finalPath,browser_runtime_error_count:trace.runtimeErrorCount,browser_runtime_error_classes:[...new Set(trace.runtimeErrorClasses)],failed_response_paths:[...new Set(trace.failedResponsePaths)],garage_ui_context:accountState?.garageUiContext??'UNKNOWN',active_store:accountState?.activeStore??'UNKNOWN',onboarding_completed:accountState?.onboardingCompleted??'UNKNOWN',membership_role:accountState?.membershipRole??'UNKNOWN',membership_status:accountState?.membershipStatus??'UNKNOWN',contract_access_state:accountState?.contractAccessState??'UNKNOWN',admin_security_requirement:trace.finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
     emittedClassification=classification;
     return emittedClassification;
   };
-  page.on('request',onRequest); page.on('pageerror',onPageError); page.on('console',onConsole);
+  page.on('request',onRequest); page.on('response',onResponse); page.on('pageerror',onPageError); page.on('console',onConsole);
   try {
     const clickIdentity=await locator.evaluate(element=>({
       label:(element.textContent??'').trim(),
@@ -197,7 +202,7 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,exp
       delete window.__releaseCriticalCtaControllers?.[key];
       delete window.__releaseCriticalCtaClicks?.[key];
     },clickKey).catch(()=>undefined);
-    page.off('request',onRequest); page.off('pageerror',onPageError); page.off('console',onConsole);
+    page.off('request',onRequest); page.off('response',onResponse); page.off('pageerror',onPageError); page.off('console',onConsole);
   }
 }
 async function verifyVehicleAccountStateGate({browser,sourceContext,baseUrl,bypassSecret,accountState}){
@@ -252,7 +257,7 @@ async function executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subj
     await installVercelBrowserBypass(context,baseUrl,bypassSecret);
     const page=await context.newPage();
     await page.goto(new URL('/login',baseUrl).toString(),{waitUntil:'domcontentloaded'});
-    await login(page,subject.email,password,/\/(dashboard|onboarding)(?:\?|$)/);
+    await login(page,subject.email,password,/\/(dashboard|onboarding|billing|security)(?:\/|\?|$)/);
     if(state==='admin_security_unverified')await context.clearCookies({name:/^garage_admin_email_verified$/});
     await page.goto(new URL('/vehicles',baseUrl).toString(),{waitUntil:'domcontentloaded'});
     const cta=page.getByRole('link',{name:'車両を登録',exact:true});
