@@ -133,6 +133,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/login_outcome/);
   assert.match(journeys,/api\/auth\/password-login/);
   assert.match(journeys,/errorClass:sha256/);
+  assert.match(journeys,/authoritative middleware boundary/);
   assert.doesNotMatch(journeys,/\.goto\(new URL\('\/vehicles',baseUrl\),/);
   assert.match(journeys,/url=>new URL\(url\)\.pathname!==['"]\/login/);
   assert.match(journeys,/new URL\(url\)\.pathname!==['"]\/login/);

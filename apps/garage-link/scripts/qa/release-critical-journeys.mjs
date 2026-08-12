@@ -383,8 +383,12 @@ async function loginMatrixSubject(page,email,password){
     const detail=await response.json().catch(()=>null);
     return {kind:'login_error',httpStatus:response.status(),errorClass:sha256(String(detail?.error??''))};
   }
-  await page.waitForURL(url=>new URL(url).pathname!=='/login',{timeout:30_000});
-  await completeSecurityOtp(page);
+  // The client route commit may lag the successful server response. The
+  // following real /vehicles entry is the authoritative middleware boundary
+  // for this matrix, so do not turn that App Router timing gap into a fake
+  // login failure before observing the boundary.
+  await page.waitForTimeout(1_000);
+  if(/\/security\/email-otp/.test(page.url()))await completeSecurityOtp(page);
   return {kind:'redirect',finalPath:safeNavigationPath(page.url(),new URL(page.url()).origin)};
 }
 async function onboarding(page,marker){
