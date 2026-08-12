@@ -215,26 +215,32 @@ async function matrixAccountState({supabaseUrl,anonKey,email,password}){
   // The browser uses the public Staging key plus the authenticated user's JWT.
   // Mirror that boundary here: a service-role API key would exercise a
   // different PostgREST role and can hide (or invent) authorization failures.
+  // Send the resulting JWT explicitly to PostgREST. This avoids coupling the
+  // matrix contract to supabase-js's in-memory session propagation semantics.
   const subject=createClient(supabaseUrl,anonKey,{auth:{autoRefreshToken:false,persistSession:false}});
   try {
     const {data,error}=await subject.auth.signInWithPassword({email,password});
-    if(error||!data.user?.id)fail(`RELEASE_CRITICAL_CTA_MATRIX_AUTH:${safeProviderCode(error)}`);
-    const [ui,contract]=await Promise.all([
-      subject.rpc('get_garage_ui_context_v2',{}),
-      subject.rpc('get_member_contract_access',{}),
+    const accessToken=data.session?.access_token;
+    if(error||!data.user?.id||typeof accessToken!=='string'||!accessToken)fail(`RELEASE_CRITICAL_CTA_MATRIX_AUTH:${safeProviderCode(error)}`);
+    const headers={apikey:anonKey,authorization:`Bearer ${accessToken}`,'content-type':'application/json'};
+    const [uiResponse,contractResponse]=await Promise.all([
+      fetch(new URL('/rest/v1/rpc/get_garage_ui_context_v2',supabaseUrl),{method:'POST',headers,cache:'no-store'}),
+      fetch(new URL('/rest/v1/rpc/get_member_contract_access',supabaseUrl),{method:'POST',headers,cache:'no-store'}),
     ]);
-    if(ui.error||contract.error){
-      const rpc=ui.error?'GARAGE_UI_CONTEXT':'CONTRACT_ACCESS';
-      emit({state:'RELEASE_CRITICAL_CTA_MATRIX_RPC_DIAGNOSTIC',rpc,postgrest_code:safeProviderCode(ui.error??contract.error),jwt_role:'authenticated',project_ref:STAGING_REF});
-      fail(`RELEASE_CRITICAL_CTA_MATRIX_STATE:${rpc}:${safeProviderCode(ui.error??contract.error)}`);
+    const [ui,contract]=await Promise.all([uiResponse.json().catch(()=>null),contractResponse.json().catch(()=>null)]);
+    if(!uiResponse.ok||!contractResponse.ok){
+      const rpc=!uiResponse.ok?'GARAGE_UI_CONTEXT':'CONTRACT_ACCESS';
+      const provider=!uiResponse.ok?ui:contract;
+      emit({state:'RELEASE_CRITICAL_CTA_MATRIX_RPC_DIAGNOSTIC',rpc,postgrest_status:!uiResponse.ok?uiResponse.status:contractResponse.status,postgrest_code:safeProviderCode(provider),jwt_role:'authenticated',project_ref:STAGING_REF});
+      fail(`RELEASE_CRITICAL_CTA_MATRIX_STATE:${rpc}:${safeProviderCode(provider)}`);
     }
     const value={
-      garageUiContext:ui.data?.state,
-      activeStore:ui.data?.store_id?'YES':'NO',
-      onboardingCompleted:ui.data?.onboarding_completed===true?'YES':'NO',
-      membershipRole:ui.data?.role,
+      garageUiContext:ui?.state,
+      activeStore:ui?.store_id?'YES':'NO',
+      onboardingCompleted:ui?.onboarding_completed===true?'YES':'NO',
+      membershipRole:ui?.role,
       membershipStatus:'active',
-      contractAccessState:contract.data?.state,
+      contractAccessState:contract?.state,
     };
     if(!['active','selection_required','no_access'].includes(value.garageUiContext)||!['YES','NO'].includes(value.activeStore)||!['YES','NO'].includes(value.onboardingCompleted)||!/^[a-z_]{2,32}$/i.test(String(value.membershipRole??''))||!/^[a-z_]{2,48}$/i.test(String(value.contractAccessState??'')))fail('RELEASE_CRITICAL_CTA_MATRIX_STATE_SHAPE');
     return value;

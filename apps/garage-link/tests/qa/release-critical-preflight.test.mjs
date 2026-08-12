@@ -210,6 +210,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/qa_lifecycle_cta_matrix/);
   assert.match(journeys,/E2E_TEST_SUPABASE_ANON_KEY/);
   assert.match(journeys,/jwt_role:'authenticated'/);
+  assert.match(journeys,/\/rest\/v1\/rpc\/get_garage_ui_context_v2/);
+  assert.match(journeys,/authorization:`Bearer \$\{accessToken\}`/);
   assert.match(workflow,/E2E_TEST_SUPABASE_ANON_KEY/);
   assert.match(journeys,/RELEASE_CRITICAL_CTA_ACCOUNT_STATE_MATRIX/);
   assert.match(journeys,/customer_equivalence:reproduced\?'ACTIVE_NON_OWNER_REPRODUCED':'NOT_ASSERTED'/);
