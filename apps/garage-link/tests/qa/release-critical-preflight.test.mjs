@@ -68,6 +68,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/requireStoreCreated:true/);
   assert.match(journeys,/user\?\?=await maybeFindUser/);
   assert.match(journeys,/requirePasswordUpdate:true/);
+  assert.match(journeys,/notice=password_updated/);
+  assert.doesNotMatch(journeys,/getByRole\('link',\{name:'ログインへ戻る'\}\)\.click/);
   assert.match(journeys,/beginLifecycle\(life,run,provenance\)/);
   assert.match(journeys,/maybeActiveOwner/);
   assert.match(journeys,/qa_lifecycle_abort_clean/);
