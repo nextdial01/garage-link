@@ -10,10 +10,11 @@ import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critica
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,journeys,workflow,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback]=await Promise.all([
+  const [runner,journeys,workflow,qaLifecycleContract,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
+    readFile(resolve(appRoot,'scripts/qa/release-critical-qa-lifecycle-contract.mjs'),'utf8'),
     readFile(resolve(appRoot,'src/app/signup/page.tsx'),'utf8'),
     readFile(resolve(appRoot,'src/app/auth/callback/page.tsx'),'utf8'),
     readFile(resolve(appRoot,'src/app/auth/reset-password/page.tsx'),'utf8'),
@@ -131,6 +132,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
   const preflightJob=workflow.slice(workflow.indexOf('\n  preflight:'),workflow.indexOf('\n  stage-auth-contract:'));
   assert.doesNotMatch(preflightJob,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
+  const qaLifecycleJob=workflow.slice(workflow.indexOf('\n  qa-lifecycle-contract:'),workflow.indexOf('\n  machine-gates:'));
+  assert.doesNotMatch(qaLifecycleJob,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
   assert.match(workflow,/auth_config_mode/);
   assert.match(workflow,/verify_by_journey/);
   assert.match(workflow,/repair_staging_once/);
@@ -155,6 +158,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(workflow,/release_sha|release_branch|EXPECTED_RELEASE_SHA|EXPECTED_RELEASE_BRANCH/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_MAILSLURP_API_KEY/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_QA_MAILBOX/);
+  assert.match(qaLifecycleContract,/CTA_MATRIX_BOOTSTRAP_REQUIRED/);
+  assert.match(qaLifecycleContract,/EXTERNAL_ADMIN_ONETIME/);
+  assert.doesNotMatch(qaLifecycleContract,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN|api\.supabase\.com|database\/query|fetch\(/);
   assert.doesNotMatch(workflow,/STRIPE_SECRET_KEY|E2E_ALLOW_BILLING_MUTATIONS|STRIPE_WEBHOOK_SECRET/);
   assert.match(workflow,/Release-critical machine-only gates/);
   assert.match(workflow,/release-critical-journeys\.mjs/);
@@ -404,46 +410,24 @@ test('hosted Auth contract compacts stale Staging preview callbacks before the M
   assert.equal(JSON.parse(calls[1].options.body).uri_allow_list,'https://*-altos-projects-fa55063c.vercel.app/**');
 });
 
-test('CTA matrix contract uses the Management API only for its one-time Staging migration bootstrap',async()=>{
-  const manifest={entries:[{version:'20260812000100',name:'qa_lifecycle_cta_account_state_matrix',kind:'contract',file:'migrations/20260812000100_qa_lifecycle_cta_account_state_matrix.sql',checksum:'a'.repeat(64)}]};
-  let readinessCalls=0; let writes=0; let reads=0; let capturedSql='';
-  const createClientImpl=()=>({rpc:async()=>{
-    readinessCalls+=1;
-    return {data:readinessCalls===1?{ready:true,service_execute_count:13}:{ready:true,service_execute_count:14,cta_matrix:'registry_bound'},error:null};
-  }});
-  const fetchImpl=async(url,options)=>{
-    if(String(url).endsWith('/v1/profile'))return new Response('{}',{status:200,headers:{'content-type':'application/json'}});
-    assert.match(String(url),/https:\/\/api\.supabase\.com\/v1\/projects\/gaytoojzwqkpuvfofeql\/database\/query/);
-    if(String(url).endsWith('/read-only')){
-      reads+=1;
-      return new Response(JSON.stringify(reads===1?[]:[{version:'20260812000100',name:'qa_lifecycle_cta_account_state_matrix',checksum:'a'.repeat(64),state:'applied'}]),{status:200,headers:{'content-type':'application/json'}});
-    }
-    writes+=1; capturedSql=JSON.parse(options.body).query;
-    return new Response('[]',{status:200,headers:{'content-type':'application/json'}});
-  };
-  const result=await ensureReleaseCriticalCtaMatrix({supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',managementToken:'token',manifest,readFileImpl:async()=>`begin;\ncreate table qa_internal.example(id integer);\ncommit;`,fetchImpl,createClientImpl});
-  assert.deepEqual(result,{state:'RELEASE_CRITICAL_QA_MATRIX_READY',applied:true,management_pat_required:true});
-  assert.equal(reads,2); assert.equal(writes,1);
-  assert.match(capturedSql,/begin;/); assert.match(capturedSql,/migration_integrity/); assert.doesNotMatch(capturedSql,/wmlpuzuskfiwdipluglz/);
-});
-
-test('CTA matrix bootstrap proves the Management PAT before querying Staging',async()=>{
-  let calls=0;
+test('CTA matrix contract requires the one-time external bootstrap when readiness is absent',async()=>{
   await assert.rejects(()=>ensureReleaseCriticalCtaMatrix({
-    supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',managementToken:'token',manifest:{entries:[]},
+    supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',
     createClientImpl:()=>({rpc:async()=>({data:{ready:false},error:null})}),
-    fetchImpl:async()=>{calls+=1;return new Response('{}',{status:401});},
-  }),/RELEASE_CRITICAL_QA_MATRIX_MANAGEMENT_PROFILE:401/);
-  assert.equal(calls,1);
+  }),/CTA_MATRIX_BOOTSTRAP_REQUIRED:READBACK/);
 });
 
-test('CTA matrix contract remains PAT-independent after the Staging fixture contract is present',async()=>{
-  let fetchCalls=0;
+test('CTA matrix contract is Management-PAT-independent after the external Staging bootstrap',async()=>{
   const result=await ensureReleaseCriticalCtaMatrix({
-    supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',managementToken:'',manifest:{entries:[]},
-    createClientImpl:()=>({rpc:async()=>({data:{ready:true,service_execute_count:14,cta_matrix:'registry_bound'},error:null})}),
-    fetchImpl:async()=>{fetchCalls+=1;throw new Error('Management API should not be used');},
+    supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',
+    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:14,cta_matrix:'registry_bound'},error:null})}),
   });
-  assert.deepEqual(result,{state:'RELEASE_CRITICAL_QA_MATRIX_READY',applied:false,management_pat_required:false});
-  assert.equal(fetchCalls,0);
+  assert.deepEqual(result,{state:'RELEASE_CRITICAL_QA_MATRIX_READY',bootstrap:'EXTERNAL_ADMIN_ONETIME',management_pat_required:false,readiness:{ready:true,cta_matrix:'registry_bound',private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:14}});
+});
+
+test('CTA matrix contract rejects incomplete service-role security read-back',async()=>{
+  await assert.rejects(()=>ensureReleaseCriticalCtaMatrix({
+    supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',
+    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:1,service_execute_count:14,cta_matrix:'registry_bound'},error:null})}),
+  }),/CTA_MATRIX_BOOTSTRAP_REQUIRED:READBACK/);
 });

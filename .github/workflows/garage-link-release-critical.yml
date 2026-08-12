@@ -86,7 +86,7 @@ jobs:
         run: node apps/garage-link/scripts/qa/release-critical-stage-auth.mjs
 
   qa-lifecycle-contract:
-    name: Staging-only CTA fixture contract
+    name: Registry-bound Staging CTA fixture contract
     needs: preflight
     if: ${{ needs.preflight.result == 'success' }}
     runs-on: ubuntu-latest
@@ -95,7 +95,6 @@ jobs:
     env:
       E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
-      GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -106,7 +105,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Ensure the registry-bound Staging CTA fixture contract
+      - name: Read back the registry-bound Staging CTA fixture contract
         run: node apps/garage-link/scripts/qa/release-critical-qa-lifecycle-contract.mjs
 
   machine-gates:
