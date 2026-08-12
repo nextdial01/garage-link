@@ -140,7 +140,7 @@ async function authenticatedBrowserSession(page,baseUrl){
 }
 async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,expectedRender=null,accountState,expectedClassification='PASS',expectedFinalPath=null}){
   const initialPath=safeNavigationPath(page.url(),baseUrl);
-  const trace={domClick:false,expected:false,initialPath,finalPath:initialPath,navigationRequestCount:0,runtimeErrorCount:0,runtimeErrorClasses:[],failedResponsePaths:[],sessionBefore:'UNOBSERVED',sessionAfter:'UNOBSERVED',destinationRequestAuthCookie:'UNOBSERVED'};
+  const trace={domClick:false,expected:false,initialPath,finalPath:initialPath,navigationRequestCount:0,runtimeErrorCount:0,runtimeErrorClasses:[],failedResponsePaths:[],authCookieClearPaths:[],sessionBefore:'UNOBSERVED',sessionAfter:'UNOBSERVED',destinationRequestAuthCookie:'UNOBSERVED'};
   const clickKey=`release-critical-cta-${label}`;
   const observedRequests=[];
   const onRequest=request=>{
@@ -154,8 +154,11 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,exp
     }
   };
   const onResponse=response=>{
+    const responsePath=safeNavigationPath(response.url(),baseUrl);
+    const setCookie=response.headers()['set-cookie']??'';
+    if(responsePath!=='CROSS_ORIGIN'&&responsePath!=='INVALID_URL'&&/\bsb-[a-z0-9]+-auth-token(?:\.\d+)?=;[^\n]*(?:max-age=0|expires=thu, 01 jan 1970)/i.test(setCookie))trace.authCookieClearPaths.push(responsePath);
     if(response.status()<400)return;
-    const path=safeNavigationPath(response.url(),baseUrl);
+    const path=responsePath;
     if(path!=='CROSS_ORIGIN'&&path!=='INVALID_URL')trace.failedResponsePaths.push(`${response.status()}:${path}`);
   };
   const onPageError=error=>{trace.runtimeErrorCount+=1;trace.runtimeErrorClasses.push(`PAGE:${safeErrorCode(error)}`);};
@@ -172,7 +175,7 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,exp
     trace.finalPath=safeNavigationPath(page.url(),baseUrl);
     trace.navigationRequestCount=observedRequests.length;
     const classification=classifyCtaTrace(trace);
-    emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:label,classification,dom_click:trace.domClick?'YES':'NO',navigation_request_count:trace.navigationRequestCount,middleware_final_destination:trace.finalPath,browser_runtime_error_count:trace.runtimeErrorCount,browser_runtime_error_classes:[...new Set(trace.runtimeErrorClasses)],failed_response_paths:[...new Set(trace.failedResponsePaths)],ignored_hosted_instrumentation_404s:trace.failedResponsePaths.filter(value=>isHostedInstrumentationScript(value.replace(/^\d+:/,''))).length,session_before:trace.sessionBefore,session_after:trace.sessionAfter,destination_request_auth_cookie:trace.destinationRequestAuthCookie,garage_ui_context:accountState?.garageUiContext??'UNKNOWN',active_store:accountState?.activeStore??'UNKNOWN',onboarding_completed:accountState?.onboardingCompleted??'UNKNOWN',membership_role:accountState?.membershipRole??'UNKNOWN',membership_status:accountState?.membershipStatus??'UNKNOWN',contract_access_state:accountState?.contractAccessState??'UNKNOWN',admin_security_requirement:trace.finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
+    emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:label,classification,dom_click:trace.domClick?'YES':'NO',navigation_request_count:trace.navigationRequestCount,middleware_final_destination:trace.finalPath,browser_runtime_error_count:trace.runtimeErrorCount,browser_runtime_error_classes:[...new Set(trace.runtimeErrorClasses)],failed_response_paths:[...new Set(trace.failedResponsePaths)],auth_cookie_clear_paths:[...new Set(trace.authCookieClearPaths)],ignored_hosted_instrumentation_404s:trace.failedResponsePaths.filter(value=>isHostedInstrumentationScript(value.replace(/^\d+:/,''))).length,session_before:trace.sessionBefore,session_after:trace.sessionAfter,destination_request_auth_cookie:trace.destinationRequestAuthCookie,garage_ui_context:accountState?.garageUiContext??'UNKNOWN',active_store:accountState?.activeStore??'UNKNOWN',onboarding_completed:accountState?.onboardingCompleted??'UNKNOWN',membership_role:accountState?.membershipRole??'UNKNOWN',membership_status:accountState?.membershipStatus??'UNKNOWN',contract_access_state:accountState?.contractAccessState??'UNKNOWN',admin_security_requirement:trace.finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
     emittedClassification=classification;
     return emittedClassification;
   };

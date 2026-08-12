@@ -125,6 +125,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/middleware_final_destination/);
   assert.match(journeys,/browser_runtime_error_count/);
   assert.match(journeys,/destination_request_auth_cookie/);
+  assert.match(journeys,/auth_cookie_clear_paths/);
+  assert.match(journeys,/Never inspect or emit a cookie value/);
   assert.match(journeys,/Never inspect or emit a cookie value/);
   assert.match(journeys,/browser_runtime_error_classes/);
   assert.match(journeys,/failed_response_paths/);
