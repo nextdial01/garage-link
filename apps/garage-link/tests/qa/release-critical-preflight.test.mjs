@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl } from '../../scripts/qa/release-critical-preflight.mjs';
-import { classifyCtaTrace, createReleaseCriticalRun, installVercelBrowserBypass, isLifecycleCleanupResumableState, releaseCriticalSyntheticPassword, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
+import { classifyCtaTrace, createReleaseCriticalRun, installVercelBrowserBypass, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, releaseCriticalSyntheticPassword, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
 import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-stage-auth.mjs';
 import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critical-qa-lifecycle-contract.mjs';
 
@@ -81,6 +81,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_RECOVERY_SAME_OTP_SESSION_PASS/);
   assert.match(journeys,/RELEASE_CRITICAL_FRESH_SESSION_OTP_GUARD_PASS/);
   assert.match(journeys,/qa_lifecycle_reclaim_expired_release_fixture/);
+  assert.match(journeys,/reclaimExpiredCleanupLifecycleIfRequired/);
+  assert.match(journeys,/RELEASE_CRITICAL_EXPIRED_CLEANUP_RECOVERY_PASS/);
+  assert.match(journeys,/'FIXTURE_LIFECYCLE'/);
   assert.match(journeys,/RELEASE_CRITICAL_LIFECYCLE_\$\{name\}:\$\{safeProviderCode\(error\)\}:\$\{safeErrorCode\(error\)\}/);
   assert.match(journeys,/RELEASE_CRITICAL_EXPIRED_LIFECYCLE_RECOVERY_PASS/);
   assert.match(journeys,/48\*60\*60_000/);
@@ -428,6 +431,11 @@ test('release-critical journeys accept only the Staging runtime and marker-bound
 test('an interrupted registered fixture resumes only its formal cleanup states',()=>{
   for(const state of ['TEST_COMPLETE','TEARDOWN_DRY_RUN','TEARDOWN_READY','TEARING_DOWN','DB_CLEANED','AUTH_CLEANED','STORAGE_CLEANED','ARTIFACTS_CLEANED','VERIFIED_CLEAN'])assert.equal(isLifecycleCleanupResumableState(state),true);
   for(const state of ['CREATED','PREFLIGHT_READY','PROVISIONING','PROVISIONED','AUTH_READY','TEST_RUNNING','FAILED_RECOVERABLE','COMPLETE'])assert.equal(isLifecycleCleanupResumableState(state),false);
+});
+
+test('expired cleanup reclaim only resets registered pre-delete lifecycle states',()=>{
+  for(const state of ['TEST_COMPLETE','TEARDOWN_DRY_RUN','TEARDOWN_READY','TEARING_DOWN'])assert.equal(isExpiredLifecycleReclaimState(state),true);
+  for(const state of ['CREATED','PREFLIGHT_READY','PROVISIONING','PROVISIONED','AUTH_READY','TEST_RUNNING','DB_CLEANED','AUTH_CLEANED','STORAGE_CLEANED','ARTIFACTS_CLEANED','VERIFIED_CLEAN','COMPLETE'])assert.equal(isExpiredLifecycleReclaimState(state),false);
 });
 
 test('CTA trace separates pointer non-delivery, route redirects, and runtime errors',()=>{

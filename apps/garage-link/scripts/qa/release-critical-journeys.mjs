@@ -44,6 +44,9 @@ export function createReleaseCriticalRun(runId=randomUUID()){
 export function isLifecycleCleanupResumableState(state){
   return ['TEST_COMPLETE','TEARDOWN_DRY_RUN','TEARDOWN_READY','TEARING_DOWN','DB_CLEANED','AUTH_CLEANED','STORAGE_CLEANED','ARTIFACTS_CLEANED','VERIFIED_CLEAN'].includes(state);
 }
+export function isExpiredLifecycleReclaimState(state){
+  return ['TEST_COMPLETE','TEARDOWN_DRY_RUN','TEARDOWN_READY','TEARING_DOWN'].includes(state);
+}
 export function releaseCriticalSyntheticPassword(emailMarker){
   if(!/^(?:garage-link-[a-z0-9-]{8,}|g[0-9a-f]{6})$/i.test(emailMarker))fail('RELEASE_CRITICAL_MARKER_INVALID');
   return `GL-${emailMarker}-8!`;
@@ -598,7 +601,7 @@ export function lifecycle(admin,run,provenance){
   // than guessed as an RLS, OTP, or last-owner issue.
   const rpc=async(name,args={})=>{const {data,error}=await admin.rpc(name,args);if(error)fail(`RELEASE_CRITICAL_LIFECYCLE_${name}:${safeProviderCode(error)}:${safeErrorCode(error)}`);return data};
   const maybeStatus=async()=>{const {data,error}=await admin.rpc('qa_lifecycle_status',{p_run_id:run.runId});if(!error)return data;if(error.code==='P0001'&&String(error.message??'').includes('QA_RUN_NOT_FOUND'))return null;fail(`RELEASE_CRITICAL_LIFECYCLE_qa_lifecycle_status:${error.code??'FAILED'}`);};
-  const transition=(expected,next,action,detail={})=>rpc('qa_lifecycle_transition',{p_run_id:run.runId,p_expected_state:expected,p_next_state:next,p_next_action:action,p_failure_class:null,p_safe_detail:detail});
+  const transition=(expected,next,action,detail={},failureClass=null)=>rpc('qa_lifecycle_transition',{p_run_id:run.runId,p_expected_state:expected,p_next_state:next,p_next_action:action,p_failure_class:failureClass,p_safe_detail:detail});
   const evidence=(kind,detail={})=>{const payload={run_id:run.runId,source_sha:provenance.sourceSha,deployment_id:provenance.deploymentId,actor:'release-critical-gha',residual_count:0,observed_at:new Date().toISOString(),...detail};return rpc('qa_lifecycle_record_verified_evidence',{p_run_id:run.runId,p_evidence_kind:kind,p_observation:{...payload,proof_sha:sha256(JSON.stringify(payload))}})};
   return {rpc,transition,evidence,status:()=>rpc('qa_lifecycle_status',{p_run_id:run.runId}),maybeStatus};
 }
@@ -710,9 +713,30 @@ async function reclaimExpiredLifecycleIfRequired(life,existing,run){
   emit({state:'RELEASE_CRITICAL_EXPIRED_LIFECYCLE_RECOVERY_PASS',run_marker_hash:sha256(run.runId),reclaimed_deadline:true,reclaimed_fixture_expiry:true});
   return recovered;
 }
+async function reclaimExpiredCleanupLifecycleIfRequired(life,existing,run){
+  const fixture=Array.isArray(existing?.fixtures)?existing.fixtures[0]:null;
+  const deadlineExpired=lifecycleDeadlineExpired(existing?.cleanup_deadline);
+  const fixtureExpired=lifecycleDeadlineExpired(fixture?.expires_at);
+  if(!deadlineExpired&&!fixtureExpired)return existing;
+  if(!isExpiredLifecycleReclaimState(existing?.state)||!fixture||fixture.fixture_type!=='release')fail('RELEASE_CRITICAL_EXPIRED_CLEANUP_RECOVERY_UNSAFE');
+  // The database state machine explicitly permits recovery from a marked
+  // failed run to PROVISIONING. Re-enter only that registered state, renew the
+  // exact registry-bound fixture through the service-role-only function, then
+  // walk forward through the ordinary teardown path. No data is deleted or
+  // authorization weakened during this recovery.
+  await life.transition(existing.state,'FAILED_RECOVERABLE','expired-cleanup-deadline',{},'FIXTURE_LIFECYCLE');
+  await life.transition('FAILED_RECOVERABLE','PROVISIONING','reclaim-expired-release-fixture');
+  await reclaimExpiredLifecycleIfRequired(life,await life.status(),run);
+  await life.transition('PROVISIONING','PROVISIONED','recovered-cleanup-fixture');
+  await life.transition('PROVISIONED','AUTH_READY','recovered-cleanup-auth');
+  await life.transition('AUTH_READY','TEST_RUNNING','recovered-cleanup-run');
+  await life.transition('TEST_RUNNING','TEST_COMPLETE','recovered-cleanup-teardown');
+  emit({state:'RELEASE_CRITICAL_EXPIRED_CLEANUP_RECOVERY_PASS',run_marker_hash:sha256(run.runId),resumed_state:existing.state});
+  return life.status();
+}
 async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,user,run,password}){
   let statusLife=lifecycle(admin,run,provenance);
-  let existing=await statusLife.maybeStatus();
+  const existing=await statusLife.maybeStatus();
   if(!existing){await beginLifecycle(statusLife,run,provenance);existing=await statusLife.status();}
   existing=await reclaimExpiredLifecycleIfRequired(statusLife,existing,run);
   if(!/^[0-9a-f]{40}$/i.test(existing.source_sha??'')||!/^dpl_[A-Za-z0-9]+$/.test(existing.deployment_id??''))fail('RELEASE_CRITICAL_RECOVERY_PROVENANCE_UNPROVEN');
@@ -767,7 +791,7 @@ async function recoverInterruptedFixture(admin,provenance,baseUrl,supabaseUrl,se
   const user=await findUserByReleaseRunId(admin,INTERRUPTED_RUN_ID);
   const provisionalRun={runId:INTERRUPTED_RUN_ID,marker:'[RELEASE QA 20260811]',emailMarker:`g${INTERRUPTED_RUN_ID.replaceAll('-','').slice(0,6)}`};
   const statusLife=lifecycle(admin,provisionalRun,provenance);
-  const existing=await statusLife.maybeStatus();
+  let existing=await statusLife.maybeStatus();
   if(!user&&!existing)return {state:'RELEASE_CRITICAL_INTERRUPTED_FIXTURE_ABSENT'};
   if(!user)fail('RELEASE_CRITICAL_INTERRUPTED_AUTH_ABSENT');
   if(existing?.state==='COMPLETE')return verifyKnownPartialLifecycle(admin,statusLife,INTERRUPTED_RUN_ID);
@@ -779,8 +803,10 @@ async function recoverInterruptedFixture(admin,provenance,baseUrl,supabaseUrl,se
   if(isLifecycleCleanupResumableState(existing?.state)){
     if(!/^[0-9a-f]{40}$/i.test(existing.source_sha??'')||!/^dpl_[A-Za-z0-9]+$/.test(existing.deployment_id??''))fail('RELEASE_CRITICAL_INTERRUPTED_PROVENANCE_UNPROVEN');
     const life=lifecycle(admin,provisionalRun,{sourceSha:existing.source_sha,deploymentId:existing.deployment_id});
+    const resumedState=existing.state;
+    await reclaimExpiredCleanupLifecycleIfRequired(life,existing,provisionalRun);
     await cleanupLifecycle(life,admin,user.id,INTERRUPTED_RUN_ID);
-    emit({state:'RELEASE_CRITICAL_INTERRUPTED_LIFECYCLE_CLEANUP_RESUMED',run_marker_hash:sha256(INTERRUPTED_RUN_ID),resumed_state:existing.state});
+    emit({state:'RELEASE_CRITICAL_INTERRUPTED_LIFECYCLE_CLEANUP_RESUMED',run_marker_hash:sha256(INTERRUPTED_RUN_ID),resumed_state:resumedState});
     return verifyKnownPartialLifecycle(admin,life,INTERRUPTED_RUN_ID);
   }
   if(existing?.state!=='PROVISIONING')fail(`RELEASE_CRITICAL_INTERRUPTED_LIFECYCLE_STATE:${existing?.state??'ABSENT'}`);
