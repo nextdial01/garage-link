@@ -223,8 +223,13 @@ async function matrixAccountState({supabaseUrl,serviceRole,email,password}){
     if(error||!data.user?.id)fail(`RELEASE_CRITICAL_CTA_MATRIX_AUTH:${safeProviderCode(error)}`);
     const accessToken=data.session?.access_token;
     if(typeof accessToken!=='string'||!accessToken)fail('RELEASE_CRITICAL_CTA_MATRIX_SESSION_MISSING');
-    return {accessToken,userId:data.user.id};
-  } finally {await subject.auth.signOut().catch(()=>undefined);}
+    // Do not sign out here: Supabase's default global sign-out revokes the
+    // token before the route can validate this exact subject session.
+    return {accessToken,userId:data.user.id,subject};
+  } catch(error) {
+    await subject.auth.signOut().catch(()=>undefined);
+    throw error;
+  }
 }
 async function matrixAccountStateFromFixture({baseUrl,bypassSecret,accessToken,userId,runId}){
   const headers={authorization:`Bearer ${accessToken}`,'content-type':'application/json','x-vercel-protection-bypass':bypassSecret};
@@ -264,7 +269,10 @@ function emitUnavailableMatrixTrace({baseUrl,page,state,accountState}){
 }
 async function executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subject,password,supabaseUrl,serviceRole,runId}){
   const session=await matrixAccountState({supabaseUrl,serviceRole,email:subject.email,password});
-  const accountState=await matrixAccountStateFromFixture({baseUrl,bypassSecret,accessToken:session.accessToken,userId:session.userId,runId});
+  let accountState;
+  try {
+    accountState=await matrixAccountStateFromFixture({baseUrl,bypassSecret,accessToken:session.accessToken,userId:session.userId,runId});
+  } finally {await session.subject.auth.signOut().catch(()=>undefined);}
   if(!matrixStateMatches(accountState,matrixExpectedState(state)))fail(`RELEASE_CRITICAL_CTA_MATRIX_EXPECTED_STATE_MISMATCH:${state}`);
   const context=await browser.newContext();
   try {

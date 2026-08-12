@@ -210,6 +210,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/qa_lifecycle_cta_matrix/);
   assert.match(journeys,/jwt_sub_matches_user/);
   assert.match(journeys,/authorization:`Bearer \$\{accessToken\}`/);
+  assert.match(journeys,/Do not sign out here/);
   assert.match(fixtureDiscovery,/release_qa_cta_matrix_run_id/);
   assert.match(fixtureDiscovery,/purpose === 'release-cta-matrix'/);
   assert.match(fixtureDiscovery,/allowedRoles: matrixSubject \? \['owner', 'staff'\] : \['owner'\]/);
