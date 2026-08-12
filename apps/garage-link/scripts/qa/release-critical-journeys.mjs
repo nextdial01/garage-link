@@ -793,7 +793,23 @@ async function recoverInterruptedFixture(admin,provenance,baseUrl,supabaseUrl,se
   const statusLife=lifecycle(admin,provisionalRun,provenance);
   let existing=await statusLife.maybeStatus();
   if(!user&&!existing)return {state:'RELEASE_CRITICAL_INTERRUPTED_FIXTURE_ABSENT'};
-  if(!user)fail('RELEASE_CRITICAL_INTERRUPTED_AUTH_ABSENT');
+  if(!user){
+    // A preceding machine gate may already have executed the mandated Auth-last
+    // deletion and been interrupted while recording storage/artifact evidence.
+    // Resume only the remaining formal lifecycle states, using the exact
+    // registered fixture user ID; a 404 at this point is expected and cannot
+    // broaden the cleanup scope.
+    if(!/^[0-9a-f]{40}$/i.test(existing?.source_sha??'')||!/^dpl_[A-Za-z0-9]+$/.test(existing?.deployment_id??''))fail('RELEASE_CRITICAL_INTERRUPTED_PROVENANCE_UNPROVEN');
+    const fixtureUserId=existing?.fixtures?.[0]?.user_id;
+    if(!/^[0-9a-f-]{36}$/i.test(fixtureUserId??''))fail('RELEASE_CRITICAL_INTERRUPTED_AUTH_ABSENT_SCOPE_UNPROVEN');
+    const life=lifecycle(admin,provisionalRun,{sourceSha:existing.source_sha,deploymentId:existing.deployment_id});
+    if(existing.state!=='COMPLETE'){
+      if(!['DB_CLEANED','AUTH_CLEANED','STORAGE_CLEANED','ARTIFACTS_CLEANED','VERIFIED_CLEAN'].includes(existing.state))fail(`RELEASE_CRITICAL_INTERRUPTED_AUTH_ABSENT_STATE:${existing.state}`);
+      await cleanupLifecycle(life,admin,fixtureUserId,INTERRUPTED_RUN_ID);
+    }
+    emit({state:'RELEASE_CRITICAL_INTERRUPTED_POST_AUTH_CLEANUP_RESUMED',run_marker_hash:sha256(INTERRUPTED_RUN_ID),resumed_state:existing.state});
+    return verifyKnownPartialLifecycle(admin,life,INTERRUPTED_RUN_ID);
+  }
   if(existing?.state==='COMPLETE')return verifyKnownPartialLifecycle(admin,statusLife,INTERRUPTED_RUN_ID);
   // A prior worker can be interrupted after the fixture has been formally
   // adopted and while the normal lifecycle is already entering teardown.  Do
