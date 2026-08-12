@@ -78,7 +78,29 @@ do $$ begin begin perform public.qa_lifecycle_transition('61000000-0000-4000-800
 do $$
 begin
   if has_function_privilege('anon','public.qa_lifecycle_cta_matrix(uuid,text,jsonb)','EXECUTE') or has_function_privilege('authenticated','public.qa_lifecycle_cta_matrix(uuid,text,jsonb)','EXECUTE') then raise exception 'CTA_MATRIX_PUBLIC_EXECUTE'; end if;
-  if (public.qa_lifecycle_cleanup_readiness()->>'ready')<>'true' or (public.qa_lifecycle_cleanup_readiness()->>'service_execute_count')::integer<>14 then raise exception 'CTA_MATRIX_READINESS_FAILED'; end if;
+  if has_function_privilege('anon','public.qa_lifecycle_reclaim_expired_release_fixture(uuid)','EXECUTE') or has_function_privilege('authenticated','public.qa_lifecycle_reclaim_expired_release_fixture(uuid)','EXECUTE') then raise exception 'EXPIRED_RELEASE_RECOVERY_PUBLIC_EXECUTE'; end if;
+  if (public.qa_lifecycle_cleanup_readiness()->>'ready')<>'true' or (public.qa_lifecycle_cleanup_readiness()->>'service_execute_count')::integer<>15 or (public.qa_lifecycle_cleanup_readiness()->>'expired_release_recovery')<>'service_role_only' then raise exception 'CTA_MATRIX_READINESS_FAILED'; end if;
+end $$;
+
+-- An expired, exact registry-bound release fixture is renewed only through the
+-- service-role lifecycle recovery function. The normal owner guard remains in
+-- place; this test merely proves the formal recovery can hand the fixture back
+-- to standard adoption/teardown without a raw delete or privilege widening.
+select public.qa_lifecycle_register_run('65000000-0000-4000-8000-000000000001','release-critical-acquisition','76cdc9656e9805d2ac61f961ff59b0a199475b3d','dpl_LocalExpired','test:expired-recovery',now()+interval '1 day');
+select public.qa_lifecycle_transition('65000000-0000-4000-8000-000000000001','CREATED','PREFLIGHT_RUNNING','preflight');
+select public.qa_lifecycle_transition('65000000-0000-4000-8000-000000000001','PREFLIGHT_RUNNING','PREFLIGHT_READY','signup-lifecycle-registered');
+select public.qa_lifecycle_transition('65000000-0000-4000-8000-000000000001','PREFLIGHT_READY','PROVISIONING','adopt-signup-fixture');
+insert into auth.users(id,email,raw_app_meta_data) values('65000000-0000-4000-8000-000000000010','qa.expired.release@example.invalid','{"release_qa_run_id":"65000000-0000-4000-8000-000000000001"}'::jsonb);
+insert into public.tenants(id,name,status,plan_code,created_by,updated_by) values('65000000-0000-4000-8000-000000000020','[RELEASE QA 20260812] Expired Tenant','active','free','65000000-0000-4000-8000-000000000010','65000000-0000-4000-8000-000000000010');
+insert into public.stores(id,name,company_name,email,status,plan_code,tenant_id,created_by,updated_by,onboarding_completed_at) values('65000000-0000-4000-8000-000000000030','[RELEASE QA 20260812] Expired Store','Expired QA','qa.expired.release@example.invalid','active','free','65000000-0000-4000-8000-000000000020','65000000-0000-4000-8000-000000000010','65000000-0000-4000-8000-000000000010',clock_timestamp());
+insert into public.memberships(id,tenant_id,store_id,user_id,email,role,status,joined_at,invite_accepted_at,created_by,updated_by) values('65000000-0000-4000-8000-000000000040','65000000-0000-4000-8000-000000000020','65000000-0000-4000-8000-000000000030','65000000-0000-4000-8000-000000000010','qa.expired.release@example.invalid','owner','active',clock_timestamp(),clock_timestamp(),'65000000-0000-4000-8000-000000000010','65000000-0000-4000-8000-000000000010');
+select public.qa_lifecycle_register_fixture('65000000-0000-4000-8000-000000000001','65000000-0000-4000-8000-000000000020','[RELEASE QA 20260812] Expired Tenant','65000000-0000-4000-8000-000000000030','65000000-0000-4000-8000-000000000010','65000000-0000-4000-8000-000000000040','release','[RELEASE QA 20260812]',now()+interval '1 day');
+update qa_internal.runs set created_at=clock_timestamp()-interval '3 days',cleanup_deadline=clock_timestamp()-interval '1 hour' where run_id='65000000-0000-4000-8000-000000000001';
+update qa_internal.fixtures set created_at=clock_timestamp()-interval '3 days',expires_at=clock_timestamp()-interval '1 hour' where run_id='65000000-0000-4000-8000-000000000001';
+do $$ declare v jsonb; begin
+  v:=public.qa_lifecycle_reclaim_expired_release_fixture('65000000-0000-4000-8000-000000000001');
+  if v->>'reclaimed'<>'true' or v->>'state'<>'PROVISIONING' then raise exception 'EXPIRED_RELEASE_RECOVERY_FAILED'; end if;
+  if (select cleanup_deadline>clock_timestamp() from qa_internal.runs where run_id='65000000-0000-4000-8000-000000000001') is not true or (select expires_at>clock_timestamp() from qa_internal.fixtures where run_id='65000000-0000-4000-8000-000000000001') is not true then raise exception 'EXPIRED_RELEASE_RECOVERY_DATES_INVALID'; end if;
 end $$;
 
 select public.qa_lifecycle_register_run('63000000-0000-4000-8000-000000000001','cta matrix regression','76cdc9656e9805d2ac61f961ff59b0a199475b3d','dpl_LocalMatrix','test:cta-matrix',now()+interval '1 day');
