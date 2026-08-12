@@ -832,12 +832,14 @@ async function main(){
   if(executionMode!=='email_transport')fail('RELEASE_CRITICAL_EXECUTION_MODE_INVALID');
   const manualBase=required('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS');
   const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
-  // Default SMTP accepts only an authorized organization-member recipient.
-  // Keep that mailbox separate from the persistent E2E login identity.
-  const run=createReleaseCriticalRun(); const session=createManualGmailSession(manualBase,run.emailMarker,{plusAddressing:false}); const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker); const resetPassword='GL-Release-Reset-8!';
+  // The approved Workspace mailbox supports plus addressing. Use a fresh,
+  // run-bound recipient so an existing mailbox owner is never mistaken for a
+  // synthetic Auth identity while confirmation and recovery remain in one
+  // human Gmail session.
+  const run=createReleaseCriticalRun(); const session=createManualGmailSession(manualBase,run.emailMarker); const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker); const resetPassword='GL-Release-Reset-8!';
   await verifyHostedRedirectContract({admin,run,baseUrl,supabaseUrl});
   await recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);
-  if(await maybeFindUser(admin,session.emailAddress))fail('RELEASE_CRITICAL_MANUAL_GMAIL_BASE_USER_CONFLICT');
+  if(await maybeFindUser(admin,session.emailAddress))fail('RELEASE_CRITICAL_MANUAL_GMAIL_RUN_ADDRESS_CONFLICT');
   let browser; let context; let page; let user; let life; let adopted=false; const results={};
   try {
     life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance);

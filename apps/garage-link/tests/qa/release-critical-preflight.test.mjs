@@ -234,8 +234,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/EMAIL_TRANSPORT_WAITING/);
   assert.match(journeys,/auth_callback_mechanics:'PASS'/);
   assert.match(journeys,/qa\.machine\./);
-  assert.match(journeys,/plusAddressing:false/);
-  assert.match(journeys,/RELEASE_CRITICAL_MANUAL_GMAIL_BASE_USER_CONFLICT/);
+  assert.match(journeys,/createManualGmailSession\(manualBase,run\.emailMarker\)/);
+  assert.match(journeys,/RELEASE_CRITICAL_MANUAL_GMAIL_RUN_ADDRESS_CONFLICT/);
   assert.match(workflow,/GARAGE_STAGING_E2E_EMAIL/);
   assert.doesNotMatch(workflow,/RELEASE_CRITICAL_PERSISTENT_E2E_/);
   assert.match(journeys,/VEHICLE_CREATE_MATRIX_\$\{state\.toUpperCase\(\)\}/);
