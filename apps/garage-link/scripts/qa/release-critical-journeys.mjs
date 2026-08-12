@@ -52,7 +52,11 @@ export function validateReleaseCriticalProvenance(value,baseUrl){
   } catch(error) { if(String(error?.message)==='RELEASE_CRITICAL_PROVENANCE_DENIED')throw error; fail('RELEASE_CRITICAL_PROVENANCE_DENIED'); }
 }
 
-async function clickAndWait(page,locator,url){await Promise.all([page.waitForURL(url,{timeout:30_000}),locator.click()])}
+// App Router transitions can complete as an RSC navigation without a new
+// document `load` event.  The interaction is still only accepted after the
+// caller checks the rendered destination, so wait for the committed route
+// here rather than timing out on a document lifecycle event that may not run.
+async function clickAndWait(page,locator,url){await Promise.all([page.waitForURL(url,{timeout:30_000,waitUntil:'commit'}),locator.click()])}
 function safeNavigationPath(value,baseUrl){
   try {
     const url=new URL(value); const base=new URL(baseUrl);
@@ -636,7 +640,7 @@ async function runMachineOnly({baseUrl,supabaseUrl,serviceRole,bypassSecret,prov
     const signupCallback=new URL('/auth/callback',baseUrl); signupCallback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); signupCallback.searchParams.set('qa_run',run.runId);
     const signupAction=await hostedActionLink(admin,{type:'signup',email,password:initialPassword,redirectTo:signupCallback.toString(),supabaseUrl});
     await followHostedAction(page,signupAction,{baseUrl,expectedPath:'/signup',purpose:'signup'}); if(!new URL(page.url()).searchParams.has('resume'))fail('RELEASE_CRITICAL_AUTH_CALLBACK_RESUME_MISSING'); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup'});
-    await page.getByLabel('店舗名').fill(`${run.marker} 店舗`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await submitResumeStore(page,baseUrl,supabaseUrl); await completeSecurityOtp(page); await page.waitForURL(/\/onboarding/,{timeout:30_000}); await onboarding(page,run.marker); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true,requireOnboardingCompleted:true});
+    await page.getByLabel('店舗名').fill(`${run.marker} 店舗`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await submitResumeStore(page,baseUrl,supabaseUrl); await completeSecurityOtp(page); await page.waitForURL(/\/onboarding/,{timeout:30_000,waitUntil:'commit'}); await onboarding(page,run.marker); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true,requireOnboardingCompleted:true});
     const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email,password:initialPassword,tenantNamePrefix:run.marker,bypassSecret,runId:run.runId}); await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true; results.J2='MECHANICS_PASS';
     await runVehicleAccountStateMatrix({admin,life,run,baseUrl,supabaseUrl,serviceRole,bypassSecret});
     await clickAndWait(page,page.getByRole('link',{name:'車両',exact:true}).first(),/\/vehicles(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'VEHICLE_CREATE',locator:page.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState:owner.accountState}); await page.getByText('車両登録',{exact:true}).waitFor({timeout:30_000}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/vehicles(?:\?|$)/,{timeout:30_000}); await verifyVehicleAccountStateGate({browser,sourceContext:context,baseUrl,bypassSecret,accountState:owner.accountState});
