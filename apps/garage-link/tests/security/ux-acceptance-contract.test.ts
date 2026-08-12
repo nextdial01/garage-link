@@ -16,6 +16,10 @@ test.describe('UX acceptance regression contracts', () => {
     expect(source).toContain('STAGING_HOST.test(requestHostname)');
     expect(serverContext).toContain("'ux_acceptance_admin_bootstrap_context'");
     expect(serverContext).toContain("'admin_email_otp_bootstrap_context'");
+    expect(serverContext).toContain('const releaseQaRequest = options.requireReleaseQa && isStagingReleaseQaRequest(request);');
+    expect(serverContext).toContain('bearer ? supabase.auth.getUser(bearer) : supabase.auth.getUser()');
+    expect(serverContext).toContain('bearer ? supabase.auth.getClaims(bearer) : supabase.auth.getClaims()');
+    expect(serverContext).toContain('releaseQaRequest\n    && !RELEASE_QA_EMAIL.test(user.email)');
     expect(migration).toContain('ux_acceptance_admin_bootstrap_context');
     expect(migration).toContain("p_environment <> 'preview'");
     expect(migration).toContain("raw_app_meta_data ->> 'purpose'");

@@ -23,15 +23,16 @@ export async function getAuthenticatedAdminContext(
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
   const service = createAdminClient();
   if (!url || !anonKey || !service) return null;
-  const bearer = options.requireReleaseQa && isStagingReleaseQaRequest(request)
+  const releaseQaRequest = options.requireReleaseQa && isStagingReleaseQaRequest(request);
+  const bearer = releaseQaRequest
     ? request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]
     : undefined;
   const supabase = bearer
     ? createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } })
     : createServerClient(url, anonKey, { cookies: { getAll: () => request.cookies.getAll(), setAll: () => undefined } });
   const [{ data: userData }, { data: claimsData }] = await Promise.all([
-    supabase.auth.getUser(bearer),
-    supabase.auth.getClaims(bearer),
+    bearer ? supabase.auth.getUser(bearer) : supabase.auth.getUser(),
+    bearer ? supabase.auth.getClaims(bearer) : supabase.auth.getClaims(),
   ]);
   const user = userData.user;
   const sessionId = typeof claimsData?.claims?.session_id === 'string' ? claimsData.claims.session_id : '';
@@ -40,7 +41,7 @@ export async function getAuthenticatedAdminContext(
   // to a service-owned app_metadata run id. Keep the legacy plus-address
   // contract only for cleanup of older synthetic fixtures.
   if (
-    bearer
+    releaseQaRequest
     && !RELEASE_QA_EMAIL.test(user.email)
     && !RELEASE_QA_RUN_ID.test(String(user.app_metadata?.release_qa_run_id ?? ''))
   ) return null;
