@@ -697,7 +697,7 @@ async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,us
     await installVercelBrowserBypass(context,baseUrl,bypassSecret);
     const page=await context.newPage();
     const loginUrl=new URL('/login',baseUrl); loginUrl.searchParams.set('next','/dashboard');
-    await page.goto(loginUrl,{waitUntil:'domcontentloaded'});
+    await page.goto(loginUrl.toString(),{waitUntil:'domcontentloaded'});
     await login(page,user.email,password,url=>['/dashboard','/onboarding','/signup'].includes(new URL(url).pathname));
     fixture=await recoveryFixtureForBrowserSession({page,tenantNamePrefix:run.marker,runId:run.runId});
     emit({state:'RELEASE_CRITICAL_FIXTURE_RECOVERY_SAME_OTP_SESSION_PASS',run_marker_hash:sha256(run.runId)});
