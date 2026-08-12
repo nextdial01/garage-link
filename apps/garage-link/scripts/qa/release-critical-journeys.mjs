@@ -340,7 +340,7 @@ async function executeVehicleMatrixCase({browser,baseUrl,supabaseUrl,bypassSecre
       // legitimate state gate such as onboarding/billing.  Record that next
       // boundary below; requiring /vehicles here would turn a valid gate into
       // an OTP UI reach false failure.
-      await completeSecurityOtp(page,url=>new URL(url).pathname!=='/security/email-otp');
+      await completeSecurityOtp(page,url=>new URL(url).pathname!=='/security/email-otp',loginOutcome.otpRequest);
     }
     if(state==='admin_security_unverified'){
       stage='ADMIN_SECURITY_DIFFERENTIAL_APPLIED';
@@ -425,21 +425,32 @@ async function signupSubmitOutcome(page){
     ]);
   } catch {fail('RELEASE_CRITICAL_SIGNUP_OUTCOME_UNOBSERVED')}
 }
-async function completeSecurityOtp(page,nextPattern=/\/(signup\?resume=1|onboarding|dashboard)/){
+async function completeSecurityOtp(page,nextPattern=/\/(signup\?resume=1|onboarding|dashboard)/,otpRequest=null){
   if(!/\/security\/email-otp/.test(page.url()))return;
+  const request=otpRequest?await otpRequest:null;
+  if(request){
+    const status=request.status();
+    emit({state:'RELEASE_CRITICAL_OTP_PREVIEW_SINK_UI_REACH',classification:request.ok()?'OTP_REQUEST_EMITTED':'OTP_REQUEST_FAILED',http_status:status,redirected:request.headers().location?'YES':'NO'});
+    if(!request.ok()||request.headers().location)fail(`RELEASE_CRITICAL_SECURITY_OTP_REQUEST:${status}`);
+  }
   const preview=page.getByText(/Preview QA確認コード:\s*\d{6}/);
   await preview.waitFor({state:'visible',timeout:30_000});
   const otp=(await preview.textContent())?.match(/\b(\d{6})\b/)?.[1];
   if(!otp)fail('RELEASE_CRITICAL_SECURITY_OTP_UNAVAILABLE');
+  emit({state:'RELEASE_CRITICAL_OTP_PREVIEW_SINK_UI_REACH',classification:'PASS',http_status:request?.status()??'UNOBSERVED',redirected:'NO'});
   await page.getByLabel('メールに届いた6桁コード').fill(otp);
   await clickAndWait(page,page.getByRole('button',{name:'この端末を承認する'}),nextPattern);
 }
 async function login(page,email,password,nextPattern){
   await page.getByLabel('メールアドレス').fill(email);
   await page.locator('#password').fill(password);
+  const otpRequest=page.waitForResponse(response=>{
+    try {return response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/auth/admin-email-otp/request';}
+    catch {return false;}
+  },{timeout:30_000}).catch(()=>null);
   await page.getByRole('button',{name:'ログイン',exact:true}).click();
   await page.waitForURL(url=>new URL(url).pathname!=='/login',{timeout:30_000});
-  await completeSecurityOtp(page);
+  await completeSecurityOtp(page,undefined,otpRequest);
   await page.waitForURL(nextPattern,{timeout:30_000});
 }
 async function establishFreshBrowserSession(page,email,password){
@@ -459,19 +470,23 @@ async function loginMatrixSubject(page,email,password){
     try {return response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/auth/password-login';}
     catch {return false;}
   },{timeout:30_000});
+  const otpRequest=page.waitForResponse(response=>{
+    try {return response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/auth/admin-email-otp/request';}
+    catch {return false;}
+  },{timeout:30_000}).catch(()=>null);
   await page.getByRole('button',{name:'ログイン',exact:true}).click();
   const response=await loginResponse.catch(()=>null);
-  if(!response)return {kind:'timeout'};
+  if(!response)return {kind:'timeout',otpRequest};
   if(!response.ok){
     const detail=await response.json().catch(()=>null);
-    return {kind:'login_error',httpStatus:response.status(),errorClass:sha256(String(detail?.error??''))};
+    return {kind:'login_error',httpStatus:response.status(),errorClass:sha256(String(detail?.error??'')),otpRequest};
   }
   // The CTA trace starts only after the real login handler has committed its
   // supported next path (or its security/contract redirect). This removes the
   // prior race where a direct /vehicles navigation competed with router.replace.
   const committed=await page.waitForURL(url=>new URL(url).pathname!=='/login',{timeout:30_000}).then(()=>true).catch(()=>false);
-  if(!committed)return {kind:'timeout'};
-  return {kind:'redirect',finalPath:safeNavigationPath(page.url(),new URL(page.url()).origin)};
+  if(!committed)return {kind:'timeout',otpRequest};
+  return {kind:'redirect',finalPath:safeNavigationPath(page.url(),new URL(page.url()).origin),otpRequest};
 }
 async function onboarding(page,marker){
   await page.getByLabel('法人名').fill(`${marker} 株式会社`);
@@ -506,7 +521,10 @@ async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,passwo
   try {
     const {data:login,error:loginError}=await subject.auth.signInWithPassword({email,password});
     if(loginError||!login.session?.user){if(optional)return null;fail(`RELEASE_CRITICAL_FIXTURE_OWNER_LOGIN:${safeProviderCode(loginError)}`);}
-    await trustReleaseQaAdminSession({baseUrl,bypassSecret,accessToken:login.session.access_token});
+    // Fixture discovery already authenticates and authorizes this exact
+    // synthetic subject.  Do not pre-create an OTP challenge here: the
+    // subsequent real browser login must own the first UI OTP request, or the
+    // user-level resend throttle prevents the Preview sink from rendering.
     const emailMarker=email.split('@')[0]?.split('+')[1];
     const legacyMarker=/^garage-link-(?:[0-9a-f]{12}|[0-9a-f-]{36})$/i.test(emailMarker??'')?emailMarker:null;
     const qaRunId=typeof runId==='string'&&/^[0-9a-f-]{36}$/i.test(runId)?runId:null;
@@ -522,28 +540,6 @@ async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,passwo
     if(fixture.discovery_path==='JWT_MEMBERSHIP_FALLBACK')emit({state:'RELEASE_CRITICAL_FIXTURE_VIEW_BOUNDARY_ISOLATED',primary_path:'ACTIVE_STORE_VIEW',fallback_path:'JWT_MEMBERSHIP_FALLBACK',subject_jwt_preserved:true,grant_or_rls_change:false});
     return {membershipId:fixture.membership_id,tenantId:fixture.tenant_id,storeId:fixture.store_id,tenantName:fixture.tenant_name,accountState:{garageUiContext:accountState.garage_ui_context,activeStore:accountState.active_store,onboardingCompleted:accountState.onboarding_completed,membershipRole:accountState.membership_role,membershipStatus:accountState.membership_status,contractAccessState:accountState.contract_access_state}};
   } finally {await subject.auth.signOut().catch(()=>undefined);}
-}
-async function trustReleaseQaAdminSession({baseUrl,bypassSecret,accessToken}){
-  const headers={authorization:`Bearer ${accessToken}`,'content-type':'application/json','x-vercel-protection-bypass':bypassSecret};
-  const requestOtp=()=>fetchVerifiedVercelRequest(new URL('/api/auth/admin-email-otp/request',baseUrl),headers,fetch,{method:'POST',body:'{}'});
-  let requested=await requestOtp();
-  // A browser-completed administrator OTP and the service-role fixture lookup
-  // legitimately use different sessions for the same synthetic user. Respect
-  // the route's one-minute resend contract once instead of bypassing the
-  // security gate or declaring the user journey failed on that safe cooldown.
-  if(requested.response.status===429&&!requested.response.headers.has('location')){
-    const retryAfter=Number(requested.response.headers.get('retry-after'));
-    if(!Number.isInteger(retryAfter)||retryAfter<1||retryAfter>60)fail('RELEASE_CRITICAL_FIXTURE_OTP_RETRY_AFTER_INVALID');
-    emit({state:'RELEASE_CRITICAL_FIXTURE_OTP_COOLDOWN_WAIT',retry_after_seconds:retryAfter,attempt:1});
-    await new Promise(resolve=>setTimeout(resolve,(retryAfter*1000)+250));
-    requested=await requestOtp();
-  }
-  if(!requested.response.ok||requested.response.headers.has('location'))fail(`RELEASE_CRITICAL_FIXTURE_OTP_REQUEST:${requested.response.status}`);
-  const requestBody=await requested.response.json().catch(()=>null);
-  const code=typeof requestBody?.previewOtp==='string'&&/^\d{6}$/.test(requestBody.previewOtp)?requestBody.previewOtp:null;
-  if(!code)fail('RELEASE_CRITICAL_FIXTURE_OTP_CODE_UNAVAILABLE');
-  const verified=await fetchVerifiedVercelRequest(new URL('/api/auth/admin-email-otp/verify',baseUrl),headers,fetch,{method:'POST',body:JSON.stringify({code})});
-  if(!verified.response.ok||verified.response.headers.has('location'))fail(`RELEASE_CRITICAL_FIXTURE_OTP_VERIFY:${verified.response.status}`);
 }
 async function activeOwner(options){return ownerFixtureForUser(options)}
 async function maybeActiveOwner(options){return ownerFixtureForUser({...options,optional:true})}

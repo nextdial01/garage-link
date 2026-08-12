@@ -109,9 +109,10 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/'x-vercel-protection-bypass':bypassSecret/);
   assert.match(journeys,/fetchVerifiedVercelRequest/);
   assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_DISCOVERY_DIAGNOSTIC/);
-  assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_OTP_COOLDOWN_WAIT/);
-  assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_OTP_RETRY_AFTER_INVALID/);
-  assert.match(journeys,/retryAfter>60/);
+  assert.doesNotMatch(journeys,/trustReleaseQaAdminSession/);
+  assert.match(journeys,/RELEASE_CRITICAL_OTP_PREVIEW_SINK_UI_REACH/);
+  assert.match(journeys,/OTP_REQUEST_EMITTED/);
+  assert.match(journeys,/OTP_REQUEST_FAILED/);
   assert.match(journeys,/postgrest_provider_error_code/);
   assert.match(journeys,/RELEASE_CRITICAL_CTA_TRACE/);
   assert.match(journeys,/document\.addEventListener\('click'/);
