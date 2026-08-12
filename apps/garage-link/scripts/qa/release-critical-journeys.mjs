@@ -102,6 +102,9 @@ export async function installVercelBrowserBypass(context,baseUrl,bypassSecret){
     ...route.request().headers(),
     'x-vercel-protection-bypass':bypassSecret,
     'x-vercel-set-bypass-cookie':'true',
+    // Enables a Staging-preview-only authentication-boundary diagnostic in
+    // middleware. It is not a credential and Production ignores it.
+    'x-garage-release-qa':'1',
   }}));
 }
 export async function verifyHostedRedirectContract({admin,run,baseUrl,supabaseUrl}){
@@ -140,7 +143,7 @@ async function authenticatedBrowserSession(page,baseUrl){
 }
 async function tracePointerCta(page,{baseUrl,supabaseUrl,label,locator,expectedPath=null,expectedRender=null,accountState,expectedClassification='PASS',expectedFinalPath=null}){
   const initialPath=safeNavigationPath(page.url(),baseUrl);
-  const trace={pointerClickDelivered:false,domClick:false,expected:false,initialPath,finalPath:initialPath,navigationRequestCount:0,navigationRequestPaths:[],sameOriginRedirects:[],runtimeErrorCount:0,runtimeErrorClasses:[],failedResponsePaths:[],authCookieClearPaths:[],supabaseAuthResponses:[],sessionBefore:'UNOBSERVED',sessionAfter:'UNOBSERVED',destinationRequestAuthCookie:'UNOBSERVED'};
+  const trace={pointerClickDelivered:false,domClick:false,expected:false,initialPath,finalPath:initialPath,navigationRequestCount:0,navigationRequestPaths:[],sameOriginRedirects:[],authBoundary:[],runtimeErrorCount:0,runtimeErrorClasses:[],failedResponsePaths:[],authCookieClearPaths:[],supabaseAuthResponses:[],sessionBefore:'UNOBSERVED',sessionAfter:'UNOBSERVED',destinationRequestAuthCookie:'UNOBSERVED'};
   const clickKey=`release-critical-cta-${label}`;
   const observedRequests=[];
   const onRequest=request=>{
@@ -156,6 +159,10 @@ async function tracePointerCta(page,{baseUrl,supabaseUrl,label,locator,expectedP
   };
   const onResponse=response=>{
     const responsePath=safeNavigationPath(response.url(),baseUrl);
+    const authBoundary=response.headers()['x-garage-release-qa-auth-boundary'];
+    if (authBoundary && responsePath!=='CROSS_ORIGIN'&&responsePath!=='INVALID_URL') {
+      trace.authBoundary.push(`${response.status()}:${responsePath.split('?')[0]}:${authBoundary}`);
+    }
     if(response.status()>=300&&response.status()<400&&responsePath!=='CROSS_ORIGIN'&&responsePath!=='INVALID_URL'){
       const location=response.headers().location;
       if(location){
@@ -198,7 +205,7 @@ async function tracePointerCta(page,{baseUrl,supabaseUrl,label,locator,expectedP
     trace.finalPath=safeNavigationPath(page.url(),baseUrl);
     trace.navigationRequestCount=observedRequests.length;
     const classification=classifyCtaTrace(trace);
-    emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:label,classification,pointer_click_delivered:trace.pointerClickDelivered?'YES':'NO',dom_click_event_observed:trace.domClick?'YES':'NO',navigation_request_count:trace.navigationRequestCount,navigation_request_paths:[...new Set(trace.navigationRequestPaths)],same_origin_redirects:[...new Set(trace.sameOriginRedirects)],middleware_final_destination:trace.finalPath,browser_runtime_error_count:trace.runtimeErrorCount,browser_runtime_error_classes:[...new Set(trace.runtimeErrorClasses)],failed_response_paths:[...new Set(trace.failedResponsePaths)],auth_cookie_clear_paths:[...new Set(trace.authCookieClearPaths)],supabase_auth_responses:[...new Set(trace.supabaseAuthResponses)],ignored_hosted_instrumentation_404s:trace.failedResponsePaths.filter(value=>isHostedInstrumentationScript(value.replace(/^\d+:/,''))).length,session_before:trace.sessionBefore,session_after:trace.sessionAfter,destination_request_auth_cookie:trace.destinationRequestAuthCookie,garage_ui_context:accountState?.garageUiContext??'UNKNOWN',active_store:accountState?.activeStore??'UNKNOWN',onboarding_completed:accountState?.onboardingCompleted??'UNKNOWN',membership_role:accountState?.membershipRole??'UNKNOWN',membership_status:accountState?.membershipStatus??'UNKNOWN',contract_access_state:accountState?.contractAccessState??'UNKNOWN',admin_security_requirement:trace.finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
+    emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:label,classification,pointer_click_delivered:trace.pointerClickDelivered?'YES':'NO',dom_click_event_observed:trace.domClick?'YES':'NO',navigation_request_count:trace.navigationRequestCount,navigation_request_paths:[...new Set(trace.navigationRequestPaths)],same_origin_redirects:[...new Set(trace.sameOriginRedirects)],middleware_auth_boundaries:[...new Set(trace.authBoundary)],middleware_final_destination:trace.finalPath,browser_runtime_error_count:trace.runtimeErrorCount,browser_runtime_error_classes:[...new Set(trace.runtimeErrorClasses)],failed_response_paths:[...new Set(trace.failedResponsePaths)],auth_cookie_clear_paths:[...new Set(trace.authCookieClearPaths)],supabase_auth_responses:[...new Set(trace.supabaseAuthResponses)],ignored_hosted_instrumentation_404s:trace.failedResponsePaths.filter(value=>isHostedInstrumentationScript(value.replace(/^\d+:/,''))).length,session_before:trace.sessionBefore,session_after:trace.sessionAfter,destination_request_auth_cookie:trace.destinationRequestAuthCookie,garage_ui_context:accountState?.garageUiContext??'UNKNOWN',active_store:accountState?.activeStore??'UNKNOWN',onboarding_completed:accountState?.onboardingCompleted??'UNKNOWN',membership_role:accountState?.membershipRole??'UNKNOWN',membership_status:accountState?.membershipStatus??'UNKNOWN',contract_access_state:accountState?.contractAccessState??'UNKNOWN',admin_security_requirement:trace.finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
     emittedClassification=classification;
     return emittedClassification;
   };
