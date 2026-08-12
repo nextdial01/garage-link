@@ -343,9 +343,15 @@ async function onboarding(page,marker){
   await page.getByLabel('法人名').fill(`${marker} 株式会社`);
   await page.getByLabel('店舗名').fill(`${marker} 店舗`);
   await page.getByLabel('代表者名').fill(`${marker} Owner`);
+  // Each "次へ" persists the preceding step asynchronously.  Waiting for the
+  // next rendered heading binds the subsequent real click to the user's
+  // visible state instead of racing a still-pending save operation.
   await page.getByRole('button',{name:'保存して次へ'}).click();
+  await page.getByRole('heading',{name:'売上の集計基準'}).waitFor({state:'visible',timeout:30_000});
   await page.getByRole('button',{name:'次へ'}).click();
+  await page.getByRole('heading',{name:'仕入の集計基準'}).waitFor({state:'visible',timeout:30_000});
   await page.getByRole('button',{name:'次へ'}).click();
+  await page.getByRole('heading',{name:'主タブと目標'}).waitFor({state:'visible',timeout:30_000});
   await clickAndWait(page,page.getByRole('button',{name:'設定を完了してダッシュボードへ進む'}),/\/dashboard/);
 }
 function fixtureDiscoveryFailure(response,detail,emailMarker){
