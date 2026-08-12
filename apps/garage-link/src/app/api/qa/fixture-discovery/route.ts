@@ -86,14 +86,8 @@ export async function POST(request: Request) {
     provider_error_code: safeClaim(error?.code, 'UNKNOWN'),
   }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
   const jwt = jwtDiagnostic(token, data.user.id, url);
-  const matrixSubject = runId
-    && data.user.app_metadata?.purpose === 'release-cta-matrix'
-    && data.user.app_metadata?.release_qa_cta_matrix_run_id === runId;
   const markerMatches = runId
-    ? (
-      data.user.app_metadata?.release_qa_run_id === runId
-      || matrixSubject
-    )
+    ? data.user.app_metadata?.release_qa_run_id === runId
     : data.user.email?.toLowerCase().includes(`+${emailMarker}@`) === true;
   if (!markerMatches) return Response.json({
     layer: 'ROUTE_MARKER',
@@ -101,10 +95,7 @@ export async function POST(request: Request) {
     marker_hash: await markerHash(runId ?? emailMarker ?? ''),
   }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
 
-  const lookup = await readReleaseQaFixture({
-    url, anonKey, accessToken: token, userId: data.user.id,
-    allowedRoles: matrixSubject ? ['owner', 'staff'] : ['owner'],
-  });
+  const lookup = await readReleaseQaFixture({ url, anonKey, accessToken: token, userId: data.user.id });
   if (!lookup.fixture) return Response.json({
     layer: lookup.diagnostic.layer,
     code: lookup.code,

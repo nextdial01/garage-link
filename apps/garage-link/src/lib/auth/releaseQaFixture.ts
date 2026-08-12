@@ -104,13 +104,11 @@ export async function readReleaseQaFixture({
   anonKey,
   accessToken,
   userId,
-  allowedRoles = ['owner'],
 }: {
   url: string;
   anonKey: string;
   accessToken: string;
   userId: string;
-  allowedRoles?: string[];
 }): Promise<ReleaseQaFixtureLookup> {
   // Send the owner's JWT directly to PostgREST. A server Supabase client with
   // no persisted session can otherwise fall back to its anon key before the
@@ -128,7 +126,7 @@ export async function readReleaseQaFixture({
   const membershipsUrl = new URL('/rest/v1/current_user_active_store_membership', url);
   membershipsUrl.searchParams.set('select', 'id,tenant_id,store_id,user_id,role');
   membershipsUrl.searchParams.set('user_id', `eq.${userId}`);
-  membershipsUrl.searchParams.set('role', `in.(${allowedRoles.join(',')})`);
+  membershipsUrl.searchParams.set('role', 'eq.owner');
   const membershipsResponse = await fetch(membershipsUrl, { headers, cache: 'no-store' });
   let discoveryPath: ReleaseQaFixture['discoveryPath'] = 'ACTIVE_STORE_VIEW';
   let memberships: Array<{ id?: string; tenant_id?: string; store_id?: string; user_id?: string; role?: string }>;
@@ -150,7 +148,7 @@ export async function readReleaseQaFixture({
     const fallbackUrl = new URL('/rest/v1/memberships', url);
     fallbackUrl.searchParams.set('select', 'id,tenant_id,store_id,user_id,role');
     fallbackUrl.searchParams.set('user_id', `eq.${userId}`);
-    fallbackUrl.searchParams.set('role', `in.(${allowedRoles.join(',')})`);
+    fallbackUrl.searchParams.set('role', 'eq.owner');
     fallbackUrl.searchParams.set('status', 'eq.active');
     fallbackUrl.searchParams.set('disabled_at', 'is.null');
     fallbackUrl.searchParams.set('deleted_at', 'is.null');
@@ -173,7 +171,7 @@ export async function readReleaseQaFixture({
   };
 
   const membership = memberships[0];
-  if (!membership.id || !membership.tenant_id || !membership.store_id || membership.user_id !== userId || !allowedRoles.includes(String(membership.role))) return {
+  if (!membership.id || !membership.tenant_id || !membership.store_id || membership.user_id !== userId || membership.role !== 'owner') return {
     fixture: null,
     code: 'MEMBERSHIP_SHAPE',
     diagnostic: { layer: 'POSTGREST_MEMBERSHIP', postgrestStatus: membershipsResponse.status, providerErrorCode: null, providerErrorClass: null, providerObject: null },

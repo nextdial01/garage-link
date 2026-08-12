@@ -208,13 +208,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/CTA_MATRIX_STATES/);
   for(const state of ['active_owner','active_non_owner','selection_required','onboarding_incomplete','contract_restricted','admin_security_unverified']) assert.match(journeys,new RegExp(`'${state}'`));
   assert.match(journeys,/qa_lifecycle_cta_matrix/);
-  assert.match(journeys,/jwt_sub_matches_user/);
-  assert.match(journeys,/authorization:`Bearer \$\{accessToken\}`/);
-  assert.match(journeys,/Do not sign out here/);
-  assert.match(fixtureDiscovery,/release_qa_cta_matrix_run_id/);
-  assert.match(fixtureDiscovery,/purpose === 'release-cta-matrix'/);
-  assert.match(fixtureDiscovery,/allowedRoles: matrixSubject \? \['owner', 'staff'\] : \['owner'\]/);
-  assert.match(await readFile(resolve(appRoot,'src/lib/auth/releaseQaFixture.ts'),'utf8'),/allowedRoles = \['owner'\]/);
+  assert.match(journeys,/matrixFixtureContractState/);
+  assert.match(journeys,/registry-bound lifecycle RPC/);
+  assert.doesNotMatch(journeys,/E2E_TEST_SUPABASE_ANON_KEY/);
   assert.match(journeys,/RELEASE_CRITICAL_CTA_ACCOUNT_STATE_MATRIX/);
   assert.match(journeys,/customer_equivalence:reproduced\?'ACTIVE_NON_OWNER_REPRODUCED':'NOT_ASSERTED'/);
   assert.match(journeys,/root_cause:reproduced\?'ACTIVE_NON_OWNER_GATE':'NOT_REPRODUCED'/);
