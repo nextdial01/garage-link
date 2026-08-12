@@ -2,16 +2,17 @@ import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
 test.describe('UX acceptance regression contracts', () => {
-  test('preview OTP accepts the canonical project alias without weakening preview guards', async () => {
+  test('preview OTP accepts only the exact Staging preview host without weakening preview guards', async () => {
     const [source, serverContext, migration] = await Promise.all([
       readFile('src/lib/security/previewOtpSink.ts', 'utf8'),
       readFile('src/lib/security/adminEmailOtpServer.ts', 'utf8'),
       readFile('supabase/qa/migrations/20260803000100_ux_acceptance_admin_bootstrap.sql', 'utf8'),
     ]);
-    expect(source).toContain('VERCEL_PROJECT_PRODUCTION_URL');
     expect(source).toContain("process.env.VERCEL_ENV === 'preview'");
     expect(source).toContain("process.env.NODE_ENV === 'production'");
-    expect(source).toContain('requestHost');
+    expect(source).toContain("const STAGING_HOST = /^garage-link-staging-[a-z0-9-]+\\.vercel\\.app$/i;");
+    expect(source).toContain('requestHostname');
+    expect(source).toContain('STAGING_HOST.test(requestHostname)');
     expect(serverContext).toContain("'ux_acceptance_admin_bootstrap_context'");
     expect(serverContext).toContain("'admin_email_otp_bootstrap_context'");
     expect(migration).toContain('ux_acceptance_admin_bootstrap_context');

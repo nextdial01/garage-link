@@ -1,14 +1,13 @@
 import 'server-only';
 
 const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
+const STAGING_HOST = /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i;
 
 export function getPreviewOtpSinkContext(request: Request) {
   const secret = process.env.GARAGE_PREVIEW_OTP_SINK_SECRET?.trim() ?? '';
-  const vercelUrl = process.env.VERCEL_URL?.trim().toLowerCase() ?? '';
-  const projectProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim().toLowerCase() ?? '';
-  let requestHost = '';
+  let requestHostname = '';
   try {
-    requestHost = new URL(request.url).host.toLowerCase();
+    requestHostname = new URL(request.url).hostname.toLowerCase();
   } catch {
     return { requested: process.env.VERCEL_ENV === 'preview', authorized: false } as const;
   }
@@ -20,8 +19,7 @@ export function getPreviewOtpSinkContext(request: Request) {
     process.env.VERCEL_ENV === 'preview' &&
     process.env.NODE_ENV === 'production' &&
     secret.length >= 32 &&
-    vercelUrl.length > 0 &&
-    (requestHost === vercelUrl || (projectProductionUrl.length > 0 && requestHost === projectProductionUrl));
+    STAGING_HOST.test(requestHostname);
 
   return { requested, authorized } as const;
 }
