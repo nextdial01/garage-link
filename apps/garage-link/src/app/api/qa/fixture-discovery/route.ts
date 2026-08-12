@@ -1,4 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { type NextRequest } from 'next/server';
 import { readReleaseQaFixture } from '@/lib/auth/releaseQaFixture';
 
 export const dynamic = 'force-dynamic';
@@ -59,10 +61,9 @@ async function markerHash(marker: string) {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   if (!stagingRuntime(request)) return new Response(null, { status: 404 });
   const token = request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
-  if (!token) return new Response(null, { status: 401 });
   let body: { email_marker?: unknown; run_id?: unknown };
   try { body = await request.json(); } catch { return new Response(null, { status: 400 }); }
   const emailMarker = typeof body.email_marker === 'string' && EMAIL_MARKER.test(body.email_marker)
@@ -79,13 +80,20 @@ export async function POST(request: Request) {
   } catch {
     return new Response(null, { status: 404 });
   }
-  const verifier = createSupabaseClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data, error } = await verifier.auth.getUser(token);
+  const verifier = token
+    ? createSupabaseClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } })
+    : createServerClient(url, anonKey, { cookies: { getAll: () => request.cookies.getAll(), setAll: () => undefined } });
+  const [{ data, error }, { data: sessionData }] = await Promise.all([
+    token ? verifier.auth.getUser(token) : verifier.auth.getUser(),
+    token ? Promise.resolve({ data: { session: null } }) : verifier.auth.getSession(),
+  ]);
+  const accessToken = token ?? sessionData.session?.access_token;
+  if (!accessToken) return new Response(null, { status: 401 });
   if (error || !data.user) return Response.json({
     layer: 'ROUTE_AUTH',
     provider_error_code: safeClaim(error?.code, 'UNKNOWN'),
   }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
-  const jwt = jwtDiagnostic(token, data.user.id, url);
+  const jwt = jwtDiagnostic(accessToken, data.user.id, url);
   const markerMatches = runId
     ? data.user.app_metadata?.release_qa_run_id === runId
     : data.user.email?.toLowerCase().includes(`+${emailMarker}@`) === true;
@@ -95,7 +103,7 @@ export async function POST(request: Request) {
     marker_hash: await markerHash(runId ?? emailMarker ?? ''),
   }, { status: 403, headers: { 'Cache-Control': 'no-store' } });
 
-  const lookup = await readReleaseQaFixture({ url, anonKey, accessToken: token, userId: data.user.id });
+  const lookup = await readReleaseQaFixture({ url, anonKey, accessToken, userId: data.user.id });
   if (!lookup.fixture) return Response.json({
     layer: lookup.diagnostic.layer,
     code: lookup.code,

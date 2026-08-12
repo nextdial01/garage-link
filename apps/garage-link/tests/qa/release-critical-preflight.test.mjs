@@ -10,7 +10,7 @@ import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critica
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,journeys,workflow,qaLifecycleContract,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback]=await Promise.all([
+  const [runner,journeys,workflow,qaLifecycleContract,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,lifecycleRecovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
@@ -21,6 +21,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
     readFile(resolve(appRoot,'src/middleware.ts'),'utf8'),
     readFile(resolve(appRoot,'src/app/api/qa/callback-evidence/route.ts'),'utf8'),
     readFile(resolve(appRoot,'src/app/api/qa/fixture-discovery/route.ts'),'utf8'),
+    readFile(resolve(appRoot,'src/app/api/qa/lifecycle-recovery/route.ts'),'utf8'),
     readFile(resolve(appRoot,'src/app/api/qa/provenance/route.ts'),'utf8'),
     readFile(resolve(appRoot,'src/lib/security/adminEmailOtpServer.ts'),'utf8'),
     readFile(resolve(appRoot,'supabase/qa/migrations/20260812000100_qa_lifecycle_cta_account_state_matrix.sql'),'utf8'),
@@ -71,10 +72,15 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/notice=password_updated/);
   assert.doesNotMatch(journeys,/getByRole\('link',\{name:'ログインへ戻る'\}\)\.click/);
   assert.match(journeys,/beginLifecycle\(life,run,provenance\)/);
-  assert.match(journeys,/maybeActiveOwner/);
   assert.match(journeys,/qa_lifecycle_abort_clean/);
   assert.match(journeys,/recoverKnownPartialFixture\(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret\)/);
-  assert.match(journeys,/ownerFixtureForUser/);
+  assert.match(journeys,/ownerFixtureForBrowserSession/);
+  assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_DISCOVERY_SAME_OTP_SESSION_PASS/);
+  assert.match(journeys,/runBoundLifecycleRecoveryFixture/);
+  assert.match(journeys,/RELEASE_CRITICAL_FRESH_SESSION_OTP_GUARD_PASS/);
+  assert.match(journeys,/recoverInterruptedFixture/);
+  assert.match(journeys,/INTERRUPTED_RUN_ID/);
+  assert.doesNotMatch(journeys,/RELEASE_CRITICAL_MACHINE_EARLY_AUTH_DELETE|RELEASE_CRITICAL_EARLY_AUTH_DELETE/);
   assert.match(journeys,/\/api\/qa\/fixture-discovery/);
   assert.match(await readFile(resolve(appRoot,'src/lib/auth/releaseQaFixture.ts'),'utf8'),/current_user_active_store_membership/);
   assert.match(fixtureDiscovery,/STAGING_PROJECT_ID/);
@@ -86,8 +92,16 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(fixtureDiscovery,/marker_hash/);
   assert.match(fixtureDiscovery,/postgrest_provider_error_code/);
   assert.match(fixtureDiscovery,/account_state/);
+  assert.match(fixtureDiscovery,/createServerClient/);
+  assert.match(fixtureDiscovery,/request\.cookies\.getAll/);
   assert.match(fixtureDiscovery,/status: 404/);
   assert.doesNotMatch(fixtureDiscovery,/createAdminClient|STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
+  assert.match(lifecycleRecovery,/createAdminClient/);
+  assert.match(lifecycleRecovery,/RUN_BOUND_FIXTURE/);
+  assert.match(lifecycleRecovery,/AUTH_ONLY_ABSENT/);
+  assert.match(lifecycleRecovery,/release_qa_run_id/);
+  assert.match(lifecycleRecovery,/STAGING_PROJECT_ID/);
+  assert.doesNotMatch(lifecycleRecovery,/insert\(|update\(|delete\(|STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(provenanceRoute,/x-garage-qa-provenance-error/);
   assert.match(provenanceRoute,/projectId === STAGING_PROJECT_ID && STAGING_HOST\.test\(runtimeHost\)/);
   assert.match(journeys,/RELEASE_CRITICAL_PARTIAL_FIXTURE_CLEAN/);
@@ -265,6 +279,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(callbackEvidence,/PRODUCTION_PROJECT_ID/);
   assert.match(middleware,/pathname === '\/api\/qa\/callback-evidence'/);
   assert.match(middleware,/pathname === '\/api\/qa\/fixture-discovery'/);
+  assert.match(middleware,/pathname === '\/api\/qa\/lifecycle-recovery'/);
 });
 
 test('Vercel bypass carries the issued cookie once for a same-origin same-path redirect',async()=>{
