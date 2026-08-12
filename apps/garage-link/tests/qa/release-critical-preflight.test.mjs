@@ -412,6 +412,7 @@ test('CTA matrix contract uses the Management API only for its one-time Staging 
     return {data:readinessCalls===1?{ready:true,service_execute_count:13}:{ready:true,service_execute_count:14,cta_matrix:'registry_bound'},error:null};
   }});
   const fetchImpl=async(url,options)=>{
+    if(String(url).endsWith('/v1/profile'))return new Response('{}',{status:200,headers:{'content-type':'application/json'}});
     assert.match(String(url),/https:\/\/api\.supabase\.com\/v1\/projects\/gaytoojzwqkpuvfofeql\/database\/query/);
     if(String(url).endsWith('/read-only')){
       reads+=1;
@@ -424,6 +425,16 @@ test('CTA matrix contract uses the Management API only for its one-time Staging 
   assert.deepEqual(result,{state:'RELEASE_CRITICAL_QA_MATRIX_READY',applied:true,management_pat_required:true});
   assert.equal(reads,2); assert.equal(writes,1);
   assert.match(capturedSql,/begin;/); assert.match(capturedSql,/migration_integrity/); assert.doesNotMatch(capturedSql,/wmlpuzuskfiwdipluglz/);
+});
+
+test('CTA matrix bootstrap proves the Management PAT before querying Staging',async()=>{
+  let calls=0;
+  await assert.rejects(()=>ensureReleaseCriticalCtaMatrix({
+    supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',managementToken:'token',manifest:{entries:[]},
+    createClientImpl:()=>({rpc:async()=>({data:{ready:false},error:null})}),
+    fetchImpl:async()=>{calls+=1;return new Response('{}',{status:401});},
+  }),/RELEASE_CRITICAL_QA_MATRIX_MANAGEMENT_PROFILE:401/);
+  assert.equal(calls,1);
 });
 
 test('CTA matrix contract remains PAT-independent after the Staging fixture contract is present',async()=>{

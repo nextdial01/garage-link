@@ -32,6 +32,10 @@ async function managementQuery(token,path,query,fetchImpl=fetch){
   if(!response.ok||response.status>=300)fail(`RELEASE_CRITICAL_QA_MATRIX_MANAGEMENT_${path.includes('read-only')?'READ':'WRITE'}:${response.status}`);
   return response.json().catch(()=>[]);
 }
+async function managementProfile(token,fetchImpl=fetch){
+  const response=await fetchImpl(new URL('/v1/profile',MANAGEMENT_ORIGIN),{headers:managementHeaders(token),redirect:'manual',cache:'no-store'});
+  if(!response.ok||response.status>=300)fail(`RELEASE_CRITICAL_QA_MATRIX_MANAGEMENT_PROFILE:${response.status}`);
+}
 function ledgerRows(value){return Array.isArray(value)?value:value?.result??[]}
 function ledgerQuery(){return `select m.version,m.name,i.checksum,i.state from supabase_migrations.schema_migrations m join supabase_migrations.migration_integrity i using(version) where m.version=${sqlLiteral(MATRIX_VERSION)}`}
 function ledgerMatches(rows,entry){
@@ -54,6 +58,10 @@ export async function ensureReleaseCriticalCtaMatrix({supabaseUrl,serviceRole,ma
   const initial=await readLifecycleReadiness({supabaseUrl,serviceRole,createClientImpl});
   if(initial.ready)return {state:'RELEASE_CRITICAL_QA_MATRIX_READY',applied:false,management_pat_required:false};
   if(!managementToken)fail('RELEASE_CRITICAL_QA_MATRIX_BOOTSTRAP_REQUIRED');
+  // Bootstrap is the only normal path that touches the Management API. Prove
+  // the PAT independently before classifying a database-query failure as an
+  // API permission issue.
+  await managementProfile(managementToken,fetchImpl);
   const entry=manifest?.entries?.find(candidate=>candidate.version===MATRIX_VERSION);
   if(!entry||entry.kind!=='contract'||entry.file!=='migrations/20260812000100_qa_lifecycle_cta_account_state_matrix.sql'||!/^[0-9a-f]{64}$/.test(entry.checksum??''))fail('RELEASE_CRITICAL_QA_MATRIX_MANIFEST_INVALID');
   const before=await managementQuery(managementToken,'/database/query/read-only',ledgerQuery(),fetchImpl);
