@@ -124,6 +124,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/customer_equivalence:'NOT_ASSERTED'/);
   assert.match(journeys,/middleware_final_destination/);
   assert.match(journeys,/browser_runtime_error_count/);
+  assert.match(journeys,/browser_runtime_error_classes/);
+  assert.match(journeys,/new URL\(url\)\.pathname!==['"]\/login/);
   assert.match(journeys,/garage_ui_context/);
   assert.match(journeys,/contract_access_state/);
   assert.match(journeys,/RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_PASS/);

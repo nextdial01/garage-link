@@ -127,7 +127,7 @@ export async function verifyHostedRedirectContract({admin,run,baseUrl,supabaseUr
 function releaseQaNextPathForRunner(path,runId){const url=new URL(path,'https://release-qa.invalid');url.searchParams.set('qa_run',runId);return `${url.pathname}${url.search}`;}
 async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,expectedRender=null,accountState,expectedClassification='PASS',expectedFinalPath=null}){
   const initialPath=safeNavigationPath(page.url(),baseUrl);
-  const trace={domClick:false,expected:false,initialPath,finalPath:initialPath,navigationRequestCount:0,runtimeErrorCount:0};
+  const trace={domClick:false,expected:false,initialPath,finalPath:initialPath,navigationRequestCount:0,runtimeErrorCount:0,runtimeErrorClasses:[]};
   const clickKey=`release-critical-cta-${label}`;
   const observedRequests=[];
   const onRequest=request=>{
@@ -137,15 +137,15 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,exp
     const path=safeNavigationPath(request.url(),baseUrl);
     if(path!=='CROSS_ORIGIN'&&path!=='INVALID_URL')observedRequests.push(path);
   };
-  const onPageError=()=>{trace.runtimeErrorCount+=1;};
-  const onConsole=message=>{if(message.type()==='error')trace.runtimeErrorCount+=1;};
+  const onPageError=error=>{trace.runtimeErrorCount+=1;trace.runtimeErrorClasses.push(`PAGE:${safeErrorCode(error)}`);};
+  const onConsole=message=>{if(message.type()==='error'){trace.runtimeErrorCount+=1;trace.runtimeErrorClasses.push(`CONSOLE:${safeErrorCode(message.text())}`);}};
   let emittedClassification=null;
   const emitTrace=()=>{
     if(emittedClassification)return emittedClassification;
     trace.finalPath=safeNavigationPath(page.url(),baseUrl);
     trace.navigationRequestCount=observedRequests.length;
     const classification=classifyCtaTrace(trace);
-    emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:label,classification,dom_click:trace.domClick?'YES':'NO',navigation_request_count:trace.navigationRequestCount,middleware_final_destination:trace.finalPath,browser_runtime_error_count:trace.runtimeErrorCount,garage_ui_context:accountState?.garageUiContext??'UNKNOWN',active_store:accountState?.activeStore??'UNKNOWN',onboarding_completed:accountState?.onboardingCompleted??'UNKNOWN',membership_role:accountState?.membershipRole??'UNKNOWN',membership_status:accountState?.membershipStatus??'UNKNOWN',contract_access_state:accountState?.contractAccessState??'UNKNOWN',admin_security_requirement:trace.finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
+    emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:label,classification,dom_click:trace.domClick?'YES':'NO',navigation_request_count:trace.navigationRequestCount,middleware_final_destination:trace.finalPath,browser_runtime_error_count:trace.runtimeErrorCount,browser_runtime_error_classes:[...new Set(trace.runtimeErrorClasses)],garage_ui_context:accountState?.garageUiContext??'UNKNOWN',active_store:accountState?.activeStore??'UNKNOWN',onboarding_completed:accountState?.onboardingCompleted??'UNKNOWN',membership_role:accountState?.membershipRole??'UNKNOWN',membership_status:accountState?.membershipStatus??'UNKNOWN',contract_access_state:accountState?.contractAccessState??'UNKNOWN',admin_security_requirement:trace.finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
     emittedClassification=classification;
     return emittedClassification;
   };
@@ -333,7 +333,7 @@ async function login(page,email,password,nextPattern){
   await page.getByLabel('メールアドレス').fill(email);
   await page.locator('#password').fill(password);
   await page.getByRole('button',{name:'ログイン',exact:true}).click();
-  await page.waitForURL(/\/(signup\?resume=1|dashboard|onboarding|security\/email-otp)/,{timeout:30_000});
+  await page.waitForURL(url=>new URL(url).pathname!=='/login',{timeout:30_000});
   await completeSecurityOtp(page);
   await page.waitForURL(nextPattern,{timeout:30_000});
 }
