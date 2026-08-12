@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl } from '../../scripts/qa/release-critical-preflight.mjs';
+import { createActualEmailTransportSession, createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl, validateActualEmailTransportRecipient } from '../../scripts/qa/release-critical-preflight.mjs';
 import { classifyCtaTrace, createReleaseCriticalRun, installVercelBrowserBypass, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, releaseCriticalSyntheticPassword, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
 import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-stage-auth.mjs';
 import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critical-qa-lifecycle-contract.mjs';
@@ -280,9 +280,11 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/EMAIL_TRANSPORT_WAITING/);
   assert.match(journeys,/auth_callback_mechanics:'PASS'/);
   assert.match(journeys,/qa\.machine\./);
-  assert.match(journeys,/createManualGmailSession\(manualBase,run\.emailMarker\)/);
+  assert.match(journeys,/createActualEmailTransportSession\(manualBase,run\.emailMarker\)/);
   assert.match(journeys,/RELEASE_CRITICAL_MANUAL_GMAIL_RUN_ADDRESS_CONFLICT/);
   assert.match(workflow,/GARAGE_STAGING_E2E_EMAIL/);
+  assert.match(workflow,/EMAIL_TRANSPORT_NOT_CONFIGURED/);
+  assert.match(workflow,/validateActualEmailTransportRecipient/);
   assert.doesNotMatch(workflow,/RELEASE_CRITICAL_PERSISTENT_E2E_/);
   assert.match(journeys,/VEHICLE_CREATE_MATRIX_\$\{state\.toUpperCase\(\)\}/);
   assert.match(journeys,/customer_equivalence:reproduced/);
@@ -418,6 +420,14 @@ test('Manual Gmail Bridge creates a plus address, redacts checkpoints, and polls
   assert.deepEqual(await pollManualGmailConfirmation({admin:resetAdmin,userId:'staging-user',session,purpose:'recovery',requestedAt}),{state:'MANUAL_GMAIL_CONFIRMED',email_mode:'manual_gmail',run_marker:marker,purpose:'recovery'});
   await assert.rejects(()=>pollManualGmailConfirmation({admin:{auth:{admin:{getUserById:async()=>({data:{user:{email:session.emailAddress,email_confirmed_at:'2026-08-10T00:00:00.000Z',updated_at:requestedAt}},error:null})}}},userId:'staging-user',session,purpose:'recovery',requestedAt,timeoutMs:0}),/MANUAL_GMAIL_CHECKPOINT_TIMEOUT:recovery/);
   assert.throws(()=>createManualGmailSession('not an email',marker),/MANUAL_GMAIL_PLUS_ADDRESS_UNAVAILABLE/);
+  const actual=createActualEmailTransportSession('Owner.Name+old@kannagi-co.com',marker);
+  assert.equal(actual.emailAddress,'owner.name@kannagi-co.com');
+  assert.equal(actual.plusAddressing,false);
+  assert.equal(actual.recipient,'REDACTED_APPROVED_QA_MAILBOX');
+  for(const address of ['qa@example.invalid','qa@example.com','qa@example.net','qa@example.org','qa@localhost','qa@node.localhost','qa@mailinator.com']){
+    assert.throws(()=>validateActualEmailTransportRecipient(address),/EMAIL_TRANSPORT_NOT_CONFIGURED:NON_DELIVERABLE_RECIPIENT/);
+  }
+  assert.deepEqual(validateActualEmailTransportRecipient('Release.QA@kannagi-co.com'),{emailAddress:'release.qa@kannagi-co.com',recipient:'REDACTED_APPROVED_QA_MAILBOX',plusAddressing:false});
   assert.equal(await releaseCriticalBaseUrl('/github/event.json','https://fallback.invalid',async()=>JSON.stringify({inputs:{staging_base_url:'https://garage-link-staging-3ilbylboz-altos-projects-fa55063c.vercel.app'}})),'https://garage-link-staging-3ilbylboz-altos-projects-fa55063c.vercel.app/');
   await assert.rejects(()=>releaseCriticalBaseUrl('/github/event.json','https://fallback.invalid',async()=>JSON.stringify({inputs:{staging_base_url:'https://example.invalid'}})),/RELEASE_CRITICAL_STAGING_BASE_URL_DENIED/);
 });

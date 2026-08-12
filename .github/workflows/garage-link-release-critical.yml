@@ -138,7 +138,7 @@ jobs:
         run: node apps/garage-link/scripts/qa/release-critical-journeys.mjs
 
   email-transport-state:
-    name: Email transport state (non-blocking machine gate)
+    name: Email transport readiness (fail-closed before provider send)
     needs: [preflight, machine-gates]
     if: ${{ always() && needs.preflight.result == 'success' && needs.machine-gates.result == 'success' }}
     runs-on: ubuntu-latest
@@ -146,6 +146,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       transport_ready: ${{ steps.transport.outputs.ready }}
+      transport_state: ${{ steps.transport.outputs.state }}
     steps:
       - id: transport
         name: Record separated email transport state
@@ -153,11 +154,19 @@ jobs:
           RELEASE_CRITICAL_EMAIL_MODE: ${{ inputs.email_mode }}
           RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
         run: |
-          if [ "$RELEASE_CRITICAL_EMAIL_MODE" = "manual_gmail" ] && [ -n "$RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS" ]; then
-            echo '{"state":"EMAIL_TRANSPORT_READY","mode":"manual_gmail"}'
+          if [ "$RELEASE_CRITICAL_EMAIL_MODE" != "manual_gmail" ]; then
+            echo '{"state":"EMAIL_TRANSPORT_WAITING","reason":"NO_PERMANENT_QA_TRANSPORT"}'
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo 'state=EMAIL_TRANSPORT_WAITING' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          transport="$(node --input-type=module -e "import { validateActualEmailTransportRecipient as validate } from './apps/garage-link/scripts/qa/release-critical-preflight.mjs'; try { validate(process.env.RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS); console.log(JSON.stringify({state:'EMAIL_TRANSPORT_READY',mode:'manual_gmail',recipient:'REDACTED_APPROVED_QA_MAILBOX',plus_addressing:false})); } catch (error) { console.log(JSON.stringify({state:'EMAIL_TRANSPORT_NOT_CONFIGURED',reason:String(error?.message??'INVALID_RECIPIENT').replace(/[^A-Z_:]/g,'').slice(0,96)})); }")"
+          echo "$transport"
+          transport_state="$(node -e "const value=JSON.parse(process.argv[1]); process.stdout.write(value.state)" "$transport")"
+          echo "state=$transport_state" >> "$GITHUB_OUTPUT"
+          if [ "$transport_state" = "EMAIL_TRANSPORT_READY" ]; then
             echo 'ready=true' >> "$GITHUB_OUTPUT"
           else
-            echo '{"state":"EMAIL_TRANSPORT_WAITING","reason":"NO_PERMANENT_QA_TRANSPORT"}'
             echo 'ready=false' >> "$GITHUB_OUTPUT"
           fi
 
@@ -219,6 +228,7 @@ jobs:
           QA_LIFECYCLE_CONTRACT: ${{ needs.qa-lifecycle-contract.result }}
           MACHINE: ${{ needs.machine-gates.result }}
           TRANSPORT_READY: ${{ needs.email-transport-state.outputs.transport_ready }}
+          TRANSPORT_STATE: ${{ needs.email-transport-state.outputs.transport_state }}
           ACTUAL_EMAIL: ${{ needs.actual-email-gates.result }}
           PRODUCTION_TRANSPORT: ${{ needs.production-email-transport.outputs.classification }}
         run: |
@@ -231,7 +241,7 @@ jobs:
             exit 1
           fi
           if [ "$TRANSPORT_READY" != true ]; then
-            echo '{"state":"RELEASE_CRITICAL_WAITING_TRANSPORT","reason":"NO_PERMANENT_QA_TRANSPORT"}'
+            echo '{"state":"RELEASE_CRITICAL_WAITING_TRANSPORT","reason":"'"${TRANSPORT_STATE:-NO_PERMANENT_QA_TRANSPORT}"'"}'
             exit 1
           fi
           if [ "$ACTUAL_EMAIL" != success ]; then

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { chromium, webkit } from '@playwright/test';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, releaseCriticalBaseUrl } from './release-critical-preflight.mjs';
+import { createActualEmailTransportSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, releaseCriticalBaseUrl } from './release-critical-preflight.mjs';
 
 const STAGING_REF='gaytoojzwqkpuvfofeql';
 const STAGING_PROJECT_ID='prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
@@ -1023,11 +1023,10 @@ async function main(){
   if(executionMode!=='email_transport')fail('RELEASE_CRITICAL_EXECUTION_MODE_INVALID');
   const manualBase=required('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS');
   const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
-  // The approved Workspace mailbox supports plus addressing. Use a fresh,
-  // run-bound recipient so an existing mailbox owner is never mistaken for a
-  // synthetic Auth identity while confirmation and recovery remain in one
-  // human Gmail session.
-  const run=createReleaseCriticalRun(); const session=createManualGmailSession(manualBase,run.emailMarker); const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker); const resetPassword='GL-Release-Reset-8!';
+  // Actual email uses the exact organization-approved mailbox.  The lifecycle
+  // registry and run-bound app metadata provide uniqueness and recovery; do
+  // not depend on plus addressing under a default-SMTP transport.
+  const run=createReleaseCriticalRun(); const session=createActualEmailTransportSession(manualBase,run.emailMarker); const initialPassword=releaseCriticalSyntheticPassword(run.emailMarker); const resetPassword='GL-Release-Reset-8!';
   await verifyHostedRedirectContract({admin,run,baseUrl,supabaseUrl});
   await recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);
   await recoverInterruptedFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);

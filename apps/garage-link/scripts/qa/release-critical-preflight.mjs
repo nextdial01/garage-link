@@ -12,6 +12,10 @@ const MAILSLURP_API_BASE='https://api.mailslurp.com';
 const MAILSLURP_WAIT_TIMEOUT_MS=180_000;
 const MANUAL_GMAIL_POLL_TIMEOUT_MS=10*60_000;
 const MANUAL_GMAIL_POLL_INTERVAL_MS=5_000;
+const NON_DELIVERABLE_QA_DOMAINS=new Set([
+  'example.invalid','example.com','example.net','example.org',
+  'localhost','mailinator.com','guerrillamail.com','10minutemail.com','tempmail.com',
+]);
 
 function fail(code){throw new Error(code)}
 function required(name){const value=process.env[name]?.trim();if(!value)fail(`RELEASE_CRITICAL_PREFLIGHT_MISSING:${name}`);return value}
@@ -112,6 +116,17 @@ function manualGmailAddress(baseAddress,runMarker,plusAddressing=true){
   if(localPart.length>64)fail('MANUAL_GMAIL_PLUS_ADDRESS_TOO_LONG');
   return `${localPart}@${base.domain}`;
 }
+
+// The actual-email lane intentionally does not use a run-specific plus alias.
+// Staging may use Supabase's default SMTP, whose recipient policy can differ
+// from a Workspace mailbox's alias policy.  The lifecycle registry, run ID,
+// and cleanup—not address mutation—bind the synthetic run.
+export function validateActualEmailTransportRecipient(value){
+  const base=manualGmailBaseAddress(value);
+  const emailAddress=`${base.localPart}@${base.domain}`;
+  if(NON_DELIVERABLE_QA_DOMAINS.has(base.domain)||base.domain.endsWith('.localhost'))fail('EMAIL_TRANSPORT_NOT_CONFIGURED:NON_DELIVERABLE_RECIPIENT');
+  return {emailAddress,recipient:'REDACTED_APPROVED_QA_MAILBOX',plusAddressing:false};
+}
 export async function releaseCriticalBaseUrl(eventPath,fallback=process.env.PLAYWRIGHT_BASE_URL,readFileImpl=readFile){
   let event;
   try {event=JSON.parse(await readFileImpl(eventPath,'utf8'))} catch {fail('RELEASE_CRITICAL_WORKFLOW_EVENT_INVALID')}
@@ -129,6 +144,12 @@ export async function releaseCriticalBaseUrl(eventPath,fallback=process.env.PLAY
 export function createManualGmailSession(baseAddress,runMarker=`garage-link-${crypto.randomUUID()}`,{plusAddressing=true}={}){
   const marker=requiredRunMarker(runMarker);
   return {emailMode:'manual_gmail',runMarker:marker,emailAddress:manualGmailAddress(baseAddress,marker,plusAddressing),plusAddressing};
+}
+
+export function createActualEmailTransportSession(baseAddress,runMarker=`garage-link-${crypto.randomUUID()}`){
+  const marker=requiredRunMarker(runMarker);
+  const recipient=validateActualEmailTransportRecipient(baseAddress);
+  return {emailMode:'manual_gmail',runMarker:marker,...recipient};
 }
 
 export function manualGmailCheckpoint(session,purpose){
