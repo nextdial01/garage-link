@@ -273,7 +273,13 @@ async function executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subj
     stage='LOGIN_PAGE_OPENED';
     await page.goto(new URL('/login',baseUrl).toString(),{waitUntil:'domcontentloaded'});
     stage='LOGIN_SUBMITTED';
-    await login(page,subject.email,password,url=>new URL(url).pathname!=='/login');
+    const loginOutcome=await loginMatrixSubject(page,subject.email,password);
+    if(loginOutcome.kind!=='redirect'){
+      const classification=loginOutcome.kind==='alert'?'ROUTE_STARTED_REDIRECTED':'CLICK_FIRED_ROUTER_UNOBSERVED';
+      const finalPath=safeNavigationPath(page.url(),baseUrl);
+      emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:`VEHICLE_CREATE_MATRIX_${state.toUpperCase()}`,classification,dom_click:'YES',navigation_request_count:0,middleware_final_destination:finalPath,browser_runtime_error_count:0,browser_runtime_error_classes:[],failed_response_paths:[],ignored_hosted_instrumentation_404s:0,garage_ui_context:accountState.garageUiContext,active_store:accountState.activeStore,onboarding_completed:accountState.onboardingCompleted,membership_role:accountState.membershipRole,membership_status:accountState.membershipStatus,contract_access_state:accountState.contractAccessState,admin_security_requirement:'NOT_OBSERVED',login_outcome:loginOutcome.kind});
+      return {state,accountState,trace:{classification,finalPath,domClick:true,navigationRequestCount:0,runtimeErrorCount:0}};
+    }
     stage='ADMIN_SECURITY_DIFFERENTIAL_APPLIED';
     if(state==='admin_security_unverified')await context.clearCookies({name:/^garage_admin_email_verified$/});
     stage='VEHICLES_ENTRY_OPENED';
@@ -362,6 +368,18 @@ async function login(page,email,password,nextPattern){
   await page.waitForURL(url=>new URL(url).pathname!=='/login',{timeout:30_000});
   await completeSecurityOtp(page);
   await page.waitForURL(nextPattern,{timeout:30_000});
+}
+async function loginMatrixSubject(page,email,password){
+  await page.getByLabel('メールアドレス').fill(email);
+  await page.locator('#password').fill(password);
+  await page.getByRole('button',{name:'ログイン',exact:true}).click();
+  const outcome=await Promise.race([
+    page.waitForURL(url=>new URL(url).pathname!=='/login',{timeout:30_000}).then(()=>({kind:'redirect'})),
+    page.getByRole('alert').waitFor({state:'visible',timeout:30_000}).then(()=>({kind:'alert'})),
+  ]).catch(()=>({kind:'timeout'}));
+  if(outcome.kind!=='redirect')return outcome;
+  await completeSecurityOtp(page);
+  return {kind:'redirect',finalPath:safeNavigationPath(page.url(),new URL(page.url()).origin)};
 }
 async function onboarding(page,marker){
   await page.getByLabel('法人名').fill(`${marker} 株式会社`);
