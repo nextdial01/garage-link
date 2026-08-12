@@ -211,8 +211,11 @@ function matrixExpectedState(state){
     admin_security_unverified:{garageUiContext:'active',activeStore:'YES',onboardingCompleted:'YES',membershipRole:'owner',contractAccessState:'active'},
   }[state];
 }
-async function matrixAccountState({supabaseUrl,serviceRole,email,password}){
-  const subject=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
+async function matrixAccountState({supabaseUrl,anonKey,email,password}){
+  // The browser uses the public Staging key plus the authenticated user's JWT.
+  // Mirror that boundary here: a service-role API key would exercise a
+  // different PostgREST role and can hide (or invent) authorization failures.
+  const subject=createClient(supabaseUrl,anonKey,{auth:{autoRefreshToken:false,persistSession:false}});
   try {
     const {data,error}=await subject.auth.signInWithPassword({email,password});
     if(error||!data.user?.id)fail(`RELEASE_CRITICAL_CTA_MATRIX_AUTH:${safeProviderCode(error)}`);
@@ -220,7 +223,11 @@ async function matrixAccountState({supabaseUrl,serviceRole,email,password}){
       subject.rpc('get_garage_ui_context_v2',{}),
       subject.rpc('get_member_contract_access',{}),
     ]);
-    if(ui.error||contract.error)fail(`RELEASE_CRITICAL_CTA_MATRIX_STATE:${safeProviderCode(ui.error??contract.error)}`);
+    if(ui.error||contract.error){
+      const rpc=ui.error?'GARAGE_UI_CONTEXT':'CONTRACT_ACCESS';
+      emit({state:'RELEASE_CRITICAL_CTA_MATRIX_RPC_DIAGNOSTIC',rpc,postgrest_code:safeProviderCode(ui.error??contract.error),jwt_role:'authenticated',project_ref:STAGING_REF});
+      fail(`RELEASE_CRITICAL_CTA_MATRIX_STATE:${rpc}:${safeProviderCode(ui.error??contract.error)}`);
+    }
     const value={
       garageUiContext:ui.data?.state,
       activeStore:ui.data?.store_id?'YES':'NO',
@@ -246,8 +253,8 @@ function emitUnavailableMatrixTrace({baseUrl,page,state,accountState}){
   emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:`VEHICLE_CREATE_MATRIX_${state.toUpperCase()}`,classification,dom_click:'NO',navigation_request_count:0,middleware_final_destination:finalPath,browser_runtime_error_count:0,garage_ui_context:accountState.garageUiContext,active_store:accountState.activeStore,onboarding_completed:accountState.onboardingCompleted,membership_role:accountState.membershipRole,membership_status:accountState.membershipStatus,contract_access_state:accountState.contractAccessState,admin_security_requirement:finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
   return {classification,finalPath,domClick:false,navigationRequestCount:0,runtimeErrorCount:0};
 }
-async function executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subject,password,supabaseUrl,serviceRole}){
-  const accountState=await matrixAccountState({supabaseUrl,serviceRole,email:subject.email,password});
+async function executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subject,password,supabaseUrl,anonKey}){
+  const accountState=await matrixAccountState({supabaseUrl,anonKey,email:subject.email,password});
   if(!matrixStateMatches(accountState,matrixExpectedState(state)))fail(`RELEASE_CRITICAL_CTA_MATRIX_EXPECTED_STATE_MISMATCH:${state}`);
   const context=await browser.newContext();
   try {
@@ -264,7 +271,7 @@ async function executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subj
     return {state,accountState,trace};
   } finally {await context.close();}
 }
-async function runVehicleAccountStateMatrix({admin,life,run,baseUrl,supabaseUrl,serviceRole,bypassSecret}){
+async function runVehicleAccountStateMatrix({admin,life,run,baseUrl,supabaseUrl,anonKey,bypassSecret}){
   const password=releaseCriticalSyntheticPassword(run.emailMarker);
   const subjects={}; const created=[]; let provisioned=false; let browser;
   try {
@@ -286,7 +293,7 @@ async function runVehicleAccountStateMatrix({admin,life,run,baseUrl,supabaseUrl,
     browser=await chromium.launch({headless:true});
     const results=[];
     for(const state of CTA_MATRIX_STATES){
-      results.push(await executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subject:subjects[state],password,supabaseUrl,serviceRole}));
+      results.push(await executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subject:subjects[state],password,supabaseUrl,anonKey}));
     }
     const normal=results.find(result=>result.state==='active_owner');
     const nonOwner=results.find(result=>result.state==='active_non_owner');
@@ -648,7 +655,7 @@ async function runMachineOnly({baseUrl,supabaseUrl,serviceRole,bypassSecret,prov
     await followHostedAction(page,signupAction,{baseUrl,expectedPath:'/signup',purpose:'signup'}); if(!new URL(page.url()).searchParams.has('resume'))fail('RELEASE_CRITICAL_AUTH_CALLBACK_RESUME_MISSING'); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup'});
     await page.getByLabel('店舗名').fill(`${run.marker} 店舗`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await submitResumeStore(page,baseUrl,supabaseUrl); await completeSecurityOtp(page); await page.waitForURL(/\/onboarding/,{timeout:30_000,waitUntil:'commit'}); await onboarding(page,run.marker); await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true,requireOnboardingCompleted:true});
     const owner=await activeOwner({baseUrl,supabaseUrl,serviceRole,email,password:initialPassword,tenantNamePrefix:run.marker,bypassSecret,runId:run.runId}); await adoptLifecycleFixture(life,run,{...owner,userId:user.id}); adopted=true; results.J2='MECHANICS_PASS';
-    await runVehicleAccountStateMatrix({admin,life,run,baseUrl,supabaseUrl,serviceRole,bypassSecret});
+    await runVehicleAccountStateMatrix({admin,life,run,baseUrl,supabaseUrl,anonKey:required('E2E_TEST_SUPABASE_ANON_KEY'),bypassSecret});
     await clickAndWait(page,page.getByRole('link',{name:'車両',exact:true}).first(),/\/vehicles(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'VEHICLE_CREATE',locator:page.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState:owner.accountState}); await page.getByText('車両登録',{exact:true}).waitFor({timeout:30_000}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/vehicles(?:\?|$)/,{timeout:30_000}); await verifyVehicleAccountStateGate({browser,sourceContext:context,baseUrl,bypassSecret,accountState:owner.accountState});
     await clickAndWait(page,page.getByRole('link',{name:'顧客',exact:true}).first(),/\/customers(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'CUSTOMER_CREATE',locator:page.getByRole('link',{name:'顧客を登録',exact:true}),expectedPath:'/customers/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/customers(?:\?|$)/,{timeout:30_000}); await clickAndWait(page,page.getByRole('link',{name:'商談',exact:true}).first(),/\/deals(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'DEAL_CREATE',locator:page.getByRole('link',{name:'商談を登録',exact:true}),expectedPath:'/deals/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/deals(?:\?|$)/,{timeout:30_000});
     await clickAndWait(page,page.getByRole('link',{name:'見積書',exact:true}).first(),/\/quotes(?:\?|$)/); await tracePointerCta(page,{baseUrl,label:'QUOTE_CREATE',locator:page.getByRole('link',{name:'見積書を作成',exact:true}),expectedPath:'/quotes/new',accountState:owner.accountState}); await page.goBack({waitUntil:'domcontentloaded'}); await page.waitForURL(/\/quotes(?:\?|$)/,{timeout:30_000});
