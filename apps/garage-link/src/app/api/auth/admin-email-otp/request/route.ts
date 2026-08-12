@@ -26,7 +26,13 @@ export async function POST(request: NextRequest) {
   if (challengeError) {
     const message = challengeError.message ?? '';
     const status = message.includes('otp_resend_too_soon') || message.includes('otp_rate_limited') ? 429 : 503;
-    return NextResponse.json({ error: status === 429 ? '確認コードは1分後に再送できます。' : '確認コードを作成できませんでした。' }, { status });
+    if (status === 429) {
+      return NextResponse.json(
+        { error: '確認コードは1分後に再送できます。', retryAfter: 60 },
+        { status, headers: { 'Retry-After': '60' } },
+      );
+    }
+    return NextResponse.json({ error: '確認コードを作成できませんでした。' }, { status });
   }
   if (sink.authorized) {
     return NextResponse.json({

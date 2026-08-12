@@ -107,6 +107,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/'x-vercel-protection-bypass':bypassSecret/);
   assert.match(journeys,/fetchVerifiedVercelRequest/);
   assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_DISCOVERY_DIAGNOSTIC/);
+  assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_OTP_COOLDOWN_WAIT/);
+  assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_OTP_RETRY_AFTER_INVALID/);
+  assert.match(journeys,/retryAfter>60/);
   assert.match(journeys,/postgrest_provider_error_code/);
   assert.match(journeys,/RELEASE_CRITICAL_CTA_TRACE/);
   assert.match(journeys,/VEHICLE_CREATE/);
@@ -184,6 +187,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(callbackEvidence,/process\.env\.VERCEL_ENV/);
   assert.match(callbackEvidence,/release_qa_callback/);
   assert.match(callbackEvidence,/store_created/);
+  assert.match(await readFile(resolve(appRoot,'src/app/api/auth/admin-email-otp/request/route.ts'),'utf8'),/Retry-After/);
+  assert.match(await readFile(resolve(appRoot,'src/app/api/auth/admin-email-otp/request/route.ts'),'utf8'),/retryAfter: 60/);
   assert.match(callbackEvidence,/onboarding_completed/);
   assert.match(callbackEvidence,/validCallbackChain/);
   assert.match(callbackEvidence,/server_bound_continuation: true/);

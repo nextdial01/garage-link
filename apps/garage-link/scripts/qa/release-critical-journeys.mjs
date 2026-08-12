@@ -381,7 +381,19 @@ async function ownerFixtureForUser({baseUrl,supabaseUrl,serviceRole,email,passwo
 }
 async function trustReleaseQaAdminSession({baseUrl,bypassSecret,accessToken}){
   const headers={authorization:`Bearer ${accessToken}`,'content-type':'application/json','x-vercel-protection-bypass':bypassSecret};
-  const requested=await fetchVerifiedVercelRequest(new URL('/api/auth/admin-email-otp/request',baseUrl),headers,fetch,{method:'POST',body:'{}'});
+  const requestOtp=()=>fetchVerifiedVercelRequest(new URL('/api/auth/admin-email-otp/request',baseUrl),headers,fetch,{method:'POST',body:'{}'});
+  let requested=await requestOtp();
+  // A browser-completed administrator OTP and the service-role fixture lookup
+  // legitimately use different sessions for the same synthetic user. Respect
+  // the route's one-minute resend contract once instead of bypassing the
+  // security gate or declaring the user journey failed on that safe cooldown.
+  if(requested.response.status===429&&!requested.response.headers.has('location')){
+    const retryAfter=Number(requested.response.headers.get('retry-after'));
+    if(!Number.isInteger(retryAfter)||retryAfter<1||retryAfter>60)fail('RELEASE_CRITICAL_FIXTURE_OTP_RETRY_AFTER_INVALID');
+    emit({state:'RELEASE_CRITICAL_FIXTURE_OTP_COOLDOWN_WAIT',retry_after_seconds:retryAfter,attempt:1});
+    await new Promise(resolve=>setTimeout(resolve,(retryAfter*1000)+250));
+    requested=await requestOtp();
+  }
   if(!requested.response.ok||requested.response.headers.has('location'))fail(`RELEASE_CRITICAL_FIXTURE_OTP_REQUEST:${requested.response.status}`);
   const requestBody=await requested.response.json().catch(()=>null);
   const code=typeof requestBody?.previewOtp==='string'&&/^\d{6}$/.test(requestBody.previewOtp)?requestBody.previewOtp:null;
