@@ -265,18 +265,27 @@ function emitUnavailableMatrixTrace({baseUrl,page,state,accountState}){
 async function executeVehicleMatrixCase({browser,baseUrl,bypassSecret,state,subject,password}){
   const accountState=matrixFixtureContractState(state);
   const context=await browser.newContext();
+  let stage='CONTEXT_CREATED';
   try {
+    stage='BYPASS_INSTALLED';
     await installVercelBrowserBypass(context,baseUrl,bypassSecret);
     const page=await context.newPage();
+    stage='LOGIN_PAGE_OPENED';
     await page.goto(new URL('/login',baseUrl).toString(),{waitUntil:'domcontentloaded'});
+    stage='LOGIN_SUBMITTED';
     await login(page,subject.email,password,url=>new URL(url).pathname!=='/login');
+    stage='ADMIN_SECURITY_DIFFERENTIAL_APPLIED';
     if(state==='admin_security_unverified')await context.clearCookies({name:/^garage_admin_email_verified$/});
+    stage='VEHICLES_ENTRY_OPENED';
     await page.goto(new URL('/vehicles',baseUrl).toString(),{waitUntil:'domcontentloaded'});
     const cta=page.getByRole('link',{name:'車両を登録',exact:true});
+    stage='CTA_OBSERVED';
     const trace=await cta.isVisible().catch(()=>false)
       ?await tracePointerCta(page,{baseUrl,label:`VEHICLE_CREATE_MATRIX_${state.toUpperCase()}`,locator:cta,expectedPath:'/vehicles/new',accountState,expectedClassification:null})
       :emitUnavailableMatrixTrace({baseUrl,page,state,accountState});
     return {state,accountState,trace};
+  } catch(error) {
+    fail(`RELEASE_CRITICAL_CTA_MATRIX_STATE_EXECUTION:${state}:${stage}:${safeErrorCode(error)}`);
   } finally {await context.close();}
 }
 async function runVehicleAccountStateMatrix({admin,life,run,baseUrl,bypassSecret}){
