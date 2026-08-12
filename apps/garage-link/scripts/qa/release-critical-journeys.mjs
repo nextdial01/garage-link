@@ -223,7 +223,7 @@ async function verifyVehicleAccountStateGate({browser,sourceContext,baseUrl,bypa
   try {
     await installVercelBrowserBypass(gatedContext,baseUrl,bypassSecret);
     const gatedPage=await gatedContext.newPage();
-    await gatedPage.goto(new URL('/vehicles',baseUrl),{waitUntil:'domcontentloaded'});
+    await gatedPage.goto(new URL('/vehicles',baseUrl).toString(),{waitUntil:'domcontentloaded'});
     await gatedPage.getByRole('link',{name:'車両を登録',exact:true}).waitFor({state:'visible',timeout:30_000});
     await gatedContext.clearCookies({name:/^garage_admin_email_verified$/});
     await tracePointerCta(gatedPage,{baseUrl,label:'VEHICLE_CREATE_ADMIN_SECURITY_GATE',locator:gatedPage.getByRole('link',{name:'車両を登録',exact:true}),expectedPath:'/vehicles/new',accountState,expectedClassification:'ROUTE_STARTED_REDIRECTED',expectedFinalPath:'/security/email-otp'});
@@ -372,12 +372,18 @@ async function login(page,email,password,nextPattern){
 async function loginMatrixSubject(page,email,password){
   await page.getByLabel('メールアドレス').fill(email);
   await page.locator('#password').fill(password);
+  const loginResponse=page.waitForResponse(response=>{
+    try {return response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/auth/password-login';}
+    catch {return false;}
+  },{timeout:30_000});
   await page.getByRole('button',{name:'ログイン',exact:true}).click();
-  const outcome=await Promise.race([
-    page.waitForURL(url=>new URL(url).pathname!=='/login',{timeout:30_000}).then(()=>({kind:'redirect'})),
-    page.getByRole('alert').waitFor({state:'visible',timeout:30_000}).then(()=>({kind:'alert'})),
-  ]).catch(()=>({kind:'timeout'}));
-  if(outcome.kind!=='redirect')return outcome;
+  const response=await loginResponse.catch(()=>null);
+  if(!response)return {kind:'timeout'};
+  if(!response.ok){
+    const detail=await response.json().catch(()=>null);
+    return {kind:'login_error',httpStatus:response.status(),errorClass:sha256(String(detail?.error??''))};
+  }
+  await page.waitForURL(url=>new URL(url).pathname!=='/login',{timeout:30_000});
   await completeSecurityOtp(page);
   return {kind:'redirect',finalPath:safeNavigationPath(page.url(),new URL(page.url()).origin)};
 }
