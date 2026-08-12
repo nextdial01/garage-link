@@ -1,5 +1,7 @@
 export const dynamic = 'force-dynamic';
 
+import { getPreviewOtpSinkContext } from '@/lib/security/previewOtpSink';
+
 const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
 const PRODUCTION_PROJECT_ID = 'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64';
 const BLOCKED_PROJECT_IDS = new Set([PRODUCTION_PROJECT_ID]);
@@ -56,6 +58,8 @@ export async function GET(request: Request) {
     return new Response(null, { status: 404, headers });
   }
 
+  const previewOtpSink = getPreviewOtpSinkContext(request);
+
   return Response.json({
     project_id: projectId,
     deployment_id: deploymentId,
@@ -63,5 +67,6 @@ export async function GET(request: Request) {
     git_commit_ref: gitCommitRef,
     deployment_url: urlValue,
     environment,
+    preview_otp_sink: previewOtpSink.authorized ? 'READY' : 'UNAVAILABLE',
   }, { headers: { 'Cache-Control': 'no-store' } });
 }
