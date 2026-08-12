@@ -130,6 +130,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/AUTH_PRESENT/);
   assert.match(journeys,/navigation_request_paths/);
   assert.match(journeys,/same_origin_redirects/);
+  assert.match(journeys,/pointer_click_delivered/);
+  assert.match(journeys,/dom_click_event_observed/);
   assert.match(journeys,/Never inspect or emit a cookie value/);
   assert.match(journeys,/Never inspect or emit a cookie value/);
   assert.match(journeys,/browser_runtime_error_classes/);
@@ -379,11 +381,11 @@ test('release-critical journeys accept only the Staging runtime and marker-bound
 });
 
 test('CTA trace separates pointer non-delivery, route redirects, and runtime errors',()=>{
-  assert.equal(classifyCtaTrace({domClick:false,expected:false,navigationRequestCount:0,runtimeErrorCount:0,initialPath:'/vehicles',finalPath:'/vehicles'}),'CLICK_NOT_FIRED');
-  assert.equal(classifyCtaTrace({domClick:true,expected:false,navigationRequestCount:1,runtimeErrorCount:0,initialPath:'/vehicles',finalPath:'/onboarding'}),'ROUTE_STARTED_REDIRECTED');
-  assert.equal(classifyCtaTrace({domClick:true,expected:false,navigationRequestCount:0,runtimeErrorCount:0,initialPath:'/vehicles',finalPath:'/vehicles'}),'CLICK_FIRED_ROUTER_UNOBSERVED');
-  assert.equal(classifyCtaTrace({domClick:true,expected:true,navigationRequestCount:1,runtimeErrorCount:0,initialPath:'/vehicles',finalPath:'/vehicles/new'}),'PASS');
-  assert.equal(classifyCtaTrace({domClick:true,expected:true,navigationRequestCount:1,runtimeErrorCount:1,initialPath:'/vehicles',finalPath:'/vehicles/new'}),'RUNTIME_ERROR');
+  assert.equal(classifyCtaTrace({pointerClickDelivered:false,domClick:false,expected:false,navigationRequestCount:0,runtimeErrorCount:0,initialPath:'/vehicles',finalPath:'/vehicles'}),'CLICK_NOT_FIRED');
+  assert.equal(classifyCtaTrace({pointerClickDelivered:true,domClick:true,expected:false,navigationRequestCount:1,runtimeErrorCount:0,initialPath:'/vehicles',finalPath:'/onboarding'}),'ROUTE_STARTED_REDIRECTED');
+  assert.equal(classifyCtaTrace({pointerClickDelivered:true,domClick:true,expected:false,navigationRequestCount:0,runtimeErrorCount:0,initialPath:'/vehicles',finalPath:'/vehicles'}),'CLICK_FIRED_ROUTER_UNOBSERVED');
+  assert.equal(classifyCtaTrace({pointerClickDelivered:true,domClick:true,expected:true,navigationRequestCount:1,runtimeErrorCount:0,initialPath:'/vehicles',finalPath:'/vehicles/new'}),'PASS');
+  assert.equal(classifyCtaTrace({pointerClickDelivered:true,domClick:true,expected:true,navigationRequestCount:1,runtimeErrorCount:1,initialPath:'/vehicles',finalPath:'/vehicles/new'}),'RUNTIME_ERROR');
 });
 
 test('normal release runs fail closed on Hosted Auth and client redirect drift without a Management PAT',()=>{
