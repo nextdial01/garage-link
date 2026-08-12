@@ -151,7 +151,7 @@ jobs:
         name: Record separated email transport state
         env:
           RELEASE_CRITICAL_EMAIL_MODE: ${{ inputs.email_mode }}
-          RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_RELEASE_QA_EMAIL }}
+          RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
         run: |
           if [ "$RELEASE_CRITICAL_EMAIL_MODE" = "manual_gmail" ] && [ -n "$RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS" ]; then
             echo '{"state":"EMAIL_TRANSPORT_READY","mode":"manual_gmail"}'
@@ -175,7 +175,7 @@ jobs:
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
       RELEASE_CRITICAL_EXECUTION_MODE: email_transport
-      RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_RELEASE_QA_EMAIL }}
+      RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
