@@ -23,6 +23,14 @@ on:
         options:
           - verify_by_journey
           - repair_staging_once
+      execution_scope:
+        description: full reruns all machine gates; actual_email_only reuses fixed machine-gate evidence for a transport-only recovery
+        required: true
+        default: full
+        type: choice
+        options:
+          - full
+          - actual_email_only
 
 permissions:
   contents: read
@@ -88,7 +96,7 @@ jobs:
   qa-lifecycle-contract:
     name: Registry-bound Staging CTA fixture contract
     needs: preflight
-    if: ${{ needs.preflight.result == 'success' }}
+    if: ${{ inputs.execution_scope == 'full' && needs.preflight.result == 'success' }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 10
@@ -111,7 +119,7 @@ jobs:
   machine-gates:
     name: Release-critical machine-only gates
     needs: [preflight, stage-auth-contract, qa-lifecycle-contract]
-    if: ${{ always() && needs.preflight.result == 'success' && (needs.stage-auth-contract.result == 'success' || needs.stage-auth-contract.result == 'skipped') && needs.qa-lifecycle-contract.result == 'success' }}
+    if: ${{ inputs.execution_scope == 'full' && always() && needs.preflight.result == 'success' && (needs.stage-auth-contract.result == 'success' || needs.stage-auth-contract.result == 'skipped') && needs.qa-lifecycle-contract.result == 'success' }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 50
@@ -140,7 +148,7 @@ jobs:
   email-transport-state:
     name: Email transport readiness (fail-closed before provider send)
     needs: [preflight, machine-gates]
-    if: ${{ always() && needs.preflight.result == 'success' && needs.machine-gates.result == 'success' }}
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_only') }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 5
@@ -173,7 +181,7 @@ jobs:
   actual-email-gates:
     name: Actual email transport and callback gates
     needs: [preflight, machine-gates, email-transport-state]
-    if: ${{ always() && needs.preflight.result == 'success' && needs.machine-gates.result == 'success' && needs.email-transport-state.outputs.transport_ready == 'true' }}
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_only') && needs.email-transport-state.outputs.transport_ready == 'true' }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 45
@@ -227,12 +235,13 @@ jobs:
           AUTH_CONTRACT: ${{ needs.stage-auth-contract.result }}
           QA_LIFECYCLE_CONTRACT: ${{ needs.qa-lifecycle-contract.result }}
           MACHINE: ${{ needs.machine-gates.result }}
+          EXECUTION_SCOPE: ${{ inputs.execution_scope }}
           TRANSPORT_READY: ${{ needs.email-transport-state.outputs.transport_ready }}
           TRANSPORT_STATE: ${{ needs.email-transport-state.outputs.transport_state }}
           ACTUAL_EMAIL: ${{ needs.actual-email-gates.result }}
           PRODUCTION_TRANSPORT: ${{ needs.production-email-transport.outputs.classification }}
         run: |
-          if [ "$PREFLIGHT" != success ] || [ "$QA_LIFECYCLE_CONTRACT" != success ] || [ "$MACHINE" != success ]; then
+          if [ "$PREFLIGHT" != success ] || { [ "$EXECUTION_SCOPE" = full ] && { [ "$QA_LIFECYCLE_CONTRACT" != success ] || [ "$MACHINE" != success ]; }; }; then
             echo '{"state":"RELEASE_CRITICAL_NOT_READY","reason":"MACHINE_OR_PRODUCTION_TRANSPORT_GATE_FAILED"}'
             exit 1
           fi

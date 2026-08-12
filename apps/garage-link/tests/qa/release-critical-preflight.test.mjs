@@ -253,6 +253,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/qa-lifecycle-contract/);
   assert.match(workflow,/release-critical-qa-lifecycle-contract\.mjs/);
   assert.match(workflow,/actual-email-gates/);
+  assert.match(workflow,/execution_scope/);
+  assert.match(workflow,/actual_email_only/);
   assert.match(workflow,/final-clean-verdict/);
   assert.match(workflow,/production-email-transport/);
   assert.match(await readFile(resolve(appRoot,'scripts/qa/release-critical-production-transport.mjs'),'utf8'),/HISTORICAL_EVIDENCE_SOURCES/);
