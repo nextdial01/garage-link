@@ -138,9 +138,9 @@ async function authenticatedBrowserSession(page,baseUrl){
   // is enough to separate a runner session-loss from an application redirect.
   return cookies.some(cookie=>cookie.domain===host&&/^sb-[a-z0-9]+-auth-token(?:\.\d+)?$/i.test(cookie.name))?'PRESENT':'ABSENT';
 }
-async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,expectedRender=null,accountState,expectedClassification='PASS',expectedFinalPath=null}){
+async function tracePointerCta(page,{baseUrl,supabaseUrl,label,locator,expectedPath=null,expectedRender=null,accountState,expectedClassification='PASS',expectedFinalPath=null}){
   const initialPath=safeNavigationPath(page.url(),baseUrl);
-  const trace={domClick:false,expected:false,initialPath,finalPath:initialPath,navigationRequestCount:0,runtimeErrorCount:0,runtimeErrorClasses:[],failedResponsePaths:[],authCookieClearPaths:[],sessionBefore:'UNOBSERVED',sessionAfter:'UNOBSERVED',destinationRequestAuthCookie:'UNOBSERVED'};
+  const trace={domClick:false,expected:false,initialPath,finalPath:initialPath,navigationRequestCount:0,runtimeErrorCount:0,runtimeErrorClasses:[],failedResponsePaths:[],authCookieClearPaths:[],supabaseAuthResponses:[],sessionBefore:'UNOBSERVED',sessionAfter:'UNOBSERVED',destinationRequestAuthCookie:'UNOBSERVED'};
   const clickKey=`release-critical-cta-${label}`;
   const observedRequests=[];
   const onRequest=request=>{
@@ -155,6 +155,18 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,exp
   };
   const onResponse=response=>{
     const responsePath=safeNavigationPath(response.url(),baseUrl);
+    // A password-login response establishes the SSR cookies.  If the browser
+    // Supabase client subsequently rejects that session, it does so through a
+    // GoTrue call rather than a same-origin Set-Cookie response.  Record only
+    // the Auth endpoint path/status and Authorization presence — never a
+    // token, URL query, response body, or cookie value.
+    try {
+      const responseUrl=new URL(response.url());
+      const authOrigin=supabaseUrl??process.env.E2E_TEST_SUPABASE_URL;
+      if(authOrigin&&responseUrl.origin===new URL(authOrigin).origin&&responseUrl.pathname.startsWith('/auth/v1/')){
+        trace.supabaseAuthResponses.push(`${response.status()}:${responseUrl.pathname}:${response.request().headers().authorization?'AUTH_PRESENT':'AUTH_ABSENT'}`);
+      }
+    } catch {}
     const setCookie=response.headers()['set-cookie']??'';
     if(responsePath!=='CROSS_ORIGIN'&&responsePath!=='INVALID_URL'&&/\bsb-[a-z0-9]+-auth-token(?:\.\d+)?=;[^\n]*(?:max-age=0|expires=thu, 01 jan 1970)/i.test(setCookie))trace.authCookieClearPaths.push(responsePath);
     if(response.status()<400)return;
@@ -175,7 +187,7 @@ async function tracePointerCta(page,{baseUrl,label,locator,expectedPath=null,exp
     trace.finalPath=safeNavigationPath(page.url(),baseUrl);
     trace.navigationRequestCount=observedRequests.length;
     const classification=classifyCtaTrace(trace);
-    emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:label,classification,dom_click:trace.domClick?'YES':'NO',navigation_request_count:trace.navigationRequestCount,middleware_final_destination:trace.finalPath,browser_runtime_error_count:trace.runtimeErrorCount,browser_runtime_error_classes:[...new Set(trace.runtimeErrorClasses)],failed_response_paths:[...new Set(trace.failedResponsePaths)],auth_cookie_clear_paths:[...new Set(trace.authCookieClearPaths)],ignored_hosted_instrumentation_404s:trace.failedResponsePaths.filter(value=>isHostedInstrumentationScript(value.replace(/^\d+:/,''))).length,session_before:trace.sessionBefore,session_after:trace.sessionAfter,destination_request_auth_cookie:trace.destinationRequestAuthCookie,garage_ui_context:accountState?.garageUiContext??'UNKNOWN',active_store:accountState?.activeStore??'UNKNOWN',onboarding_completed:accountState?.onboardingCompleted??'UNKNOWN',membership_role:accountState?.membershipRole??'UNKNOWN',membership_status:accountState?.membershipStatus??'UNKNOWN',contract_access_state:accountState?.contractAccessState??'UNKNOWN',admin_security_requirement:trace.finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
+    emit({state:'RELEASE_CRITICAL_CTA_TRACE',cta:label,classification,dom_click:trace.domClick?'YES':'NO',navigation_request_count:trace.navigationRequestCount,middleware_final_destination:trace.finalPath,browser_runtime_error_count:trace.runtimeErrorCount,browser_runtime_error_classes:[...new Set(trace.runtimeErrorClasses)],failed_response_paths:[...new Set(trace.failedResponsePaths)],auth_cookie_clear_paths:[...new Set(trace.authCookieClearPaths)],supabase_auth_responses:[...new Set(trace.supabaseAuthResponses)],ignored_hosted_instrumentation_404s:trace.failedResponsePaths.filter(value=>isHostedInstrumentationScript(value.replace(/^\d+:/,''))).length,session_before:trace.sessionBefore,session_after:trace.sessionAfter,destination_request_auth_cookie:trace.destinationRequestAuthCookie,garage_ui_context:accountState?.garageUiContext??'UNKNOWN',active_store:accountState?.activeStore??'UNKNOWN',onboarding_completed:accountState?.onboardingCompleted??'UNKNOWN',membership_role:accountState?.membershipRole??'UNKNOWN',membership_status:accountState?.membershipStatus??'UNKNOWN',contract_access_state:accountState?.contractAccessState??'UNKNOWN',admin_security_requirement:trace.finalPath.startsWith('/security/email-otp')?'REQUIRED':'NOT_OBSERVED'});
     emittedClassification=classification;
     return emittedClassification;
   };
