@@ -1040,11 +1040,16 @@ async function main(){
     await clickAndWait(page,page.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
     const fillSignup=async(password)=>{await page.getByLabel('店舗名').fill(`${run.marker} Signup`);await page.getByLabel('担当者名').fill(`${run.marker} Owner`);await page.getByLabel('メールアドレス').fill(session.emailAddress);await page.locator('#password').fill(password);await page.locator('#passwordConfirmation').fill(password);await page.getByRole('checkbox').check();};
     const signupCallback=new URL('/auth/callback',baseUrl); signupCallback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); signupCallback.searchParams.set('qa_run',run.runId);
-    const signupRequest=page.waitForRequest(request=>request.method()==='POST'&&new URL(request.url()).pathname==='/auth/v1/signup',{timeout:30_000});
-    const signupResponse=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/auth/v1/signup',{timeout:30_000});
+    // These observers must settle even when a form/UI failure takes the
+    // lifecycle into finally before the hosted Auth request is emitted.
+    // Otherwise Playwright reports a teardown-time unhandled rejection and
+    // hides the actual fail-closed signup diagnosis.
+    const signupRequest=page.waitForRequest(request=>request.method()==='POST'&&new URL(request.url()).pathname==='/auth/v1/signup',{timeout:30_000}).catch(()=>null);
+    const signupResponse=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/auth/v1/signup',{timeout:30_000}).catch(()=>null);
     await fillSignup(initialPassword); await page.getByRole('button',{name:'無料でアカウントを作成する'}).click();
-    const signupRedirect=validateClientAuthRedirect((await signupRequest).url(),signupCallback.toString(),supabaseUrl); emit({state:'RELEASE_CRITICAL_SIGNUP_REDIRECT_REQUEST_PASS',redirect_origin:signupRedirect.origin,redirect_path:signupRedirect.path,localhost:false});
-    const authResponse=await signupResponse; const authDetail=await authResponse.json().catch(()=>null); const [localPart,domain]=session.emailAddress.split('@');
+    const observedSignupRequest=await signupRequest; if(!observedSignupRequest)fail('RELEASE_CRITICAL_SIGNUP_REQUEST_UNOBSERVED');
+    const signupRedirect=validateClientAuthRedirect(observedSignupRequest.url(),signupCallback.toString(),supabaseUrl); emit({state:'RELEASE_CRITICAL_SIGNUP_REDIRECT_REQUEST_PASS',redirect_origin:signupRedirect.origin,redirect_path:signupRedirect.path,localhost:false});
+    const authResponse=await signupResponse; if(!authResponse)fail('RELEASE_CRITICAL_SIGNUP_RESPONSE_UNOBSERVED'); const authDetail=await authResponse.json().catch(()=>null); const [localPart,domain]=session.emailAddress.split('@');
     emit({state:'RELEASE_CRITICAL_SIGNUP_PROVIDER_DIAGNOSTIC',http_status:authResponse.status(),provider_error_code:safeProviderCode(authDetail?.code??authDetail?.error_code??authResponse.status()),email_local_length:localPart?.length??0,email_domain_length:domain?.length??0,email_total_length:session.emailAddress.length,run_marker_length:run.emailMarker.length});
     const signupOutcome=await signupSubmitOutcome(page);
     if(signupOutcome.kind==='alert'){
