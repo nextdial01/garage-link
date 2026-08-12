@@ -151,9 +151,10 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/login_outcome/);
   assert.match(journeys,/api\/auth\/password-login/);
   assert.match(journeys,/errorClass:sha256/);
-  assert.match(journeys,/following real \/vehicles entry remains the authoritative middleware/);
-  assert.match(journeys,/restricted synthetic contract can legitimately leave the user outside/);
-  assert.match(journeys,/new URL\(url\)\.pathname!=='\/security\/email-otp'/);
+  assert.match(journeys,/supported next\s+\/\/ contract/);
+  assert.match(journeys,/router\.replace/);
+  assert.match(journeys,/CTA trace starts only after the real login handler has committed/);
+  assert.match(journeys,/get_garage_ui_context_v2/);
   assert.doesNotMatch(journeys,/\.goto\(new URL\('\/vehicles',baseUrl\),/);
   assert.match(journeys,/url=>new URL\(url\)\.pathname!==['"]\/login/);
   assert.match(journeys,/new URL\(url\)\.pathname!==['"]\/login/);
@@ -246,7 +247,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/qa_lifecycle_cta_matrix/);
   assert.match(journeys,/matrixFixtureContractState/);
   assert.match(journeys,/registry-bound lifecycle RPC/);
-  assert.match(journeys,/new URL\('\/vehicles',baseUrl\)\.toString\(\)/);
+  assert.match(journeys,/new URL\('\/login',baseUrl\)/);
+  assert.match(journeys,/loginUrl\.searchParams\.set\('next','\/vehicles'\)/);
   assert.doesNotMatch(journeys,/E2E_TEST_SUPABASE_ANON_KEY/);
   assert.match(journeys,/RELEASE_CRITICAL_CTA_ACCOUNT_STATE_MATRIX/);
   assert.match(journeys,/customer_equivalence:reproduced\?'ACTIVE_NON_OWNER_REPRODUCED':'NOT_ASSERTED'/);
