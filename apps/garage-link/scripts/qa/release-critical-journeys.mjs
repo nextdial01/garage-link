@@ -796,6 +796,13 @@ async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,us
   let browser; let context;
   let fixture;
   try {
+    // The exact Staging synthetic account may have completed the manual
+    // recovery form before an interrupted runner could adopt it. Rotate only
+    // this app-metadata-bound QA subject to the recovery password, then prove
+    // that password through the normal browser + OTP journey. No customer
+    // account, policy, or authorization boundary is altered.
+    const {error:passwordError}=await admin.auth.admin.updateUserById(user.id,{password});
+    if(passwordError)fail(`RELEASE_CRITICAL_RECOVERY_PASSWORD_ROTATE:${passwordError.status??0}`);
     browser=await chromium.launch({headless:true});
     context=await browser.newContext();
     await installVercelBrowserBypass(context,baseUrl,bypassSecret);
