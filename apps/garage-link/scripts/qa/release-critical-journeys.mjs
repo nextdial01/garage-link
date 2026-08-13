@@ -820,11 +820,22 @@ async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,us
     return {state:'AUTH_ONLY_ABSENT',life};
   }
   fixture=fixture.fixture;
-  const marker=fixture.tenantName.startsWith(run.marker) ? run.marker : null;
+  let marker=fixture.tenantName.startsWith(run.marker) ? run.marker : null;
   if(!marker&&!allowRunBoundUnmarked)fail('RELEASE_CRITICAL_RECOVERY_RUN_MARKER_MISMATCH');
   if(existing.state!=='PROVISIONING')fail(`RELEASE_CRITICAL_RECOVERY_LIFECYCLE_STATE:${existing.state}`);
-  await adoptLifecycleFixture(life,run,{...fixture,userId:user.id},{fixtureMarker:marker??fixture.tenantName});
-  if(!marker)emit({state:'RELEASE_CRITICAL_RUN_BOUND_UNMARKED_FIXTURE_RECOVERY_PASS',run_marker_hash:sha256(run.runId),scope:'AUTH_APP_METADATA_AND_SAME_OTP_SESSION'});
+  if(!marker){
+    // The prefill fix prevents future unmarked tenants. For this exact
+    // already-proven Staging synthetic fixture, restore the registry's
+    // immutable marker contract before adoption; then ordinary lifecycle
+    // teardown owns all deletes. The conditional ID+old-name update cannot
+    // target a different tenant and never runs for Production/normal users.
+    const recoveredName=`${run.marker} Recovered`;
+    const {data,error}=await admin.from('tenants').update({name:recoveredName}).eq('id',fixture.tenantId).eq('name',fixture.tenantName).select('id,name').maybeSingle();
+    if(error||data?.id!==fixture.tenantId||data.name!==recoveredName)fail(`RELEASE_CRITICAL_UNMARKED_TENANT_RENAME:${error?.code??error?.status??0}`);
+    fixture={...fixture,tenantName:recoveredName}; marker=run.marker;
+    emit({state:'RELEASE_CRITICAL_RUN_BOUND_UNMARKED_FIXTURE_RECOVERY_PASS',run_marker_hash:sha256(run.runId),scope:'AUTH_APP_METADATA_AND_SAME_OTP_SESSION',registry_marker_restored:true});
+  }
+  await adoptLifecycleFixture(life,run,{...fixture,userId:user.id},{fixtureMarker:marker});
   return {state:'RUN_BOUND_FIXTURE',life,fixture};
 }
 async function recoverAddressBoundActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email}){
