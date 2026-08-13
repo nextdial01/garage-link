@@ -829,6 +829,29 @@ async function recoverAddressBoundActualEmailFixture({admin,provenance,baseUrl,b
   const statusLife=lifecycle(admin,run,provenance);
   const existing=await statusLife.maybeStatus();
   if(!existing||existing.state==='COMPLETE')fail('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_LIFECYCLE_UNPROVEN');
+  if(existing.state==='ABORTED_CLEAN'){
+    // A prior runner incorrectly marked an Auth-only abort before the human
+    // had completed the real callback/store flow. ABORTED_CLEAN is terminal,
+    // so never rewrite its history or delete the user directly. Instead bind
+    // this exact Staging synthetic user to one fresh, formal recovery run,
+    // preserve the old run id as evidence, then adopt and teardown normally.
+    const recoveryRun=createReleaseCriticalRun();
+    const preservedMetadata={...(user.app_metadata??{})};
+    delete preservedMetadata.release_qa_callback;
+    const {error:bindError}=await admin.auth.admin.updateUserById(user.id,{app_metadata:{...preservedMetadata,release_qa_run_id:recoveryRun.runId,release_qa_recovered_from_run_id:run.runId}});
+    if(bindError)fail(`RELEASE_CRITICAL_ABORTED_RUN_RECOVERY_BIND:${bindError.status??0}`);
+    const rebound=await findUser(admin,email);
+    if(rebound.app_metadata?.release_qa_run_id!==recoveryRun.runId||rebound.app_metadata?.release_qa_recovered_from_run_id!==run.runId)fail('RELEASE_CRITICAL_ABORTED_RUN_RECOVERY_BIND_UNPROVEN');
+    const recovered=await recoverLifecycleForUser({
+      admin,provenance,baseUrl,bypassSecret,user:rebound,run:recoveryRun,
+      password:releaseCriticalSyntheticPassword(run.emailMarker),allowRunBoundUnmarked:true,probeCallbackReach:true,
+    });
+    if(recovered.state!=='RUN_BOUND_FIXTURE')fail('RELEASE_CRITICAL_ABORTED_RUN_RECOVERY_FIXTURE_UNPROVEN');
+    await cleanupLifecycle(recovered.life,admin,rebound.id,recoveryRun.runId);
+    if(await maybeFindUser(admin,email))fail('RELEASE_CRITICAL_ABORTED_RUN_RECOVERY_RESIDUAL');
+    emit({state:'RELEASE_CRITICAL_ABORTED_RUN_FORMAL_RECOVERY_PASS',run_marker_hash:sha256(recoveryRun.runId),recovered_terminal_run:true,cleanup:'FORMAL_LIFECYCLE'});
+    return true;
+  }
   // A human can finish store creation after the email callback before this
   // runner adopts the fixture.  The lifecycle is still PROVISIONING at that
   // point, so its empty registry alone cannot prove an Auth-only subject.
