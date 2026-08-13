@@ -581,9 +581,12 @@ test('normal release runs fail closed on Hosted Auth and client redirect drift w
   const action=`${project}/auth/v1/verify?token=redacted&type=recovery&redirect_to=${encodeURIComponent(expected)}`;
   assert.deepEqual(validateHostedGeneratedLink(action,expected,project),{origin:'https://garage-link-staging-test.vercel.app',path:'/auth/callback',localhost:false});
   assert.deepEqual(validateClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent(expected)}`,expected,project),{origin:'https://garage-link-staging-test.vercel.app',path:'/auth/callback'});
+  const expectedWithRun='https://garage-link-staging-test.vercel.app/auth/callback?next=%2Fsignup%3Fresume%3D1%26qa_run%3D550e8400-e29b-41d4-a716-446655440000&qa_run=550e8400-e29b-41d4-a716-446655440000';
+  const equivalentEncoding='https://garage-link-staging-test.vercel.app/auth/callback?qa_run=550e8400-e29b-41d4-a716-446655440000&next=/signup?qa_run=550e8400-e29b-41d4-a716-446655440000%26resume=1';
+  assert.deepEqual(validateClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent(equivalentEncoding)}`,expectedWithRun,project),{origin:'https://garage-link-staging-test.vercel.app',path:'/auth/callback'});
   assert.throws(()=>validateHostedGeneratedLink(`${project}/auth/v1/verify?redirect_to=${encodeURIComponent('http://localhost:3000/auth/callback')}`,expected,project),/RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_DRIFT/);
   assert.throws(()=>validateClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent('http://localhost:3000/auth/callback')}`,expected,project),/RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:LOCALHOST/);
-  assert.throws(()=>validateClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent('https://garage-link-staging-test.vercel.app/auth/callback?next=%2Fsignup')}`,expected,project),/RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:QUERY/);
+  assert.throws(()=>validateClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent('https://garage-link-staging-test.vercel.app/auth/callback?next=%2Fsignup')}`,expected,project),/RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:(?:QUERY|NEXT)/);
 });
 
 test('hosted Auth update is Staging-only and requires password plus confirmation read-back',async()=>{

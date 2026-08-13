@@ -127,6 +127,10 @@ export function validateHostedGeneratedLink(actionLink,expectedRedirect,supabase
     return {origin:redirect.origin,path:redirect.pathname,localhost:false};
   } catch(error) {if(String(error?.message)==='RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_DRIFT')throw error;fail('RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_DRIFT');}
 }
+function sameUrlSearchParams(left,right,{ignore=new Set()}={}){
+  const normalize=value=>[...value.entries()].filter(([key])=>!ignore.has(key)).sort(([leftKey,leftValue],[rightKey,rightValue])=>leftKey.localeCompare(rightKey)||leftValue.localeCompare(rightValue));
+  return JSON.stringify(normalize(left.searchParams))===JSON.stringify(normalize(right.searchParams));
+}
 export function validateClientAuthRedirect(requestUrl,expectedRedirect,supabaseUrl){
   try {
     const request=new URL(requestUrl); const expected=new URL(expectedRedirect); const project=new URL(supabaseUrl); const rawRedirect=request.searchParams.get('redirect_to');
@@ -140,7 +144,17 @@ export function validateClientAuthRedirect(requestUrl,expectedRedirect,supabaseU
     // email, token, or query values.
     if(redirect.origin!==expected.origin)fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:ORIGIN');
     if(redirect.pathname!==expected.pathname)fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:PATH');
-    if(redirect.search!==expected.search)fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:QUERY');
+    // GoTrue may serialize percent-encoded nested callback parameters
+    // differently from URL.toString(). Compare the decoded callback contract
+    // exactly (including nested `next` parameters) instead of treating an
+    // encoding-only representation change as a green-blocking redirect drift.
+    if(!sameUrlSearchParams(redirect,expected,{ignore:new Set(['next'])}))fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:QUERY');
+    const redirectNext=redirect.searchParams.get('next'); const expectedNext=expected.searchParams.get('next');
+    if((redirectNext===null)!==(expectedNext===null))fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:NEXT');
+    if(redirectNext!==null){
+      const actualNext=new URL(redirectNext,'https://release-qa.invalid'); const expectedNextUrl=new URL(expectedNext,'https://release-qa.invalid');
+      if(actualNext.pathname!==expectedNextUrl.pathname||!sameUrlSearchParams(actualNext,expectedNextUrl))fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:NEXT');
+    }
     return {origin:redirect.origin,path:redirect.pathname};
   } catch(error) {if(String(error?.message??'').startsWith('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:'))throw error;fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:URL');}
 }
