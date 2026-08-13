@@ -72,6 +72,16 @@ export function isExpiredLifecycleReclaimState(state){
 export function isAuthOnlyLifecycleAbortEligible(status){
   return status?.state==='PROVISIONING'&&Array.isArray(status.fixtures)&&status.fixtures.length===0;
 }
+export function classifyUnboundActualEmailRecoveryState(user){
+  // A confirmed address is not itself evidence that a business fixture exists:
+  // the normal product creates tenant/store/membership only after the callback
+  // and resume sequence.  Callback evidence, or an existing lifecycle binding,
+  // is the boundary that makes Auth-only recovery unsafe.
+  if(!user?.id||typeof user.email!=='string')return 'IDENTITY_UNPROVEN';
+  if(user.app_metadata?.release_qa_callback)return 'CALLBACK_EVIDENCE';
+  if(user.app_metadata?.release_qa_run_id||user.app_metadata?.release_qa_email_checkpoint)return 'LIFECYCLE_BINDING_PRESENT';
+  return user.email_confirmed_at?'CONFIRMED_WITHOUT_CALLBACK':'UNCONFIRMED';
+}
 export function releaseCriticalSyntheticPassword(emailMarker){
   if(!/^(?:garage-link-[a-z0-9-]{8,}|g[0-9a-f]{6})$/i.test(emailMarker))fail('RELEASE_CRITICAL_MARKER_INVALID');
   return `GL-${emailMarker}-8!`;
@@ -1158,16 +1168,19 @@ async function persistActualEmailCheckpoint(admin,user,checkpoint){
 async function recoverExplicitUnboundActualEmailFixture({admin,provenance,email,user}){
   // This path exists only to recover the exact QA inbox identity created by
   // the earlier runner defect before it could bind app_metadata. It is opt-in
-  // per workflow dispatch, Staging service-role only, and rejects every sign
-  // of a confirmed or callback-bound account before registering its audit
-  // trail. This exact sign-up path cannot create a store before confirmation,
-  // so its PROVISIONING lifecycle has no business fixture to tear down.
-  if(user.email_confirmed_at)fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_STATE_UNPROVEN:CONFIRMED');
-  if(user.app_metadata?.release_qa_callback)fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_STATE_UNPROVEN:CALLBACK_EVIDENCE');
+  // per workflow dispatch, Staging service-role only. A confirmation without
+  // callback evidence is still Auth-only in this product: tenant/store/
+  // membership creation begins only from the callback-resume flow. Conversely
+  // a callback or prior lifecycle binding is never auto-recovered here.
+  if(user.email?.toLowerCase()!==email.toLowerCase())fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_IDENTITY_UNPROVEN');
+  const recoveryState=classifyUnboundActualEmailRecoveryState(user);
+  if(recoveryState==='CALLBACK_EVIDENCE')fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_STATE_UNPROVEN:CALLBACK_EVIDENCE');
+  if(recoveryState==='LIFECYCLE_BINDING_PRESENT')fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_STATE_UNPROVEN:LIFECYCLE_BINDING_PRESENT');
+  if(recoveryState!=='UNCONFIRMED'&&recoveryState!=='CONFIRMED_WITHOUT_CALLBACK')fail(`RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_STATE_UNPROVEN:${recoveryState}`);
   const createdAt=Date.parse(String(user.created_at??''));
   if(!Number.isFinite(createdAt)||createdAt>Date.now()||Date.now()-createdAt>6*60*60_000)fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_AGE_UNPROVEN');
   const run=createReleaseCriticalRun(); const life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance);
-  const recovery={run_id:run.runId,reason:'pre_binding_actual_email_redirect_failure',recorded_at:new Date().toISOString()};
+  const recovery={run_id:run.runId,reason:'pre_binding_actual_email_auth_only_recovery',confirmed_without_callback:recoveryState==='CONFIRMED_WITHOUT_CALLBACK',recorded_at:new Date().toISOString()};
   const {data,error}=await admin.auth.admin.updateUserById(user.id,{app_metadata:{...user.app_metadata,release_qa_run_id:run.runId,release_qa_marker:run.marker,release_qa_unbound_recovery:recovery}});
   const rebound=data.user;
   if(error||!rebound||rebound.app_metadata?.release_qa_run_id!==run.runId)fail(`RELEASE_CRITICAL_UNBOUND_RECOVERY_BIND:${safeProviderCode(error)}`);
@@ -1175,7 +1188,7 @@ async function recoverExplicitUnboundActualEmailFixture({admin,provenance,email,
   if(await maybeFindUser(admin,email))fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_RESIDUAL');
   const verified=await life.status();
   if(verified.state!=='ABORTED_CLEAN'||verified.final_evidence?.clean!==true||!Array.isArray(verified.fixtures)||verified.fixtures.length!==0)fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_LIFECYCLE_UNPROVEN');
-  emit({state:'RELEASE_CRITICAL_UNBOUND_ACTUAL_EMAIL_RECOVERY_PASS',run_marker_hash:sha256(run.runId),fixture_residual:'ZERO',auth_deleted_last:true});
+  emit({state:'RELEASE_CRITICAL_UNBOUND_ACTUAL_EMAIL_RECOVERY_PASS',run_marker_hash:sha256(run.runId),fixture_residual:'ZERO',auth_deleted_last:true,auth_state:recoveryState});
   return {state:'CLEANED'};
 }
 async function clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email,allowUnboundRecovery=false}){

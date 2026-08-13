@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createActualEmailTransportSession, createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl, validateActualEmailTransportRecipient, verifyManualGmailCallbackReach } from '../../scripts/qa/release-critical-preflight.mjs';
-import { classifyCtaTrace, createActualEmailCheckpoint, createReleaseCriticalRun, installVercelBrowserBypass, isAuthOnlyLifecycleAbortEligible, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, recoverableLifecycleStatus, releaseCriticalSyntheticPassword, validateActualEmailCheckpoint, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
+import { classifyCtaTrace, classifyUnboundActualEmailRecoveryState, createActualEmailCheckpoint, createReleaseCriticalRun, installVercelBrowserBypass, isAuthOnlyLifecycleAbortEligible, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, recoverableLifecycleStatus, releaseCriticalSyntheticPassword, validateActualEmailCheckpoint, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
 import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-stage-auth.mjs';
 import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critical-qa-lifecycle-contract.mjs';
 
@@ -76,7 +76,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(trackedSignupLink,/window\.location\.assign/);
   assert.match(journeys,/recoverExplicitUnboundActualEmailFixture/);
   assert.match(journeys,/RELEASE_CRITICAL_UNBOUND_RECOVERY_AGE_UNPROVEN/);
-  assert.match(journeys,/RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_STATE_UNPROVEN:CONFIRMED/);
+  assert.match(journeys,/CONFIRMED_WITHOUT_CALLBACK/);
   assert.match(journeys,/RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_STATE_UNPROVEN:CALLBACK_EVIDENCE/);
   assert.match(journeys,/one_time_unbound_actual_email_recovery/);
   assert.match(workflow,/recover_unbound_actual_email/);
@@ -536,6 +536,13 @@ test('actual-email reruns recover only a run-bound address conflict through life
   assert.match(journeys,/RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_UNBOUND/);
   assert.match(journeys,/RELEASE_CRITICAL_ADDRESS_BOUND_FIXTURE_RECOVERY_PASS/);
   assert.match(journeys,/await cleanupLifecycle\(recovered\.life,admin,user\.id,run\.runId\)/);
+});
+
+test('unbound actual-email recovery permits only exact callback-free Auth-only states',async()=>{
+  assert.equal(classifyUnboundActualEmailRecoveryState({id:'u',email:'qa@example.test',app_metadata:{}}),'UNCONFIRMED');
+  assert.equal(classifyUnboundActualEmailRecoveryState({id:'u',email:'qa@example.test',email_confirmed_at:'2026-08-13T00:00:00.000Z',app_metadata:{}}),'CONFIRMED_WITHOUT_CALLBACK');
+  assert.equal(classifyUnboundActualEmailRecoveryState({id:'u',email:'qa@example.test',app_metadata:{release_qa_callback:{run_id:'r'}}}),'CALLBACK_EVIDENCE');
+  assert.equal(classifyUnboundActualEmailRecoveryState({id:'u',email:'qa@example.test',app_metadata:{release_qa_run_id:'r'}}),'LIFECYCLE_BINDING_PRESENT');
 });
 
 test('manual Gmail emails are sent only when the exact Staging callback is directly reachable',async()=>{
