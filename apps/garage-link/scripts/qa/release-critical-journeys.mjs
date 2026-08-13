@@ -1155,10 +1155,35 @@ async function persistActualEmailCheckpoint(admin,user,checkpoint){
   if(error||data.user?.app_metadata?.release_qa_email_checkpoint?.run_id!==checkpoint.run_id)fail(`RELEASE_CRITICAL_EMAIL_CHECKPOINT_PERSIST:${safeProviderCode(error)}`);
   return data.user;
 }
-async function clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email}){
+async function recoverExplicitUnboundActualEmailFixture({admin,provenance,email,user}){
+  // This path exists only to recover the exact QA inbox identity created by
+  // the earlier runner defect before it could bind app_metadata. It is opt-in
+  // per workflow dispatch, Staging service-role only, and rejects every sign
+  // of a confirmed or callback-bound account before registering its audit
+  // trail. This exact sign-up path cannot create a store before confirmation,
+  // so its PROVISIONING lifecycle has no business fixture to tear down.
+  if(user.email_confirmed_at||user.app_metadata?.release_qa_callback)fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_STATE_UNPROVEN');
+  const createdAt=Date.parse(String(user.created_at??''));
+  if(!Number.isFinite(createdAt)||createdAt>Date.now()||Date.now()-createdAt>6*60*60_000)fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_AGE_UNPROVEN');
+  const run=createReleaseCriticalRun(); const life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance);
+  const recovery={run_id:run.runId,reason:'pre_binding_actual_email_redirect_failure',recorded_at:new Date().toISOString()};
+  const {data,error}=await admin.auth.admin.updateUserById(user.id,{app_metadata:{...user.app_metadata,release_qa_run_id:run.runId,release_qa_marker:run.marker,release_qa_unbound_recovery:recovery}});
+  const rebound=data.user;
+  if(error||!rebound||rebound.app_metadata?.release_qa_run_id!==run.runId)fail(`RELEASE_CRITICAL_UNBOUND_RECOVERY_BIND:${safeProviderCode(error)}`);
+  await abortAuthOnlyLifecycle(life,admin,rebound,run.runId,'one_time_unbound_actual_email_recovery');
+  if(await maybeFindUser(admin,email))fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_RESIDUAL');
+  const verified=await life.status();
+  if(verified.state!=='ABORTED_CLEAN'||verified.final_evidence?.clean!==true||!Array.isArray(verified.fixtures)||verified.fixtures.length!==0)fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_LIFECYCLE_UNPROVEN');
+  emit({state:'RELEASE_CRITICAL_UNBOUND_ACTUAL_EMAIL_RECOVERY_PASS',run_marker_hash:sha256(run.runId),fixture_residual:'ZERO',auth_deleted_last:true});
+  return {state:'CLEANED'};
+}
+async function clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email,allowUnboundRecovery=false}){
   const user=await maybeFindUser(admin,email); if(!user)return {state:'ABSENT'};
   const runId=user.app_metadata?.release_qa_run_id;
-  if(typeof runId!=='string'||!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_UNBOUND');
+  if(typeof runId!=='string'||!/^[0-9a-f-]{36}$/i.test(runId)){
+    if(!allowUnboundRecovery)fail('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_UNBOUND');
+    return recoverExplicitUnboundActualEmailFixture({admin,provenance,email,user});
+  }
   const run=createReleaseCriticalRun(runId); const life=lifecycle(admin,run,provenance); const status=await life.status();
   const checkpoint=user.app_metadata?.release_qa_email_checkpoint;
   if(checkpoint?.state==='PREPARED'){
@@ -1199,8 +1224,8 @@ async function requestRecoveryForPreparedSession({context,baseUrl,supabaseUrl,em
     return new Date().toISOString();
   } finally {await page.close();}
 }
-async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSecret,run,session,initialPassword}){
-  const existing=await clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email:session.emailAddress});
+async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSecret,run,session,initialPassword,allowUnboundRecovery}){
+  const existing=await clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email:session.emailAddress,allowUnboundRecovery});
   if(existing.state==='PREPARED'){
     emit({state:'RELEASE_CRITICAL_ACTUAL_EMAIL_CHECKPOINT_ALREADY_PREPARED',run_marker_hash:sha256(existing.run.runId),duplicate_confirmation_prevented:true});
     return;
@@ -1276,7 +1301,7 @@ async function main(){
   const manualBase=required('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS'); const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
   if(executionMode==='callback_probe_only'){emit({state:'RELEASE_CRITICAL_CALLBACK_PRECONDITION_PASS',actual_email_generated:false,fixture_residual:'ZERO'});return;}
   const session=createActualEmailTransportSession(manualBase,'g'+randomUUID().replaceAll('-','').slice(0,6));
-  if(executionMode==='actual_email_prepare'){const run=createReleaseCriticalRun(); const prepared={...session,runMarker:run.emailMarker}; return prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSecret,run,session:prepared,initialPassword:releaseCriticalSyntheticPassword(run.emailMarker)});}
+  if(executionMode==='actual_email_prepare'){const run=createReleaseCriticalRun(); const prepared={...session,runMarker:run.emailMarker}; const allowUnboundRecovery=process.env.RELEASE_CRITICAL_ALLOW_UNBOUND_ACTUAL_EMAIL_RECOVERY==='true'; return prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSecret,run,session:prepared,initialPassword:releaseCriticalSyntheticPassword(run.emailMarker),allowUnboundRecovery});}
   if(executionMode==='actual_email_resume'){
     const user=await findUser(admin,session.emailAddress); const runId=user.app_metadata?.release_qa_run_id; if(typeof runId!=='string')fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_RUN_MISSING'); const run=createReleaseCriticalRun(runId); const boundSession={...session,runMarker:run.emailMarker}; return resumeActualEmail({admin,provenance,baseUrl,bypassSecret,run,session:boundSession,resetPassword:'GL-Release-Reset-8!'});
   }

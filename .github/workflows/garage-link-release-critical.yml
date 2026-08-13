@@ -33,6 +33,11 @@ on:
           - actual_email_prepare
           - actual_email_resume
           - callback_probe_only
+      recover_unbound_actual_email:
+        description: One-time Staging recovery for the exact approved QA recipient created by a pre-binding runner defect; normal runs must remain false
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -198,6 +203,7 @@ jobs:
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
       RELEASE_CRITICAL_EXECUTION_MODE: ${{ inputs.execution_scope == 'callback_probe_only' && 'callback_probe_only' || inputs.execution_scope }}
+      RELEASE_CRITICAL_ALLOW_UNBOUND_ACTUAL_EMAIL_RECOVERY: ${{ inputs.recover_unbound_actual_email }}
       RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
     steps:
       - uses: actions/checkout@v4
