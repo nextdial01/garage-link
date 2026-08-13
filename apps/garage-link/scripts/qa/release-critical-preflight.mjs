@@ -73,6 +73,29 @@ export async function fetchVerifiedVercelRequest(url,headers,fetchImpl=fetch,req
   return {response,initial:firstDiagnostic};
 }
 
+// Manual Gmail links open in the operator's browser, not the CI browser that
+// carries the Automation Bypass header.  Do not send a new Auth email unless
+// the exact callback route is publicly reachable on this Staging QA window.
+// This is an access-boundary preflight only; it is not callback-mechanics
+// evidence and never follows a redirect or records a URL query.
+export async function verifyManualGmailCallbackReach(baseUrl,fetchImpl=fetch){
+  let callback;
+  try {
+    callback=new URL('/auth/callback',baseUrl);
+    if(callback.protocol!=='https:'||!/^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i.test(callback.hostname)||PRODUCTION_HOSTS.has(callback.hostname))fail('MANUAL_GMAIL_CALLBACK_ORIGIN_DENIED');
+  } catch(error) {
+    if(String(error?.message)==='MANUAL_GMAIL_CALLBACK_ORIGIN_DENIED')throw error;
+    fail('MANUAL_GMAIL_CALLBACK_ORIGIN_DENIED');
+  }
+  const response=await fetchImpl(callback,{redirect:'manual',cache:'no-store',headers:{accept:'text/html'}});
+  // Standard fetch responses expose response.url.  Keep the callback itself as
+  // the safe diagnostic fallback for unit-test and adapter responses that do
+  // not retain it; redirects are still rejected by the explicit Location test.
+  const finalUrl=safeUrlParts(response.url||callback.toString(),callback);
+  if(response.status<200||response.status>=300||response.headers.has('location')||!finalUrl||finalUrl.origin!==callback.origin||finalUrl.pathname!=='/auth/callback')fail(`MANUAL_GMAIL_CALLBACK_UNREACHED:${response.status}`);
+  return {state:'MANUAL_GMAIL_CALLBACK_REACH_PASS',http_status:response.status,redirect:false};
+}
+
 export async function readManagementProfile(token,fetchImpl=fetch){
   const response=await fetchImpl(managementUrl('/v1/profile'),{headers:managementHeaders(token),redirect:'manual',cache:'no-store'});
   return {status:response.status,redirected:response.redirected,url:safeUrlParts(response.url)?{origin:new URL(response.url).origin,pathname:new URL(response.url).pathname}:null};
@@ -261,6 +284,11 @@ async function main(){
   if(bypass.status<200||bypass.status>=300||bypass.headers.has('location')||new URL(bypass.url).origin!==baseUrl.origin)fail(`VERCEL_AUTOMATION_BYPASS_FAILED:${bypass.status}`);
   const health=await bypass.json().catch(()=>null);
   if(health?.ok!==true||health.service!=='garage-link')fail('VERCEL_AUTOMATION_BYPASS_APPLICATION_UNREACHED');
+  const emailMode=String(process.env.RELEASE_CRITICAL_EMAIL_MODE??'deferred').trim();
+  if(emailMode==='manual_gmail'){
+    const callbackReach=await verifyManualGmailCallbackReach(baseUrl);
+    process.stdout.write(`${JSON.stringify(callbackReach)}\n`);
+  }
   process.stdout.write(`${JSON.stringify({ok:true,state:'PREFLIGHT_READY',environment:'garage-link-staging',source_sha:provenance.git_commit_sha,branch:provenance.git_commit_ref,deployment_id:provenance.deployment_id,base_url:baseUrl.origin,auth:{service_role_admin_api:'PASS',management_api:'NOT_REQUIRED_FOR_NORMAL_RUN',hosted_contract_baseline_run_id:'31488195475',redirect_drift_gate:'HOSTED_GENERATED_LINK_AND_ACTUAL_CALLBACK_FAIL_CLOSED'},email_transport:{state:'DECOUPLED_WAITING_TRANSPORT'},vercel:{project:STAGING_PROJECT_NAME,ready:'PASS',protection_bypass:'VERCEL_AUTOMATION_BYPASS_PASS'}})}\n`);
 }
 

@@ -47,6 +47,9 @@ export function isLifecycleCleanupResumableState(state){
 export function isExpiredLifecycleReclaimState(state){
   return ['TEST_COMPLETE','TEARDOWN_DRY_RUN','TEARDOWN_READY','TEARING_DOWN'].includes(state);
 }
+export function isAuthOnlyLifecycleAbortEligible(status){
+  return status?.state==='PROVISIONING'&&Array.isArray(status.fixtures)&&status.fixtures.length===0;
+}
 export function releaseCriticalSyntheticPassword(emailMarker){
   if(!/^(?:garage-link-[a-z0-9-]{8,}|g[0-9a-f]{6})$/i.test(emailMarker))fail('RELEASE_CRITICAL_MARKER_INVALID');
   return `GL-${emailMarker}-8!`;
@@ -723,15 +726,20 @@ function markerFromRecoveredTenant(tenantName){
   return marker;
 }
 async function abortAuthOnlyLifecycle(life,admin,user,runId,reason){
-  // Auth deletion is permitted only after the staging recovery endpoint has
-  // proved that no membership/store/tenant fixture exists. This preserves the
-  // last-owner invariant and prevents the pre-incident hard-delete leak.
+  // This is deliberately limited to a formally registered PROVISIONING run
+  // with no lifecycle fixture. Abort first, then delete the Auth-only user.
+  // A business fixture must instead go through adoption and ordinary teardown;
+  // this path never weakens the last-owner guard or RLS.
+  const existing=await life.status();
+  if(!isAuthOnlyLifecycleAbortEligible(existing))fail('RELEASE_CRITICAL_AUTH_ONLY_SCOPE_UNPROVEN');
+  await life.rpc('qa_lifecycle_abort_clean',{p_run_id:runId,p_reason:reason});
+  const aborted=await life.status();
+  if(aborted.state!=='ABORTED_CLEAN'||aborted.final_evidence?.clean!==true)fail('RELEASE_CRITICAL_AUTH_ONLY_ABORT_UNPROVEN');
   const {error}=await admin.auth.admin.deleteUser(user.id,false);
   if(error&&error.status!==404)fail(`RELEASE_CRITICAL_AUTH_ONLY_DELETE:${error.status??0}`);
   const {data,error:lookupError}=await admin.auth.admin.getUserById(user.id);
   if(lookupError&&lookupError.status!==404)fail('RELEASE_CRITICAL_AUTH_ONLY_LOOKUP_AFTER_DELETE');
   if(data?.user)fail('RELEASE_CRITICAL_AUTH_ONLY_RESIDUAL');
-  await life.rpc('qa_lifecycle_abort_clean',{p_run_id:runId,p_reason:reason});
   emit({state:'RELEASE_CRITICAL_EARLY_AUTH_ONLY_CLEAN',run_marker_hash:sha256(runId)});
 }
 function lifecycleDeadlineExpired(value){
@@ -812,6 +820,12 @@ async function recoverAddressBoundActualEmailFixture({admin,provenance,baseUrl,b
   const statusLife=lifecycle(admin,run,provenance);
   const existing=await statusLife.maybeStatus();
   if(!existing||existing.state==='COMPLETE')fail('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_LIFECYCLE_UNPROVEN');
+  if(isAuthOnlyLifecycleAbortEligible(existing)){
+    await abortAuthOnlyLifecycle(statusLife,admin,user,run.runId,'interrupted_manual_email_auth_only_recovery');
+    if(await maybeFindUser(admin,email))fail('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_RESIDUAL');
+    emit({state:'RELEASE_CRITICAL_ADDRESS_BOUND_FIXTURE_RECOVERY_PASS',run_marker_hash:sha256(run.runId),cleanup:'FORMAL_AUTH_ONLY_LIFECYCLE'});
+    return true;
+  }
   const recovered=await recoverLifecycleForUser({
     admin,
     provenance,

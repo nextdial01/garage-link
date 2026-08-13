@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createActualEmailTransportSession, createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl, validateActualEmailTransportRecipient } from '../../scripts/qa/release-critical-preflight.mjs';
-import { classifyCtaTrace, createReleaseCriticalRun, installVercelBrowserBypass, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, recoverableLifecycleStatus, releaseCriticalSyntheticPassword, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
+import { createActualEmailTransportSession, createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl, validateActualEmailTransportRecipient, verifyManualGmailCallbackReach } from '../../scripts/qa/release-critical-preflight.mjs';
+import { classifyCtaTrace, createReleaseCriticalRun, installVercelBrowserBypass, isAuthOnlyLifecycleAbortEligible, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, recoverableLifecycleStatus, releaseCriticalSyntheticPassword, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
 import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-stage-auth.mjs';
 import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critical-qa-lifecycle-contract.mjs';
 
@@ -50,6 +50,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(runner,/PREFLIGHT_VERCEL_REDIRECT_DIAGNOSTIC/);
   assert.match(runner,/x-garage-qa-provenance-error/);
   assert.match(runner,/fetchVerifiedVercelRequest/);
+  assert.match(runner,/verifyManualGmailCallbackReach/);
+  assert.match(runner,/MANUAL_GMAIL_CALLBACK_UNREACHED/);
   assert.match(runner,/\/api\/qa\/provenance/);
   assert.match(runner,/RUNTIME_PROVENANCE_RESPONSE_SHAPE_INVALID/);
   assert.match(runner,/readManagementProfile/);
@@ -76,6 +78,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(journeys,/getByRole\('link',\{name:'ログインへ戻る'\}\)\.click/);
   assert.match(journeys,/beginLifecycle\(life,run,provenance\)/);
   assert.match(journeys,/qa_lifecycle_abort_clean/);
+  assert.match(journeys,/isAuthOnlyLifecycleAbortEligible/);
+  assert.match(journeys,/RELEASE_CRITICAL_AUTH_ONLY_SCOPE_UNPROVEN/);
+  assert.ok(journeys.indexOf("qa_lifecycle_abort_clean',{p_run_id:runId") < journeys.indexOf('admin.auth.admin.deleteUser(user.id,false)'));
   assert.match(journeys,/recoverKnownPartialFixture\(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret\)/);
   assert.match(journeys,/ownerFixtureForBrowserSession/);
   assert.match(journeys,/RELEASE_CRITICAL_FIXTURE_DISCOVERY_SAME_OTP_SESSION_PASS/);
@@ -473,6 +478,23 @@ test('actual-email reruns recover only a run-bound address conflict through life
   assert.match(journeys,/RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_UNBOUND/);
   assert.match(journeys,/RELEASE_CRITICAL_ADDRESS_BOUND_FIXTURE_RECOVERY_PASS/);
   assert.match(journeys,/await cleanupLifecycle\(recovered\.life,admin,user\.id,run\.runId\)/);
+});
+
+test('manual Gmail emails are sent only when the exact Staging callback is directly reachable',async()=>{
+  const base='https://garage-link-staging-test-altos-projects-fa55063c.vercel.app';
+  const pass=await verifyManualGmailCallbackReach(base,async(url,options)=>{
+    assert.equal(options.redirect,'manual');
+    assert.equal(new URL(url).pathname,'/auth/callback');
+    return new Response('<html/>',{status:200});
+  });
+  assert.deepEqual(pass,{state:'MANUAL_GMAIL_CALLBACK_REACH_PASS',http_status:200,redirect:false});
+  await assert.rejects(()=>verifyManualGmailCallbackReach(base,async()=>new Response('',{status:302,headers:{location:'https://vercel.com/sso-api'}})),/MANUAL_GMAIL_CALLBACK_UNREACHED:302/);
+});
+
+test('auth-only lifecycle abort is limited to an unadopted provisioning run',()=>{
+  assert.equal(isAuthOnlyLifecycleAbortEligible({state:'PROVISIONING',fixtures:[]}),true);
+  assert.equal(isAuthOnlyLifecycleAbortEligible({state:'PROVISIONING',fixtures:[{fixture_type:'release'}]}),false);
+  assert.equal(isAuthOnlyLifecycleAbortEligible({state:'TEST_RUNNING',fixtures:[]}),false);
 });
 
 test('expired cleanup reclaim only resets registered pre-delete lifecycle states',()=>{
