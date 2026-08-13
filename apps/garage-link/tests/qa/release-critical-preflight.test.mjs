@@ -76,6 +76,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(trackedSignupLink,/window\.location\.assign/);
   assert.match(journeys,/recoverExplicitUnboundActualEmailFixture/);
   assert.match(journeys,/RELEASE_CRITICAL_UNBOUND_RECOVERY_AGE_UNPROVEN/);
+  assert.match(journeys,/RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_STATE_UNPROVEN:CONFIRMED/);
+  assert.match(journeys,/RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_STATE_UNPROVEN:CALLBACK_EVIDENCE/);
   assert.match(journeys,/one_time_unbound_actual_email_recovery/);
   assert.match(workflow,/recover_unbound_actual_email/);
   assert.match(workflow,/RELEASE_CRITICAL_ALLOW_UNBOUND_ACTUAL_EMAIL_RECOVERY/);

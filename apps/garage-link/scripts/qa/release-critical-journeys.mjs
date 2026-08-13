@@ -1162,7 +1162,8 @@ async function recoverExplicitUnboundActualEmailFixture({admin,provenance,email,
   // of a confirmed or callback-bound account before registering its audit
   // trail. This exact sign-up path cannot create a store before confirmation,
   // so its PROVISIONING lifecycle has no business fixture to tear down.
-  if(user.email_confirmed_at||user.app_metadata?.release_qa_callback)fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_STATE_UNPROVEN');
+  if(user.email_confirmed_at)fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_STATE_UNPROVEN:CONFIRMED');
+  if(user.app_metadata?.release_qa_callback)fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_AUTH_STATE_UNPROVEN:CALLBACK_EVIDENCE');
   const createdAt=Date.parse(String(user.created_at??''));
   if(!Number.isFinite(createdAt)||createdAt>Date.now()||Date.now()-createdAt>6*60*60_000)fail('RELEASE_CRITICAL_UNBOUND_RECOVERY_AGE_UNPROVEN');
   const run=createReleaseCriticalRun(); const life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance);
