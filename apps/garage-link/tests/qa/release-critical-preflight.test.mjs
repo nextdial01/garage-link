@@ -10,12 +10,13 @@ import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critica
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,journeys,workflow,qaLifecycleContract,signup,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback,expiredFixtureRecovery,expiredFixtureRecoveryRollback]=await Promise.all([
+  const [runner,journeys,workflow,qaLifecycleContract,signup,trackedSignupLink,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback,expiredFixtureRecovery,expiredFixtureRecoveryRollback]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-qa-lifecycle-contract.mjs'),'utf8'),
     readFile(resolve(appRoot,'src/app/signup/page.tsx'),'utf8'),
+    readFile(resolve(appRoot,'src/components/landing/TrackedSignupLink.tsx'),'utf8'),
     readFile(resolve(appRoot,'src/app/auth/callback/page.tsx'),'utf8'),
     readFile(resolve(appRoot,'src/app/auth/reset-password/page.tsx'),'utf8'),
     readFile(resolve(appRoot,'src/middleware.ts'),'utf8'),
@@ -68,6 +69,11 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/RELEASE_CRITICAL_ACTUAL_EMAIL_CHECKPOINT_PREPARED/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_REQUEST_UNOBSERVED/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_RESPONSE_UNOBSERVED/);
+  assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_QA_RUN_CONTEXT_LOST/);
+  assert.match(journeys,/Wait for the client-owned CTA href to carry the run context/);
+  assert.match(trackedSignupLink,/useSyncExternalStore\(subscribeReleaseQaRun, releaseQaRunSnapshot, \(\) => null\)/);
+  assert.match(trackedSignupLink,/qa_run=\$\{encodeURIComponent\(qaRunId\)\}/);
+  assert.doesNotMatch(trackedSignupLink,/window\.location\.assign/);
   assert.match(journeys,/requestRecoveryForPreparedSession/);
   assert.doesNotMatch(journeys,/run\.emailMarker}-contract/);
   assert.match(journeys,/requireOnboardingCompleted:true/);
@@ -137,6 +143,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_OUTCOME_UNOBSERVED/);
   assert.match(journeys,/Do not create long-lived response waiters before the form is ready/);
   assert.match(journeys,/const \[observedSignupRequest,response\]=await Promise\.all/);
+  assert.match(journeys,/Bind it to this lifecycle immediately so a later redirect/);
+  assert.match(journeys,/user=await bindSyntheticIdentity\(admin,await findUser\(admin,session\.emailAddress\),run\);/);
   assert.match(journeys,/RELEASE_CRITICAL_INQUIRY_ROUTE_UNAVAILABLE/);
   assert.match(journeys,/RELEASE_CRITICAL_CANDIDATE_SHA_INPUT_INVALID/);
   assert.match(journeys,/VERCEL_AUTOMATION_BYPASS_SECRET/);
@@ -560,7 +568,8 @@ test('normal release runs fail closed on Hosted Auth and client redirect drift w
   assert.deepEqual(validateHostedGeneratedLink(action,expected,project),{origin:'https://garage-link-staging-test.vercel.app',path:'/auth/callback',localhost:false});
   assert.deepEqual(validateClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent(expected)}`,expected,project),{origin:'https://garage-link-staging-test.vercel.app',path:'/auth/callback'});
   assert.throws(()=>validateHostedGeneratedLink(`${project}/auth/v1/verify?redirect_to=${encodeURIComponent('http://localhost:3000/auth/callback')}`,expected,project),/RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_DRIFT/);
-  assert.throws(()=>validateClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent('http://localhost:3000/auth/callback')}`,expected,project),/RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID/);
+  assert.throws(()=>validateClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent('http://localhost:3000/auth/callback')}`,expected,project),/RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:LOCALHOST/);
+  assert.throws(()=>validateClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent('https://garage-link-staging-test.vercel.app/auth/callback?next=%2Fsignup')}`,expected,project),/RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:QUERY/);
 });
 
 test('hosted Auth update is Staging-only and requires password plus confirmation read-back',async()=>{

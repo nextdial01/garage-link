@@ -119,10 +119,20 @@ export function validateHostedGeneratedLink(actionLink,expectedRedirect,supabase
 }
 export function validateClientAuthRedirect(requestUrl,expectedRedirect,supabaseUrl){
   try {
-    const request=new URL(requestUrl); const expected=new URL(expectedRedirect); const project=new URL(supabaseUrl); const redirect=new URL(request.searchParams.get('redirect_to')??'');
-    if(request.origin!==project.origin||redirect.toString()!==expected.toString()||redirect.protocol!=='https:'||['localhost','127.0.0.1','[::1]'].includes(redirect.hostname))fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID');
+    const request=new URL(requestUrl); const expected=new URL(expectedRedirect); const project=new URL(supabaseUrl); const rawRedirect=request.searchParams.get('redirect_to');
+    if(!rawRedirect)fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:REDIRECT_MISSING');
+    const redirect=new URL(rawRedirect);
+    if(['localhost','127.0.0.1','[::1]'].includes(redirect.hostname))fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:LOCALHOST');
+    if(request.origin!==project.origin)fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:PROJECT_ORIGIN');
+    if(redirect.protocol!=='https:')fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:PROTOCOL');
+    // Keep the failure category non-sensitive. It distinguishes client-side
+    // run-context loss from Auth host drift without logging the action URL,
+    // email, token, or query values.
+    if(redirect.origin!==expected.origin)fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:ORIGIN');
+    if(redirect.pathname!==expected.pathname)fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:PATH');
+    if(redirect.search!==expected.search)fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:QUERY');
     return {origin:redirect.origin,path:redirect.pathname};
-  } catch(error) {if(String(error?.message)==='RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID')throw error;fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID');}
+  } catch(error) {if(String(error?.message??'').startsWith('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:'))throw error;fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:URL');}
 }
 export async function installVercelBrowserBypass(context,baseUrl,bypassSecret){
   let base;
@@ -1200,7 +1210,12 @@ async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSe
     life=lifecycle(admin,run,provenance); await beginLifecycle(life,run,provenance);
     browser=await chromium.launch({headless:true}); context=await browser.newContext(); await installVercelBrowserBypass(context,baseUrl,bypassSecret); page=await context.newPage();
     await page.goto(`${baseUrl}${baseUrl.includes('?')?'&':'?'}qa_run=${encodeURIComponent(run.runId)}`,{waitUntil:'domcontentloaded'});
+    // Wait for the client-owned CTA href to carry the run context before the
+    // real pointer click. This proves hydration rather than racing it and
+    // prevents an unbound Auth identity if the QA marker has not propagated.
+    await page.waitForFunction((runId)=>Array.from(document.querySelectorAll('a')).some(anchor=>anchor.textContent?.trim()==='無料で始める'&&new URL(anchor.href).searchParams.get('qa_run')===runId),run.runId,{timeout:30_000});
     await clickAndWait(page,page.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
+    if(new URL(page.url()).searchParams.get('qa_run')!==run.runId)fail('RELEASE_CRITICAL_SIGNUP_QA_RUN_CONTEXT_LOST');
     const callback=new URL('/auth/callback',baseUrl); callback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); callback.searchParams.set('qa_run',run.runId);
     // Do not create long-lived response waiters before the form is ready.  If
     // a field assertion fails, finally closes the page and an orphaned waiter
@@ -1212,8 +1227,13 @@ async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSe
       page.getByRole('button',{name:'無料でアカウントを作成する'}).click(),
     ]);
     if(!observedSignupRequest)fail('RELEASE_CRITICAL_SIGNUP_REQUEST_UNOBSERVED');
-    const redirect=validateClientAuthRedirect(observedSignupRequest.url(),callback.toString(),supabaseUrl); if(!response)fail('RELEASE_CRITICAL_SIGNUP_RESPONSE_UNOBSERVED');
+    if(!response)fail('RELEASE_CRITICAL_SIGNUP_RESPONSE_UNOBSERVED');
     if(!response.ok())fail(`RELEASE_CRITICAL_SIGNUP_PROVIDER_REJECTED:${response.status()}`);
+    // The provider can accept the account before the redirect contract is
+    // inspected. Bind it to this lifecycle immediately so a later redirect
+    // failure always uses formal Auth-last cleanup, never an unmarked user.
+    user=await bindSyntheticIdentity(admin,await findUser(admin,session.emailAddress),run);
+    const redirect=validateClientAuthRedirect(observedSignupRequest.url(),callback.toString(),supabaseUrl);
     const outcome=await signupSubmitOutcome(page);
     if(outcome.kind==='alert'){
       const alertText=await page.locator('form').getByRole('alert').textContent();
@@ -1222,7 +1242,6 @@ async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSe
     if(outcome.kind==='onboarding')fail('RELEASE_CRITICAL_SIGNUP_AUTO_CONFIRMED');
     if(outcome.kind!=='confirmation')fail(`RELEASE_CRITICAL_SIGNUP_OUTCOME_INVALID:${outcome.kind}`);
     if(!/確認メールを送信しました/.test(await page.getByRole('status').textContent()??''))fail('RELEASE_CRITICAL_CONFIRMATION_REQUIRED_NOT_PROVEN');
-    user=await bindSyntheticIdentity(admin,await findUser(admin,session.emailAddress),run);
     emit({state:'RELEASE_CRITICAL_SIGNUP_REDIRECT_REQUEST_PASS',redirect_origin:redirect.origin,redirect_path:redirect.path,localhost:false});
     const recoveryRequestedAt=await requestRecoveryForPreparedSession({context,baseUrl,supabaseUrl,email:session.emailAddress,run});
     const checkpoint=createActualEmailCheckpoint({run,provenance,userId:user.id,emailAddress:session.emailAddress,recoveryRequestedAt});
