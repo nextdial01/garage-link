@@ -278,7 +278,13 @@ async function main(){
   }
   const provenance=runtimeProvenance(await provenanceResponse.json().catch(()=>null),baseUrl);
   const expectedSha=process.env.RELEASE_CRITICAL_EXPECTED_SHA?.trim();
-  if(expectedSha&&(!/^[0-9a-f]{40}$/i.test(expectedSha)||provenance.git_commit_sha.toLowerCase()!==expectedSha.toLowerCase()))fail('RUNTIME_PROVENANCE_SHA_MISMATCH');
+  if(expectedSha&&(!/^[0-9a-f]{40}$/i.test(expectedSha)||provenance.git_commit_sha.toLowerCase()!==expectedSha.toLowerCase())){
+    // Both SHAs and the deployment identifier are public runtime provenance,
+    // not credentials.  Emit them only on this fail-closed boundary so a
+    // mismatch can be diagnosed without retrying or exposing request secrets.
+    process.stderr.write(`${JSON.stringify({ok:false,state:'PREFLIGHT_RUNTIME_PROVENANCE_SHA_MISMATCH',expected_sha:expectedSha,runtime:{deployment_id:provenance.deployment_id,git_commit_sha:provenance.git_commit_sha,git_commit_ref:provenance.git_commit_ref}})}\n`);
+    fail('RUNTIME_PROVENANCE_SHA_MISMATCH');
+  }
   const healthUrl=new URL('/api/health',baseUrl);
   const bypass=(await fetchVerifiedVercelRequest(healthUrl,bypassHeaders)).response;
   if(bypass.status<200||bypass.status>=300||bypass.headers.has('location')||new URL(bypass.url).origin!==baseUrl.origin)fail(`VERCEL_AUTOMATION_BYPASS_FAILED:${bypass.status}`);

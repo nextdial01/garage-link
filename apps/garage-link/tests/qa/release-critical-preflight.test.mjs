@@ -245,6 +245,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/RELEASE_CRITICAL_EXPECTED_SHA: \$\{\{ github\.sha \}\}/);
   assert.match(workflow,/source_sha: \$\{\{ steps\.contract\.outputs\.source_sha \}\}/);
   assert.match(runner,/RUNTIME_PROVENANCE_SHA_MISMATCH/);
+  assert.match(runner,/PREFLIGHT_RUNTIME_PROVENANCE_SHA_MISMATCH/);
+  assert.match(runner,/expected_sha:expectedSha/);
+  assert.match(runner,/runtime:\{deployment_id:provenance\.deployment_id/);
   assert.doesNotMatch(workflow,/manual_gmail_address/);
   assert.doesNotMatch(workflow,/GARAGE_STAGING_VERCEL_READ_TOKEN|GARAGE_STAGING_VERCEL_PROJECT_ID|GARAGE_STAGING_VERCEL_TEAM_ID/);
   assert.doesNotMatch(workflow,/release_sha|release_branch|EXPECTED_RELEASE_SHA|EXPECTED_RELEASE_BRANCH/);
