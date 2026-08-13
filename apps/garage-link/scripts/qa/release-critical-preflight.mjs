@@ -285,11 +285,11 @@ async function main(){
   const health=await bypass.json().catch(()=>null);
   if(health?.ok!==true||health.service!=='garage-link')fail('VERCEL_AUTOMATION_BYPASS_APPLICATION_UNREACHED');
   const emailMode=String(process.env.RELEASE_CRITICAL_EMAIL_MODE??'deferred').trim();
+  let manualCallback={state:'NOT_APPLICABLE'};
   if(emailMode==='manual_gmail'){
-    const callbackReach=await verifyManualGmailCallbackReach(baseUrl);
-    process.stdout.write(`${JSON.stringify(callbackReach)}\n`);
+    manualCallback=await verifyManualGmailCallbackReach(baseUrl);
   }
-  process.stdout.write(`${JSON.stringify({ok:true,state:'PREFLIGHT_READY',environment:'garage-link-staging',source_sha:provenance.git_commit_sha,branch:provenance.git_commit_ref,deployment_id:provenance.deployment_id,base_url:baseUrl.origin,auth:{service_role_admin_api:'PASS',management_api:'NOT_REQUIRED_FOR_NORMAL_RUN',hosted_contract_baseline_run_id:'31488195475',redirect_drift_gate:'HOSTED_GENERATED_LINK_AND_ACTUAL_CALLBACK_FAIL_CLOSED'},email_transport:{state:'DECOUPLED_WAITING_TRANSPORT'},vercel:{project:STAGING_PROJECT_NAME,ready:'PASS',protection_bypass:'VERCEL_AUTOMATION_BYPASS_PASS'}})}\n`);
+  process.stdout.write(`${JSON.stringify({ok:true,state:'PREFLIGHT_READY',environment:'garage-link-staging',source_sha:provenance.git_commit_sha,branch:provenance.git_commit_ref,deployment_id:provenance.deployment_id,base_url:baseUrl.origin,auth:{service_role_admin_api:'PASS',management_api:'NOT_REQUIRED_FOR_NORMAL_RUN',hosted_contract_baseline_run_id:'31488195475',redirect_drift_gate:'HOSTED_GENERATED_LINK_AND_ACTUAL_CALLBACK_FAIL_CLOSED'},manual_gmail_callback:manualCallback,email_transport:{state:'DECOUPLED_WAITING_TRANSPORT'},vercel:{project:STAGING_PROJECT_NAME,ready:'PASS',protection_bypass:'VERCEL_AUTOMATION_BYPASS_PASS'}})}\n`);
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)main().catch(error=>{process.stderr.write(`${JSON.stringify({ok:false,code:redact(error)})}\n`);process.exitCode=1});
