@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { translateAuthError } from '@/lib/auth/auth-errors';
 import { rememberedReleaseQaRun, releaseQaNextPath, releaseQaRunId } from '@/lib/auth/releaseQaCallback';
+import { controlledEmailCallbackUrl, controlledEmailConfirmationRedirect } from '@/lib/auth/controlledEmailConfirmation';
 import { createReleaseQaManualEmailClient } from '@/lib/supabase/client';
 
 export default function ForgotPasswordPage() {
@@ -24,11 +25,21 @@ export default function ForgotPasswordPage() {
     const qaRunId = releaseQaRunId(new URLSearchParams(window.location.search).get('qa_run')) ?? rememberedReleaseQaRun();
     const supabase = createReleaseQaManualEmailClient(qaRunId);
     const nextPath = releaseQaNextPath('/auth/reset-password', qaRunId);
-    const callbackUrl = new URL('/auth/callback', window.location.origin);
-    callbackUrl.searchParams.set('next', nextPath);
-    if (qaRunId) callbackUrl.searchParams.set('qa_run', qaRunId);
+    let redirectTo: string;
+    try {
+      const confirmOrigin = process.env.NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN ?? '';
+      const callbackUrl = controlledEmailCallbackUrl(confirmOrigin, nextPath, qaRunId);
+      redirectTo = controlledEmailConfirmationRedirect(
+        confirmOrigin,
+        `${callbackUrl.pathname}${callbackUrl.search}`,
+      );
+    } catch {
+      setIsLoading(false);
+      setMessage('メール認証の安全な入口を準備中です。時間をおいてもう一度お試しください。');
+      return;
+    }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: callbackUrl.toString(),
+      redirectTo,
     });
 
     setIsLoading(false);

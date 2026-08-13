@@ -7,6 +7,7 @@ import BrandLogo from '@/components/BrandLogo';
 import { isEmailConfirmationRequired, translateAuthError } from '@/lib/auth/auth-errors';
 import { hasMinimumPasswordLength, MIN_PASSWORD_LENGTH } from '@/lib/auth/password-policy';
 import { rememberReleaseQaRun, releaseQaNextPath, releaseQaRunId, recordReleaseQaCallback } from '@/lib/auth/releaseQaCallback';
+import { controlledEmailCallbackUrl, controlledEmailConfirmationRedirect } from '@/lib/auth/controlledEmailConfirmation';
 import { readSignupAttribution, trackConversion } from '@/lib/analytics/conversion';
 import { createClient, createReleaseQaManualEmailClient, isStagingReleaseQaImplicitFlow } from '@/lib/supabase/client';
 
@@ -143,14 +144,24 @@ function SignupForm() {
     const supabase = createReleaseQaManualEmailClient(qaRunId);
 
     const nextPath = releaseQaNextPath('/signup?resume=1', qaRunId);
-    const callbackUrl = new URL('/auth/callback', window.location.origin);
-    callbackUrl.searchParams.set('next', nextPath);
-    if (qaRunId) callbackUrl.searchParams.set('qa_run', qaRunId);
+    let emailRedirectTo: string;
+    try {
+      const confirmOrigin = process.env.NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN ?? '';
+      const callbackUrl = controlledEmailCallbackUrl(confirmOrigin, nextPath, qaRunId);
+      emailRedirectTo = controlledEmailConfirmationRedirect(
+        confirmOrigin,
+        `${callbackUrl.pathname}${callbackUrl.search}`,
+      );
+    } catch {
+      setMessage('メール認証の安全な入口を準備中です。時間をおいてもう一度お試しください。');
+      setIsSubmitting(false);
+      return;
+    }
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
-        emailRedirectTo: callbackUrl.toString(),
+        emailRedirectTo,
       },
     });
 

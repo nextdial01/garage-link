@@ -2,6 +2,7 @@ const NON_DELIVERABLE_QA_DOMAINS=new Set([
   'example.invalid','example.com','example.net','example.org',
   'localhost','mailinator.com','guerrillamail.com','10minutemail.com','tempmail.com',
 ]);
+const CONTROLLED_AUTH_EMAIL_CONTRACT='custom_smtp_tokenhash_v1';
 
 function fail(code){throw new Error(code)}
 
@@ -17,4 +18,29 @@ export function validateActualEmailTransportRecipient(value){
   const [,localPart,domain]=match;
   if(NON_DELIVERABLE_QA_DOMAINS.has(domain)||domain.endsWith('.localhost'))fail('EMAIL_TRANSPORT_NOT_CONFIGURED:NON_DELIVERABLE_RECIPIENT');
   return {emailAddress:`${localPart}@${domain}`,recipient:'REDACTED_APPROVED_QA_MAILBOX',plusAddressing:false};
+}
+
+// Recipient syntax alone is not evidence that a real customer-facing Auth
+// email can be delivered. This is a Staging Environment attestation set only
+// after the custom SMTP sender and TokenHash templates are configured. It is
+// intentionally not a secret and prevents falling back to Supabase default
+// SMTP for an actual-email Release Critical run.
+export function validateControlledAuthEmailTransportContract(value){
+  if(String(value??'').trim()!==CONTROLLED_AUTH_EMAIL_CONTRACT){
+    fail('EMAIL_TRANSPORT_NOT_CONFIGURED:CONTROLLED_AUTH_EMAIL_CONTRACT_REQUIRED');
+  }
+  return {contract:CONTROLLED_AUTH_EMAIL_CONTRACT,default_smtp:false};
+}
+
+export function validateControlledAuthConfirmOrigin(value){
+  try {
+    const origin=new URL(String(value??'').trim());
+    if(origin.protocol!=='https:'||origin.pathname!=='/'||origin.search||origin.hash||!/(?:^|\.)garage-link\.tech$/i.test(origin.hostname)){
+      fail('EMAIL_TRANSPORT_NOT_CONFIGURED:CONTROLLED_CONFIRM_ORIGIN_REQUIRED');
+    }
+    return {origin:origin.origin};
+  } catch(error) {
+    if(String(error?.message??'').startsWith('EMAIL_TRANSPORT_NOT_CONFIGURED:'))throw error;
+    fail('EMAIL_TRANSPORT_NOT_CONFIGURED:CONTROLLED_CONFIRM_ORIGIN_REQUIRED');
+  }
 }

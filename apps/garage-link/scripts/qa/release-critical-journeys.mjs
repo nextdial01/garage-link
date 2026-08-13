@@ -12,6 +12,7 @@ const PARTIAL_MARKER='garage-link-139f4794-3a9b-4332-ad72-6ba56e2c8377';
 const PARTIAL_USER_ID='809dc953-e604-48a7-a4b1-606a57aae461';
 const INTERRUPTED_RUN_ID='16a2c261-29ea-4441-b905-2144dc7d320f';
 const RESUME_EVIDENCE_TIMEOUT_MS=90_000;
+const MANUAL_GMAIL_HANDOFF_FRESHNESS_MS=15*60_000;
 
 function fail(code){throw new Error(code)}
 function required(name){const value=process.env[name]?.trim();if(!value)fail(`RELEASE_CRITICAL_JOURNEY_MISSING:${name}`);return value}
@@ -36,32 +37,68 @@ function safeSignupAlertDetail(value){
     .replace(/\s+/g,' ')
     .slice(0,180)||'EMPTY';
 }
+function controlledAuthConfirmOrigin(){
+  try {
+    const origin=new URL(required('RELEASE_CRITICAL_CONTROLLED_AUTH_CONFIRM_ORIGIN'));
+    if(origin.protocol!=='https:'||origin.pathname!=='/'||origin.search||origin.hash||!/(?:^|\.)garage-link\.tech$/i.test(origin.hostname))fail('RELEASE_CRITICAL_CONTROLLED_CONFIRM_ORIGIN_INVALID');
+    return origin.origin;
+  } catch(error) {
+    if(String(error?.message??'').startsWith('RELEASE_CRITICAL_'))throw error;
+    fail('RELEASE_CRITICAL_CONTROLLED_CONFIRM_ORIGIN_INVALID');
+  }
+}
+export async function verifyControlledAuthConfirmReach(origin,fetchImpl=fetch){
+  let response;
+  try {
+    response=await fetchImpl(new URL('/auth/confirm',origin),{
+      redirect:'manual',
+      cache:'no-store',
+      headers:{accept:'text/html'},
+    });
+  } catch {
+    fail('RELEASE_CRITICAL_CONTROLLED_CONFIRM_UNREACHED');
+  }
+  if(!response.ok||response.headers.has('location'))fail(`RELEASE_CRITICAL_CONTROLLED_CONFIRM_UNREACHED:${response.status}`);
+  return {
+    state:'RELEASE_CRITICAL_CONTROLLED_CONFIRM_REACH_PASS',
+    confirmation_origin:new URL(origin).origin,
+    http_status:response.status,
+    redirect:false,
+  };
+}
 
 export function createReleaseCriticalRun(runId=randomUUID()){
   if(!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_RUN_ID_INVALID');
   return {runId,marker:'[RELEASE QA 20260811]',emailMarker:`g${runId.replaceAll('-','').slice(0,6).toLowerCase()}`};
 }
-export function createActualEmailCheckpoint({run,provenance,userId,emailAddress,generatedAt=new Date().toISOString()}){
-  if(!run?.runId||!/^[0-9a-f-]{36}$/i.test(run.runId)||!provenance?.sourceSha||!provenance?.deploymentId||!userId||!emailAddress)fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_INPUT_INVALID');
+export function createActualEmailCheckpoint({run,provenance,userId,emailAddress,confirmationOrigin,generatedAt=new Date().toISOString()}){
+  if(!run?.runId||!/^[0-9a-f-]{36}$/i.test(run.runId)||!provenance?.sourceSha||!provenance?.deploymentId||!userId||!emailAddress||!/^https:\/\/(?:[a-z0-9-]+\.)?garage-link\.tech$/i.test(confirmationOrigin??''))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_INPUT_INVALID');
+  const generatedAtMs=Date.parse(generatedAt); if(!Number.isFinite(generatedAtMs))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_INPUT_INVALID');
   return {
-    version:'v2',
+    version:'v3',
     state:'SIGNUP_PREPARED',
     run_id:run.runId,
     candidate_sha:provenance.sourceSha,
     deployment_id:provenance.deploymentId,
     user_id:userId,
     recipient_sha256:sha256(emailAddress.toLowerCase()),
+    confirmation_origin:confirmationOrigin,
     generated_at:generatedAt,
+    handoff_expires_at:new Date(generatedAtMs+MANUAL_GMAIL_HANDOFF_FRESHNESS_MS).toISOString(),
   };
 }
 export function validateActualEmailCheckpoint(checkpoint,{run,provenance,userId,emailAddress}){
-  if(!checkpoint||checkpoint.version!=='v2'||!['SIGNUP_PREPARED','RECOVERY_PREPARED','COMPLETED'].includes(checkpoint.state)
+  if(!checkpoint||checkpoint.version!=='v3'||!['SIGNUP_PREPARED','RECOVERY_PREPARED','COMPLETED'].includes(checkpoint.state)
     ||checkpoint.run_id!==run?.runId||checkpoint.candidate_sha!==provenance?.sourceSha
     ||checkpoint.deployment_id!==provenance?.deploymentId||checkpoint.user_id!==userId
-    ||checkpoint.recipient_sha256!==sha256(String(emailAddress??'').toLowerCase())
-    ||!Number.isFinite(Date.parse(checkpoint.generated_at??''))
+    ||checkpoint.recipient_sha256!==sha256(String(emailAddress??'').toLowerCase())||!/^https:\/\/(?:[a-z0-9-]+\.)?garage-link\.tech$/i.test(checkpoint.confirmation_origin??'')
+    ||!Number.isFinite(Date.parse(checkpoint.generated_at??''))||!Number.isFinite(Date.parse(checkpoint.handoff_expires_at??''))
     ||(['RECOVERY_PREPARED','COMPLETED'].includes(checkpoint.state)&&!Number.isFinite(Date.parse(checkpoint.recovery_requested_at??''))))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_MISMATCH');
   return checkpoint;
+}
+export function isActualEmailCheckpointFresh(checkpoint,now=Date.now()){
+  const expires=Date.parse(checkpoint?.handoff_expires_at??'');
+  return Number.isFinite(expires)&&now<=expires;
 }
 export function isLifecycleCleanupResumableState(state){
   return ['TEST_COMPLETE','TEARDOWN_DRY_RUN','TEARDOWN_READY','TEARING_DOWN','DB_CLEANED','AUTH_CLEANED','STORAGE_CLEANED','ARTIFACTS_CLEANED','VERIFIED_CLEAN'].includes(state);
@@ -157,6 +194,17 @@ export function validateClientAuthRedirect(requestUrl,expectedRedirect,supabaseU
     }
     return {origin:redirect.origin,path:redirect.pathname};
   } catch(error) {if(String(error?.message??'').startsWith('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:'))throw error;fail('RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:URL');}
+}
+export function validateControlledClientAuthRedirect(requestUrl,expectedCallbackPath,supabaseUrl){
+  try {
+    const request=new URL(requestUrl); const redirect=new URL(request.searchParams.get('redirect_to')??'');
+    if(redirect.protocol!=='https:'||!/(?:^|\.)garage-link\.tech$/i.test(redirect.hostname)||redirect.pathname!=='/auth/confirm')fail('RELEASE_CRITICAL_CONTROLLED_CONFIRM_ENTRY_INVALID');
+    const expectedCallback=new URL(expectedCallbackPath,'https://release-qa.invalid');
+    if(expectedCallback.origin!=='https://release-qa.invalid'||expectedCallback.pathname!=='/auth/callback')fail('RELEASE_CRITICAL_CONTROLLED_CONFIRM_ENTRY_INVALID');
+    const expected=new URL('/auth/confirm',redirect.origin); expected.searchParams.set('next',`${expectedCallback.pathname}${expectedCallback.search}`);
+    const verified=validateClientAuthRedirect(requestUrl,expected.toString(),supabaseUrl);
+    return {...verified,callbackPath:expectedCallback.pathname};
+  } catch(error) {if(String(error?.message??'').startsWith('RELEASE_CRITICAL_'))throw error;fail('RELEASE_CRITICAL_CONTROLLED_CONFIRM_ENTRY_INVALID');}
 }
 export async function installVercelBrowserBypass(context,baseUrl,bypassSecret){
   let base;
@@ -720,14 +768,14 @@ export async function adoptLifecycleFixture(life,run,fixture,{fixtureMarker=run.
   await life.transition('PROVISIONED','AUTH_READY','run');
   await life.transition('AUTH_READY','TEST_RUNNING','run');
 }
-async function pollCallbackEvidence({admin,userId,run,baseUrl,purpose,requireStoreCreated=false,requireOnboardingCompleted=false,requirePasswordUpdate=false,timeoutMs=RESUME_EVIDENCE_TIMEOUT_MS,intervalMs=5_000,sleep=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds))}){
+async function pollCallbackEvidence({admin,userId,run,baseUrl,expectedOrigin=baseUrl,purpose,requireStoreCreated=false,requireOnboardingCompleted=false,requirePasswordUpdate=false,timeoutMs=RESUME_EVIDENCE_TIMEOUT_MS,intervalMs=5_000,sleep=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds))}){
   const expectedNext=purpose==='signup'?`/signup?resume=1&qa_run=${run.runId}`:`/auth/reset-password?qa_run=${run.runId}`;
   const deadline=Date.now()+timeoutMs;
   while(Date.now()<deadline){
     const {data,error}=await admin.auth.admin.getUserById(userId); const evidence=data?.user?.app_metadata?.release_qa_callback?.[purpose];
     if(error)fail(`RELEASE_CRITICAL_CALLBACK_EVIDENCE_READ_FAILED:${error.status??0}`);
     const callback=evidence?.callback; const arrival=evidence?.arrival; const storeCreated=evidence?.store_created; const onboardingCompleted=evidence?.onboarding_completed; const passwordUpdated=evidence?.password_updated;
-    const valid=value=>value&&value.next_path===expectedNext&&value.origin===new URL(baseUrl).origin&&typeof value.recorded_at==='string';
+    const valid=value=>value&&value.next_path===expectedNext&&value.origin===new URL(expectedOrigin).origin&&typeof value.recorded_at==='string';
     const ordered=valid(callback)&&valid(arrival)&&Date.parse(callback.recorded_at)<=Date.parse(arrival.recorded_at);
     const continued=value=>valid(value)&&value.server_bound_continuation===true&&value.continuation_of_callback_at===callback.recorded_at&&Date.parse(value.recorded_at)>=Date.parse(arrival.recorded_at);
     if(ordered&&(!requireStoreCreated||continued(storeCreated))&&(!requireOnboardingCompleted||continued(onboardingCompleted))&&(!requirePasswordUpdate||continued(passwordUpdated)))return {state:'RELEASE_CRITICAL_CALLBACK_EVIDENCE_PASS',purpose,run_marker:run.emailMarker,actual_callback_chain:true,activation_chain:requireStoreCreated||requireOnboardingCompleted,server_bound_continuation:requireStoreCreated||requireOnboardingCompleted||requirePasswordUpdate,fixture:onboardingCompleted?.fixture??null};
@@ -1226,8 +1274,9 @@ async function clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl
   const run=createReleaseCriticalRun(runId); const life=lifecycle(admin,run,provenance); const status=await life.status();
   const checkpoint=user.app_metadata?.release_qa_email_checkpoint;
   if(checkpoint?.state==='SIGNUP_PREPARED'){
-    validateActualEmailCheckpoint(checkpoint,{run,provenance,userId:user.id,emailAddress:email});
-    if(!user.email_confirmed_at&&Array.isArray(status.fixtures)&&status.fixtures.length===0)return {state:'PREPARED',run,user,life,checkpoint};
+    let validCheckpoint=null;
+    try {validCheckpoint=validateActualEmailCheckpoint(checkpoint,{run,provenance,userId:user.id,emailAddress:email});} catch {validCheckpoint=null;}
+    if(validCheckpoint&&isActualEmailCheckpointFresh(validCheckpoint)&&!user.email_confirmed_at&&Array.isArray(status.fixtures)&&status.fixtures.length===0)return {state:'PREPARED',run,user,life,checkpoint:validCheckpoint};
   }
   const callback=user.app_metadata?.release_qa_callback;
   if(!user.email_confirmed_at&&!callback&&isAuthOnlyLifecycleAbortEligible(status)){
@@ -1256,18 +1305,18 @@ async function requestRecoveryForPreparedSession({context,baseUrl,supabaseUrl,em
     if(new URL(page.url()).searchParams.get('qa_run')!==run.runId)fail('RELEASE_CRITICAL_RECOVERY_LOGIN_QA_RUN_CONTEXT_LOST');
     await clickAndWait(page,page.getByRole('link',{name:'忘れた方はこちら'}),/\/forgot-password/);
     if(new URL(page.url()).searchParams.get('qa_run')!==run.runId)fail('RELEASE_CRITICAL_RECOVERY_FORGOT_QA_RUN_CONTEXT_LOST');
-    const recoveryCallback=new URL('/auth/callback',baseUrl); recoveryCallback.searchParams.set('next',releaseQaNextPathForRunner('/auth/reset-password',run.runId)); recoveryCallback.searchParams.set('qa_run',run.runId);
+    const recoveryCallback=new URL('/auth/callback','https://release-qa.invalid'); recoveryCallback.searchParams.set('next',releaseQaNextPathForRunner('/auth/reset-password',run.runId)); recoveryCallback.searchParams.set('qa_run',run.runId);
     const request=page.waitForRequest(candidate=>candidate.method()==='POST'&&new URL(candidate.url()).pathname==='/auth/v1/recover',{timeout:30_000});
     const response=page.waitForResponse(candidate=>candidate.request().method()==='POST'&&new URL(candidate.url()).pathname==='/auth/v1/recover',{timeout:30_000});
     await page.getByLabel('メールアドレス').fill(email); await page.getByRole('button',{name:'メールを送る'}).click();
     const [observedRequest,observedResponse]=await Promise.all([request,response]);
-    const redirect=validateClientAuthRedirect(observedRequest.url(),recoveryCallback.toString(),supabaseUrl);
+    const redirect=validateControlledClientAuthRedirect(observedRequest.url(),`${recoveryCallback.pathname}${recoveryCallback.search}`,supabaseUrl);
     if(!observedResponse.ok()){
       const body=await observedResponse.json().catch(()=>null);
       fail(`RELEASE_CRITICAL_RECOVERY_PROVIDER_REJECTED:${observedResponse.status()}:${safeSignupAlertDetail(body?.msg??body?.message??body?.error)}`);
     }
     await page.getByRole('status').filter({hasText:'再設定メールを送りました。'}).waitFor({timeout:30_000});
-    emit({state:'RELEASE_CRITICAL_RECOVERY_REDIRECT_REQUEST_PASS',redirect_origin:redirect.origin,redirect_path:redirect.path,localhost:false});
+    emit({state:'RELEASE_CRITICAL_RECOVERY_REDIRECT_REQUEST_PASS',confirmation_origin:redirect.origin,confirmation_path:redirect.path,callback_path:redirect.callbackPath,localhost:false,controlled_domain:true});
     return new Date().toISOString();
   } finally {await page.close();}
 }
@@ -1285,6 +1334,8 @@ async function probeManualEmailContextAcrossFreshNavigation({baseUrl,bypassSecre
   } finally {await page?.close();await context?.close();await browser?.close();}
 }
 async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSecret,run,session,initialPassword,allowUnboundRecovery}){
+  const confirmationOrigin=controlledAuthConfirmOrigin();
+  emit(await verifyControlledAuthConfirmReach(confirmationOrigin));
   const existing=await clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email:session.emailAddress,allowUnboundRecovery});
   if(existing.state==='PREPARED'){
     emit({state:'RELEASE_CRITICAL_ACTUAL_EMAIL_CHECKPOINT_ALREADY_PREPARED',run_marker_hash:sha256(existing.run.runId),duplicate_confirmation_prevented:true});
@@ -1301,7 +1352,7 @@ async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSe
     await page.waitForFunction((runId)=>Array.from(document.querySelectorAll('a')).some(anchor=>anchor.textContent?.trim()==='無料で始める'&&new URL(anchor.href).searchParams.get('qa_run')===runId),run.runId,{timeout:30_000});
     await clickAndWait(page,page.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
     if(new URL(page.url()).searchParams.get('qa_run')!==run.runId)fail('RELEASE_CRITICAL_SIGNUP_QA_RUN_CONTEXT_LOST');
-    const callback=new URL('/auth/callback',baseUrl); callback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); callback.searchParams.set('qa_run',run.runId);
+    const callback=new URL('/auth/callback','https://release-qa.invalid'); callback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); callback.searchParams.set('qa_run',run.runId);
     // Do not create long-lived response waiters before the form is ready.  If
     // a field assertion fails, finally closes the page and an orphaned waiter
     // would mask the real error with TargetClosedError.
@@ -1322,7 +1373,7 @@ async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSe
     // inspected. Bind it to this lifecycle immediately so a later redirect
     // failure always uses formal Auth-last cleanup, never an unmarked user.
     user=await bindSyntheticIdentity(admin,await findUser(admin,session.emailAddress),run);
-    const redirect=validateClientAuthRedirect(observedSignupRequest.url(),callback.toString(),supabaseUrl);
+    const redirect=validateControlledClientAuthRedirect(observedSignupRequest.url(),`${callback.pathname}${callback.search}`,supabaseUrl);
     const outcome=await signupSubmitOutcome(page);
     if(outcome.kind==='alert'){
       const alertText=await page.locator('form').getByRole('alert').textContent();
@@ -1331,10 +1382,11 @@ async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSe
     if(outcome.kind==='onboarding')fail('RELEASE_CRITICAL_SIGNUP_AUTO_CONFIRMED');
     if(outcome.kind!=='confirmation')fail(`RELEASE_CRITICAL_SIGNUP_OUTCOME_INVALID:${outcome.kind}`);
     if(!/確認メールを送信しました/.test(await page.getByRole('status').textContent()??''))fail('RELEASE_CRITICAL_CONFIRMATION_REQUIRED_NOT_PROVEN');
-    emit({state:'RELEASE_CRITICAL_SIGNUP_REDIRECT_REQUEST_PASS',redirect_origin:redirect.origin,redirect_path:redirect.path,localhost:false});
-    const checkpoint=createActualEmailCheckpoint({run,provenance,userId:user.id,emailAddress:session.emailAddress});
+    emit({state:'RELEASE_CRITICAL_SIGNUP_REDIRECT_REQUEST_PASS',confirmation_origin:redirect.origin,confirmation_path:redirect.path,callback_path:redirect.callbackPath,localhost:false,controlled_domain:true});
+    const checkpoint=createActualEmailCheckpoint({run,provenance,userId:user.id,emailAddress:session.emailAddress,confirmationOrigin:redirect.origin});
+    if(!isActualEmailCheckpointFresh(checkpoint))fail('RELEASE_CRITICAL_MANUAL_GMAIL_HANDOFF_STALE');
     user=await persistActualEmailCheckpoint(admin,user,checkpoint);
-    emit({...manualGmailCheckpoint(session,'signup'),state:'RELEASE_CRITICAL_ACTUAL_EMAIL_CHECKPOINT_PREPARED',checkpoint_version:checkpoint.version,run_marker_hash:sha256(run.runId),recipient:'REDACTED_MANUAL_GMAIL_ADDRESS',confirmation_redirect_origin:redirect.origin,confirmation_redirect_path:redirect.path,localhost:false,recovery_requested:false,operator_action:'Open only the newest Staging confirmation email, verify the Staging HTTPS callback, then complete store creation and onboarding. Do not request a password reset yet; reply 完了 after dashboard arrival.'});
+    emit({...manualGmailCheckpoint(session,'signup'),state:'RELEASE_CRITICAL_ACTUAL_EMAIL_CHECKPOINT_PREPARED',checkpoint_version:checkpoint.version,run_marker_hash:sha256(run.runId),recipient:'REDACTED_MANUAL_GMAIL_ADDRESS',confirmation_origin:redirect.origin,confirmation_path:redirect.path,callback_path:redirect.callbackPath,localhost:false,controlled_domain:true,handoff_expires_at:checkpoint.handoff_expires_at,recovery_requested:false,operator_action:'Open only the newest GARAGE LINK controlled-domain confirmation email immediately. Confirm that it opens /auth/confirm, then press the explicit confirmation button, and complete store creation and onboarding. Do not request a password reset yet; reply 完了 after dashboard arrival.'});
   } catch(error) {
     if(user?.id){const latest=await findUser(admin,session.emailAddress); await clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email:latest.email});}
     else if(life)await abortUnprovisionedLifecycle(life,run.runId,'provider_rejected_before_auth_identity');
@@ -1343,21 +1395,29 @@ async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSe
 }
 async function resumeActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSecret,run,session,resetPassword}){
   const user=await findUser(admin,session.emailAddress); const checkpoint=validateActualEmailCheckpoint(user.app_metadata?.release_qa_email_checkpoint,{run,provenance,userId:user.id,emailAddress:session.emailAddress});
-  if(!user.email_confirmed_at)fail('RELEASE_CRITICAL_EMAIL_CONFIRMATION_UNPROVEN');
-  const signupEvidence=await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true,requireOnboardingCompleted:true});
+  if(!user.email_confirmed_at){
+    if(!isActualEmailCheckpointFresh(checkpoint)){
+      const stale=await clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email:session.emailAddress});
+      if(stale.state!=='CLEANED')fail('RELEASE_CRITICAL_MANUAL_GMAIL_CHECKPOINT_STALE');
+      fail('RELEASE_CRITICAL_MANUAL_GMAIL_CHECKPOINT_STALE_CLEANED');
+    }
+    fail('RELEASE_CRITICAL_EMAIL_CONFIRMATION_UNPROVEN');
+  }
+  const signupEvidence=await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,expectedOrigin:checkpoint.confirmation_origin,purpose:'signup',requireStoreCreated:true,requireOnboardingCompleted:true});
   if(checkpoint.state==='SIGNUP_PREPARED'){
     let browser; let context;
     try {
       browser=await chromium.launch({headless:true}); context=await browser.newContext(); await installVercelBrowserBypass(context,baseUrl,bypassSecret);
       const recoveryRequestedAt=await requestRecoveryForPreparedSession({context,baseUrl,supabaseUrl,email:session.emailAddress,run});
-      const recoveryCheckpoint={...checkpoint,state:'RECOVERY_PREPARED',recovery_requested_at:recoveryRequestedAt};
+      const recoveryCheckpoint={...checkpoint,state:'RECOVERY_PREPARED',recovery_requested_at:recoveryRequestedAt,handoff_expires_at:new Date(Date.parse(recoveryRequestedAt)+MANUAL_GMAIL_HANDOFF_FRESHNESS_MS).toISOString()};
+      if(!isActualEmailCheckpointFresh(recoveryCheckpoint))fail('RELEASE_CRITICAL_MANUAL_GMAIL_HANDOFF_STALE');
       await persistActualEmailCheckpoint(admin,user,recoveryCheckpoint);
-      emit({...manualGmailCheckpoint(session,'recovery'),state:'RELEASE_CRITICAL_ACTUAL_EMAIL_RECOVERY_CHECKPOINT_PREPARED',checkpoint_version:recoveryCheckpoint.version,run_marker_hash:sha256(run.runId),recipient:'REDACTED_MANUAL_GMAIL_ADDRESS',operator_action:'Open only the newest Staging password-reset email, verify the Staging HTTPS callback, set GL-Release-Reset-8!, and submit. Reply 完了 after returning to GARAGE LINK.'});
+      emit({...manualGmailCheckpoint(session,'recovery'),state:'RELEASE_CRITICAL_ACTUAL_EMAIL_RECOVERY_CHECKPOINT_PREPARED',checkpoint_version:recoveryCheckpoint.version,run_marker_hash:sha256(run.runId),recipient:'REDACTED_MANUAL_GMAIL_ADDRESS',controlled_domain:true,handoff_expires_at:recoveryCheckpoint.handoff_expires_at,operator_action:'Open only the newest GARAGE LINK controlled-domain password-reset email immediately. Confirm that it opens /auth/confirm, press the explicit confirmation button, set GL-Release-Reset-8!, and submit. Reply 完了 after returning to GARAGE LINK.'});
     } finally {await context?.close(); await browser?.close();}
     fail('RELEASE_CRITICAL_WAITING_MANUAL_GMAIL_RESET');
   }
   if(checkpoint.state!=='RECOVERY_PREPARED')fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_STATE_INVALID');
-  await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'recovery',requirePasswordUpdate:true});
+  await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,expectedOrigin:checkpoint.confirmation_origin,purpose:'recovery',requirePasswordUpdate:true});
   const owner=readCallbackFixture(signupEvidence.fixture,run.marker); const life=lifecycle(admin,run,provenance); await adoptLifecycleFixture(life,run,{...owner,userId:user.id});
   let browser; let context; let page;
   try {

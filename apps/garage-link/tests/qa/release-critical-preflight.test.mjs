@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createActualEmailTransportSession, createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl, validateActualEmailTransportRecipient, verifyManualGmailCallbackReach } from '../../scripts/qa/release-critical-preflight.mjs';
-import { bindSyntheticIdentity, classifyCtaTrace, classifyUnboundActualEmailRecoveryState, createActualEmailCheckpoint, createReleaseCriticalRun, installVercelBrowserBypass, isAuthOnlyLifecycleAbortEligible, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, recoverableLifecycleStatus, releaseCriticalSyntheticPassword, validateActualEmailCheckpoint, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
+import { validateControlledAuthConfirmOrigin, validateControlledAuthEmailTransportContract } from '../../scripts/qa/release-critical-email-transport.mjs';
+import { bindSyntheticIdentity, classifyCtaTrace, classifyUnboundActualEmailRecoveryState, createActualEmailCheckpoint, createReleaseCriticalRun, installVercelBrowserBypass, isActualEmailCheckpointFresh, isAuthOnlyLifecycleAbortEligible, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, recoverableLifecycleStatus, releaseCriticalSyntheticPassword, validateActualEmailCheckpoint, validateClientAuthRedirect, validateControlledClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance, verifyControlledAuthConfirmReach } from '../../scripts/qa/release-critical-journeys.mjs';
 import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-stage-auth.mjs';
 import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critical-qa-lifecycle-contract.mjs';
 
@@ -93,6 +94,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/recover_unbound_actual_email/);
   assert.match(workflow,/RELEASE_CRITICAL_ALLOW_UNBOUND_ACTUAL_EMAIL_RECOVERY/);
   assert.match(journeys,/RELEASE_CRITICAL_ACTUAL_EMAIL_RECOVERY_CHECKPOINT_PREPARED/);
+  assert.match(journeys,/RELEASE_CRITICAL_CONTROLLED_CONFIRM_ENTRY_INVALID/);
+  assert.match(journeys,/RELEASE_CRITICAL_MANUAL_GMAIL_HANDOFF_STALE/);
   assert.match(journeys,/RELEASE_CRITICAL_WAITING_MANUAL_GMAIL_RESET/);
   const actualEmailPrepareSource=journeys.slice(journeys.indexOf('async function prepareActualEmail'),journeys.indexOf('async function resumeActualEmail'));
   const actualEmailResumeSource=journeys.slice(journeys.indexOf('async function resumeActualEmail'),journeys.indexOf('async function main'));
@@ -528,7 +531,7 @@ test('release-critical journeys accept only the Staging runtime and marker-bound
 test('actual-email checkpoint separates signup and recovery transport without storing an address',()=>{
   const run=createReleaseCriticalRun('550e8400-e29b-41d4-a716-446655440000');
   const provenance={sourceSha:'d7974d6b9adc78064010cc6b4502f54adbc39ba5',deploymentId:'dpl_Abc123'};
-  const checkpoint=createActualEmailCheckpoint({run,provenance,userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',generatedAt:'2026-08-13T10:00:00.000Z'});
+  const checkpoint=createActualEmailCheckpoint({run,provenance,userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',confirmationOrigin:'https://staging.garage-link.tech',generatedAt:'2026-08-13T10:00:00.000Z'});
   assert.equal(checkpoint.state,'SIGNUP_PREPARED');
   assert.equal(checkpoint.run_id,run.runId);
   assert.equal(checkpoint.candidate_sha,provenance.sourceSha);
@@ -625,6 +628,41 @@ test('normal release runs fail closed on Hosted Auth and client redirect drift w
   assert.throws(()=>validateHostedGeneratedLink(`${project}/auth/v1/verify?redirect_to=${encodeURIComponent('http://localhost:3000/auth/callback')}`,expected,project),/RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_DRIFT/);
   assert.throws(()=>validateClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent('http://localhost:3000/auth/callback')}`,expected,project),/RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:LOCALHOST/);
   assert.throws(()=>validateClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent('https://garage-link-staging-test.vercel.app/auth/callback?next=%2Fsignup')}`,expected,project),/RELEASE_CRITICAL_CLIENT_REDIRECT_INVALID:(?:QUERY|NEXT)/);
+});
+
+test('controlled-domain Auth entry preserves the exact callback continuation and rejects public redirects',()=>{
+  const project='https://gaytoojzwqkpuvfofeql.supabase.co';
+  const callback='/auth/callback?next=%2Fsignup%3Fresume%3D1%26qa_run%3D550e8400-e29b-41d4-a716-446655440000&qa_run=550e8400-e29b-41d4-a716-446655440000';
+  const entry=`https://staging.garage-link.tech/auth/confirm?next=${encodeURIComponent(callback)}`;
+  assert.deepEqual(validateControlledClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent(entry)}`,callback,project),{origin:'https://staging.garage-link.tech',path:'/auth/confirm',callbackPath:'/auth/callback'});
+  assert.throws(()=>validateControlledClientAuthRedirect(`${project}/auth/v1/signup?redirect_to=${encodeURIComponent(`https://attacker.example/auth/confirm?next=${encodeURIComponent(callback)}`)}`,callback,project),/RELEASE_CRITICAL_CONTROLLED_CONFIRM_ENTRY_INVALID/);
+});
+
+test('human handoff freshness is bounded and checkpoint evidence cannot be reused indefinitely',()=>{
+  const run=createReleaseCriticalRun('550e8400-e29b-41d4-a716-446655440000');
+  const provenance={sourceSha:'a'.repeat(40),deploymentId:'dpl_abc'};
+  const checkpoint=createActualEmailCheckpoint({run,provenance,userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',confirmationOrigin:'https://staging.garage-link.tech',generatedAt:'2026-08-14T00:00:00.000Z'});
+  assert.equal(checkpoint.version,'v3');
+  assert.equal(isActualEmailCheckpointFresh(checkpoint,Date.parse('2026-08-14T00:14:59.999Z')),true);
+  assert.equal(isActualEmailCheckpointFresh(checkpoint,Date.parse('2026-08-14T00:15:00.001Z')),false);
+});
+
+test('actual-email readiness rejects Supabase default SMTP until the controlled-domain contract is configured',()=>{
+  assert.deepEqual(validateControlledAuthEmailTransportContract('custom_smtp_tokenhash_v1'),{contract:'custom_smtp_tokenhash_v1',default_smtp:false});
+  assert.throws(()=>validateControlledAuthEmailTransportContract(''),/EMAIL_TRANSPORT_NOT_CONFIGURED:CONTROLLED_AUTH_EMAIL_CONTRACT_REQUIRED/);
+  assert.throws(()=>validateControlledAuthEmailTransportContract('default_smtp'),/EMAIL_TRANSPORT_NOT_CONFIGURED:CONTROLLED_AUTH_EMAIL_CONTRACT_REQUIRED/);
+  assert.deepEqual(validateControlledAuthConfirmOrigin('https://auth-staging.garage-link.tech'),{origin:'https://auth-staging.garage-link.tech'});
+  assert.throws(()=>validateControlledAuthConfirmOrigin('https://garage-link-staging.vercel.app'),/EMAIL_TRANSPORT_NOT_CONFIGURED:CONTROLLED_CONFIRM_ORIGIN_REQUIRED/);
+});
+
+test('controlled confirmation page must be reachable without a redirect before any Auth email is sent',async()=>{
+  const pass=await verifyControlledAuthConfirmReach('https://auth-staging.garage-link.tech',async(url,options)=>{
+    assert.equal(new URL(url).pathname,'/auth/confirm');
+    assert.equal(options.redirect,'manual');
+    return new Response('<html/>',{status:200});
+  });
+  assert.deepEqual(pass,{state:'RELEASE_CRITICAL_CONTROLLED_CONFIRM_REACH_PASS',confirmation_origin:'https://auth-staging.garage-link.tech',http_status:200,redirect:false});
+  await assert.rejects(()=>verifyControlledAuthConfirmReach('https://auth-staging.garage-link.tech',async()=>new Response('',{status:302,headers:{location:'https://vercel.com/sso-api'}})),/RELEASE_CRITICAL_CONTROLLED_CONFIRM_UNREACHED:302/);
 });
 
 test('hosted Auth update is Staging-only and requires password plus confirmation read-back',async()=>{

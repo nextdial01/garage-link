@@ -243,10 +243,17 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# GARAGE LINK uses TokenHash templates and a user-confirmed app endpoint so
+# mail scanners cannot consume the one-time token on GET. Hosted projects use
+# the same source through Authentication > Email Templates; SMTP credentials
+# and the controlled origin remain environment secrets outside this repository.
+[auth.email.template.confirmation]
+subject = "GARAGE LINKのメールアドレスを確認してください"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "GARAGE LINKのパスワードを再設定してください"
+content_path = "./supabase/templates/recovery.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
