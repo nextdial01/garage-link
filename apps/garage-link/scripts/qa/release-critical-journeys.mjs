@@ -709,6 +709,14 @@ export async function cleanupLifecycle(life,admin,userId,runId){
   }
   return current;
 }
+export async function recoverableLifecycleStatus(statusLife,begin){
+  let existing=await statusLife.maybeStatus();
+  if(!existing){
+    await begin();
+    existing=await statusLife.status();
+  }
+  return existing;
+}
 function markerFromRecoveredTenant(tenantName){
   const marker=/^\[RELEASE QA \d{8}\]/.exec(tenantName)?.[0];
   if(!marker)fail('RELEASE_CRITICAL_RECOVERY_MARKER_UNPROVEN');
@@ -764,8 +772,10 @@ async function reclaimExpiredCleanupLifecycleIfRequired(life,existing,run){
 }
 async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,user,run,password}){
   let statusLife=lifecycle(admin,run,provenance);
-  const existing=await statusLife.maybeStatus();
-  if(!existing){await beginLifecycle(statusLife,run,provenance);existing=await statusLife.status();}
+  const existing=await recoverableLifecycleStatus(
+    statusLife,
+    ()=>beginLifecycle(statusLife,run,provenance),
+  );
   existing=await reclaimExpiredLifecycleIfRequired(statusLife,existing,run);
   if(!/^[0-9a-f]{40}$/i.test(existing.source_sha??'')||!/^dpl_[A-Za-z0-9]+$/.test(existing.deployment_id??''))fail('RELEASE_CRITICAL_RECOVERY_PROVENANCE_UNPROVEN');
   let browser; let context;
