@@ -1202,11 +1202,17 @@ async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSe
     await page.goto(`${baseUrl}${baseUrl.includes('?')?'&':'?'}qa_run=${encodeURIComponent(run.runId)}`,{waitUntil:'domcontentloaded'});
     await clickAndWait(page,page.getByRole('link',{name:'無料で始める'}).first(),/\/signup/);
     const callback=new URL('/auth/callback',baseUrl); callback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId)); callback.searchParams.set('qa_run',run.runId);
-    const signupRequest=page.waitForRequest(request=>request.method()==='POST'&&new URL(request.url()).pathname==='/auth/v1/signup',{timeout:30_000});
-    const signupResponse=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/auth/v1/signup',{timeout:30_000});
-    await page.getByLabel('店舗名').fill(`${run.marker} Signup`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await page.getByLabel('メールアドレス').fill(session.emailAddress); await page.locator('#password').fill(initialPassword); await page.locator('#passwordConfirmation').fill(initialPassword); await page.getByRole('checkbox').check(); await page.getByRole('button',{name:'無料でアカウントを作成する'}).click();
-    const observedSignupRequest=await signupRequest; if(!observedSignupRequest)fail('RELEASE_CRITICAL_SIGNUP_REQUEST_UNOBSERVED');
-    const redirect=validateClientAuthRedirect(observedSignupRequest.url(),callback.toString(),supabaseUrl); const response=await signupResponse; if(!response)fail('RELEASE_CRITICAL_SIGNUP_RESPONSE_UNOBSERVED');
+    // Do not create long-lived response waiters before the form is ready.  If
+    // a field assertion fails, finally closes the page and an orphaned waiter
+    // would mask the real error with TargetClosedError.
+    await page.getByLabel('店舗名').fill(`${run.marker} Signup`); await page.getByLabel('担当者名').fill(`${run.marker} Owner`); await page.getByLabel('メールアドレス').fill(session.emailAddress); await page.locator('#password').fill(initialPassword); await page.locator('#passwordConfirmation').fill(initialPassword); await page.getByRole('checkbox').check();
+    const [observedSignupRequest,response]=await Promise.all([
+      page.waitForRequest(request=>request.method()==='POST'&&new URL(request.url()).pathname==='/auth/v1/signup',{timeout:30_000}),
+      page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/auth/v1/signup',{timeout:30_000}),
+      page.getByRole('button',{name:'無料でアカウントを作成する'}).click(),
+    ]);
+    if(!observedSignupRequest)fail('RELEASE_CRITICAL_SIGNUP_REQUEST_UNOBSERVED');
+    const redirect=validateClientAuthRedirect(observedSignupRequest.url(),callback.toString(),supabaseUrl); if(!response)fail('RELEASE_CRITICAL_SIGNUP_RESPONSE_UNOBSERVED');
     if(!response.ok())fail(`RELEASE_CRITICAL_SIGNUP_PROVIDER_REJECTED:${response.status()}`);
     const outcome=await signupSubmitOutcome(page);
     if(outcome.kind==='alert'){

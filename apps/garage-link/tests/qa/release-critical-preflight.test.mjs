@@ -135,6 +135,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/isDisabled\(\)/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_AUTO_CONFIRMED/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_OUTCOME_UNOBSERVED/);
+  assert.match(journeys,/Do not create long-lived response waiters before the form is ready/);
+  assert.match(journeys,/const \[observedSignupRequest,response\]=await Promise\.all/);
   assert.match(journeys,/RELEASE_CRITICAL_INQUIRY_ROUTE_UNAVAILABLE/);
   assert.match(journeys,/RELEASE_CRITICAL_CANDIDATE_SHA_INPUT_INVALID/);
   assert.match(journeys,/VERCEL_AUTOMATION_BYPASS_SECRET/);
