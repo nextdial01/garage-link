@@ -81,6 +81,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(loginForm,/qa_run=\$\{encodeURIComponent\(qaRunId\)\}/);
   assert.match(forgotPassword,/new URLSearchParams\(window\.location\.search\)\.get\('qa_run'\)/);
   assert.match(forgotPassword,/releaseQaRunId/);
+  assert.match(forgotPassword,/role=\{isSuccess \? 'status' : 'alert'\}/);
   assert.doesNotMatch(trackedSignupLink,/window\.location\.assign/);
   assert.match(journeys,/recoverExplicitUnboundActualEmailFixture/);
   assert.match(journeys,/RELEASE_CRITICAL_UNBOUND_RECOVERY_AGE_UNPROVEN/);
@@ -162,6 +163,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/user=await bindSyntheticIdentity\(admin,await findUser\(admin,session\.emailAddress\),run\);/);
   assert.match(journeys,/RELEASE_CRITICAL_RECOVERY_LOGIN_QA_RUN_CONTEXT_LOST/);
   assert.match(journeys,/RELEASE_CRITICAL_RECOVERY_FORGOT_QA_RUN_CONTEXT_LOST/);
+  assert.match(journeys,/RELEASE_CRITICAL_RECOVERY_PROVIDER_REJECTED/);
+  assert.match(journeys,/candidate\.request\(\)\.method\(\)==='POST'&&new URL\(candidate\.url\(\)\)\.pathname==='\/auth\/v1\/recover'/);
+  assert.match(journeys,/getByRole\('status'\)\.filter\(\{hasText:'再設定メールを送りました。'\}\)/);
   assert.match(journeys,/RELEASE_CRITICAL_QA_CONTEXT_CROSS_TAB_PASS/);
   assert.match(workflow,/context_probe_only/);
   assert.match(journeys,/RELEASE_CRITICAL_INQUIRY_ROUTE_UNAVAILABLE/);

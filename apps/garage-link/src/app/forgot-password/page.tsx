@@ -76,6 +76,8 @@ export default function ForgotPasswordPage() {
 
           {message && (
             <p
+              role={isSuccess ? 'status' : 'alert'}
+              aria-live="polite"
               className={`rounded-xl px-4 py-3 text-sm font-semibold ${
                 isSuccess
                   ? 'bg-green-50 text-green-700'

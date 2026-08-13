@@ -1247,9 +1247,15 @@ async function requestRecoveryForPreparedSession({context,baseUrl,supabaseUrl,em
     if(new URL(page.url()).searchParams.get('qa_run')!==run.runId)fail('RELEASE_CRITICAL_RECOVERY_FORGOT_QA_RUN_CONTEXT_LOST');
     const recoveryCallback=new URL('/auth/callback',baseUrl); recoveryCallback.searchParams.set('next',releaseQaNextPathForRunner('/auth/reset-password',run.runId)); recoveryCallback.searchParams.set('qa_run',run.runId);
     const request=page.waitForRequest(candidate=>candidate.method()==='POST'&&new URL(candidate.url()).pathname==='/auth/v1/recover',{timeout:30_000});
+    const response=page.waitForResponse(candidate=>candidate.request().method()==='POST'&&new URL(candidate.url()).pathname==='/auth/v1/recover',{timeout:30_000});
     await page.getByLabel('メールアドレス').fill(email); await page.getByRole('button',{name:'メールを送る'}).click();
-    const redirect=validateClientAuthRedirect((await request).url(),recoveryCallback.toString(),supabaseUrl);
-    await page.getByText('再設定メールを送りました。').waitFor({timeout:30_000});
+    const [observedRequest,observedResponse]=await Promise.all([request,response]);
+    const redirect=validateClientAuthRedirect(observedRequest.url(),recoveryCallback.toString(),supabaseUrl);
+    if(!observedResponse.ok()){
+      const body=await observedResponse.json().catch(()=>null);
+      fail(`RELEASE_CRITICAL_RECOVERY_PROVIDER_REJECTED:${observedResponse.status()}:${safeSignupAlertDetail(body?.msg??body?.message??body?.error)}`);
+    }
+    await page.getByRole('status').filter({hasText:'再設定メールを送りました。'}).waitFor({timeout:30_000});
     emit({state:'RELEASE_CRITICAL_RECOVERY_REDIRECT_REQUEST_PASS',redirect_origin:redirect.origin,redirect_path:redirect.path,localhost:false});
     return new Date().toISOString();
   } finally {await page.close();}
