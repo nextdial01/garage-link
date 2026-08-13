@@ -816,12 +816,11 @@ async function recoverAddressBoundActualEmailFixture({admin,provenance,baseUrl,b
   const statusLife=lifecycle(admin,run,provenance);
   const existing=await statusLife.maybeStatus();
   if(!existing||existing.state==='COMPLETE')fail('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_LIFECYCLE_UNPROVEN');
-  if(isAuthOnlyLifecycleAbortEligible(existing)){
-    await abortAuthOnlyLifecycle(statusLife,admin,user,run.runId,'interrupted_manual_email_auth_only_recovery');
-    if(await maybeFindUser(admin,email))fail('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_RESIDUAL');
-    emit({state:'RELEASE_CRITICAL_ADDRESS_BOUND_FIXTURE_RECOVERY_PASS',run_marker_hash:sha256(run.runId),cleanup:'FORMAL_AUTH_ONLY_LIFECYCLE'});
-    return true;
-  }
+  // A human can finish store creation after the email callback before this
+  // runner adopts the fixture.  The lifecycle is still PROVISIONING at that
+  // point, so its empty registry alone cannot prove an Auth-only subject.
+  // Re-discover through the same browser OTP session first; only that route
+  // may classify the exact user as AUTH_ONLY_ABSENT and delete it.
   const recovered=await recoverLifecycleForUser({
     admin,
     provenance,
