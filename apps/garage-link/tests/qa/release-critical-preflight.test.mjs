@@ -198,6 +198,18 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/contract_access_state/);
   assert.match(journeys,/RELEASE_CRITICAL_HOSTED_AUTH_REDIRECT_PASS/);
   assert.match(journeys,/management_pat_required:false/);
+  const browserClient=await readFile(resolve(appRoot,'src/lib/supabase/client.ts'),'utf8');
+  assert.match(browserClient,/createReleaseQaManualEmailClient/);
+  assert.match(browserClient,/createSupabaseClient/);
+  assert.match(browserClient,/flowType: 'implicit'/);
+  assert.match(browserClient,/storage: createReleaseQaCookieStorage\(\)/);
+  assert.match(browserClient,/createReleaseQaCookieStorage/);
+  assert.match(browserClient,/QA_COOKIE_PREFIX/);
+  assert.match(browserClient,/STAGING_RELEASE_QA_HOST/);
+  assert.match(browserClient,/return createClient\(\);/);
+  assert.match(signup,/trackConversion\('signup_submit'\);\s*\n\s*setIsSubmitting\(true\);\s*\n\s*const supabase = createReleaseQaManualEmailClient\(qaRunId\);/);
+  assert.match(await readFile(resolve(appRoot,'src/app/forgot-password/page.tsx'),'utf8'),/createReleaseQaManualEmailClient\(qaRunId\)/);
+  assert.match(callback,/createReleaseQaManualEmailClient\(qaRunId\)/);
   assert.match(journeys,/current_user_active_store_membership/);
   assert.match(journeys,/final\.final_evidence/);
   assert.doesNotMatch(journeys,/admin\.from\('memberships'\)/);

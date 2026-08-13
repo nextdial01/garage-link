@@ -8,7 +8,7 @@ import { isEmailConfirmationRequired, translateAuthError } from '@/lib/auth/auth
 import { hasMinimumPasswordLength, MIN_PASSWORD_LENGTH } from '@/lib/auth/password-policy';
 import { rememberReleaseQaRun, releaseQaNextPath, releaseQaRunId, recordReleaseQaCallback } from '@/lib/auth/releaseQaCallback';
 import { readSignupAttribution, trackConversion } from '@/lib/analytics/conversion';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, createReleaseQaManualEmailClient } from '@/lib/supabase/client';
 
 function SignupForm() {
   const router = useRouter();
@@ -127,7 +127,7 @@ function SignupForm() {
     trackConversion('signup_submit');
 
     setIsSubmitting(true);
-    const supabase = createClient();
+    const supabase = createReleaseQaManualEmailClient(qaRunId);
 
     const nextPath = releaseQaNextPath('/signup?resume=1', qaRunId);
     const callbackUrl = new URL('/auth/callback', window.location.origin);

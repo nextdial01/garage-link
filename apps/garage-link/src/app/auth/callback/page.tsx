@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { createReleaseQaManualEmailClient } from '@/lib/supabase/client';
 import { recordReleaseQaCallback, releaseQaRunId } from '@/lib/auth/releaseQaCallback';
 
 function safeNextPath(value: string | null): string {
@@ -21,9 +21,9 @@ function AuthCallbackContent() {
     let cancelled = false;
 
     async function completeAuth() {
-      const supabase = createClient();
       const nextPath = safeNextPath(searchParams.get('next'));
       const qaRunId = releaseQaRunId(searchParams.get('qa_run'));
+      const supabase = createReleaseQaManualEmailClient(qaRunId);
       const code = searchParams.get('code');
 
       try {

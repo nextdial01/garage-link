@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { translateAuthError } from '@/lib/auth/auth-errors';
 import { rememberedReleaseQaRun, releaseQaNextPath } from '@/lib/auth/releaseQaCallback';
-import { createClient } from '@/lib/supabase/client';
+import { createReleaseQaManualEmailClient } from '@/lib/supabase/client';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -18,8 +18,8 @@ export default function ForgotPasswordPage() {
     setIsSuccess(false);
     setIsLoading(true);
 
-    const supabase = createClient();
     const qaRunId = rememberedReleaseQaRun();
+    const supabase = createReleaseQaManualEmailClient(qaRunId);
     const nextPath = releaseQaNextPath('/auth/reset-password', qaRunId);
     const callbackUrl = new URL('/auth/callback', window.location.origin);
     callbackUrl.searchParams.set('next', nextPath);
