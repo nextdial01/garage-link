@@ -208,7 +208,7 @@ export async function readReleaseQaFixture({
       store?.id === membership.store_id &&
       store?.tenant_id === membership.tenant_id &&
       typeof store?.name === 'string' &&
-      /^\[RELEASE QA \d{8}\]/.test(store.name)
+      store.name.trim().length > 0
   );
   if (matchingStores.length !== 1) return {
     fixture: null,

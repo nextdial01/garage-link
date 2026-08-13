@@ -8,7 +8,9 @@ import { isEmailConfirmationRequired, translateAuthError } from '@/lib/auth/auth
 import { hasMinimumPasswordLength, MIN_PASSWORD_LENGTH } from '@/lib/auth/password-policy';
 import { rememberReleaseQaRun, releaseQaNextPath, releaseQaRunId, recordReleaseQaCallback } from '@/lib/auth/releaseQaCallback';
 import { readSignupAttribution, trackConversion } from '@/lib/analytics/conversion';
-import { createClient, createReleaseQaManualEmailClient } from '@/lib/supabase/client';
+import { createClient, createReleaseQaManualEmailClient, isStagingReleaseQaImplicitFlow } from '@/lib/supabase/client';
+
+const RELEASE_QA_MARKER = /^\[RELEASE QA \d{8}\]$/;
 
 function SignupForm() {
   const router = useRouter();
@@ -61,13 +63,24 @@ function SignupForm() {
       if (!Array.isArray(accessibleStoreIds) || accessibleStoreIds.length === 0) {
         setIsResumeOnly(true);
         setEmail(userData.user.email ?? '');
+        // The manual Gmail journey changes browsers.  Keep its run-bound
+        // synthetic name in Auth app metadata so the operator can use the
+        // real resume form without needing to copy a hidden marker.  This is
+        // Staging-only; ordinary and Production signup stay untouched.
+        const marker = typeof userData.user.app_metadata?.release_qa_marker === 'string'
+          ? userData.user.app_metadata.release_qa_marker
+          : '';
+        if (qaRunId && isStagingReleaseQaImplicitFlow(qaRunId, window.location.hostname) && RELEASE_QA_MARKER.test(marker)) {
+          setStoreName(`${marker} Signup`);
+          setDisplayName(`${marker} Owner`);
+        }
       }
 
       setIsBootstrapping(false);
     }
 
     void detectResumeMode();
-  }, [isResumeMode]);
+  }, [isResumeMode, qaRunId]);
 
   async function createStoreForUser(supabase: ReturnType<typeof createClient>) {
     const { error: onboardingError } = await supabase.rpc('create_store_for_current_user', {

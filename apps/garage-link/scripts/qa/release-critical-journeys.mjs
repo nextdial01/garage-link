@@ -563,7 +563,7 @@ async function ownerFixtureForBrowserSession({page,tenantNamePrefix,runId}){
   if(fixture.redirected)fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_REDIRECT');
   if(fixture.status!==200)fail(fixtureDiscoveryFailure({status:fixture.status},fixture.body,runId));
   const accountState=fixture.body?.account_state;
-  if(typeof fixture.body?.membership_id!=='string'||typeof fixture.body?.tenant_id!=='string'||typeof fixture.body?.store_id!=='string'||typeof fixture.body?.tenant_name!=='string'||!fixture.body.tenant_name.startsWith(tenantNamePrefix)||!['ACTIVE_STORE_VIEW','JWT_MEMBERSHIP_FALLBACK'].includes(fixture.body?.discovery_path)||!['active','selection_required','no_access'].includes(accountState?.garage_ui_context)||!['YES','NO'].includes(accountState?.active_store)||!['YES','NO'].includes(accountState?.onboarding_completed)||!/^\w{2,32}$/.test(accountState?.membership_role??'')||accountState?.membership_status!=='active'||!/^\w{2,48}$/.test(accountState?.contract_access_state??''))fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_INVALID');
+  if(typeof fixture.body?.membership_id!=='string'||typeof fixture.body?.tenant_id!=='string'||typeof fixture.body?.store_id!=='string'||typeof fixture.body?.tenant_name!=='string'||(tenantNamePrefix&&!fixture.body.tenant_name.startsWith(tenantNamePrefix))||!['ACTIVE_STORE_VIEW','JWT_MEMBERSHIP_FALLBACK'].includes(fixture.body?.discovery_path)||!['active','selection_required','no_access'].includes(accountState?.garage_ui_context)||!['YES','NO'].includes(accountState?.active_store)||!['YES','NO'].includes(accountState?.onboarding_completed)||!/^\w{2,32}$/.test(accountState?.membership_role??'')||accountState?.membership_status!=='active'||!/^\w{2,48}$/.test(accountState?.contract_access_state??''))fail('RELEASE_CRITICAL_FIXTURE_DISCOVERY_INVALID');
   emit({state:'RELEASE_CRITICAL_FIXTURE_DISCOVERY_SAME_OTP_SESSION_PASS',jwt_session_source:'BROWSER_COOKIE',run_marker_hash:sha256(runId)});
   return {membershipId:fixture.body.membership_id,tenantId:fixture.body.tenant_id,storeId:fixture.body.store_id,tenantName:fixture.body.tenant_name,accountState:{garageUiContext:accountState.garage_ui_context,activeStore:accountState.active_store,onboardingCompleted:accountState.onboarding_completed,membershipRole:accountState.membership_role,membershipStatus:accountState.membership_status,contractAccessState:accountState.contract_access_state}};
 }
@@ -576,7 +576,7 @@ async function recoveryFixtureForBrowserSession({page,tenantNamePrefix,runId}){
 }
 function readCallbackFixture(value,tenantNamePrefix){
   const accountState=value?.account_state;
-  if(typeof value?.membership_id!=='string'||typeof value?.tenant_id!=='string'||typeof value?.store_id!=='string'||typeof value?.tenant_name!=='string'||!value.tenant_name.startsWith(tenantNamePrefix)||!['active','selection_required','no_access'].includes(accountState?.garage_ui_context)||!['YES','NO'].includes(accountState?.active_store)||!['YES','NO'].includes(accountState?.onboarding_completed)||!/^\w{2,32}$/.test(accountState?.membership_role??'')||accountState?.membership_status!=='active'||!/^\w{2,48}$/.test(accountState?.contract_access_state??''))fail('RELEASE_CRITICAL_CALLBACK_FIXTURE_INVALID');
+  if(typeof value?.membership_id!=='string'||typeof value?.tenant_id!=='string'||typeof value?.store_id!=='string'||typeof value?.tenant_name!=='string'||(tenantNamePrefix&&!value.tenant_name.startsWith(tenantNamePrefix))||!['active','selection_required','no_access'].includes(accountState?.garage_ui_context)||!['YES','NO'].includes(accountState?.active_store)||!['YES','NO'].includes(accountState?.onboarding_completed)||!/^\w{2,32}$/.test(accountState?.membership_role??'')||accountState?.membership_status!=='active'||!/^\w{2,48}$/.test(accountState?.contract_access_state??''))fail('RELEASE_CRITICAL_CALLBACK_FIXTURE_INVALID');
   return {membershipId:value.membership_id,tenantId:value.tenant_id,storeId:value.store_id,tenantName:value.tenant_name,accountState:{garageUiContext:accountState.garage_ui_context,activeStore:accountState.active_store,onboardingCompleted:accountState.onboarding_completed,membershipRole:accountState.membership_role,membershipStatus:accountState.membership_status,contractAccessState:accountState.contract_access_state}};
 }
 async function verifyFreshOtpGuard({baseUrl,supabaseUrl,serviceRole,email,password,bypassSecret,runId}){
@@ -615,8 +615,8 @@ async function findUserByReleaseRunId(admin,runId){
   return matches[0]??null;
 }
 async function bindSyntheticIdentity(admin,user,run){
-  const {data,error}=await admin.auth.admin.updateUserById(user.id,{app_metadata:{...user.app_metadata,release_qa_run_id:run.runId}});
-  if(error||data.user?.app_metadata?.release_qa_run_id!==run.runId)fail(`RELEASE_CRITICAL_SYNTHETIC_IDENTITY_BIND:${safeProviderCode(error)}`);
+  const {data,error}=await admin.auth.admin.updateUserById(user.id,{app_metadata:{...user.app_metadata,release_qa_run_id:run.runId,release_qa_marker:run.marker}});
+  if(error||data.user?.app_metadata?.release_qa_run_id!==run.runId||data.user?.app_metadata?.release_qa_marker!==run.marker)fail(`RELEASE_CRITICAL_SYNTHETIC_IDENTITY_BIND:${safeProviderCode(error)}`);
   return data.user;
 }
 async function findKnownPartialUser(admin){
@@ -646,8 +646,8 @@ export async function beginLifecycle(life,run,provenance){
   await life.transition('PREFLIGHT_RUNNING','PREFLIGHT_READY','signup-lifecycle-registered',{baseline_evidence:'31406030364'});
   await life.transition('PREFLIGHT_READY','PROVISIONING','adopt-signup-fixture');
 }
-export async function adoptLifecycleFixture(life,run,fixture){
-  await life.rpc('qa_lifecycle_adopt_fixture',{p_run_id:run.runId,p_tenant_id:fixture.tenantId,p_expected_tenant_name:fixture.tenantName,p_store_id:fixture.storeId,p_user_id:fixture.userId,p_membership_id:fixture.membershipId,p_fixture_type:'release',p_marker:run.marker,p_expires_at:new Date(Date.now()+24*60*60_000).toISOString()});
+export async function adoptLifecycleFixture(life,run,fixture,{fixtureMarker=run.marker}={}){
+  await life.rpc('qa_lifecycle_adopt_fixture',{p_run_id:run.runId,p_tenant_id:fixture.tenantId,p_expected_tenant_name:fixture.tenantName,p_store_id:fixture.storeId,p_user_id:fixture.userId,p_membership_id:fixture.membershipId,p_fixture_type:'release',p_marker:fixtureMarker,p_expires_at:new Date(Date.now()+24*60*60_000).toISOString()});
   await life.transition('PROVISIONING','PROVISIONED','auth');
   await life.transition('PROVISIONED','AUTH_READY','run');
   await life.transition('AUTH_READY','TEST_RUNNING','run');
@@ -720,11 +720,6 @@ export async function recoverableLifecycleStatus(statusLife,begin){
   }
   return existing;
 }
-function markerFromRecoveredTenant(tenantName){
-  const marker=/^\[RELEASE QA \d{8}\]/.exec(tenantName)?.[0];
-  if(!marker)fail('RELEASE_CRITICAL_RECOVERY_MARKER_UNPROVEN');
-  return marker;
-}
 async function abortAuthOnlyLifecycle(life,admin,user,runId,reason){
   // This is deliberately limited to a formally registered PROVISIONING run
   // with no lifecycle fixture. Abort first, then delete the Auth-only user.
@@ -778,7 +773,7 @@ async function reclaimExpiredCleanupLifecycleIfRequired(life,existing,run){
   emit({state:'RELEASE_CRITICAL_EXPIRED_CLEANUP_RECOVERY_PASS',run_marker_hash:sha256(run.runId),resumed_state:existing.state});
   return life.status();
 }
-async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,user,run,password}){
+async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,user,run,password,allowRunBoundUnmarked=false}){
   let statusLife=lifecycle(admin,run,provenance);
   let existing=await recoverableLifecycleStatus(
     statusLife,
@@ -796,7 +791,7 @@ async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,us
     const loginUrl=new URL('/login',baseUrl); loginUrl.searchParams.set('next','/dashboard');
     await page.goto(loginUrl.toString(),{waitUntil:'domcontentloaded'});
     await login(page,user.email,password,url=>['/dashboard','/onboarding','/signup'].includes(new URL(url).pathname));
-    fixture=await recoveryFixtureForBrowserSession({page,tenantNamePrefix:run.marker,runId:run.runId});
+    fixture=await recoveryFixtureForBrowserSession({page,tenantNamePrefix:allowRunBoundUnmarked?null:run.marker,runId:run.runId});
     emit({state:'RELEASE_CRITICAL_FIXTURE_RECOVERY_SAME_OTP_SESSION_PASS',run_marker_hash:sha256(run.runId)});
   } finally {await context?.close();await browser?.close();}
   const life=lifecycle(admin,run,{sourceSha:existing.source_sha,deploymentId:existing.deployment_id});
@@ -805,10 +800,11 @@ async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,us
     return {state:'AUTH_ONLY_ABSENT',life};
   }
   fixture=fixture.fixture;
-  const marker=markerFromRecoveredTenant(fixture.tenantName);
-  if(run.marker!==marker)fail('RELEASE_CRITICAL_RECOVERY_RUN_MARKER_MISMATCH');
+  const marker=fixture.tenantName.startsWith(run.marker) ? run.marker : null;
+  if(!marker&&!allowRunBoundUnmarked)fail('RELEASE_CRITICAL_RECOVERY_RUN_MARKER_MISMATCH');
   if(existing.state!=='PROVISIONING')fail(`RELEASE_CRITICAL_RECOVERY_LIFECYCLE_STATE:${existing.state}`);
-  await adoptLifecycleFixture(life,run,{...fixture,userId:user.id});
+  await adoptLifecycleFixture(life,run,{...fixture,userId:user.id},{fixtureMarker:marker??fixture.tenantName});
+  if(!marker)emit({state:'RELEASE_CRITICAL_RUN_BOUND_UNMARKED_FIXTURE_RECOVERY_PASS',run_marker_hash:sha256(run.runId),scope:'AUTH_APP_METADATA_AND_SAME_OTP_SESSION'});
   return {state:'RUN_BOUND_FIXTURE',life,fixture};
 }
 async function recoverAddressBoundActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email}){
@@ -834,6 +830,7 @@ async function recoverAddressBoundActualEmailFixture({admin,provenance,baseUrl,b
     user,
     run,
     password:releaseCriticalSyntheticPassword(run.emailMarker),
+    allowRunBoundUnmarked:true,
   });
   if(recovered.state==='RUN_BOUND_FIXTURE')await cleanupLifecycle(recovered.life,admin,user.id,run.runId);
   if(await maybeFindUser(admin,email))fail('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_RESIDUAL');

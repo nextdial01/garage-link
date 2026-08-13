@@ -103,6 +103,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(journeys,/RELEASE_CRITICAL_MACHINE_EARLY_AUTH_DELETE|RELEASE_CRITICAL_EARLY_AUTH_DELETE/);
   assert.match(journeys,/\/api\/qa\/fixture-discovery/);
   assert.match(await readFile(resolve(appRoot,'src/lib/auth/releaseQaFixture.ts'),'utf8'),/current_user_active_store_membership/);
+  assert.match(await readFile(resolve(appRoot,'src/lib/auth/releaseQaFixture.ts'),'utf8'),/store\.name\.trim\(\)\.length > 0/);
   assert.match(fixtureDiscovery,/STAGING_PROJECT_ID/);
   assert.match(fixtureDiscovery,/targetEnvironment/);
   assert.match(fixtureDiscovery,/process\.env\.VERCEL_ENV/);
@@ -208,12 +209,16 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(browserClient,/STAGING_RELEASE_QA_HOST/);
   assert.match(browserClient,/return createClient\(\);/);
   assert.match(signup,/trackConversion\('signup_submit'\);\s*\n\s*setIsSubmitting\(true\);\s*\n\s*const supabase = createReleaseQaManualEmailClient\(qaRunId\);/);
+  assert.match(signup,/release_qa_marker/);
+  assert.match(signup,/isStagingReleaseQaImplicitFlow\(qaRunId, window\.location\.hostname\)/);
   assert.match(await readFile(resolve(appRoot,'src/app/forgot-password/page.tsx'),'utf8'),/createReleaseQaManualEmailClient\(qaRunId\)/);
   assert.match(callback,/createReleaseQaManualEmailClient\(qaRunId\)/);
   assert.match(journeys,/current_user_active_store_membership/);
   assert.match(journeys,/final\.final_evidence/);
   assert.doesNotMatch(journeys,/admin\.from\('memberships'\)/);
   assert.match(journeys,/server_bound_continuation/);
+  assert.match(journeys,/allowRunBoundUnmarked/);
+  assert.match(journeys,/RELEASE_CRITICAL_RUN_BOUND_UNMARKED_FIXTURE_RECOVERY_PASS/);
   assert.doesNotMatch(journeys,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(workflow,/environment: garage-link-commercial-staging/);
   assert.match(workflow,/GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN/);
