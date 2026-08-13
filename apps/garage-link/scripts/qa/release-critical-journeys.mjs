@@ -805,6 +805,17 @@ async function abortAuthOnlyLifecycle(life,admin,user,runId,reason){
   if(data?.user)fail('RELEASE_CRITICAL_AUTH_ONLY_RESIDUAL');
   emit({state:'RELEASE_CRITICAL_EARLY_AUTH_ONLY_CLEAN',run_marker_hash:sha256(runId)});
 }
+async function abortUnprovisionedLifecycle(life,runId,reason){
+  // Provider rejection can happen before Auth creates a user. Its registered
+  // lifecycle still has to be formally closed; there is deliberately no
+  // identity deletion or broad fixture lookup on this path.
+  const existing=await life.status();
+  if(!isAuthOnlyLifecycleAbortEligible(existing))fail('RELEASE_CRITICAL_UNPROVISIONED_SCOPE_UNPROVEN');
+  await life.rpc('qa_lifecycle_abort_clean',{p_run_id:runId,p_reason:reason});
+  const aborted=await life.status();
+  if(aborted.state!=='ABORTED_CLEAN'||aborted.final_evidence?.clean!==true)fail('RELEASE_CRITICAL_UNPROVISIONED_ABORT_UNPROVEN');
+  emit({state:'RELEASE_CRITICAL_EARLY_UNPROVISIONED_CLEAN',run_marker_hash:sha256(runId),fixture_residual:'ZERO'});
+}
 function lifecycleDeadlineExpired(value){
   return typeof value==='string'&&Number.isFinite(Date.parse(value))&&Date.parse(value)<=Date.now();
 }
@@ -1302,7 +1313,11 @@ async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSe
     ]);
     if(!observedSignupRequest)fail('RELEASE_CRITICAL_SIGNUP_REQUEST_UNOBSERVED');
     if(!response)fail('RELEASE_CRITICAL_SIGNUP_RESPONSE_UNOBSERVED');
-    if(!response.ok())fail(`RELEASE_CRITICAL_SIGNUP_PROVIDER_REJECTED:${response.status()}`);
+    if(!response.ok()){
+      const retryAfter=String(response.headers()['retry-after']??'').replace(/[^0-9]/g,'').slice(0,6)||'UNSPECIFIED';
+      if(response.status()===429)fail(`RELEASE_CRITICAL_SIGNUP_PROVIDER_RATE_LIMITED:${retryAfter}`);
+      fail(`RELEASE_CRITICAL_SIGNUP_PROVIDER_REJECTED:${response.status()}`);
+    }
     // The provider can accept the account before the redirect contract is
     // inspected. Bind it to this lifecycle immediately so a later redirect
     // failure always uses formal Auth-last cleanup, never an unmarked user.
@@ -1323,6 +1338,7 @@ async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSe
     emit({...manualGmailCheckpoint(session,'signup'),state:'RELEASE_CRITICAL_ACTUAL_EMAIL_CHECKPOINT_PREPARED',checkpoint_version:checkpoint.version,run_marker_hash:sha256(run.runId),recipient:'REDACTED_MANUAL_GMAIL_ADDRESS',confirmation_redirect_origin:redirect.origin,confirmation_redirect_path:redirect.path,localhost:false,recovery_requested:true,operator_action:'Open only the newest Staging confirmation email, verify the Staging HTTPS callback, complete store creation and onboarding, then open the matching reset email and set GL-Release-Reset-8!. Reply 完了 only after both are complete.'});
   } catch(error) {
     if(user?.id){const latest=await findUser(admin,session.emailAddress); await clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email:latest.email});}
+    else if(life)await abortUnprovisionedLifecycle(life,run.runId,'provider_rejected_before_auth_identity');
     throw error;
   } finally {await page?.close(); await context?.close(); await browser?.close();}
 }

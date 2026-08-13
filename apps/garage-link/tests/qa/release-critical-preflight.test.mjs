@@ -71,6 +71,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/RELEASE_CRITICAL_ACTUAL_EMAIL_CHECKPOINT_PREPARED/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_REQUEST_UNOBSERVED/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_RESPONSE_UNOBSERVED/);
+  assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_PROVIDER_RATE_LIMITED/);
+  assert.match(journeys,/response\.headers\(\)\['retry-after'\]/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_QA_RUN_CONTEXT_LOST/);
   assert.match(journeys,/Wait for the client-owned CTA href to carry the run context/);
   assert.match(trackedSignupLink,/useSyncExternalStore\(subscribeReleaseQaRun, releaseQaRunSnapshot, \(\) => null\)/);
@@ -102,6 +104,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/qa_lifecycle_abort_clean/);
   assert.match(journeys,/isAuthOnlyLifecycleAbortEligible/);
   assert.match(journeys,/RELEASE_CRITICAL_AUTH_ONLY_SCOPE_UNPROVEN/);
+  assert.match(journeys,/abortUnprovisionedLifecycle/);
+  assert.match(journeys,/RELEASE_CRITICAL_EARLY_UNPROVISIONED_CLEAN/);
+  assert.match(journeys,/RELEASE_CRITICAL_UNPROVISIONED_SCOPE_UNPROVEN/);
   assert.ok(journeys.indexOf("qa_lifecycle_abort_clean',{p_run_id:runId") < journeys.indexOf('admin.auth.admin.deleteUser(user.id,false)'));
   assert.match(journeys,/recoverKnownPartialFixture\(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret\)/);
   assert.match(journeys,/ownerFixtureForBrowserSession/);
