@@ -824,16 +824,21 @@ async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,us
   if(!marker&&!allowRunBoundUnmarked)fail('RELEASE_CRITICAL_RECOVERY_RUN_MARKER_MISMATCH');
   if(existing.state!=='PROVISIONING')fail(`RELEASE_CRITICAL_RECOVERY_LIFECYCLE_STATE:${existing.state}`);
   if(!marker){
-    // The prefill fix prevents future unmarked tenants. For this exact
-    // already-proven Staging synthetic fixture, restore the registry's
-    // immutable marker contract before adoption; then ordinary lifecycle
-    // teardown owns all deletes. The conditional ID+old-name update cannot
-    // target a different tenant and never runs for Production/normal users.
-    const recoveredName=`${run.marker} Recovered`;
-    const {data,error}=await admin.from('tenants').update({name:recoveredName}).eq('id',fixture.tenantId).eq('name',fixture.tenantName).select('id,name').maybeSingle();
-    if(error||data?.id!==fixture.tenantId||data.name!==recoveredName)fail(`RELEASE_CRITICAL_UNMARKED_TENANT_RENAME:${error?.code??error?.status??0}`);
-    fixture={...fixture,tenantName:recoveredName}; marker=run.marker;
+    // The DB bridge is service-role-only and checks the exact run-bound Auth,
+    // tenant, store, and active owner graph before it restores the canonical
+    // marker and delegates to normal adoption. Never store an arbitrary
+    // tenant name in qa_internal.fixtures.marker.
+    const {error}=await admin.rpc('qa_lifecycle_adopt_unmarked_release_fixture',{
+      p_run_id:run.runId,p_source_run_id:user.app_metadata?.release_qa_recovered_from_run_id,
+      p_tenant_id:fixture.tenantId,p_actual_tenant_name:fixture.tenantName,p_store_id:fixture.storeId,
+      p_user_id:user.id,p_membership_id:fixture.membershipId,p_marker:run.marker,
+      p_expires_at:new Date(Date.now()+24*60*60_000).toISOString(),
+    });
+    if(error)fail(`RELEASE_CRITICAL_UNMARKED_FIXTURE_ADOPT:${error.code??error.status??0}`);
+    fixture={...fixture,tenantName:`${run.marker} Recovered`}; marker=run.marker;
     emit({state:'RELEASE_CRITICAL_RUN_BOUND_UNMARKED_FIXTURE_RECOVERY_PASS',run_marker_hash:sha256(run.runId),scope:'AUTH_APP_METADATA_AND_SAME_OTP_SESSION',registry_marker_restored:true});
+    await life.transition('PROVISIONING','PROVISIONED','auth'); await life.transition('PROVISIONED','AUTH_READY','run'); await life.transition('AUTH_READY','TEST_RUNNING','run');
+    return {state:'RUN_BOUND_FIXTURE',life,fixture};
   }
   await adoptLifecycleFixture(life,run,{...fixture,userId:user.id},{fixtureMarker:marker});
   return {state:'RUN_BOUND_FIXTURE',life,fixture};
