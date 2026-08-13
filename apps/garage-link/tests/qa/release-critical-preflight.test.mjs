@@ -3,20 +3,22 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createActualEmailTransportSession, createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl, validateActualEmailTransportRecipient, verifyManualGmailCallbackReach } from '../../scripts/qa/release-critical-preflight.mjs';
-import { classifyCtaTrace, classifyUnboundActualEmailRecoveryState, createActualEmailCheckpoint, createReleaseCriticalRun, installVercelBrowserBypass, isAuthOnlyLifecycleAbortEligible, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, recoverableLifecycleStatus, releaseCriticalSyntheticPassword, validateActualEmailCheckpoint, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
+import { bindSyntheticIdentity, classifyCtaTrace, classifyUnboundActualEmailRecoveryState, createActualEmailCheckpoint, createReleaseCriticalRun, installVercelBrowserBypass, isAuthOnlyLifecycleAbortEligible, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, recoverableLifecycleStatus, releaseCriticalSyntheticPassword, validateActualEmailCheckpoint, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
 import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-stage-auth.mjs';
 import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critical-qa-lifecycle-contract.mjs';
 
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,journeys,workflow,qaLifecycleContract,signup,trackedSignupLink,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback,expiredFixtureRecovery,expiredFixtureRecoveryRollback]=await Promise.all([
+  const [runner,journeys,workflow,qaLifecycleContract,signup,trackedSignupLink,loginForm,forgotPassword,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback,expiredFixtureRecovery,expiredFixtureRecoveryRollback]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-qa-lifecycle-contract.mjs'),'utf8'),
     readFile(resolve(appRoot,'src/app/signup/page.tsx'),'utf8'),
     readFile(resolve(appRoot,'src/components/landing/TrackedSignupLink.tsx'),'utf8'),
+    readFile(resolve(appRoot,'src/components/auth/GarageLoginForm.tsx'),'utf8'),
+    readFile(resolve(appRoot,'src/app/forgot-password/page.tsx'),'utf8'),
     readFile(resolve(appRoot,'src/app/auth/callback/page.tsx'),'utf8'),
     readFile(resolve(appRoot,'src/app/auth/reset-password/page.tsx'),'utf8'),
     readFile(resolve(appRoot,'src/middleware.ts'),'utf8'),
@@ -73,6 +75,12 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/Wait for the client-owned CTA href to carry the run context/);
   assert.match(trackedSignupLink,/useSyncExternalStore\(subscribeReleaseQaRun, releaseQaRunSnapshot, \(\) => null\)/);
   assert.match(trackedSignupLink,/qa_run=\$\{encodeURIComponent\(qaRunId\)\}/);
+  assert.match(trackedSignupLink,/export function TrackedLoginLink/);
+  assert.match(trackedSignupLink,/`\/login\$\{qaRunId \? `\?qa_run=/);
+  assert.match(loginForm,/forgotPasswordHref/);
+  assert.match(loginForm,/qa_run=\$\{encodeURIComponent\(qaRunId\)\}/);
+  assert.match(forgotPassword,/new URLSearchParams\(window\.location\.search\)\.get\('qa_run'\)/);
+  assert.match(forgotPassword,/releaseQaRunId/);
   assert.doesNotMatch(trackedSignupLink,/window\.location\.assign/);
   assert.match(journeys,/recoverExplicitUnboundActualEmailFixture/);
   assert.match(journeys,/RELEASE_CRITICAL_UNBOUND_RECOVERY_AGE_UNPROVEN/);
@@ -152,6 +160,10 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/const \[observedSignupRequest,response\]=await Promise\.all/);
   assert.match(journeys,/Bind it to this lifecycle immediately so a later redirect/);
   assert.match(journeys,/user=await bindSyntheticIdentity\(admin,await findUser\(admin,session\.emailAddress\),run\);/);
+  assert.match(journeys,/RELEASE_CRITICAL_RECOVERY_LOGIN_QA_RUN_CONTEXT_LOST/);
+  assert.match(journeys,/RELEASE_CRITICAL_RECOVERY_FORGOT_QA_RUN_CONTEXT_LOST/);
+  assert.match(journeys,/RELEASE_CRITICAL_QA_CONTEXT_CROSS_TAB_PASS/);
+  assert.match(workflow,/context_probe_only/);
   assert.match(journeys,/RELEASE_CRITICAL_INQUIRY_ROUTE_UNAVAILABLE/);
   assert.match(journeys,/RELEASE_CRITICAL_CANDIDATE_SHA_INPUT_INVALID/);
   assert.match(journeys,/VERCEL_AUTOMATION_BYPASS_SECRET/);
@@ -543,6 +555,16 @@ test('unbound actual-email recovery permits only exact callback-free Auth-only s
   assert.equal(classifyUnboundActualEmailRecoveryState({id:'u',email:'qa@example.test',email_confirmed_at:'2026-08-13T00:00:00.000Z',app_metadata:{}}),'CONFIRMED_WITHOUT_CALLBACK');
   assert.equal(classifyUnboundActualEmailRecoveryState({id:'u',email:'qa@example.test',app_metadata:{release_qa_callback:{run_id:'r'}}}),'CALLBACK_EVIDENCE');
   assert.equal(classifyUnboundActualEmailRecoveryState({id:'u',email:'qa@example.test',app_metadata:{release_qa_run_id:'r'}}),'LIFECYCLE_BINDING_PRESENT');
+});
+
+test('provider-accepted QA identity binds before callback or email inspection',async()=>{
+  const run=createReleaseCriticalRun('550e8400-e29b-41d4-a716-446655440000');
+  const user={id:'staging-user',app_metadata:{existing:'preserved'}};
+  const admin={auth:{admin:{updateUserById:async(id,patch)=>({data:{user:{id,app_metadata:patch.app_metadata}},error:null})}}};
+  const bound=await bindSyntheticIdentity(admin,user,run);
+  assert.equal(bound.app_metadata.release_qa_run_id,run.runId);
+  assert.equal(bound.app_metadata.release_qa_marker,run.marker);
+  assert.equal(bound.app_metadata.existing,'preserved');
 });
 
 test('manual Gmail emails are sent only when the exact Staging callback is directly reachable',async()=>{

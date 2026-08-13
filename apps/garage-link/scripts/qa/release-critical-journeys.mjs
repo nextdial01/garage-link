@@ -682,7 +682,7 @@ async function findUserByReleaseRunId(admin,runId){
   if(matches.length>1)fail(`RELEASE_CRITICAL_RUN_BOUND_AUTH_CARDINALITY:${matches.length}`);
   return matches[0]??null;
 }
-async function bindSyntheticIdentity(admin,user,run){
+export async function bindSyntheticIdentity(admin,user,run){
   const {data,error}=await admin.auth.admin.updateUserById(user.id,{app_metadata:{...user.app_metadata,release_qa_run_id:run.runId,release_qa_marker:run.marker}});
   if(error||data.user?.app_metadata?.release_qa_run_id!==run.runId||data.user?.app_metadata?.release_qa_marker!==run.marker)fail(`RELEASE_CRITICAL_SYNTHETIC_IDENTITY_BIND:${safeProviderCode(error)}`);
   return data.user;
@@ -1242,7 +1242,9 @@ async function requestRecoveryForPreparedSession({context,baseUrl,supabaseUrl,em
   try {
     await page.goto(`${baseUrl}${baseUrl.includes('?')?'&':'?'}qa_run=${encodeURIComponent(run.runId)}`,{waitUntil:'domcontentloaded'});
     await clickAndWait(page,page.getByRole('link',{name:'ログイン',exact:true}).first(),/\/login/);
+    if(new URL(page.url()).searchParams.get('qa_run')!==run.runId)fail('RELEASE_CRITICAL_RECOVERY_LOGIN_QA_RUN_CONTEXT_LOST');
     await clickAndWait(page,page.getByRole('link',{name:'忘れた方はこちら'}),/\/forgot-password/);
+    if(new URL(page.url()).searchParams.get('qa_run')!==run.runId)fail('RELEASE_CRITICAL_RECOVERY_FORGOT_QA_RUN_CONTEXT_LOST');
     const recoveryCallback=new URL('/auth/callback',baseUrl); recoveryCallback.searchParams.set('next',releaseQaNextPathForRunner('/auth/reset-password',run.runId)); recoveryCallback.searchParams.set('qa_run',run.runId);
     const request=page.waitForRequest(candidate=>candidate.method()==='POST'&&new URL(candidate.url()).pathname==='/auth/v1/recover',{timeout:30_000});
     await page.getByLabel('メールアドレス').fill(email); await page.getByRole('button',{name:'メールを送る'}).click();
@@ -1251,6 +1253,19 @@ async function requestRecoveryForPreparedSession({context,baseUrl,supabaseUrl,em
     emit({state:'RELEASE_CRITICAL_RECOVERY_REDIRECT_REQUEST_PASS',redirect_origin:redirect.origin,redirect_path:redirect.path,localhost:false});
     return new Date().toISOString();
   } finally {await page.close();}
+}
+async function probeManualEmailContextAcrossFreshNavigation({baseUrl,bypassSecret}){
+  const run=createReleaseCriticalRun(); let browser; let context; let page;
+  try {
+    browser=await chromium.launch({headless:true}); context=await browser.newContext(); await installVercelBrowserBypass(context,baseUrl,bypassSecret); page=await context.newPage();
+    await page.goto(`${baseUrl}${baseUrl.includes('?')?'&':'?'}qa_run=${encodeURIComponent(run.runId)}`,{waitUntil:'domcontentloaded'});
+    await page.waitForFunction((runId)=>Array.from(document.querySelectorAll('a')).some(anchor=>anchor.textContent?.trim()==='ログイン'&&new URL(anchor.href).searchParams.get('qa_run')===runId),run.runId,{timeout:30_000});
+    await clickAndWait(page,page.getByRole('link',{name:'ログイン',exact:true}).first(),/\/login/);
+    if(new URL(page.url()).searchParams.get('qa_run')!==run.runId)fail('RELEASE_CRITICAL_CONTEXT_PROBE_LOGIN_QA_RUN_LOST');
+    await clickAndWait(page,page.getByRole('link',{name:'忘れた方はこちら'}),/\/forgot-password/);
+    if(new URL(page.url()).searchParams.get('qa_run')!==run.runId)fail('RELEASE_CRITICAL_CONTEXT_PROBE_RECOVERY_QA_RUN_LOST');
+    emit({state:'RELEASE_CRITICAL_QA_CONTEXT_CROSS_TAB_PASS',run_marker_hash:sha256(run.runId),real_pointer_navigation:true,original_signup_tab_dependency:false,actual_email_generated:false});
+  } finally {await page?.close();await context?.close();await browser?.close();}
 }
 async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSecret,run,session,initialPassword,allowUnboundRecovery}){
   const existing=await clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email:session.emailAddress,allowUnboundRecovery});
@@ -1326,6 +1341,7 @@ async function main(){
   if(!/^[0-9a-f]{40}$/.test(expectedCandidateSha))fail('RELEASE_CRITICAL_CANDIDATE_SHA_INPUT_INVALID'); if(!new URL(supabaseUrl).hostname.startsWith(`${STAGING_REF}.`)||new URL(baseUrl).hostname.endsWith('.garage-link.tech'))fail('RELEASE_CRITICAL_STAGING_BOUNDARY_DENIED');
   const provenanceResponse=await fetch(new URL('/api/qa/provenance',baseUrl),{headers:{'x-vercel-protection-bypass':bypassSecret},redirect:'manual',cache:'no-store'}); if(!provenanceResponse.ok||provenanceResponse.headers.has('location'))fail('RELEASE_CRITICAL_PROVENANCE_UNREACHED'); const provenance=validateReleaseCriticalProvenance(await provenanceResponse.json(),baseUrl); if(provenance.sourceSha!==expectedCandidateSha)fail('RELEASE_CRITICAL_CANDIDATE_SHA_MISMATCH');
   if(executionMode==='machine_only')return runMachineOnly({baseUrl,supabaseUrl,serviceRole,bypassSecret,provenance});
+  if(executionMode==='context_probe_only')return probeManualEmailContextAcrossFreshNavigation({baseUrl,bypassSecret});
   const manualBase=required('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS'); const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
   if(executionMode==='callback_probe_only'){emit({state:'RELEASE_CRITICAL_CALLBACK_PRECONDITION_PASS',actual_email_generated:false,fixture_residual:'ZERO'});return;}
   const session=createActualEmailTransportSession(manualBase,'g'+randomUUID().replaceAll('-','').slice(0,6));

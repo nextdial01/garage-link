@@ -5,12 +5,15 @@ import Script from 'next/script';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import BrandLogo from '@/components/BrandLogo';
+import { releaseQaRunId } from '@/lib/auth/releaseQaCallback';
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 
 export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get('next');
+  const qaRunId = releaseQaRunId(searchParams.get('qa_run'));
+  const forgotPasswordHref = `/forgot-password${qaRunId ? `?qa_run=${encodeURIComponent(qaRunId)}` : ''}`;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -117,7 +120,7 @@ export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
             <label htmlFor="password" className="text-xs font-bold text-slate-600">
               パスワード <span className="text-red-600">*</span>
             </label>
-            <Link href="/forgot-password" className="text-xs font-bold text-blue-600 hover:underline">
+            <Link href={forgotPasswordHref} className="text-xs font-bold text-blue-600 hover:underline">
               忘れた方はこちら
             </Link>
           </div>

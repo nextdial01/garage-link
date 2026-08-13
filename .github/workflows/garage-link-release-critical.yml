@@ -24,7 +24,7 @@ on:
           - verify_by_journey
           - repair_staging_once
       execution_scope:
-        description: full reruns machine gates; actual_email_prepare persists one bounded human checkpoint; actual_email_resume verifies that same checkpoint; callback_probe_only verifies callback reach without sending email
+        description: full reruns machine gates; actual_email_prepare persists one bounded human checkpoint; actual_email_resume verifies that same checkpoint; callback_probe_only verifies callback reach; context_probe_only verifies fresh-tab QA context without sending email
         required: true
         default: full
         type: choice
@@ -33,6 +33,7 @@ on:
           - actual_email_prepare
           - actual_email_resume
           - callback_probe_only
+          - context_probe_only
       recover_unbound_actual_email:
         description: One-time Staging recovery for the exact approved QA recipient created by a pre-binding runner defect; normal runs must remain false
         required: true
@@ -156,7 +157,7 @@ jobs:
   email-transport-state:
     name: Email transport readiness (fail-closed before provider send)
     needs: [preflight, machine-gates]
-    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_prepare' || inputs.execution_scope == 'actual_email_resume' || inputs.execution_scope == 'callback_probe_only') }}
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_prepare' || inputs.execution_scope == 'actual_email_resume' || inputs.execution_scope == 'callback_probe_only' || inputs.execution_scope == 'context_probe_only') }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 5
@@ -190,7 +191,7 @@ jobs:
   actual-email-gates:
     name: Actual email transport and callback gates
     needs: [preflight, machine-gates, email-transport-state]
-    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_prepare' || inputs.execution_scope == 'actual_email_resume' || inputs.execution_scope == 'callback_probe_only') && (inputs.execution_scope == 'callback_probe_only' || needs.email-transport-state.outputs.transport_ready == 'true') }}
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_prepare' || inputs.execution_scope == 'actual_email_resume' || inputs.execution_scope == 'callback_probe_only' || inputs.execution_scope == 'context_probe_only') && (inputs.execution_scope == 'callback_probe_only' || inputs.execution_scope == 'context_probe_only' || needs.email-transport-state.outputs.transport_ready == 'true') }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 45
@@ -202,7 +203,7 @@ jobs:
       E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
-      RELEASE_CRITICAL_EXECUTION_MODE: ${{ inputs.execution_scope == 'callback_probe_only' && 'callback_probe_only' || inputs.execution_scope }}
+      RELEASE_CRITICAL_EXECUTION_MODE: ${{ inputs.execution_scope == 'callback_probe_only' && 'callback_probe_only' || inputs.execution_scope == 'context_probe_only' && 'context_probe_only' || inputs.execution_scope }}
       RELEASE_CRITICAL_ALLOW_UNBOUND_ACTUAL_EMAIL_RECOVERY: ${{ inputs.recover_unbound_actual_email }}
       RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
     steps:

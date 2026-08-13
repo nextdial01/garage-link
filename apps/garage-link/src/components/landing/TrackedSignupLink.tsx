@@ -36,3 +36,13 @@ export function TrackedSignupLink({ children, placement, ...props }: Props) {
     </Link>
   );
 }
+
+// The QA recovery journey can begin in a fresh browser tab. Preserve the
+// run-bound context in the route itself, not only in tab-scoped sessionStorage.
+// Ordinary visitors receive the unchanged /login URL.
+export function TrackedLoginLink({ children, ...props }: Omit<ComponentProps<typeof Link>, 'href'>) {
+  const qaRunId = useSyncExternalStore(subscribeReleaseQaRun, releaseQaRunSnapshot, () => null);
+  const href = `/login${qaRunId ? `?qa_run=${encodeURIComponent(qaRunId)}` : ''}`;
+
+  return <Link {...props} href={href}>{children}</Link>;
+}

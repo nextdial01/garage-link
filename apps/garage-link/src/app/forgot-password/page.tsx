@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { translateAuthError } from '@/lib/auth/auth-errors';
-import { rememberedReleaseQaRun, releaseQaNextPath } from '@/lib/auth/releaseQaCallback';
+import { rememberedReleaseQaRun, releaseQaNextPath, releaseQaRunId } from '@/lib/auth/releaseQaCallback';
 import { createReleaseQaManualEmailClient } from '@/lib/supabase/client';
 
 export default function ForgotPasswordPage() {
@@ -18,7 +18,10 @@ export default function ForgotPasswordPage() {
     setIsSuccess(false);
     setIsLoading(true);
 
-    const qaRunId = rememberedReleaseQaRun();
+    // A confirmation or recovery link may be opened in a different tab. The
+    // query is the durable Staging QA continuation; sessionStorage is only a
+    // same-tab fallback for older links.
+    const qaRunId = releaseQaRunId(new URLSearchParams(window.location.search).get('qa_run')) ?? rememberedReleaseQaRun();
     const supabase = createReleaseQaManualEmailClient(qaRunId);
     const nextPath = releaseQaNextPath('/auth/reset-password', qaRunId);
     const callbackUrl = new URL('/auth/callback', window.location.origin);
