@@ -772,7 +772,7 @@ async function reclaimExpiredCleanupLifecycleIfRequired(life,existing,run){
 }
 async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,user,run,password}){
   let statusLife=lifecycle(admin,run,provenance);
-  const existing=await recoverableLifecycleStatus(
+  let existing=await recoverableLifecycleStatus(
     statusLife,
     ()=>beginLifecycle(statusLife,run,provenance),
   );
@@ -802,6 +802,29 @@ async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,us
   if(existing.state!=='PROVISIONING')fail(`RELEASE_CRITICAL_RECOVERY_LIFECYCLE_STATE:${existing.state}`);
   await adoptLifecycleFixture(life,run,{...fixture,userId:user.id});
   return {state:'RUN_BOUND_FIXTURE',life,fixture};
+}
+async function recoverAddressBoundActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email}){
+  const user=await maybeFindUser(admin,email);
+  if(!user)return false;
+  const runId=user.app_metadata?.release_qa_run_id;
+  if(typeof runId!=='string'||!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_UNBOUND');
+  const run=createReleaseCriticalRun(runId);
+  const statusLife=lifecycle(admin,run,provenance);
+  const existing=await statusLife.maybeStatus();
+  if(!existing||existing.state==='COMPLETE')fail('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_LIFECYCLE_UNPROVEN');
+  const recovered=await recoverLifecycleForUser({
+    admin,
+    provenance,
+    baseUrl,
+    bypassSecret,
+    user,
+    run,
+    password:releaseCriticalSyntheticPassword(run.emailMarker),
+  });
+  if(recovered.state==='RUN_BOUND_FIXTURE')await cleanupLifecycle(recovered.life,admin,user.id,run.runId);
+  if(await maybeFindUser(admin,email))fail('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_RESIDUAL');
+  emit({state:'RELEASE_CRITICAL_ADDRESS_BOUND_FIXTURE_RECOVERY_PASS',run_marker_hash:sha256(run.runId),cleanup:'FORMAL_LIFECYCLE'});
+  return true;
 }
 async function recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret){
   const partialRunId=PARTIAL_MARKER.replace(/^garage-link-/,'');
@@ -1040,6 +1063,7 @@ async function main(){
   await verifyHostedRedirectContract({admin,run,baseUrl,supabaseUrl});
   await recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);
   await recoverInterruptedFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);
+  await recoverAddressBoundActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email:session.emailAddress});
   if(await maybeFindUser(admin,session.emailAddress))fail('RELEASE_CRITICAL_MANUAL_GMAIL_RUN_ADDRESS_CONFLICT');
   let browser; let context; let page; let user; let life; let adopted=false; const results={};
   try {

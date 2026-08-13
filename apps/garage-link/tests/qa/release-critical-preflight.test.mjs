@@ -466,6 +466,15 @@ test('interrupted lifecycle recovery registers a missing run before it is reused
   assert.deepEqual(recovered,{state:'PROVISIONING'});
 });
 
+test('actual-email reruns recover only a run-bound address conflict through lifecycle cleanup',async()=>{
+  const journeys=await readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8');
+  assert.match(journeys,/recoverAddressBoundActualEmailFixture/);
+  assert.match(journeys,/release_qa_run_id/);
+  assert.match(journeys,/RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_UNBOUND/);
+  assert.match(journeys,/RELEASE_CRITICAL_ADDRESS_BOUND_FIXTURE_RECOVERY_PASS/);
+  assert.match(journeys,/await cleanupLifecycle\(recovered\.life,admin,user\.id,run\.runId\)/);
+});
+
 test('expired cleanup reclaim only resets registered pre-delete lifecycle states',()=>{
   for(const state of ['TEST_COMPLETE','TEARDOWN_DRY_RUN','TEARDOWN_READY','TEARING_DOWN'])assert.equal(isExpiredLifecycleReclaimState(state),true);
   for(const state of ['CREATED','PREFLIGHT_READY','PROVISIONING','PROVISIONED','AUTH_READY','TEST_RUNNING','DB_CLEANED','AUTH_CLEANED','STORAGE_CLEANED','ARTIFACTS_CLEANED','VERIFIED_CLEAN','COMPLETE'])assert.equal(isExpiredLifecycleReclaimState(state),false);
