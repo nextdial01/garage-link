@@ -24,13 +24,14 @@ on:
           - verify_by_journey
           - repair_staging_once
       execution_scope:
-        description: full reruns all machine gates; actual_email_only reuses fixed machine-gate evidence for a transport-only recovery
+        description: full reruns all machine gates; actual_email_only reuses fixed machine-gate evidence; callback_probe_only recovers and verifies callback reach without generating an email
         required: true
         default: full
         type: choice
         options:
           - full
           - actual_email_only
+          - callback_probe_only
 
 permissions:
   contents: read
@@ -149,7 +150,7 @@ jobs:
   email-transport-state:
     name: Email transport readiness (fail-closed before provider send)
     needs: [preflight, machine-gates]
-    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_only') }}
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_only' || inputs.execution_scope == 'callback_probe_only') }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 5
@@ -183,7 +184,7 @@ jobs:
   actual-email-gates:
     name: Actual email transport and callback gates
     needs: [preflight, machine-gates, email-transport-state]
-    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_only') && needs.email-transport-state.outputs.transport_ready == 'true' }}
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_only' || inputs.execution_scope == 'callback_probe_only') && (inputs.execution_scope == 'callback_probe_only' || needs.email-transport-state.outputs.transport_ready == 'true') }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 45
@@ -193,7 +194,7 @@ jobs:
       E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
-      RELEASE_CRITICAL_EXECUTION_MODE: email_transport
+      RELEASE_CRITICAL_EXECUTION_MODE: ${{ inputs.execution_scope == 'callback_probe_only' && 'callback_probe_only' || 'email_transport' }}
       RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
     steps:
       - uses: actions/checkout@v4

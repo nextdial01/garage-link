@@ -574,6 +574,18 @@ async function recoveryFixtureForBrowserSession({page,tenantNamePrefix,runId}){
   if(fixture.body?.state==='AUTH_ONLY_ABSENT')return {state:'AUTH_ONLY_ABSENT'};
   return {state:'RUN_BOUND_FIXTURE',fixture:await ownerFixtureForBrowserSession({page,tenantNamePrefix,runId})};
 }
+async function probeAuthenticatedCallbackReach({page,baseUrl,run}){
+  const callback=new URL('/auth/callback',baseUrl);
+  callback.searchParams.set('next',releaseQaNextPathForRunner('/signup?resume=1',run.runId));
+  callback.searchParams.set('qa_run',run.runId);
+  const callbackRequest=page.waitForRequest(request=>new URL(request.url()).pathname==='/auth/callback',{timeout:30_000}).catch(()=>null);
+  const evidenceRequest=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/qa/callback-evidence',{timeout:30_000}).catch(()=>null);
+  await page.goto(callback.toString(),{waitUntil:'domcontentloaded'});
+  const [observedCallback,observedEvidence]=await Promise.all([callbackRequest,evidenceRequest]);
+  if(!observedCallback)fail('RELEASE_CRITICAL_CALLBACK_REQUEST_NOT_REACHED');
+  if(!observedEvidence||observedEvidence.status()!==204)fail(`RELEASE_CRITICAL_CALLBACK_EVIDENCE_PERSIST_FAILED:${observedEvidence?.status()??0}`);
+  emit({state:'RELEASE_CRITICAL_AUTHENTICATED_CALLBACK_REACH_PASS',classification:'PASS',callback_request:'OBSERVED',callback_evidence:'PERSISTED',runtime_error:'NONE'});
+}
 function readCallbackFixture(value,tenantNamePrefix){
   const accountState=value?.account_state;
   if(typeof value?.membership_id!=='string'||typeof value?.tenant_id!=='string'||typeof value?.store_id!=='string'||typeof value?.tenant_name!=='string'||(tenantNamePrefix&&!value.tenant_name.startsWith(tenantNamePrefix))||!['active','selection_required','no_access'].includes(accountState?.garage_ui_context)||!['YES','NO'].includes(accountState?.active_store)||!['YES','NO'].includes(accountState?.onboarding_completed)||!/^\w{2,32}$/.test(accountState?.membership_role??'')||accountState?.membership_status!=='active'||!/^\w{2,48}$/.test(accountState?.contract_access_state??''))fail('RELEASE_CRITICAL_CALLBACK_FIXTURE_INVALID');
@@ -773,7 +785,7 @@ async function reclaimExpiredCleanupLifecycleIfRequired(life,existing,run){
   emit({state:'RELEASE_CRITICAL_EXPIRED_CLEANUP_RECOVERY_PASS',run_marker_hash:sha256(run.runId),resumed_state:existing.state});
   return life.status();
 }
-async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,user,run,password,allowRunBoundUnmarked=false}){
+async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,user,run,password,allowRunBoundUnmarked=false,probeCallbackReach=false}){
   let statusLife=lifecycle(admin,run,provenance);
   let existing=await recoverableLifecycleStatus(
     statusLife,
@@ -791,6 +803,7 @@ async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,us
     const loginUrl=new URL('/login',baseUrl); loginUrl.searchParams.set('next','/dashboard');
     await page.goto(loginUrl.toString(),{waitUntil:'domcontentloaded'});
     await login(page,user.email,password,url=>['/dashboard','/onboarding','/signup'].includes(new URL(url).pathname));
+    if(probeCallbackReach)await probeAuthenticatedCallbackReach({page,baseUrl,run});
     fixture=await recoveryFixtureForBrowserSession({page,tenantNamePrefix:allowRunBoundUnmarked?null:run.marker,runId:run.runId});
     emit({state:'RELEASE_CRITICAL_FIXTURE_RECOVERY_SAME_OTP_SESSION_PASS',run_marker_hash:sha256(run.runId)});
   } finally {await context?.close();await browser?.close();}
@@ -830,6 +843,7 @@ async function recoverAddressBoundActualEmailFixture({admin,provenance,baseUrl,b
     run,
     password:releaseCriticalSyntheticPassword(run.emailMarker),
     allowRunBoundUnmarked:true,
+    probeCallbackReach:true,
   });
   if(recovered.state==='RUN_BOUND_FIXTURE')await cleanupLifecycle(recovered.life,admin,user.id,run.runId);
   if(await maybeFindUser(admin,email))fail('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_RESIDUAL');
@@ -1063,7 +1077,7 @@ async function main(){
   const provenanceResponse=await fetch(new URL('/api/qa/provenance',baseUrl),{headers:{'x-vercel-protection-bypass':bypassSecret},redirect:'manual',cache:'no-store'}); if(!provenanceResponse.ok||provenanceResponse.headers.has('location'))fail('RELEASE_CRITICAL_PROVENANCE_UNREACHED');
   const provenance=validateReleaseCriticalProvenance(await provenanceResponse.json(),baseUrl); if(provenance.sourceSha!==expectedCandidateSha)fail('RELEASE_CRITICAL_CANDIDATE_SHA_MISMATCH');
   if(executionMode==='machine_only')return runMachineOnly({baseUrl,supabaseUrl,serviceRole,bypassSecret,provenance});
-  if(executionMode!=='email_transport')fail('RELEASE_CRITICAL_EXECUTION_MODE_INVALID');
+  if(!['email_transport','callback_probe_only'].includes(executionMode))fail('RELEASE_CRITICAL_EXECUTION_MODE_INVALID');
   const manualBase=required('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS');
   const admin=createClient(supabaseUrl,serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
   // Actual email uses the exact organization-approved mailbox.  The lifecycle
@@ -1074,6 +1088,10 @@ async function main(){
   await recoverKnownPartialFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);
   await recoverInterruptedFixture(admin,provenance,baseUrl,supabaseUrl,serviceRole,bypassSecret);
   await recoverAddressBoundActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email:session.emailAddress});
+  if(executionMode==='callback_probe_only'){
+    emit({state:'RELEASE_CRITICAL_CALLBACK_PRECONDITION_PASS',actual_email_generated:false,fixture_residual:'ZERO'});
+    return;
+  }
   if(await maybeFindUser(admin,session.emailAddress))fail('RELEASE_CRITICAL_MANUAL_GMAIL_RUN_ADDRESS_CONFLICT');
   let browser; let context; let page; let user; let life; let adopted=false; const results={};
   try {
