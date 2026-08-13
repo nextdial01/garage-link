@@ -821,7 +821,7 @@ async function recoverLifecycleForUser({admin,provenance,baseUrl,bypassSecret,us
   return {state:'RUN_BOUND_FIXTURE',life,fixture};
 }
 async function recoverAddressBoundActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email}){
-  const user=await maybeFindUser(admin,email);
+  let user=await maybeFindUser(admin,email);
   if(!user)return false;
   const runId=user.app_metadata?.release_qa_run_id;
   if(typeof runId!=='string'||!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS_CONFLICT_UNBOUND');
@@ -837,8 +837,10 @@ async function recoverAddressBoundActualEmailFixture({admin,provenance,baseUrl,b
     // preserve the old run id as evidence, then adopt and teardown normally.
     const recoveryRun=createReleaseCriticalRun();
     const preservedMetadata={...(user.app_metadata??{})};
-    delete preservedMetadata.release_qa_callback;
-    const {error:bindError}=await admin.auth.admin.updateUserById(user.id,{app_metadata:{...preservedMetadata,release_qa_run_id:recoveryRun.runId,release_qa_recovered_from_run_id:run.runId}});
+    // GoTrue merges app_metadata; an omitted key does not clear a prior
+    // callback chain. Explicit null is required so the recovery run cannot
+    // accidentally append its evidence to the terminal run's chain.
+    const {error:bindError}=await admin.auth.admin.updateUserById(user.id,{app_metadata:{...preservedMetadata,release_qa_callback:null,release_qa_run_id:recoveryRun.runId,release_qa_recovered_from_run_id:run.runId}});
     if(bindError)fail(`RELEASE_CRITICAL_ABORTED_RUN_RECOVERY_BIND:${bindError.status??0}`);
     const rebound=await findUser(admin,email);
     if(rebound.app_metadata?.release_qa_run_id!==recoveryRun.runId||rebound.app_metadata?.release_qa_recovered_from_run_id!==run.runId)fail('RELEASE_CRITICAL_ABORTED_RUN_RECOVERY_BIND_UNPROVEN');
@@ -851,6 +853,12 @@ async function recoverAddressBoundActualEmailFixture({admin,provenance,baseUrl,b
     if(await maybeFindUser(admin,email))fail('RELEASE_CRITICAL_ABORTED_RUN_RECOVERY_RESIDUAL');
     emit({state:'RELEASE_CRITICAL_ABORTED_RUN_FORMAL_RECOVERY_PASS',run_marker_hash:sha256(recoveryRun.runId),recovered_terminal_run:true,cleanup:'FORMAL_LIFECYCLE'});
     return true;
+  }
+  if(user.app_metadata?.release_qa_callback?.run_id&&user.app_metadata.release_qa_callback.run_id!==run.runId){
+    const {error:clearError}=await admin.auth.admin.updateUserById(user.id,{app_metadata:{...user.app_metadata,release_qa_callback:null}});
+    if(clearError)fail(`RELEASE_CRITICAL_RECOVERY_CALLBACK_CHAIN_CLEAR:${clearError.status??0}`);
+    user=await findUser(admin,email);
+    if(user.app_metadata?.release_qa_callback)fail('RELEASE_CRITICAL_RECOVERY_CALLBACK_CHAIN_CLEAR_UNPROVEN');
   }
   // A human can finish store creation after the email callback before this
   // runner adopts the fixture.  The lifecycle is still PROVISIONING at that
