@@ -23,8 +23,13 @@ export async function GET(request: Request) {
   const runtimeHost = new URL(request.url).hostname.toLowerCase();
   const projectId = value('VERCEL_PROJECT_ID');
   const deploymentId = value('VERCEL_DEPLOYMENT_ID');
-  const gitCommitSha = value('VERCEL_GIT_COMMIT_SHA');
-  const gitCommitRef = value('VERCEL_GIT_COMMIT_REF');
+  // Vercel only injects VERCEL_GIT_* for Git-triggered deployments. The
+  // Staging-only Closure lane intentionally uses an explicitly authorised
+  // manual preview deploy, so it supplies these two immutable, non-secret
+  // provenance values at deploy time instead. They are accepted only after
+  // the Staging project/host checks below; Production never exposes this API.
+  const gitCommitSha = value('VERCEL_GIT_COMMIT_SHA') || value('GARAGE_STAGING_RELEASE_SHA');
+  const gitCommitRef = value('VERCEL_GIT_COMMIT_REF') || value('GARAGE_STAGING_RELEASE_REF');
   const url = value('VERCEL_URL').toLowerCase();
   const vercelEnvironment = value('VERCEL_ENV');
   const targetEnvironment = value('VERCEL_TARGET_ENV');

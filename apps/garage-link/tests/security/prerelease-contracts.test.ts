@@ -44,6 +44,8 @@ test.describe('Pre-release contracts (認証不要)', () => {
       'VERCEL_DEPLOYMENT_ID',
       'VERCEL_GIT_COMMIT_SHA',
       'VERCEL_GIT_COMMIT_REF',
+      'GARAGE_STAGING_RELEASE_SHA',
+      'GARAGE_STAGING_RELEASE_REF',
       'VERCEL_URL',
       'VERCEL_ENV',
       'VERCEL_TARGET_ENV',
@@ -88,6 +90,16 @@ test.describe('Pre-release contracts (認証不要)', () => {
 
       process.env.VERCEL_GIT_COMMIT_SHA = 'not-a-sha';
       expect((await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'))).status).toBe(404);
+
+      delete process.env.VERCEL_GIT_COMMIT_SHA;
+      delete process.env.VERCEL_GIT_COMMIT_REF;
+      Object.assign(process.env, {
+        GARAGE_STAGING_RELEASE_SHA: sha,
+        GARAGE_STAGING_RELEASE_REF: 'codex/garage-link-launch-closure',
+      });
+      const manualPreview = await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'));
+      expect(manualPreview.status).toBe(200);
+      expect((await manualPreview.json() as Record<string, unknown>).git_commit_sha).toBe(sha);
     } finally {
       for (const [key, value] of saved) {
         if (value === undefined) delete process.env[key];
