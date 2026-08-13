@@ -92,7 +92,12 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/one_time_unbound_actual_email_recovery/);
   assert.match(workflow,/recover_unbound_actual_email/);
   assert.match(workflow,/RELEASE_CRITICAL_ALLOW_UNBOUND_ACTUAL_EMAIL_RECOVERY/);
-  assert.match(journeys,/requestRecoveryForPreparedSession/);
+  assert.match(journeys,/RELEASE_CRITICAL_ACTUAL_EMAIL_RECOVERY_CHECKPOINT_PREPARED/);
+  assert.match(journeys,/RELEASE_CRITICAL_WAITING_MANUAL_GMAIL_RESET/);
+  const actualEmailPrepareSource=journeys.slice(journeys.indexOf('async function prepareActualEmail'),journeys.indexOf('async function resumeActualEmail'));
+  const actualEmailResumeSource=journeys.slice(journeys.indexOf('async function resumeActualEmail'),journeys.indexOf('async function main'));
+  assert.doesNotMatch(actualEmailPrepareSource,/requestRecoveryForPreparedSession/);
+  assert.match(actualEmailResumeSource,/requestRecoveryForPreparedSession/);
   assert.doesNotMatch(journeys,/run\.emailMarker}-contract/);
   assert.match(journeys,/requireOnboardingCompleted:true/);
   assert.match(journeys,/requireStoreCreated:true/);
@@ -520,17 +525,19 @@ test('release-critical journeys accept only the Staging runtime and marker-bound
   },'https://garage-link.tech'),/RELEASE_CRITICAL_PROVENANCE_DENIED/);
 });
 
-test('actual-email checkpoint binds one recipient to the exact run and deployment without storing an address',()=>{
+test('actual-email checkpoint separates signup and recovery transport without storing an address',()=>{
   const run=createReleaseCriticalRun('550e8400-e29b-41d4-a716-446655440000');
   const provenance={sourceSha:'d7974d6b9adc78064010cc6b4502f54adbc39ba5',deploymentId:'dpl_Abc123'};
-  const checkpoint=createActualEmailCheckpoint({run,provenance,userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',generatedAt:'2026-08-13T10:00:00.000Z',recoveryRequestedAt:'2026-08-13T10:00:01.000Z'});
-  assert.equal(checkpoint.state,'PREPARED');
+  const checkpoint=createActualEmailCheckpoint({run,provenance,userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',generatedAt:'2026-08-13T10:00:00.000Z'});
+  assert.equal(checkpoint.state,'SIGNUP_PREPARED');
   assert.equal(checkpoint.run_id,run.runId);
   assert.equal(checkpoint.candidate_sha,provenance.sourceSha);
   assert.equal(checkpoint.deployment_id,provenance.deploymentId);
   assert.equal('emailAddress' in checkpoint,false);
   assert.match(checkpoint.recipient_sha256,/^[0-9a-f]{64}$/);
   assert.deepEqual(validateActualEmailCheckpoint(checkpoint,{run,provenance,userId:'staging-user',emailAddress:'release.qa@kannagi-co.com'}),checkpoint);
+  const recovery={...checkpoint,state:'RECOVERY_PREPARED',recovery_requested_at:'2026-08-13T10:00:01.000Z'};
+  assert.deepEqual(validateActualEmailCheckpoint(recovery,{run,provenance,userId:'staging-user',emailAddress:'release.qa@kannagi-co.com'}),recovery);
   assert.throws(()=>validateActualEmailCheckpoint(checkpoint,{run,provenance,userId:'staging-user',emailAddress:'other@kannagi-co.com'}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_MISMATCH/);
 });
 

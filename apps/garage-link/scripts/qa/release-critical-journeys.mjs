@@ -41,26 +41,26 @@ export function createReleaseCriticalRun(runId=randomUUID()){
   if(!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_RUN_ID_INVALID');
   return {runId,marker:'[RELEASE QA 20260811]',emailMarker:`g${runId.replaceAll('-','').slice(0,6).toLowerCase()}`};
 }
-export function createActualEmailCheckpoint({run,provenance,userId,emailAddress,generatedAt=new Date().toISOString(),recoveryRequestedAt}){
-  if(!run?.runId||!/^[0-9a-f-]{36}$/i.test(run.runId)||!provenance?.sourceSha||!provenance?.deploymentId||!userId||!emailAddress||!recoveryRequestedAt)fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_INPUT_INVALID');
+export function createActualEmailCheckpoint({run,provenance,userId,emailAddress,generatedAt=new Date().toISOString()}){
+  if(!run?.runId||!/^[0-9a-f-]{36}$/i.test(run.runId)||!provenance?.sourceSha||!provenance?.deploymentId||!userId||!emailAddress)fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_INPUT_INVALID');
   return {
-    version:'v1',
-    state:'PREPARED',
+    version:'v2',
+    state:'SIGNUP_PREPARED',
     run_id:run.runId,
     candidate_sha:provenance.sourceSha,
     deployment_id:provenance.deploymentId,
     user_id:userId,
     recipient_sha256:sha256(emailAddress.toLowerCase()),
     generated_at:generatedAt,
-    recovery_requested_at:recoveryRequestedAt,
   };
 }
 export function validateActualEmailCheckpoint(checkpoint,{run,provenance,userId,emailAddress}){
-  if(!checkpoint||checkpoint.version!=='v1'||!['PREPARED','COMPLETED'].includes(checkpoint.state)
+  if(!checkpoint||checkpoint.version!=='v2'||!['SIGNUP_PREPARED','RECOVERY_PREPARED','COMPLETED'].includes(checkpoint.state)
     ||checkpoint.run_id!==run?.runId||checkpoint.candidate_sha!==provenance?.sourceSha
     ||checkpoint.deployment_id!==provenance?.deploymentId||checkpoint.user_id!==userId
     ||checkpoint.recipient_sha256!==sha256(String(emailAddress??'').toLowerCase())
-    ||!Number.isFinite(Date.parse(checkpoint.generated_at??''))||!Number.isFinite(Date.parse(checkpoint.recovery_requested_at??'')))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_MISMATCH');
+    ||!Number.isFinite(Date.parse(checkpoint.generated_at??''))
+    ||(['RECOVERY_PREPARED','COMPLETED'].includes(checkpoint.state)&&!Number.isFinite(Date.parse(checkpoint.recovery_requested_at??''))))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_MISMATCH');
   return checkpoint;
 }
 export function isLifecycleCleanupResumableState(state){
@@ -1225,7 +1225,7 @@ async function clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl
   }
   const run=createReleaseCriticalRun(runId); const life=lifecycle(admin,run,provenance); const status=await life.status();
   const checkpoint=user.app_metadata?.release_qa_email_checkpoint;
-  if(checkpoint?.state==='PREPARED'){
+  if(checkpoint?.state==='SIGNUP_PREPARED'){
     validateActualEmailCheckpoint(checkpoint,{run,provenance,userId:user.id,emailAddress:email});
     if(!user.email_confirmed_at&&Array.isArray(status.fixtures)&&status.fixtures.length===0)return {state:'PREPARED',run,user,life,checkpoint};
   }
@@ -1332,20 +1332,31 @@ async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSe
     if(outcome.kind!=='confirmation')fail(`RELEASE_CRITICAL_SIGNUP_OUTCOME_INVALID:${outcome.kind}`);
     if(!/確認メールを送信しました/.test(await page.getByRole('status').textContent()??''))fail('RELEASE_CRITICAL_CONFIRMATION_REQUIRED_NOT_PROVEN');
     emit({state:'RELEASE_CRITICAL_SIGNUP_REDIRECT_REQUEST_PASS',redirect_origin:redirect.origin,redirect_path:redirect.path,localhost:false});
-    const recoveryRequestedAt=await requestRecoveryForPreparedSession({context,baseUrl,supabaseUrl,email:session.emailAddress,run});
-    const checkpoint=createActualEmailCheckpoint({run,provenance,userId:user.id,emailAddress:session.emailAddress,recoveryRequestedAt});
+    const checkpoint=createActualEmailCheckpoint({run,provenance,userId:user.id,emailAddress:session.emailAddress});
     user=await persistActualEmailCheckpoint(admin,user,checkpoint);
-    emit({...manualGmailCheckpoint(session,'signup'),state:'RELEASE_CRITICAL_ACTUAL_EMAIL_CHECKPOINT_PREPARED',checkpoint_version:checkpoint.version,run_marker_hash:sha256(run.runId),recipient:'REDACTED_MANUAL_GMAIL_ADDRESS',confirmation_redirect_origin:redirect.origin,confirmation_redirect_path:redirect.path,localhost:false,recovery_requested:true,operator_action:'Open only the newest Staging confirmation email, verify the Staging HTTPS callback, complete store creation and onboarding, then open the matching reset email and set GL-Release-Reset-8!. Reply 完了 only after both are complete.'});
+    emit({...manualGmailCheckpoint(session,'signup'),state:'RELEASE_CRITICAL_ACTUAL_EMAIL_CHECKPOINT_PREPARED',checkpoint_version:checkpoint.version,run_marker_hash:sha256(run.runId),recipient:'REDACTED_MANUAL_GMAIL_ADDRESS',confirmation_redirect_origin:redirect.origin,confirmation_redirect_path:redirect.path,localhost:false,recovery_requested:false,operator_action:'Open only the newest Staging confirmation email, verify the Staging HTTPS callback, then complete store creation and onboarding. Do not request a password reset yet; reply 完了 after dashboard arrival.'});
   } catch(error) {
     if(user?.id){const latest=await findUser(admin,session.emailAddress); await clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email:latest.email});}
     else if(life)await abortUnprovisionedLifecycle(life,run.runId,'provider_rejected_before_auth_identity');
     throw error;
   } finally {await page?.close(); await context?.close(); await browser?.close();}
 }
-async function resumeActualEmail({admin,provenance,baseUrl,bypassSecret,run,session,resetPassword}){
+async function resumeActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSecret,run,session,resetPassword}){
   const user=await findUser(admin,session.emailAddress); const checkpoint=validateActualEmailCheckpoint(user.app_metadata?.release_qa_email_checkpoint,{run,provenance,userId:user.id,emailAddress:session.emailAddress});
-  if(checkpoint.state!=='PREPARED'||!user.email_confirmed_at)fail('RELEASE_CRITICAL_EMAIL_CONFIRMATION_UNPROVEN');
+  if(!user.email_confirmed_at)fail('RELEASE_CRITICAL_EMAIL_CONFIRMATION_UNPROVEN');
   const signupEvidence=await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'signup',requireStoreCreated:true,requireOnboardingCompleted:true});
+  if(checkpoint.state==='SIGNUP_PREPARED'){
+    let browser; let context;
+    try {
+      browser=await chromium.launch({headless:true}); context=await browser.newContext(); await installVercelBrowserBypass(context,baseUrl,bypassSecret);
+      const recoveryRequestedAt=await requestRecoveryForPreparedSession({context,baseUrl,supabaseUrl,email:session.emailAddress,run});
+      const recoveryCheckpoint={...checkpoint,state:'RECOVERY_PREPARED',recovery_requested_at:recoveryRequestedAt};
+      await persistActualEmailCheckpoint(admin,user,recoveryCheckpoint);
+      emit({...manualGmailCheckpoint(session,'recovery'),state:'RELEASE_CRITICAL_ACTUAL_EMAIL_RECOVERY_CHECKPOINT_PREPARED',checkpoint_version:recoveryCheckpoint.version,run_marker_hash:sha256(run.runId),recipient:'REDACTED_MANUAL_GMAIL_ADDRESS',operator_action:'Open only the newest Staging password-reset email, verify the Staging HTTPS callback, set GL-Release-Reset-8!, and submit. Reply 完了 after returning to GARAGE LINK.'});
+    } finally {await context?.close(); await browser?.close();}
+    fail('RELEASE_CRITICAL_WAITING_MANUAL_GMAIL_RESET');
+  }
+  if(checkpoint.state!=='RECOVERY_PREPARED')fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_STATE_INVALID');
   await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,purpose:'recovery',requirePasswordUpdate:true});
   const owner=readCallbackFixture(signupEvidence.fixture,run.marker); const life=lifecycle(admin,run,provenance); await adoptLifecycleFixture(life,run,{...owner,userId:user.id});
   let browser; let context; let page;
@@ -1369,7 +1380,7 @@ async function main(){
   const session=createActualEmailTransportSession(manualBase,'g'+randomUUID().replaceAll('-','').slice(0,6));
   if(executionMode==='actual_email_prepare'){const run=createReleaseCriticalRun(); const prepared={...session,runMarker:run.emailMarker}; const allowUnboundRecovery=process.env.RELEASE_CRITICAL_ALLOW_UNBOUND_ACTUAL_EMAIL_RECOVERY==='true'; return prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSecret,run,session:prepared,initialPassword:releaseCriticalSyntheticPassword(run.emailMarker),allowUnboundRecovery});}
   if(executionMode==='actual_email_resume'){
-    const user=await findUser(admin,session.emailAddress); const runId=user.app_metadata?.release_qa_run_id; if(typeof runId!=='string')fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_RUN_MISSING'); const run=createReleaseCriticalRun(runId); const boundSession={...session,runMarker:run.emailMarker}; return resumeActualEmail({admin,provenance,baseUrl,bypassSecret,run,session:boundSession,resetPassword:'GL-Release-Reset-8!'});
+    const user=await findUser(admin,session.emailAddress); const runId=user.app_metadata?.release_qa_run_id; if(typeof runId!=='string')fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_RUN_MISSING'); const run=createReleaseCriticalRun(runId); const boundSession={...session,runMarker:run.emailMarker}; return resumeActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSecret,run,session:boundSession,resetPassword:'GL-Release-Reset-8!'});
   }
   fail('RELEASE_CRITICAL_EXECUTION_MODE_INVALID');
 }
