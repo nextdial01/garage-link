@@ -24,13 +24,14 @@ on:
           - verify_by_journey
           - repair_staging_once
       execution_scope:
-        description: full reruns all machine gates; actual_email_only reuses fixed machine-gate evidence; callback_probe_only recovers and verifies callback reach without generating an email
+        description: full reruns machine gates; actual_email_prepare persists one bounded human checkpoint; actual_email_resume verifies that same checkpoint; callback_probe_only verifies callback reach without sending email
         required: true
         default: full
         type: choice
         options:
           - full
-          - actual_email_only
+          - actual_email_prepare
+          - actual_email_resume
           - callback_probe_only
 
 permissions:
@@ -150,7 +151,7 @@ jobs:
   email-transport-state:
     name: Email transport readiness (fail-closed before provider send)
     needs: [preflight, machine-gates]
-    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_only' || inputs.execution_scope == 'callback_probe_only') }}
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_prepare' || inputs.execution_scope == 'actual_email_resume' || inputs.execution_scope == 'callback_probe_only') }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 5
@@ -184,17 +185,19 @@ jobs:
   actual-email-gates:
     name: Actual email transport and callback gates
     needs: [preflight, machine-gates, email-transport-state]
-    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_only' || inputs.execution_scope == 'callback_probe_only') && (inputs.execution_scope == 'callback_probe_only' || needs.email-transport-state.outputs.transport_ready == 'true') }}
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_prepare' || inputs.execution_scope == 'actual_email_resume' || inputs.execution_scope == 'callback_probe_only') && (inputs.execution_scope == 'callback_probe_only' || needs.email-transport-state.outputs.transport_ready == 'true') }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 45
+    outputs:
+      phase: ${{ steps.journey.outputs.phase }}
     env:
       PLAYWRIGHT_BASE_URL: ${{ needs.preflight.outputs.base_url }}
       RELEASE_CRITICAL_CANDIDATE_SHA: ${{ needs.preflight.outputs.source_sha }}
       E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
-      RELEASE_CRITICAL_EXECUTION_MODE: ${{ inputs.execution_scope == 'callback_probe_only' && 'callback_probe_only' || 'email_transport' }}
+      RELEASE_CRITICAL_EXECUTION_MODE: ${{ inputs.execution_scope == 'callback_probe_only' && 'callback_probe_only' || inputs.execution_scope }}
       RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
     steps:
       - uses: actions/checkout@v4
@@ -208,8 +211,17 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Install release-critical browsers
         run: pnpm --filter @apps/garage-link exec playwright install --with-deps chromium webkit
-      - name: Run actual signup and recovery email journeys
-        run: node apps/garage-link/scripts/qa/release-critical-journeys.mjs
+      - id: journey
+        name: Run bounded actual-email checkpoint or resume
+        run: |
+          node apps/garage-link/scripts/qa/release-critical-journeys.mjs
+          if [ "$RELEASE_CRITICAL_EXECUTION_MODE" = actual_email_prepare ]; then
+            echo 'phase=PREPARED' >> "$GITHUB_OUTPUT"
+          elif [ "$RELEASE_CRITICAL_EXECUTION_MODE" = actual_email_resume ]; then
+            echo 'phase=COMPLETED' >> "$GITHUB_OUTPUT"
+          else
+            echo 'phase=PROBED' >> "$GITHUB_OUTPUT"
+          fi
 
   production-email-transport:
     name: Production email transport classification (read-only)
@@ -242,6 +254,7 @@ jobs:
           TRANSPORT_READY: ${{ needs.email-transport-state.outputs.transport_ready }}
           TRANSPORT_STATE: ${{ needs.email-transport-state.outputs.transport_state }}
           ACTUAL_EMAIL: ${{ needs.actual-email-gates.result }}
+          ACTUAL_EMAIL_PHASE: ${{ needs.actual-email-gates.outputs.phase }}
           PRODUCTION_TRANSPORT: ${{ needs.production-email-transport.outputs.classification }}
         run: |
           if [ "$PREFLIGHT" != success ] || { [ "$EXECUTION_SCOPE" = full ] && { [ "$QA_LIFECYCLE_CONTRACT" != success ] || [ "$MACHINE" != success ]; }; }; then
@@ -256,8 +269,16 @@ jobs:
             echo '{"state":"RELEASE_CRITICAL_WAITING_TRANSPORT","reason":"'"${TRANSPORT_STATE:-NO_PERMANENT_QA_TRANSPORT}"'"}'
             exit 1
           fi
+          if [ "$ACTUAL_EMAIL_PHASE" = PREPARED ]; then
+            echo '{"state":"RELEASE_CRITICAL_WAITING_MANUAL_GMAIL","checkpoint":"PERSISTED"}'
+            exit 1
+          fi
           if [ "$ACTUAL_EMAIL" != success ]; then
             echo '{"state":"RELEASE_CRITICAL_NOT_READY","reason":"ACTUAL_EMAIL_GATE_FAILED"}'
+            exit 1
+          fi
+          if [ "$EXECUTION_SCOPE" = actual_email_resume ] && [ "$ACTUAL_EMAIL_PHASE" != COMPLETED ]; then
+            echo '{"state":"RELEASE_CRITICAL_NOT_READY","reason":"ACTUAL_EMAIL_RESUME_UNPROVEN"}'
             exit 1
           fi
           echo '{"state":"RELEASE_CRITICAL_CONVERGED_PASS"}'

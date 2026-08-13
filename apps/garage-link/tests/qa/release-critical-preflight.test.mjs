@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createActualEmailTransportSession, createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl, validateActualEmailTransportRecipient, verifyManualGmailCallbackReach } from '../../scripts/qa/release-critical-preflight.mjs';
-import { classifyCtaTrace, createReleaseCriticalRun, installVercelBrowserBypass, isAuthOnlyLifecycleAbortEligible, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, recoverableLifecycleStatus, releaseCriticalSyntheticPassword, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
+import { classifyCtaTrace, createActualEmailCheckpoint, createReleaseCriticalRun, installVercelBrowserBypass, isAuthOnlyLifecycleAbortEligible, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, recoverableLifecycleStatus, releaseCriticalSyntheticPassword, validateActualEmailCheckpoint, validateClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance } from '../../scripts/qa/release-critical-journeys.mjs';
 import { applyStagingPasswordMinimum } from '../../scripts/qa/release-critical-stage-auth.mjs';
 import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critical-qa-lifecycle-contract.mjs';
 
@@ -65,10 +65,10 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.doesNotMatch(runner,/STRIPE_SECRET_KEY|sk_live_|api\.line\.me/);
   assert.match(journeys,/qa_lifecycle_adopt_fixture/);
   assert.match(journeys,/qa_lifecycle_verify_clean/);
-  assert.match(journeys,/manualGmailCheckpoint\(session,'signup'\)/);
+  assert.match(journeys,/RELEASE_CRITICAL_ACTUAL_EMAIL_CHECKPOINT_PREPARED/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_REQUEST_UNOBSERVED/);
   assert.match(journeys,/RELEASE_CRITICAL_SIGNUP_RESPONSE_UNOBSERVED/);
-  assert.match(journeys,/manualGmailCheckpoint\(session,'recovery'\)/);
+  assert.match(journeys,/requestRecoveryForPreparedSession/);
   assert.doesNotMatch(journeys,/run\.emailMarker}-contract/);
   assert.match(journeys,/requireOnboardingCompleted:true/);
   assert.match(journeys,/requireStoreCreated:true/);
@@ -276,7 +276,11 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(workflow,/release-critical-qa-lifecycle-contract\.mjs/);
   assert.match(workflow,/actual-email-gates/);
   assert.match(workflow,/execution_scope/);
-  assert.match(workflow,/actual_email_only/);
+  assert.match(workflow,/actual_email_prepare/);
+  assert.match(workflow,/actual_email_resume/);
+  assert.doesNotMatch(workflow,/actual_email_only/);
+  assert.match(workflow,/RELEASE_CRITICAL_WAITING_MANUAL_GMAIL/);
+  assert.match(workflow,/ACTUAL_EMAIL_PHASE/);
   assert.match(workflow,/final-clean-verdict/);
   assert.match(workflow,/production-email-transport/);
   assert.match(await readFile(resolve(appRoot,'scripts/qa/release-critical-production-transport.mjs'),'utf8'),/HISTORICAL_EVIDENCE_SOURCES/);
@@ -304,8 +308,11 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(journeys,/EMAIL_TRANSPORT_WAITING/);
   assert.match(journeys,/auth_callback_mechanics:'PASS'/);
   assert.match(journeys,/qa\.machine\./);
-  assert.match(journeys,/createActualEmailTransportSession\(manualBase,run\.emailMarker\)/);
-  assert.match(journeys,/RELEASE_CRITICAL_MANUAL_GMAIL_RUN_ADDRESS_CONFLICT/);
+  assert.match(journeys,/createActualEmailCheckpoint/);
+  assert.match(journeys,/RELEASE_CRITICAL_ACTUAL_EMAIL_CHECKPOINT_ALREADY_PREPARED/);
+  assert.match(journeys,/RELEASE_CRITICAL_STALE_EMAIL_CHECKPOINT_CLEAN/);
+  assert.match(journeys,/RELEASE_CRITICAL_EMAIL_CONFIRMATION_UNPROVEN/);
+  assert.doesNotMatch(journeys,/pollManualGmailConfirmation\(/);
   assert.match(workflow,/GARAGE_STAGING_E2E_EMAIL/);
   assert.match(workflow,/EMAIL_TRANSPORT_NOT_CONFIGURED/);
   assert.match(workflow,/release-critical-email-transport\.mjs/);
@@ -470,6 +477,20 @@ test('release-critical journeys accept only the Staging runtime and marker-bound
   assert.throws(()=>validateReleaseCriticalProvenance({
     project_id:'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64',deployment_id:'dpl_Abc123',git_commit_sha:'d7974d6b9adc78064010cc6b4502f54adbc39ba5',git_commit_ref:'main',deployment_url:'https://garage-link.tech',environment:'production',
   },'https://garage-link.tech'),/RELEASE_CRITICAL_PROVENANCE_DENIED/);
+});
+
+test('actual-email checkpoint binds one recipient to the exact run and deployment without storing an address',()=>{
+  const run=createReleaseCriticalRun('550e8400-e29b-41d4-a716-446655440000');
+  const provenance={sourceSha:'d7974d6b9adc78064010cc6b4502f54adbc39ba5',deploymentId:'dpl_Abc123'};
+  const checkpoint=createActualEmailCheckpoint({run,provenance,userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',generatedAt:'2026-08-13T10:00:00.000Z',recoveryRequestedAt:'2026-08-13T10:00:01.000Z'});
+  assert.equal(checkpoint.state,'PREPARED');
+  assert.equal(checkpoint.run_id,run.runId);
+  assert.equal(checkpoint.candidate_sha,provenance.sourceSha);
+  assert.equal(checkpoint.deployment_id,provenance.deploymentId);
+  assert.equal('emailAddress' in checkpoint,false);
+  assert.match(checkpoint.recipient_sha256,/^[0-9a-f]{64}$/);
+  assert.deepEqual(validateActualEmailCheckpoint(checkpoint,{run,provenance,userId:'staging-user',emailAddress:'release.qa@kannagi-co.com'}),checkpoint);
+  assert.throws(()=>validateActualEmailCheckpoint(checkpoint,{run,provenance,userId:'staging-user',emailAddress:'other@kannagi-co.com'}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_MISMATCH/);
 });
 
 test('an interrupted registered fixture resumes only its formal cleanup states',()=>{
