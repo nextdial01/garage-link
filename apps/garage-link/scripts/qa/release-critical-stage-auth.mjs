@@ -82,9 +82,13 @@ export async function readStagingRuntimeProvenance({runtimeOrigin,expectedSha,by
   return {runtime_origin:baseUrl,project_id:value.project_id,deployment_id:value.deployment_id,source_sha:value.git_commit_sha.toLowerCase(),source_ref:value.git_commit_ref,environment:String(value.environment).toLowerCase(),auth_confirm_origin:authConfirmOrigin};
 }
 
-export async function verifyControlledConfirmReach(origin,bypassSecret,fetchImpl=fetch){
+export async function verifyControlledConfirmReach(origin,_bypassSecret,fetchImpl=fetch){
   const confirmationOrigin=controlledStagingOrigin(origin);
-  const response=await fetchImpl(new URL('/auth/confirm',confirmationOrigin),{headers:{accept:'text/html',...(bypassSecret?{'x-vercel-protection-bypass':bypassSecret}:{})},redirect:'manual',cache:'no-store'});
+  // The Vercel bypass secret is required for the private preview runtime
+  // provenance read, but must never accompany a request to the public
+  // controlled custom origin: Vercel responds there with a 307 instead of
+  // reaching the public /auth/confirm handler.
+  const response=await fetchImpl(new URL('/auth/confirm',confirmationOrigin),{headers:{accept:'text/html'},redirect:'manual',cache:'no-store'});
   if(!response.ok||response.headers.has('location'))fail(`STAGING_AUTH_CONFIRM_UNREACHED:${response.status}`);
   return {confirmation_origin:confirmationOrigin,http_status:response.status,redirect:false};
 }
