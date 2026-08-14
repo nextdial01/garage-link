@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { createClient } from '@supabase/supabase-js';
 import { chromium, webkit } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createActualEmailTransportSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, releaseCriticalBaseUrl } from './release-critical-preflight.mjs';
@@ -13,6 +14,16 @@ const PARTIAL_USER_ID='809dc953-e604-48a7-a4b1-606a57aae461';
 const INTERRUPTED_RUN_ID='16a2c261-29ea-4441-b905-2144dc7d320f';
 const RESUME_EVIDENCE_TIMEOUT_MS=90_000;
 const MANUAL_GMAIL_HANDOFF_FRESHNESS_MS=15*60_000;
+const ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA='08d2cd575c4637da57b994cb02d29d9b43269b87';
+const ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PATHS=new Set([
+  '.github/workflows/garage-link-release-critical.yml',
+  'apps/garage-link/scripts/qa/release-critical-journeys.mjs',
+  'apps/garage-link/src/lib/security/adminEmailOtpServer.ts',
+  'apps/garage-link/src/lib/security/previewOtpSink.ts',
+  'apps/garage-link/src/lib/security/stagingReleaseQaHost.ts',
+  'apps/garage-link/tests/qa/release-critical-preflight.test.mjs',
+  'apps/garage-link/tests/security/ux-acceptance-contract.test.ts',
+]);
 
 function fail(code){throw new Error(code)}
 function required(name){const value=process.env[name]?.trim();if(!value)fail(`RELEASE_CRITICAL_JOURNEY_MISSING:${name}`);return value}
@@ -95,6 +106,38 @@ export function validateActualEmailCheckpoint(checkpoint,{run,provenance,userId,
     ||!Number.isFinite(Date.parse(checkpoint.generated_at??''))||!Number.isFinite(Date.parse(checkpoint.handoff_expires_at??''))
     ||(['RECOVERY_PREPARED','COMPLETED'].includes(checkpoint.state)&&!Number.isFinite(Date.parse(checkpoint.recovery_requested_at??''))))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_MISMATCH');
   return checkpoint;
+}
+function readActualEmailSuccessorBridgeGitMetadata(sourceSha){
+  const git=(args)=>execFileSync('git',args,{encoding:'utf8'}).trim().toLowerCase();
+  const head=git(['rev-parse','HEAD']);
+  const parent=git(['rev-parse',`${sourceSha}^`]);
+  const changedPaths=execFileSync('git',['diff','--name-only',parent,sourceSha],{encoding:'utf8'})
+    .split('\n').map(value=>value.trim()).filter(Boolean);
+  return {head,parent,changedPaths};
+}
+export function bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance,userId,emailAddress,bridgedAt=new Date().toISOString(),readGitMetadata=readActualEmailSuccessorBridgeGitMetadata}){
+  try {
+    return {checkpoint:validateActualEmailCheckpoint(checkpoint,{run,provenance,userId,emailAddress}),bridged:false};
+  } catch (error) {
+    if (String(error?.message)!=='RELEASE_CRITICAL_EMAIL_CHECKPOINT_MISMATCH') throw error;
+  }
+  if(checkpoint?.candidate_sha!==ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA||checkpoint?.provenance_bridge)fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
+  const metadata=readGitMetadata(provenance?.sourceSha);
+  if(metadata?.head!==provenance?.sourceSha||metadata?.parent!==ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA||!Array.isArray(metadata?.changedPaths)||metadata.changedPaths.length===0||metadata.changedPaths.some(path=>!ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PATHS.has(path)))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
+  const bridged={
+    ...checkpoint,
+    candidate_sha:provenance.sourceSha,
+    deployment_id:provenance.deploymentId,
+    provenance_bridge:{
+      version:'v1',
+      predecessor_sha:ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA,
+      predecessor_deployment_id:checkpoint.deployment_id,
+      successor_sha:provenance.sourceSha,
+      successor_deployment_id:provenance.deploymentId,
+      bridged_at:bridgedAt,
+    },
+  };
+  return {checkpoint:validateActualEmailCheckpoint(bridged,{run,provenance,userId,emailAddress}),bridged:true};
 }
 export function isActualEmailCheckpointFresh(checkpoint,now=Date.now()){
   const expires=Date.parse(checkpoint?.handoff_expires_at??'');
@@ -1394,7 +1437,13 @@ async function prepareActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSe
   } finally {await page?.close(); await context?.close(); await browser?.close();}
 }
 async function resumeActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSecret,run,session,resetPassword}){
-  const user=await findUser(admin,session.emailAddress); const checkpoint=validateActualEmailCheckpoint(user.app_metadata?.release_qa_email_checkpoint,{run,provenance,userId:user.id,emailAddress:session.emailAddress});
+  let user=await findUser(admin,session.emailAddress);
+  const resolved=bridgeActualEmailCheckpointProvenance(user.app_metadata?.release_qa_email_checkpoint,{run,provenance,userId:user.id,emailAddress:session.emailAddress});
+  const checkpoint=resolved.checkpoint;
+  if(resolved.bridged){
+    user=await persistActualEmailCheckpoint(admin,user,checkpoint);
+    emit({state:'RELEASE_CRITICAL_ACTUAL_EMAIL_PROVENANCE_BRIDGED',predecessor_sha:checkpoint.provenance_bridge.predecessor_sha,successor_sha:checkpoint.provenance_bridge.successor_sha,predecessor_deployment_id:checkpoint.provenance_bridge.predecessor_deployment_id,successor_deployment_id:checkpoint.provenance_bridge.successor_deployment_id,original_confirmation_evidence_preserved:true});
+  }
   if(!user.email_confirmed_at){
     if(!isActualEmailCheckpointFresh(checkpoint)){
       const stale=await clearStaleUnconfirmedActualEmailFixture({admin,provenance,baseUrl,bypassSecret,email:session.emailAddress});

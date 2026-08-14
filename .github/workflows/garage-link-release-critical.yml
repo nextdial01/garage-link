@@ -243,6 +243,8 @@ jobs:
       RELEASE_CRITICAL_CONTROLLED_AUTH_CONFIRM_ORIGIN: ${{ needs.preflight.outputs.auth_confirm_origin }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: pnpm/action-setup@v4
         with:
           version: 10.33.0

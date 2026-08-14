@@ -1,10 +1,7 @@
 import 'server-only';
-
-const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
-const STAGING_HOST = /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i;
+import { isControlledStagingReleaseQaRuntime } from '@/lib/security/stagingReleaseQaHost';
 
 export function getPreviewOtpSinkContext(request: Request) {
-  const secret = process.env.GARAGE_PREVIEW_OTP_SINK_SECRET?.trim() ?? '';
   let requestHostname = '';
   try {
     requestHostname = new URL(request.url).hostname.toLowerCase();
@@ -13,13 +10,13 @@ export function getPreviewOtpSinkContext(request: Request) {
   }
 
   const requested = process.env.VERCEL_ENV === 'preview';
-  const authorized =
-    requested &&
-    process.env.VERCEL_PROJECT_ID === STAGING_PROJECT_ID &&
-    process.env.VERCEL_ENV === 'preview' &&
-    process.env.NODE_ENV === 'production' &&
-    secret.length >= 32 &&
-    STAGING_HOST.test(requestHostname);
+  const authorized = requested && isControlledStagingReleaseQaRuntime({
+    hostname: requestHostname,
+    projectId: process.env.VERCEL_PROJECT_ID,
+    vercelEnv: process.env.VERCEL_ENV,
+    nodeEnv: process.env.NODE_ENV,
+    previewOtpSecret: process.env.GARAGE_PREVIEW_OTP_SINK_SECRET,
+  });
 
   return { requested, authorized } as const;
 }

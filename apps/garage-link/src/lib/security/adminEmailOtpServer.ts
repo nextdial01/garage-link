@@ -3,16 +3,16 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { hasValidStagingReleaseQaRunBinding, isControlledStagingReleaseQaRuntime } from '@/lib/security/stagingReleaseQaHost';
 
-const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
-const RELEASE_QA_EMAIL = /\+garage-link-[0-9a-f]{8}-[0-9a-f-]{27}@/i;
-const RELEASE_QA_RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function isStagingReleaseQaRequest(request: NextRequest) {
-  const host = request.nextUrl.hostname;
-  return process.env.VERCEL_PROJECT_ID === STAGING_PROJECT_ID
-    && process.env.VERCEL_ENV === 'preview'
-    && /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i.test(host);
+export function isStagingReleaseQaRequest(request: NextRequest) {
+  return isControlledStagingReleaseQaRuntime({
+    hostname: request.nextUrl.hostname,
+    projectId: process.env.VERCEL_PROJECT_ID,
+    vercelEnv: process.env.VERCEL_ENV,
+    nodeEnv: process.env.NODE_ENV,
+    previewOtpSecret: process.env.GARAGE_PREVIEW_OTP_SINK_SECRET,
+  });
 }
 
 export async function getAuthenticatedAdminContext(
@@ -37,14 +37,9 @@ export async function getAuthenticatedAdminContext(
   const user = userData.user;
   const sessionId = typeof claimsData?.claims?.session_id === 'string' ? claimsData.claims.session_id : '';
   if (!user?.id || !user.email || !sessionId) return null;
-  // Current Release Critical runs bind the exact authorized Gmail recipient
-  // to a service-owned app_metadata run id. Keep the legacy plus-address
-  // contract only for cleanup of older synthetic fixtures.
-  if (
-    releaseQaRequest
-    && !RELEASE_QA_EMAIL.test(user.email)
-    && !RELEASE_QA_RUN_ID.test(String(user.app_metadata?.release_qa_run_id ?? ''))
-  ) return null;
+  // The Preview OTP sink is limited to the exact Staging QA run binding.
+  // Legacy plus-address fixtures remain cleanup-only and cannot request OTPs.
+  if (releaseQaRequest && !hasValidStagingReleaseQaRunBinding(user.app_metadata?.release_qa_run_id)) return null;
   const rpcCalls = options.requireReleaseQa
     ? [
         service.rpc('release_qa_admin_bootstrap_context', {
