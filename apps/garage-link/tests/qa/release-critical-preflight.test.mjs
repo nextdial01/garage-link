@@ -647,10 +647,12 @@ test('human handoff freshness is bounded and checkpoint evidence cannot be reuse
   assert.equal(isActualEmailCheckpointFresh(checkpoint,Date.parse('2026-08-14T00:15:00.001Z')),false);
 });
 
-test('actual-email readiness rejects Supabase default SMTP until the controlled-domain contract is configured',()=>{
+test('actual-email readiness permits the explicit Staging default-SMTP exception without weakening the customer contract',()=>{
   assert.deepEqual(validateControlledAuthEmailTransportContract('custom_smtp_tokenhash_v1'),{contract:'custom_smtp_tokenhash_v1',default_smtp:false});
+  assert.deepEqual(validateControlledAuthEmailTransportContract('staging_default_smtp_tokenhash_v1',{allowStagingDefaultSmtp:true}),{contract:'staging_default_smtp_tokenhash_v1',default_smtp:true});
   assert.throws(()=>validateControlledAuthEmailTransportContract(''),/EMAIL_TRANSPORT_NOT_CONFIGURED:CONTROLLED_AUTH_EMAIL_CONTRACT_REQUIRED/);
-  assert.throws(()=>validateControlledAuthEmailTransportContract('default_smtp'),/EMAIL_TRANSPORT_NOT_CONFIGURED:CONTROLLED_AUTH_EMAIL_CONTRACT_REQUIRED/);
+  assert.throws(()=>validateControlledAuthEmailTransportContract('staging_default_smtp_tokenhash_v1'),/EMAIL_TRANSPORT_NOT_CONFIGURED:CONTROLLED_AUTH_EMAIL_CONTRACT_REQUIRED/);
+  assert.throws(()=>validateControlledAuthEmailTransportContract('default_smtp',{allowStagingDefaultSmtp:true}),/EMAIL_TRANSPORT_NOT_CONFIGURED:CONTROLLED_AUTH_EMAIL_CONTRACT_REQUIRED/);
   assert.deepEqual(validateControlledAuthConfirmOrigin('https://auth-staging.garage-link.tech'),{origin:'https://auth-staging.garage-link.tech'});
   assert.throws(()=>validateControlledAuthConfirmOrigin('https://garage-link-staging.vercel.app'),/EMAIL_TRANSPORT_NOT_CONFIGURED:CONTROLLED_CONFIRM_ORIGIN_REQUIRED/);
 });

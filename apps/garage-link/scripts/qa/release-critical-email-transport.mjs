@@ -3,6 +3,7 @@ const NON_DELIVERABLE_QA_DOMAINS=new Set([
   'localhost','mailinator.com','guerrillamail.com','10minutemail.com','tempmail.com',
 ]);
 export const CONTROLLED_AUTH_EMAIL_CONTRACT='custom_smtp_tokenhash_v1';
+export const STAGING_DEFAULT_SMTP_TOKENHASH_CONTRACT='staging_default_smtp_tokenhash_v1';
 
 function fail(code){throw new Error(code)}
 
@@ -21,15 +22,18 @@ export function validateActualEmailTransportRecipient(value){
 }
 
 // Recipient syntax alone is not evidence that a real customer-facing Auth
-// email can be delivered. This is a Staging Environment attestation set only
-// after the custom SMTP sender and TokenHash templates are configured. It is
-// intentionally not a secret and prevents falling back to Supabase default
-// SMTP for an actual-email Release Critical run.
-export function validateControlledAuthEmailTransportContract(value){
-  if(String(value??'').trim()!==CONTROLLED_AUTH_EMAIL_CONTRACT){
-    fail('EMAIL_TRANSPORT_NOT_CONFIGURED:CONTROLLED_AUTH_EMAIL_CONTRACT_REQUIRED');
+// email can be delivered. The custom SMTP contract remains the default. The
+// Staging default-SMTP contract below needs an explicit caller opt-in, so it
+// can never become an accidental customer-facing fallback.
+export function validateControlledAuthEmailTransportContract(value,{allowStagingDefaultSmtp=false}={}){
+  const contract=String(value??'').trim();
+  if(contract===CONTROLLED_AUTH_EMAIL_CONTRACT)return {contract,default_smtp:false};
+  // This is an explicit Staging-only QA exception.  Callers must opt in rather
+  // than treating a default SMTP fallback as a customer-facing transport.
+  if(contract===STAGING_DEFAULT_SMTP_TOKENHASH_CONTRACT&&allowStagingDefaultSmtp===true){
+    return {contract,default_smtp:true};
   }
-  return {contract:CONTROLLED_AUTH_EMAIL_CONTRACT,default_smtp:false};
+  fail('EMAIL_TRANSPORT_NOT_CONFIGURED:CONTROLLED_AUTH_EMAIL_CONTRACT_REQUIRED');
 }
 
 export function validateControlledAuthConfirmOrigin(value){
