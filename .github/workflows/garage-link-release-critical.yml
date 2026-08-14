@@ -16,13 +16,14 @@ on:
         required: true
         type: string
       auth_config_mode:
-        description: Normal runs prove redirects through Hosted Auth; use repair only for one-time Staging drift remediation
+        description: Normal runs prove redirects through Hosted Auth; admin_config_only is a no-email Staging control-plane lane
         required: true
         default: verify_by_journey
         type: choice
         options:
           - verify_by_journey
           - repair_staging_once
+          - admin_config_only
       execution_scope:
         description: full reruns machine gates; actual_email_prepare persists one bounded human checkpoint; actual_email_resume verifies that same checkpoint; callback_probe_only verifies callback reach; context_probe_only verifies fresh-tab QA context without sending email
         required: true
@@ -57,6 +58,7 @@ jobs:
       source_sha: ${{ steps.contract.outputs.source_sha }}
       base_url: ${{ steps.contract.outputs.base_url }}
       deployment_id: ${{ steps.contract.outputs.deployment_id }}
+      auth_confirm_origin: ${{ steps.contract.outputs.auth_confirm_origin }}
     env:
       PLAYWRIGHT_BASE_URL: ${{ inputs.staging_base_url }}
       E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
@@ -78,7 +80,7 @@ jobs:
         name: Verify Staging-only execution contract
         run: |
           node apps/garage-link/scripts/qa/release-critical-preflight.mjs > "$RUNNER_TEMP/preflight.json"
-          node -e "const value=JSON.parse(require('node:fs').readFileSync(process.argv[1],'utf8')); if(value.state!=='PREFLIGHT_READY'||!(/^[0-9a-f]{40}$/i.test(value.source_sha??''))||!value.base_url||!/^dpl_[A-Za-z0-9]+$/.test(value.deployment_id??''))process.exit(1); for(const key of ['source_sha','base_url','deployment_id'])process.stdout.write(key+'='+value[key]+'\\n');" "$RUNNER_TEMP/preflight.json" >> "$GITHUB_OUTPUT"
+          node -e "const value=JSON.parse(require('node:fs').readFileSync(process.argv[1],'utf8')); if(value.state!=='PREFLIGHT_READY'||!(/^[0-9a-f]{40}$/i.test(value.source_sha??''))||!value.base_url||!/^dpl_[A-Za-z0-9]+$/.test(value.deployment_id??'')||!/^https:\/\/[^/]+\.garage-link\.tech$/i.test(value.auth_confirm_origin??''))process.exit(1); for(const key of ['source_sha','base_url','deployment_id','auth_confirm_origin'])process.stdout.write(key+'='+value[key]+'\\n');" "$RUNNER_TEMP/preflight.json" >> "$GITHUB_OUTPUT"
 
   stage-auth-contract:
     name: Staging Auth redirect and password contract
@@ -89,6 +91,9 @@ jobs:
     timeout-minutes: 15
     env:
       GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN }}
+      STAGING_RUNTIME_ORIGIN: ${{ needs.preflight.outputs.base_url }}
+      RELEASE_CRITICAL_EXPECTED_SHA: ${{ needs.preflight.outputs.source_sha }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -100,6 +105,30 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Apply and read back the Staging-only Auth contract
+        run: node apps/garage-link/scripts/qa/release-critical-stage-auth.mjs
+
+  staging-auth-admin-config:
+    name: Staging Auth admin config (no email)
+    if: ${{ inputs.auth_config_mode == 'admin_config_only' }}
+    runs-on: ubuntu-latest
+    environment: garage-link-commercial-staging
+    timeout-minutes: 15
+    env:
+      GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN }}
+      STAGING_RUNTIME_ORIGIN: ${{ inputs.staging_base_url }}
+      RELEASE_CRITICAL_EXPECTED_SHA: ${{ github.sha }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply and read back Staging Auth without sending email
         run: node apps/garage-link/scripts/qa/release-critical-stage-auth.mjs
 
   qa-lifecycle-contract:
@@ -171,8 +200,8 @@ jobs:
         env:
           RELEASE_CRITICAL_EMAIL_MODE: ${{ inputs.email_mode }}
           RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
-          RELEASE_CRITICAL_CONTROLLED_AUTH_EMAIL_CONTRACT: ${{ vars.GARAGE_STAGING_CONTROLLED_AUTH_EMAIL_CONTRACT }}
-          RELEASE_CRITICAL_CONTROLLED_AUTH_CONFIRM_ORIGIN: ${{ vars.GARAGE_STAGING_AUTH_CONFIRM_ORIGIN }}
+          RELEASE_CRITICAL_CONTROLLED_AUTH_EMAIL_CONTRACT: custom_smtp_tokenhash_v1
+          RELEASE_CRITICAL_CONTROLLED_AUTH_CONFIRM_ORIGIN: ${{ needs.preflight.outputs.auth_confirm_origin }}
         run: |
           if [ "$RELEASE_CRITICAL_EMAIL_MODE" != "manual_gmail" ]; then
             echo '{"state":"EMAIL_TRANSPORT_WAITING","reason":"NO_PERMANENT_QA_TRANSPORT"}'
@@ -208,7 +237,7 @@ jobs:
       RELEASE_CRITICAL_EXECUTION_MODE: ${{ inputs.execution_scope == 'callback_probe_only' && 'callback_probe_only' || inputs.execution_scope == 'context_probe_only' && 'context_probe_only' || inputs.execution_scope }}
       RELEASE_CRITICAL_ALLOW_UNBOUND_ACTUAL_EMAIL_RECOVERY: ${{ inputs.recover_unbound_actual_email }}
       RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
-      RELEASE_CRITICAL_CONTROLLED_AUTH_CONFIRM_ORIGIN: ${{ vars.GARAGE_STAGING_AUTH_CONFIRM_ORIGIN }}
+      RELEASE_CRITICAL_CONTROLLED_AUTH_CONFIRM_ORIGIN: ${{ needs.preflight.outputs.auth_confirm_origin }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -249,7 +278,7 @@ jobs:
 
   final-clean-verdict:
     name: Release Critical convergence verdict
-    needs: [preflight, stage-auth-contract, qa-lifecycle-contract, machine-gates, email-transport-state, actual-email-gates, production-email-transport]
+    needs: [preflight, stage-auth-contract, staging-auth-admin-config, qa-lifecycle-contract, machine-gates, email-transport-state, actual-email-gates, production-email-transport]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -258,6 +287,8 @@ jobs:
         env:
           PREFLIGHT: ${{ needs.preflight.result }}
           AUTH_CONTRACT: ${{ needs.stage-auth-contract.result }}
+          ADMIN_AUTH_CONFIG: ${{ needs.staging-auth-admin-config.result }}
+          AUTH_CONFIG_MODE: ${{ inputs.auth_config_mode }}
           QA_LIFECYCLE_CONTRACT: ${{ needs.qa-lifecycle-contract.result }}
           MACHINE: ${{ needs.machine-gates.result }}
           EXECUTION_SCOPE: ${{ inputs.execution_scope }}
@@ -267,6 +298,14 @@ jobs:
           ACTUAL_EMAIL_PHASE: ${{ needs.actual-email-gates.outputs.phase }}
           PRODUCTION_TRANSPORT: ${{ needs.production-email-transport.outputs.classification }}
         run: |
+          if [ "$AUTH_CONFIG_MODE" = admin_config_only ]; then
+            if [ "$ADMIN_AUTH_CONFIG" != success ]; then
+              echo '{"state":"STAGING_AUTH_ADMIN_CONFIG_NOT_READY"}'
+              exit 1
+            fi
+            echo '{"state":"STAGING_AUTH_ADMIN_CONFIG_PASS","email":"NOT_SENT"}'
+            exit 0
+          fi
           if [ "$PREFLIGHT" != success ] || { [ "$EXECUTION_SCOPE" = full ] && { [ "$QA_LIFECYCLE_CONTRACT" != success ] || [ "$MACHINE" != success ]; }; }; then
             echo '{"state":"RELEASE_CRITICAL_NOT_READY","reason":"MACHINE_OR_PRODUCTION_TRANSPORT_GATE_FAILED"}'
             exit 1

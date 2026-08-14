@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
-import { validateActualEmailTransportRecipient } from './release-critical-email-transport.mjs';
+import { validateActualEmailTransportRecipient, validateControlledAuthConfirmOrigin } from './release-critical-email-transport.mjs';
 
 export { validateActualEmailTransportRecipient } from './release-critical-email-transport.mjs';
 
@@ -240,9 +240,10 @@ export async function withMailSlurpRunInbox({apiKey,runMarker,run,fetchImpl=fetc
 function runtimeProvenance(value,baseUrl){
   if(!value||typeof value!=='object'||Array.isArray(value))fail('RUNTIME_PROVENANCE_INVALID');
   const keys=Object.keys(value).sort();
-  const expected=['deployment_id','deployment_url','environment','git_commit_ref','git_commit_sha','project_id'];
+  const expected=['auth_confirm_origin','deployment_id','deployment_url','environment','git_commit_ref','git_commit_sha','project_id'];
   if(keys.length!==expected.length||keys.some((key,index)=>key!==expected[index]))fail('RUNTIME_PROVENANCE_RESPONSE_SHAPE_INVALID');
   if(value.project_id!==STAGING_PROJECT_ID||!/^dpl_[A-Za-z0-9]+$/.test(value.deployment_id)||!/^[0-9a-f]{40}$/i.test(value.git_commit_sha)||typeof value.git_commit_ref!=='string'||!value.git_commit_ref||typeof value.environment!=='string'||!value.environment)fail('RUNTIME_PROVENANCE_INVALID');
+  try {const origin=validateControlledAuthConfirmOrigin(value.auth_confirm_origin); if(['garage-link.tech','www.garage-link.tech'].includes(new URL(origin.origin).hostname))fail('RUNTIME_PROVENANCE_INVALID')} catch {fail('RUNTIME_PROVENANCE_INVALID')}
   let deploymentUrl;
   try {deploymentUrl=new URL(value.deployment_url)} catch {fail('RUNTIME_PROVENANCE_INVALID')}
   if(deploymentUrl.protocol!=='https:'||!deploymentUrl.hostname.endsWith('.vercel.app')||PRODUCTION_HOSTS.has(deploymentUrl.hostname)||deploymentUrl.hostname.endsWith('.garage-link.tech')||baseUrl.hostname.endsWith('.garage-link.tech'))fail('RUNTIME_PROVENANCE_INVALID');
@@ -295,7 +296,7 @@ async function main(){
   if(emailMode==='manual_gmail'){
     manualCallback=await verifyManualGmailCallbackReach(baseUrl);
   }
-  process.stdout.write(`${JSON.stringify({ok:true,state:'PREFLIGHT_READY',environment:'garage-link-staging',source_sha:provenance.git_commit_sha,branch:provenance.git_commit_ref,deployment_id:provenance.deployment_id,base_url:baseUrl.origin,auth:{service_role_admin_api:'PASS',management_api:'NOT_REQUIRED_FOR_NORMAL_RUN',hosted_contract_baseline_run_id:'31488195475',redirect_drift_gate:'HOSTED_GENERATED_LINK_AND_ACTUAL_CALLBACK_FAIL_CLOSED'},manual_gmail_callback:manualCallback,email_transport:{state:'DECOUPLED_WAITING_TRANSPORT'},vercel:{project:STAGING_PROJECT_NAME,ready:'PASS',protection_bypass:'VERCEL_AUTOMATION_BYPASS_PASS'}})}\n`);
+  process.stdout.write(`${JSON.stringify({ok:true,state:'PREFLIGHT_READY',environment:'garage-link-staging',source_sha:provenance.git_commit_sha,branch:provenance.git_commit_ref,deployment_id:provenance.deployment_id,base_url:baseUrl.origin,auth_confirm_origin:provenance.auth_confirm_origin,auth:{service_role_admin_api:'PASS',management_api:'NOT_REQUIRED_FOR_NORMAL_RUN',hosted_contract_baseline_run_id:'31488195475',redirect_drift_gate:'HOSTED_GENERATED_LINK_AND_ACTUAL_CALLBACK_FAIL_CLOSED'},manual_gmail_callback:manualCallback,email_transport:{state:'DECOUPLED_WAITING_TRANSPORT'},vercel:{project:STAGING_PROJECT_NAME,ready:'PASS',protection_bypass:'VERCEL_AUTOMATION_BYPASS_PASS'}})}\n`);
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)main().catch(error=>{process.stderr.write(`${JSON.stringify({ok:false,code:redact(error)})}\n`);process.exitCode=1});

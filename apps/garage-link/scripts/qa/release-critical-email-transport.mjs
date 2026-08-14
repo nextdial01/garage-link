@@ -2,7 +2,7 @@ const NON_DELIVERABLE_QA_DOMAINS=new Set([
   'example.invalid','example.com','example.net','example.org',
   'localhost','mailinator.com','guerrillamail.com','10minutemail.com','tempmail.com',
 ]);
-const CONTROLLED_AUTH_EMAIL_CONTRACT='custom_smtp_tokenhash_v1';
+export const CONTROLLED_AUTH_EMAIL_CONTRACT='custom_smtp_tokenhash_v1';
 
 function fail(code){throw new Error(code)}
 

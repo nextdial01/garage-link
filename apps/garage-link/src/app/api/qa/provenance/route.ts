@@ -19,6 +19,25 @@ function deploymentUrl(hostname: string) {
   return `https://${hostname}`;
 }
 
+function controlledStagingAuthConfirmOrigin(value: string) {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    if (
+      url.protocol !== 'https:'
+      || url.pathname !== '/'
+      || url.search
+      || url.hash
+      || hostname === 'garage-link.tech'
+      || hostname === 'www.garage-link.tech'
+      || !hostname.endsWith('.garage-link.tech')
+    ) return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: Request) {
   const runtimeHost = new URL(request.url).hostname.toLowerCase();
   const projectId = value('VERCEL_PROJECT_ID');
@@ -33,6 +52,11 @@ export async function GET(request: Request) {
   const url = value('VERCEL_URL').toLowerCase();
   const vercelEnvironment = value('VERCEL_ENV');
   const targetEnvironment = value('VERCEL_TARGET_ENV');
+  // This is intentionally a public, build-time Next.js value. Returning the
+  // validated origin lets the no-email control lane derive its redirect target
+  // from the exact deployed runtime instead of a mutable GitHub Environment
+  // variable. No token, sender address, or Supabase configuration is exposed.
+  const authConfirmOrigin = controlledStagingAuthConfirmOrigin(value('NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN'));
   // A manual preview can retain a project-level target value (for example
   // "production") while VERCEL_ENV correctly identifies the deployment as a
   // preview. Only an explicitly safe target may override that runtime value.
@@ -49,6 +73,7 @@ export async function GET(request: Request) {
     [/^[A-Za-z0-9._/-]{1,255}$/.test(gitCommitRef), 'GIT_REF'],
     [Boolean(urlValue), 'DEPLOYMENT_URL'],
     [Boolean(environment), 'ENVIRONMENT'],
+    [Boolean(authConfirmOrigin), 'AUTH_CONFIRM_ORIGIN'],
   ] as const;
   const failed = checks.find(([passed]) => !passed)?.[1];
   if (failed) {
@@ -68,5 +93,6 @@ export async function GET(request: Request) {
     git_commit_ref: gitCommitRef,
     deployment_url: urlValue,
     environment,
+    auth_confirm_origin: authConfirmOrigin,
   }, { headers: { 'Cache-Control': 'no-store' } });
 }

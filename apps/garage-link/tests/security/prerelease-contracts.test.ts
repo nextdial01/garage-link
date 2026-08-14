@@ -49,6 +49,7 @@ test.describe('Pre-release contracts (認証不要)', () => {
       'VERCEL_URL',
       'VERCEL_ENV',
       'VERCEL_TARGET_ENV',
+      'NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN',
     ];
     const saved = new Map(keys.map((key) => [key, process.env[key]]));
     const stagingProjectId = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
@@ -64,6 +65,7 @@ test.describe('Pre-release contracts (認証不要)', () => {
         VERCEL_URL: 'garage-link-staging-qa.vercel.app',
         VERCEL_ENV: 'production',
         VERCEL_TARGET_ENV: 'staging',
+        NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN: 'https://auth-staging.garage-link.tech',
       });
       const response = await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'));
       const body = (await response.json()) as Record<string, unknown>;
@@ -76,6 +78,7 @@ test.describe('Pre-release contracts (認証不要)', () => {
         git_commit_ref: 'main',
         deployment_url: 'https://garage-link-staging-qa.vercel.app',
         environment: 'staging',
+        auth_confirm_origin: 'https://auth-staging.garage-link.tech',
       });
       expect(JSON.stringify(body)).not.toMatch(/secret|token|password|key|supabase|stripe/i);
 
@@ -84,6 +87,10 @@ test.describe('Pre-release contracts (認証不要)', () => {
 
       process.env.VERCEL_PROJECT_ID = stagingProjectId;
       expect((await provenanceGET(new Request('https://garage-link.tech/api/qa/provenance'))).status).toBe(404);
+
+      process.env.NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN = 'https://garage-link.tech';
+      expect((await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'))).status).toBe(404);
+      process.env.NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN = 'https://auth-staging.garage-link.tech';
 
       Object.assign(process.env, { VERCEL_URL: 'garage-link-staging-qa.vercel.app', VERCEL_ENV: 'preview', VERCEL_TARGET_ENV: 'production' });
       expect((await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'))).status).toBe(200);
