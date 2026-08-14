@@ -344,9 +344,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(signup,/qa_run/);
   assert.match(callback,/recordReleaseQaCallback\(qaRunId, 'callback', nextPath\)/);
   assert.match(recovery,/recordReleaseQaCallback\(qaRunId, 'password_updated'/);
-  assert.match(callbackEvidence,/STAGING_PROJECT_ID/);
-  assert.match(callbackEvidence,/targetEnvironment/);
-  assert.match(callbackEvidence,/process\.env\.VERCEL_ENV/);
+  assert.match(callbackEvidence,/isControlledStagingReleaseQaRuntime/);
+  assert.match(callbackEvidence,/GARAGE_PREVIEW_OTP_SINK_SECRET/);
   assert.match(callbackEvidence,/release_qa_callback/);
   assert.match(callbackEvidence,/store_created/);
   assert.match(await readFile(resolve(appRoot,'src/app/api/auth/admin-email-otp/request/route.ts'),'utf8'),/Retry-After/);

@@ -1,27 +1,23 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readReleaseQaFixture } from '@/lib/auth/releaseQaFixture';
+import { isControlledStagingReleaseQaRuntime } from '@/lib/security/stagingReleaseQaHost';
 
 export const dynamic = 'force-dynamic';
 
-const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
-const STAGING_HOST = /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i;
 const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type CallbackPhase = 'callback' | 'arrival' | 'store_created' | 'onboarding_completed' | 'password_updated';
 type CallbackPurpose = 'signup' | 'recovery';
 
 function stagingRuntime(request: Request) {
-  const url = new URL(request.url);
-  const targetEnvironment = process.env.VERCEL_TARGET_ENV?.toLowerCase();
-  // Preview deployments can retain a project target of "production". The
-  // runtime environment is authoritative unless the target is explicitly safe.
-  const environment = ['preview', 'staging'].includes(targetEnvironment ?? '')
-    ? targetEnvironment
-    : process.env.VERCEL_ENV?.toLowerCase();
-  return process.env.VERCEL_PROJECT_ID === STAGING_PROJECT_ID
-    && ['preview', 'staging'].includes(environment ?? '')
-    && STAGING_HOST.test(url.hostname);
+  return isControlledStagingReleaseQaRuntime({
+    hostname: new URL(request.url).hostname,
+    projectId: process.env.VERCEL_PROJECT_ID,
+    vercelEnv: process.env.VERCEL_ENV?.toLowerCase(),
+    nodeEnv: process.env.NODE_ENV,
+    previewOtpSecret: process.env.GARAGE_PREVIEW_OTP_SINK_SECRET,
+  });
 }
 
 function callbackPurpose(nextPath: unknown, runId: string): CallbackPurpose | null {

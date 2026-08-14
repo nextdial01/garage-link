@@ -116,15 +116,16 @@ test.describe('Pre-release contracts (認証不要)', () => {
   });
 
   test('/api/qa/callback-evidence: Productionでは常に無効で、StagingでもBearerなしは拒否する', async () => {
-    const keys = ['VERCEL_PROJECT_ID', 'VERCEL_ENV', 'VERCEL_TARGET_ENV'];
+    const keys = ['VERCEL_PROJECT_ID', 'VERCEL_ENV', 'VERCEL_TARGET_ENV', 'NODE_ENV', 'GARAGE_PREVIEW_OTP_SINK_SECRET'];
     const saved = new Map(keys.map((key) => [key, process.env[key]]));
     const payload = { run_id: '550e8400-e29b-41d4-a716-446655440000', phase: 'callback', next_path: '/signup?resume=1&qa_run=550e8400-e29b-41d4-a716-446655440000' };
     try {
-      Object.assign(process.env, { VERCEL_PROJECT_ID: 'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64', VERCEL_ENV: 'production', VERCEL_TARGET_ENV: 'production' });
+      Object.assign(process.env, { VERCEL_PROJECT_ID: 'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64', VERCEL_ENV: 'production', VERCEL_TARGET_ENV: 'production', NODE_ENV: 'production', GARAGE_PREVIEW_OTP_SINK_SECRET: 'x'.repeat(32) });
       expect((await callbackEvidencePOST(new Request('https://garage-link.tech/api/qa/callback-evidence', { method: 'POST', body: JSON.stringify(payload) }))).status).toBe(404);
 
-      Object.assign(process.env, { VERCEL_PROJECT_ID: 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3', VERCEL_ENV: 'preview', VERCEL_TARGET_ENV: 'preview' });
+      Object.assign(process.env, { VERCEL_PROJECT_ID: 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3', VERCEL_ENV: 'preview', VERCEL_TARGET_ENV: 'preview', NODE_ENV: 'production', GARAGE_PREVIEW_OTP_SINK_SECRET: 'x'.repeat(32) });
       expect((await callbackEvidencePOST(new Request('https://garage-link-staging-qa.vercel.app/api/qa/callback-evidence', { method: 'POST', body: JSON.stringify(payload) }))).status).toBe(401);
+      expect((await callbackEvidencePOST(new Request('https://staging.garage-link.tech/api/qa/callback-evidence', { method: 'POST', body: JSON.stringify(payload) }))).status).toBe(401);
     } finally {
       for (const [key, value] of saved) {
         if (value === undefined) delete process.env[key];
