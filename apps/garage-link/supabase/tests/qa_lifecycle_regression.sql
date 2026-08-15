@@ -79,7 +79,40 @@ do $$
 begin
   if has_function_privilege('anon','public.qa_lifecycle_cta_matrix(uuid,text,jsonb)','EXECUTE') or has_function_privilege('authenticated','public.qa_lifecycle_cta_matrix(uuid,text,jsonb)','EXECUTE') then raise exception 'CTA_MATRIX_PUBLIC_EXECUTE'; end if;
   if has_function_privilege('anon','public.qa_lifecycle_reclaim_expired_release_fixture(uuid)','EXECUTE') or has_function_privilege('authenticated','public.qa_lifecycle_reclaim_expired_release_fixture(uuid)','EXECUTE') then raise exception 'EXPIRED_RELEASE_RECOVERY_PUBLIC_EXECUTE'; end if;
-  if (public.qa_lifecycle_cleanup_readiness()->>'ready')<>'true' or (public.qa_lifecycle_cleanup_readiness()->>'service_execute_count')::integer<>15 or (public.qa_lifecycle_cleanup_readiness()->>'expired_release_recovery')<>'service_role_only' then raise exception 'CTA_MATRIX_READINESS_FAILED'; end if;
+  if has_function_privilege('anon','public.qa_lifecycle_adopt_primary_unmarked_release_fixture(uuid,uuid,text,uuid,uuid,uuid,text,timestamptz)','EXECUTE') or has_function_privilege('authenticated','public.qa_lifecycle_adopt_primary_unmarked_release_fixture(uuid,uuid,text,uuid,uuid,uuid,text,timestamptz)','EXECUTE') then raise exception 'PRIMARY_UNMARKED_ADOPTION_PUBLIC_EXECUTE'; end if;
+  if (public.qa_lifecycle_cleanup_readiness()->>'ready')<>'true' or (public.qa_lifecycle_cleanup_readiness()->>'service_execute_count')::integer<>16 or (public.qa_lifecycle_cleanup_readiness()->>'expired_release_recovery')<>'service_role_only' or (public.qa_lifecycle_cleanup_readiness()->>'primary_unmarked_actual_email_adoption')<>'service_role_only' then raise exception 'CTA_MATRIX_READINESS_FAILED'; end if;
+end $$;
+
+-- Primary actual-email adoption accepts an existing human-entered label only
+-- when the exact same run-bound callback and active owner graph prove it. The
+-- lifecycle RPC changes the synthetic label to the canonical marker before it
+-- delegates, so the arbitrary human label never becomes a fixture marker.
+select public.qa_lifecycle_register_run('66000000-0000-4000-8000-000000000001','release-critical-acquisition','76cdc9656e9805d2ac61f961ff59b0a199475b3d','dpl_LocalPrimary','test:primary-unmarked',now()+interval '1 day');
+select public.qa_lifecycle_transition('66000000-0000-4000-8000-000000000001','CREATED','PREFLIGHT_RUNNING','preflight');
+select public.qa_lifecycle_transition('66000000-0000-4000-8000-000000000001','PREFLIGHT_RUNNING','PREFLIGHT_READY','signup-lifecycle-registered');
+select public.qa_lifecycle_transition('66000000-0000-4000-8000-000000000001','PREFLIGHT_READY','PROVISIONING','adopt-signup-fixture');
+insert into auth.users(id,email,raw_app_meta_data) values(
+  '66000000-0000-4000-8000-000000000010','qa.primary.unmarked@example.invalid',
+  jsonb_build_object(
+    'release_qa_run_id','66000000-0000-4000-8000-000000000001',
+    'release_qa_callback',jsonb_build_object(
+      'run_id','66000000-0000-4000-8000-000000000001',
+      'signup',jsonb_build_object(
+        'callback',jsonb_build_object('next_path','/signup?resume=1&qa_run=66000000-0000-4000-8000-000000000001','origin','https://staging.garage-link.tech','recorded_at','2026-08-15T00:00:00.000Z'),
+        'arrival',jsonb_build_object('next_path','/signup?resume=1&qa_run=66000000-0000-4000-8000-000000000001','origin','https://staging.garage-link.tech','recorded_at','2026-08-15T00:00:01.000Z'),
+        'store_created',jsonb_build_object('next_path','/signup?resume=1&qa_run=66000000-0000-4000-8000-000000000001','origin','https://staging.garage-link.tech','recorded_at','2026-08-15T00:00:02.000Z','server_bound_continuation',true,'continuation_of_callback_at','2026-08-15T00:00:00.000Z'),
+        'onboarding_completed',jsonb_build_object('next_path','/signup?resume=1&qa_run=66000000-0000-4000-8000-000000000001','origin','https://staging.garage-link.tech','recorded_at','2026-08-15T00:00:03.000Z','server_bound_continuation',true,'continuation_of_callback_at','2026-08-15T00:00:00.000Z','fixture',jsonb_build_object('tenant_id','66000000-0000-4000-8000-000000000020','store_id','66000000-0000-4000-8000-000000000030','membership_id','66000000-0000-4000-8000-000000000040','tenant_name','株式会社かんなぎ','account_state',jsonb_build_object('garage_ui_context','active','active_store','YES','onboarding_completed','YES','membership_role','owner','membership_status','active','contract_access_state','active')))
+      )
+    )
+  )
+);
+insert into public.tenants(id,name,status,plan_code,created_by,updated_by) values('66000000-0000-4000-8000-000000000020','株式会社かんなぎ','active','free','66000000-0000-4000-8000-000000000010','66000000-0000-4000-8000-000000000010');
+insert into public.stores(id,name,company_name,email,status,plan_code,tenant_id,created_by,updated_by,onboarding_completed_at) values('66000000-0000-4000-8000-000000000030','Primary QA Store','株式会社かんなぎ','qa.primary.unmarked@example.invalid','active','free','66000000-0000-4000-8000-000000000020','66000000-0000-4000-8000-000000000010','66000000-0000-4000-8000-000000000010',clock_timestamp());
+insert into public.memberships(id,tenant_id,store_id,user_id,email,role,status,joined_at,invite_accepted_at,created_by,updated_by) values('66000000-0000-4000-8000-000000000040','66000000-0000-4000-8000-000000000020','66000000-0000-4000-8000-000000000030','66000000-0000-4000-8000-000000000010','qa.primary.unmarked@example.invalid','owner','active',clock_timestamp(),clock_timestamp(),'66000000-0000-4000-8000-000000000010','66000000-0000-4000-8000-000000000010');
+do $$ declare v jsonb; begin
+  v:=public.qa_lifecycle_adopt_primary_unmarked_release_fixture('66000000-0000-4000-8000-000000000001','66000000-0000-4000-8000-000000000020','株式会社かんなぎ','66000000-0000-4000-8000-000000000030','66000000-0000-4000-8000-000000000010','66000000-0000-4000-8000-000000000040','[RELEASE QA 20260811]',now()+interval '1 day');
+  if v->>'canonical_marker'<>'[RELEASE QA 20260811]' or v->>'primary_unmarked_actual_email'<>'true' or (select marker from qa_internal.fixtures where run_id='66000000-0000-4000-8000-000000000001')<>'[RELEASE QA 20260811]' or (select name from public.tenants where id='66000000-0000-4000-8000-000000000020')<>'[RELEASE QA 20260811] Actual Email' then raise exception 'PRIMARY_UNMARKED_ADOPTION_CONTRACT'; end if;
+  begin perform public.qa_lifecycle_adopt_primary_unmarked_release_fixture('66000000-0000-4000-8000-000000000001','66000000-0000-4000-8000-000000000020','株式会社かんなぎ','66000000-0000-4000-8000-000000000099','66000000-0000-4000-8000-000000000010','66000000-0000-4000-8000-000000000040','[RELEASE QA 20260811]',now()+interval '1 day'); raise exception 'PRIMARY_UNMARKED_MISMATCH_ACCEPTED'; exception when others then if sqlerrm='PRIMARY_UNMARKED_MISMATCH_ACCEPTED' then raise; end if; end;
 end $$;
 
 -- An expired, exact registry-bound release fixture is renewed only through the

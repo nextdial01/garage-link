@@ -4,14 +4,14 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createActualEmailTransportSession, createManualGmailSession, fetchVerifiedVercelRequest, manualGmailCheckpoint, pollManualGmailConfirmation, readAuthConfig, readManagementProfile, releaseCriticalBaseUrl, validateActualEmailTransportRecipient, verifyManualGmailCallbackReach } from '../../scripts/qa/release-critical-preflight.mjs';
 import { validateControlledAuthConfirmOrigin, validateControlledAuthEmailTransportContract } from '../../scripts/qa/release-critical-email-transport.mjs';
-import { bindSyntheticIdentity, bridgeActualEmailCheckpointProvenance, classifyCtaTrace, classifyUnboundActualEmailRecoveryState, createActualEmailCheckpoint, createReleaseCriticalRun, installVercelBrowserBypass, isActualEmailCheckpointFresh, isAuthOnlyLifecycleAbortEligible, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, recoverableLifecycleStatus, releaseCriticalSyntheticPassword, validateActualEmailCheckpoint, validateClientAuthRedirect, validateControlledClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance, verifyControlledAuthConfirmReach } from '../../scripts/qa/release-critical-journeys.mjs';
+import { bindSyntheticIdentity, bridgeActualEmailCheckpointProvenance, classifyCtaTrace, classifyUnboundActualEmailRecoveryState, createActualEmailCheckpoint, createReleaseCriticalRun, installVercelBrowserBypass, isActualEmailCheckpointFresh, isAuthOnlyLifecycleAbortEligible, isExpiredLifecycleReclaimState, isLifecycleCleanupResumableState, readPrimaryUnmarkedCallbackFixture, recoverableLifecycleStatus, releaseCriticalSyntheticPassword, validateActualEmailCheckpoint, validateClientAuthRedirect, validateControlledClientAuthRedirect, validateHostedGeneratedLink, validateReleaseCriticalProvenance, verifyControlledAuthConfirmReach } from '../../scripts/qa/release-critical-journeys.mjs';
 import { applyStagingAuthAdminConfig, readStagingRuntimeProvenance, verifyControlledConfirmReach } from '../../scripts/qa/release-critical-stage-auth.mjs';
 import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critical-qa-lifecycle-contract.mjs';
 
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,journeys,workflow,qaLifecycleContract,signup,trackedSignupLink,loginForm,forgotPassword,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback,expiredFixtureRecovery,expiredFixtureRecoveryRollback]=await Promise.all([
+  const [runner,journeys,workflow,qaLifecycleContract,signup,trackedSignupLink,loginForm,forgotPassword,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback,expiredFixtureRecovery,expiredFixtureRecoveryRollback,primaryUnmarkedMigration,primaryUnmarkedRollback]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
@@ -31,6 +31,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
     readFile(resolve(appRoot,'supabase/qa/rollback/20260812000100_qa_lifecycle_cta_account_state_matrix.down.sql'),'utf8'),
     readFile(resolve(appRoot,'supabase/qa/migrations/20260812101500_qa_lifecycle_expired_release_fixture_recovery.sql'),'utf8'),
     readFile(resolve(appRoot,'supabase/qa/rollback/20260812101500_qa_lifecycle_expired_release_fixture_recovery.down.sql'),'utf8'),
+    readFile(resolve(appRoot,'supabase/qa/migrations/20260815100934_qa_primary_unmarked_actual_email_fixture_adopt.sql'),'utf8'),
+    readFile(resolve(appRoot,'supabase/qa/rollback/20260815100934_qa_primary_unmarked_actual_email_fixture_adopt.down.sql'),'utf8'),
   ]);
   assert.match(runner,/gaytoojzwqkpuvfofeql/);
   assert.match(runner,/wmlpuzuskfiwdipluglz/);
@@ -316,12 +318,24 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(expiredFixtureRecovery,/grant execute on function public\.qa_lifecycle_reclaim_expired_release_fixture\(uuid\) to service_role/);
   assert.match(expiredFixtureRecovery,/perform 1 from public\.tenants where id=f\.tenant_id for update/);
   assert.match(expiredFixtureRecovery,/v_service_execute=15/);
-  assert.match(qaLifecycleContract,/service_execute_count===15/);
+  assert.match(qaLifecycleContract,/service_execute_count===16/);
   assert.match(qaLifecycleContract,/expired_release_recovery==='service_role_only'/);
   assert.doesNotMatch(expiredFixtureRecovery,/stripe_customer_id\s*:=|stripe_subscription_id\s*:=|api\.line\.me/);
   assert.match(expiredFixtureRecoveryRollback,/create or replace function public\.qa_lifecycle_cleanup_readiness/);
   assert.match(expiredFixtureRecoveryRollback,/v_service_execute=14/);
   assert.match(expiredFixtureRecoveryRollback,/drop function if exists public\.qa_lifecycle_reclaim_expired_release_fixture\(uuid\)/);
+  assert.match(primaryUnmarkedMigration,/qa_lifecycle_adopt_primary_unmarked_release_fixture/);
+  assert.match(primaryUnmarkedMigration,/r\.product<>'garage-link'/);
+  assert.match(primaryUnmarkedMigration,/r\.environment<>'staging'/);
+  assert.match(primaryUnmarkedMigration,/r\.project_ref<>'gaytoojzwqkpuvfofeql'/);
+  assert.match(primaryUnmarkedMigration,/release_qa_run_id/);
+  assert.match(primaryUnmarkedMigration,/release_qa_callback,run_id/);
+  assert.match(primaryUnmarkedMigration,/onboarding_completed/);
+  assert.match(primaryUnmarkedMigration,/membership_legacy_is_consistent/);
+  assert.match(primaryUnmarkedMigration,/qa_lifecycle_adopt_fixture/);
+  assert.match(primaryUnmarkedMigration,/grant execute on function public\.qa_lifecycle_adopt_primary_unmarked_release_fixture\([^)]*\) to service_role/);
+  assert.doesNotMatch(primaryUnmarkedMigration,/update auth\.users/i);
+  assert.match(primaryUnmarkedRollback,/drop function if exists public\.qa_lifecycle_adopt_primary_unmarked_release_fixture/);
   assert.match(workflow,/release-critical-journeys\.mjs/);
   assert.match(workflow,/stage-auth-contract/);
   assert.match(workflow,/qa-lifecycle-contract/);
@@ -546,21 +560,39 @@ test('actual-email checkpoint separates signup and recovery transport without st
   assert.throws(()=>validateActualEmailCheckpoint(checkpoint,{run,provenance,userId:'staging-user',emailAddress:'other@kannagi-co.com'}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_MISMATCH/);
 });
 
-test('actual-email checkpoint permits a bounded safe-path provenance bridge',()=>{
+test('primary actual-email adoption accepts only a valid unmarked callback fixture and preserves the QA marker boundary',()=>{
+  const run=createReleaseCriticalRun('550e8400-e29b-41d4-a716-446655440000');
+  const fixture={membership_id:'membership',tenant_id:'tenant',store_id:'store',tenant_name:'株式会社かんなぎ',account_state:{garage_ui_context:'active',active_store:'YES',onboarding_completed:'YES',membership_role:'owner',membership_status:'active',contract_access_state:'active'}};
+  assert.deepEqual(readPrimaryUnmarkedCallbackFixture(fixture,run),{membershipId:'membership',tenantId:'tenant',storeId:'store',tenantName:'株式会社かんなぎ',accountState:{garageUiContext:'active',activeStore:'YES',onboardingCompleted:'YES',membershipRole:'owner',membershipStatus:'active',contractAccessState:'active'}});
+  assert.throws(()=>readPrimaryUnmarkedCallbackFixture({...fixture,tenant_name:`${run.marker} Tenant`},run),/RELEASE_CRITICAL_PRIMARY_UNMARKED_CALLBACK_FIXTURE_INVALID/);
+  assert.throws(()=>readPrimaryUnmarkedCallbackFixture({...fixture,account_state:{...fixture.account_state,membership_status:'inactive'}},run),/RELEASE_CRITICAL_CALLBACK_FIXTURE_INVALID/);
+});
+
+test('actual-email checkpoint appends bounded safe-path provenance links without rewriting history',()=>{
   const run=createReleaseCriticalRun('550e8400-e29b-41d4-a716-446655440000');
   const predecessor='08d2cd575c4637da57b994cb02d29d9b43269b87';
   const successor='b'.repeat(40);
   const checkpoint=createActualEmailCheckpoint({run,provenance:{sourceSha:predecessor,deploymentId:'dpl_Predecessor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',confirmationOrigin:'https://staging.garage-link.tech',generatedAt:'2026-08-14T00:00:00.000Z'});
   const metadata={head:successor,descendant:true,commitCount:4,changedPaths:['apps/garage-link/src/lib/security/stagingReleaseQaHost.ts','apps/garage-link/src/lib/security/previewOtpSink.ts']};
-  const bridged=bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',bridgedAt:'2026-08-14T00:01:00.000Z',readGitMetadata:()=>metadata});
+  const staging={projectId:'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3'};
+  const bridged=bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{...staging,sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',bridgedAt:'2026-08-14T00:01:00.000Z',readGitMetadata:(from,to)=>{assert.equal(from,predecessor);assert.equal(to,successor);return metadata;}});
   assert.equal(bridged.bridged,true);
   assert.equal(bridged.checkpoint.candidate_sha,successor);
   assert.equal(bridged.checkpoint.provenance_bridge.predecessor_sha,predecessor);
   assert.equal(bridged.checkpoint.provenance_bridge.successor_sha,successor);
+  assert.equal(bridged.checkpoint.provenance_bridge_chain.length,1);
   assert.equal(bridged.checkpoint.generated_at,checkpoint.generated_at);
-  assert.throws(()=>bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',readGitMetadata:()=>({...metadata,descendant:false})}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED/);
-  assert.throws(()=>bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',readGitMetadata:()=>({...metadata,commitCount:5})}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED/);
-  assert.throws(()=>bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',readGitMetadata:()=>({...metadata,changedPaths:['apps/garage-link/src/app/page.tsx']})}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED/);
+  const next='c'.repeat(40);
+  const advanced=bridgeActualEmailCheckpointProvenance(bridged.checkpoint,{run,provenance:{...staging,sourceSha:next,deploymentId:'dpl_Next'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',bridgedAt:'2026-08-14T00:02:00.000Z',readGitMetadata:(from,to)=>{assert.equal(from,successor);assert.equal(to,next);return {...metadata,head:next,commitCount:1,changedPaths:['apps/garage-link/src/components/AppSidebar.tsx']};}});
+  assert.equal(advanced.checkpoint.provenance_bridge_chain.length,2);
+  assert.deepEqual(advanced.checkpoint.provenance_bridge_chain[0],bridged.checkpoint.provenance_bridge);
+  assert.equal(advanced.checkpoint.provenance_bridge_chain[1].predecessor_sha,successor);
+  assert.throws(()=>bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{...staging,sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',readGitMetadata:()=>({...metadata,descendant:false})}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED/);
+  assert.throws(()=>bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{...staging,sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',readGitMetadata:()=>({...metadata,commitCount:5})}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED/);
+  assert.throws(()=>bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{...staging,sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',readGitMetadata:()=>({...metadata,changedPaths:['apps/garage-link/src/app/page.tsx']})}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED/);
+  assert.throws(()=>bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{projectId:'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64',sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',readGitMetadata:()=>metadata}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED/);
+  const rewritten={...advanced.checkpoint,provenance_bridge_chain:[{...advanced.checkpoint.provenance_bridge_chain[0],successor_sha:'d'.repeat(40)},advanced.checkpoint.provenance_bridge_chain[1]]};
+  assert.throws(()=>bridgeActualEmailCheckpointProvenance(rewritten,{run,provenance:{...staging,sourceSha:'e'.repeat(40),deploymentId:'dpl_Rewritten'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',readGitMetadata:()=>metadata}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED/);
 });
 
 test('an interrupted registered fixture resumes only its formal cleanup states',()=>{
@@ -727,14 +759,14 @@ test('CTA matrix contract requires the one-time external bootstrap when readines
 test('CTA matrix contract is Management-PAT-independent after the external Staging bootstrap',async()=>{
   const result=await ensureReleaseCriticalCtaMatrix({
     supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',
-    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:15,cta_matrix:'registry_bound',expired_release_recovery:'service_role_only'},error:null})}),
+    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:16,cta_matrix:'registry_bound',expired_release_recovery:'service_role_only',primary_unmarked_actual_email_adoption:'service_role_only'},error:null})}),
   });
-  assert.deepEqual(result,{state:'RELEASE_CRITICAL_QA_MATRIX_READY',bootstrap:'EXTERNAL_ADMIN_ONETIME',management_pat_required:false,readiness:{ready:true,cta_matrix:'registry_bound',private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:15,expired_release_recovery:'service_role_only'}});
+  assert.deepEqual(result,{state:'RELEASE_CRITICAL_QA_MATRIX_READY',bootstrap:'EXTERNAL_ADMIN_ONETIME',management_pat_required:false,readiness:{ready:true,cta_matrix:'registry_bound',private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:16,expired_release_recovery:'service_role_only',primary_unmarked_actual_email_adoption:'service_role_only'}});
 });
 
 test('CTA matrix contract rejects incomplete service-role security read-back',async()=>{
   await assert.rejects(()=>ensureReleaseCriticalCtaMatrix({
     supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',
-    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:1,service_execute_count:15,cta_matrix:'registry_bound',expired_release_recovery:'service_role_only'},error:null})}),
+    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:1,service_execute_count:16,cta_matrix:'registry_bound',expired_release_recovery:'service_role_only',primary_unmarked_actual_email_adoption:'service_role_only'},error:null})}),
   }),/CTA_MATRIX_BOOTSTRAP_REQUIRED:READBACK/);
 });

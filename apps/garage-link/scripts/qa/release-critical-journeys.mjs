@@ -14,8 +14,8 @@ const PARTIAL_USER_ID='809dc953-e604-48a7-a4b1-606a57aae461';
 const INTERRUPTED_RUN_ID='16a2c261-29ea-4441-b905-2144dc7d320f';
 const RESUME_EVIDENCE_TIMEOUT_MS=90_000;
 const MANUAL_GMAIL_HANDOFF_FRESHNESS_MS=15*60_000;
-const ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA='08d2cd575c4637da57b994cb02d29d9b43269b87';
-const ACTUAL_EMAIL_SUCCESSOR_BRIDGE_MAX_COMMITS=4;
+const ACTUAL_EMAIL_SUCCESSOR_BRIDGE_MAX_LINKS=4;
+const ACTUAL_EMAIL_SUCCESSOR_BRIDGE_MAX_COMMITS_PER_LINK=4;
 const ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PATHS=new Set([
   '.github/workflows/garage-link-release-critical.yml',
   'apps/garage-link/scripts/qa/release-critical-journeys.mjs',
@@ -24,6 +24,12 @@ const ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PATHS=new Set([
   'apps/garage-link/src/lib/security/stagingReleaseQaHost.ts',
   'apps/garage-link/src/app/api/qa/callback-evidence/route.ts',
   'apps/garage-link/src/middleware.ts',
+  'apps/garage-link/src/components/AppSidebar.tsx',
+  'apps/garage-link/supabase/qa/manifest.json',
+  'apps/garage-link/supabase/qa/migrations/20260815100934_qa_primary_unmarked_actual_email_fixture_adopt.sql',
+  'apps/garage-link/supabase/qa/rollback/20260815100934_qa_primary_unmarked_actual_email_fixture_adopt.down.sql',
+  'apps/garage-link/supabase/tests/qa_lifecycle_regression.sql',
+  'apps/garage-link/scripts/qa/release-critical-qa-lifecycle-contract.mjs',
   'apps/garage-link/tests/qa/release-critical-preflight.test.mjs',
   'apps/garage-link/tests/security/active-store-preference-g1d.test.ts',
   'apps/garage-link/tests/security/prerelease-contracts.test.ts',
@@ -112,15 +118,26 @@ export function validateActualEmailCheckpoint(checkpoint,{run,provenance,userId,
     ||(['RECOVERY_PREPARED','COMPLETED'].includes(checkpoint.state)&&!Number.isFinite(Date.parse(checkpoint.recovery_requested_at??''))))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_MISMATCH');
   return checkpoint;
 }
-function readActualEmailSuccessorBridgeGitMetadata(sourceSha){
+function readActualEmailSuccessorBridgeGitMetadata(predecessorSha,sourceSha){
   const git=(args)=>execFileSync('git',args,{encoding:'utf8'}).trim().toLowerCase();
   const head=git(['rev-parse','HEAD']);
   let descendant=false;
-  try { execFileSync('git',['merge-base','--is-ancestor',ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA,sourceSha],{stdio:'ignore'}); descendant=true; } catch {}
-  const commitCount=Number(git(['rev-list','--count',`${ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA}..${sourceSha}`]));
-  const changedPaths=execFileSync('git',['diff','--name-only',ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA,sourceSha],{encoding:'utf8'})
+  try { execFileSync('git',['merge-base','--is-ancestor',predecessorSha,sourceSha],{stdio:'ignore'}); descendant=true; } catch {}
+  const commitCount=Number(git(['rev-list','--count',`${predecessorSha}..${sourceSha}`]));
+  const changedPaths=execFileSync('git',['diff','--name-only',predecessorSha,sourceSha],{encoding:'utf8'})
     .split('\n').map(value=>value.trim()).filter(Boolean);
   return {head,descendant,commitCount,changedPaths};
+}
+function checkpointBridgeChain(checkpoint){
+  const legacy=checkpoint?.provenance_bridge;
+  const persisted=checkpoint?.provenance_bridge_chain;
+  if(persisted!==undefined&&!Array.isArray(persisted))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
+  const chain=persisted?[...persisted]:(legacy?[legacy]:[]);
+  if(chain.length>ACTUAL_EMAIL_SUCCESSOR_BRIDGE_MAX_LINKS||chain.some(link=>!link||link.version!=='v1'||!/^[0-9a-f]{40}$/.test(link.predecessor_sha??'')||!/^[0-9a-f]{40}$/.test(link.successor_sha??'')||!/^dpl_[A-Za-z0-9]+$/.test(link.predecessor_deployment_id??'')||!/^dpl_[A-Za-z0-9]+$/.test(link.successor_deployment_id??'')||!Number.isFinite(Date.parse(link.bridged_at??''))))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
+  if(legacy&&persisted&&JSON.stringify(legacy)!==JSON.stringify(chain[0]))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
+  for(let index=1;index<chain.length;index+=1){if(chain[index].predecessor_sha!==chain[index-1].successor_sha||chain[index].predecessor_deployment_id!==chain[index-1].successor_deployment_id)fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');}
+  if(chain.length&&(checkpoint?.candidate_sha!==chain.at(-1).successor_sha||checkpoint?.deployment_id!==chain.at(-1).successor_deployment_id))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
+  return chain;
 }
 export function bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance,userId,emailAddress,bridgedAt=new Date().toISOString(),readGitMetadata=readActualEmailSuccessorBridgeGitMetadata}){
   try {
@@ -128,21 +145,18 @@ export function bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance
   } catch (error) {
     if (String(error?.message)!=='RELEASE_CRITICAL_EMAIL_CHECKPOINT_MISMATCH') throw error;
   }
-  if(checkpoint?.candidate_sha!==ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA||checkpoint?.provenance_bridge)fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
-  const metadata=readGitMetadata(provenance?.sourceSha);
-  if(metadata?.head!==provenance?.sourceSha||metadata?.descendant!==true||!Number.isInteger(metadata?.commitCount)||metadata.commitCount<1||metadata.commitCount>ACTUAL_EMAIL_SUCCESSOR_BRIDGE_MAX_COMMITS||!Array.isArray(metadata?.changedPaths)||metadata.changedPaths.length===0||metadata.changedPaths.some(path=>!ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PATHS.has(path)))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
+  if(provenance?.projectId!==STAGING_PROJECT_ID||provenance?.projectId===PRODUCTION_PROJECT_ID||!Number.isFinite(Date.parse(bridgedAt??'')))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
+  const chain=checkpointBridgeChain(checkpoint);
+  if(chain.length>=ACTUAL_EMAIL_SUCCESSOR_BRIDGE_MAX_LINKS||typeof checkpoint?.candidate_sha!=='string'||!/^dpl_[A-Za-z0-9]+$/.test(checkpoint?.deployment_id??''))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
+  const metadata=readGitMetadata(checkpoint.candidate_sha,provenance?.sourceSha);
+  if(metadata?.head!==provenance?.sourceSha||metadata?.descendant!==true||!Number.isInteger(metadata?.commitCount)||metadata.commitCount<1||metadata.commitCount>ACTUAL_EMAIL_SUCCESSOR_BRIDGE_MAX_COMMITS_PER_LINK||!Array.isArray(metadata?.changedPaths)||metadata.changedPaths.length===0||metadata.changedPaths.some(path=>!ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PATHS.has(path)))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
+  const link={version:'v1',predecessor_sha:checkpoint.candidate_sha,predecessor_deployment_id:checkpoint.deployment_id,successor_sha:provenance.sourceSha,successor_deployment_id:provenance.deploymentId,bridged_at:bridgedAt};
   const bridged={
     ...checkpoint,
     candidate_sha:provenance.sourceSha,
     deployment_id:provenance.deploymentId,
-    provenance_bridge:{
-      version:'v1',
-      predecessor_sha:ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA,
-      predecessor_deployment_id:checkpoint.deployment_id,
-      successor_sha:provenance.sourceSha,
-      successor_deployment_id:provenance.deploymentId,
-      bridged_at:bridgedAt,
-    },
+    ...(checkpoint.provenance_bridge?{}:{provenance_bridge:link}),
+    provenance_bridge_chain:[...chain,link],
   };
   return {checkpoint:validateActualEmailCheckpoint(bridged,{run,provenance,userId,emailAddress}),bridged:true};
 }
@@ -745,6 +759,11 @@ function readCallbackFixture(value,tenantNamePrefix){
   if(typeof value?.membership_id!=='string'||typeof value?.tenant_id!=='string'||typeof value?.store_id!=='string'||typeof value?.tenant_name!=='string'||(tenantNamePrefix&&!value.tenant_name.startsWith(tenantNamePrefix))||!['active','selection_required','no_access'].includes(accountState?.garage_ui_context)||!['YES','NO'].includes(accountState?.active_store)||!['YES','NO'].includes(accountState?.onboarding_completed)||!/^\w{2,32}$/.test(accountState?.membership_role??'')||accountState?.membership_status!=='active'||!/^\w{2,48}$/.test(accountState?.contract_access_state??''))fail('RELEASE_CRITICAL_CALLBACK_FIXTURE_INVALID');
   return {membershipId:value.membership_id,tenantId:value.tenant_id,storeId:value.store_id,tenantName:value.tenant_name,accountState:{garageUiContext:accountState.garage_ui_context,activeStore:accountState.active_store,onboardingCompleted:accountState.onboarding_completed,membershipRole:accountState.membership_role,membershipStatus:accountState.membership_status,contractAccessState:accountState.contract_access_state}};
 }
+export function readPrimaryUnmarkedCallbackFixture(value,run){
+  const fixture=readCallbackFixture(value);
+  if(!run?.runId||!/^\[RELEASE QA [0-9]{8}\]$/.test(run.marker??'')||fixture.tenantName.startsWith(run.marker))fail('RELEASE_CRITICAL_PRIMARY_UNMARKED_CALLBACK_FIXTURE_INVALID');
+  return fixture;
+}
 async function verifyFreshOtpGuard({baseUrl,supabaseUrl,serviceRole,email,password,bypassSecret,runId}){
   if(typeof runId!=='string'||!/^[0-9a-f-]{36}$/i.test(runId))fail('RELEASE_CRITICAL_FIXTURE_MARKER_INVALID');
   // A second password login is a negative regression probe only.  It proves
@@ -817,6 +836,17 @@ export async function adoptLifecycleFixture(life,run,fixture,{fixtureMarker=run.
   await life.transition('PROVISIONING','PROVISIONED','auth');
   await life.transition('PROVISIONED','AUTH_READY','run');
   await life.transition('AUTH_READY','TEST_RUNNING','run');
+}
+export async function adoptPrimaryUnmarkedActualEmailFixture(life,run,fixture){
+  await life.rpc('qa_lifecycle_adopt_primary_unmarked_release_fixture',{
+    p_run_id:run.runId,p_tenant_id:fixture.tenantId,p_actual_tenant_name:fixture.tenantName,
+    p_store_id:fixture.storeId,p_user_id:fixture.userId,p_membership_id:fixture.membershipId,
+    p_marker:run.marker,p_expires_at:new Date(Date.now()+24*60*60_000).toISOString(),
+  });
+  await life.transition('PROVISIONING','PROVISIONED','auth');
+  await life.transition('PROVISIONED','AUTH_READY','run');
+  await life.transition('AUTH_READY','TEST_RUNNING','run');
+  emit({state:'RELEASE_CRITICAL_PRIMARY_UNMARKED_FIXTURE_ADOPT_PASS',run_marker_hash:sha256(run.runId),registry_marker_restored:true,tenant_name_stored_as_marker:true});
 }
 async function pollCallbackEvidence({admin,userId,run,baseUrl,expectedOrigin=baseUrl,purpose,requireStoreCreated=false,requireOnboardingCompleted=false,requirePasswordUpdate=false,timeoutMs=RESUME_EVIDENCE_TIMEOUT_MS,intervalMs=5_000,sleep=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds))}){
   const expectedNext=purpose==='signup'?`/signup?resume=1&qa_run=${run.runId}`:`/auth/reset-password?qa_run=${run.runId}`;
@@ -1449,7 +1479,8 @@ async function resumeActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSec
   const checkpoint=resolved.checkpoint;
   if(resolved.bridged){
     user=await persistActualEmailCheckpoint(admin,user,checkpoint);
-    emit({state:'RELEASE_CRITICAL_ACTUAL_EMAIL_PROVENANCE_BRIDGED',predecessor_sha:checkpoint.provenance_bridge.predecessor_sha,successor_sha:checkpoint.provenance_bridge.successor_sha,predecessor_deployment_id:checkpoint.provenance_bridge.predecessor_deployment_id,successor_deployment_id:checkpoint.provenance_bridge.successor_deployment_id,original_confirmation_evidence_preserved:true});
+    const latestBridge=checkpoint.provenance_bridge_chain.at(-1);
+    emit({state:'RELEASE_CRITICAL_ACTUAL_EMAIL_PROVENANCE_BRIDGED',predecessor_sha:latestBridge.predecessor_sha,successor_sha:latestBridge.successor_sha,predecessor_deployment_id:latestBridge.predecessor_deployment_id,successor_deployment_id:latestBridge.successor_deployment_id,bridge_link_count:checkpoint.provenance_bridge_chain.length,original_confirmation_evidence_preserved:true});
   }
   if(!user.email_confirmed_at){
     if(!isActualEmailCheckpointFresh(checkpoint)){
@@ -1474,7 +1505,7 @@ async function resumeActualEmail({admin,provenance,baseUrl,supabaseUrl,bypassSec
   }
   if(checkpoint.state!=='RECOVERY_PREPARED')fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_STATE_INVALID');
   await pollCallbackEvidence({admin,userId:user.id,run,baseUrl,expectedOrigin:checkpoint.confirmation_origin,purpose:'recovery',requirePasswordUpdate:true});
-  const owner=readCallbackFixture(signupEvidence.fixture,run.marker); const life=lifecycle(admin,run,provenance); await adoptLifecycleFixture(life,run,{...owner,userId:user.id});
+  const owner=readPrimaryUnmarkedCallbackFixture(signupEvidence.fixture,run); const life=lifecycle(admin,run,provenance); await adoptPrimaryUnmarkedActualEmailFixture(life,run,{...owner,userId:user.id});
   let browser; let context; let page;
   try {
     browser=await chromium.launch({headless:true}); context=await browser.newContext(); await installVercelBrowserBypass(context,baseUrl,bypassSecret); page=await context.newPage();
