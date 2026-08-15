@@ -11,7 +11,7 @@ import { ensureReleaseCriticalCtaMatrix } from '../../scripts/qa/release-critica
 const appRoot=resolve(import.meta.dirname,'../..');
 
 test('remote release-critical preflight is Staging-only and non-billing',async()=>{
-  const [runner,journeys,workflow,qaLifecycleContract,signup,trackedSignupLink,loginForm,forgotPassword,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback,expiredFixtureRecovery,expiredFixtureRecoveryRollback,primaryUnmarkedMigration,primaryUnmarkedRollback]=await Promise.all([
+  const [runner,journeys,workflow,qaLifecycleContract,signup,trackedSignupLink,loginForm,forgotPassword,callback,recovery,middleware,callbackEvidence,fixtureDiscovery,provenanceRoute,adminOtpServer,ctaMatrixMigration,ctaMatrixRollback,expiredFixtureRecovery,expiredFixtureRecoveryRollback,primaryUnmarkedMigration,primaryUnmarkedRollback,primaryUnmarkedRegexRepair,primaryUnmarkedRegexRepairRollback]=await Promise.all([
     readFile(resolve(appRoot,'scripts/qa/release-critical-preflight.mjs'),'utf8'),
     readFile(resolve(appRoot,'scripts/qa/release-critical-journeys.mjs'),'utf8'),
     readFile(resolve(appRoot,'../../.github/workflows/garage-link-release-critical.yml'),'utf8'),
@@ -33,6 +33,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
     readFile(resolve(appRoot,'supabase/qa/rollback/20260812101500_qa_lifecycle_expired_release_fixture_recovery.down.sql'),'utf8'),
     readFile(resolve(appRoot,'supabase/qa/migrations/20260815100934_qa_primary_unmarked_actual_email_fixture_adopt.sql'),'utf8'),
     readFile(resolve(appRoot,'supabase/qa/rollback/20260815100934_qa_primary_unmarked_actual_email_fixture_adopt.down.sql'),'utf8'),
+    readFile(resolve(appRoot,'supabase/qa/migrations/20260815105700_qa_primary_unmarked_callback_regex_repair.sql'),'utf8'),
+    readFile(resolve(appRoot,'supabase/qa/rollback/20260815105700_qa_primary_unmarked_callback_regex_repair.down.sql'),'utf8'),
   ]);
   assert.match(runner,/gaytoojzwqkpuvfofeql/);
   assert.match(runner,/wmlpuzuskfiwdipluglz/);
@@ -334,6 +336,9 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(primaryUnmarkedMigration,/membership_legacy_is_consistent/);
   assert.match(primaryUnmarkedMigration,/qa_lifecycle_adopt_fixture/);
   assert.match(primaryUnmarkedMigration,/grant execute on function public\.qa_lifecycle_adopt_primary_unmarked_release_fixture\([^)]*\) to service_role/);
+  assert.match(primaryUnmarkedRegexRepair,/\[\[:alnum:\]_\]\{2,48\}/);
+  assert.doesNotMatch(primaryUnmarkedRegexRepair,/update auth\.users/i);
+  assert.match(primaryUnmarkedRegexRepairRollback,/transport-specific escaping defect/);
   assert.doesNotMatch(primaryUnmarkedMigration,/update auth\.users/i);
   assert.match(primaryUnmarkedRollback,/drop function if exists public\.qa_lifecycle_adopt_primary_unmarked_release_fixture/);
   assert.match(workflow,/release-critical-journeys\.mjs/);

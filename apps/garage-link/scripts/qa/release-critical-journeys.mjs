@@ -28,6 +28,8 @@ const ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PATHS=new Set([
   'apps/garage-link/supabase/qa/manifest.json',
   'apps/garage-link/supabase/qa/migrations/20260815100934_qa_primary_unmarked_actual_email_fixture_adopt.sql',
   'apps/garage-link/supabase/qa/rollback/20260815100934_qa_primary_unmarked_actual_email_fixture_adopt.down.sql',
+  'apps/garage-link/supabase/qa/migrations/20260815105700_qa_primary_unmarked_callback_regex_repair.sql',
+  'apps/garage-link/supabase/qa/rollback/20260815105700_qa_primary_unmarked_callback_regex_repair.down.sql',
   'apps/garage-link/supabase/tests/qa_lifecycle_regression.sql',
   'apps/garage-link/scripts/qa/release-critical-qa-lifecycle-contract.mjs',
   'apps/garage-link/tests/qa/release-critical-preflight.test.mjs',

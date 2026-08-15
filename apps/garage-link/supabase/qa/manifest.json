@@ -143,9 +143,24 @@
         "20260804043651"
       ],
       "checksum": "35170826b66ed7e6fd2574d9b0baf81c060d6ccb364dc4315d140e2e38513994"
+    },
+    {
+      "version": "20260815105700",
+      "name": "qa_primary_unmarked_callback_regex_repair",
+      "kind": "repair",
+      "file": "migrations/20260815105700_qa_primary_unmarked_callback_regex_repair.sql",
+      "dependsOn": [
+        "20260815100934"
+      ],
+      "checksum": "22d4d76a061244473699e95d3dcfccb3cdce3b27088a8a3e11e52fcefdeba1fe"
     }
   ],
   "rollbacks": [
+    {
+      "version": "20260815105700",
+      "file": "rollback/20260815105700_qa_primary_unmarked_callback_regex_repair.down.sql",
+      "checksum": "57950f34837163d0e1af381f1da4606ec9ac7bb08b8a13f0b0cd2f5af9746126"
+    },
     {
       "version": "20260815100934",
       "file": "rollback/20260815100934_qa_primary_unmarked_actual_email_fixture_adopt.down.sql",
