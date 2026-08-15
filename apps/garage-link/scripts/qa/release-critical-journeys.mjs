@@ -820,7 +820,13 @@ export function lifecycle(admin,run,provenance){
   const rpc=async(name,args={})=>{const {data,error}=await admin.rpc(name,args);if(error)fail(`RELEASE_CRITICAL_LIFECYCLE_${name}:${safeProviderCode(error)}:${safeErrorCode(error)}`);return data};
   const maybeStatus=async()=>{const {data,error}=await admin.rpc('qa_lifecycle_status',{p_run_id:run.runId});if(!error)return data;if(error.code==='P0001'&&String(error.message??'').includes('QA_RUN_NOT_FOUND'))return null;fail(`RELEASE_CRITICAL_LIFECYCLE_qa_lifecycle_status:${error.code??'FAILED'}`);};
   const transition=(expected,next,action,detail={},failureClass=null)=>rpc('qa_lifecycle_transition',{p_run_id:run.runId,p_expected_state:expected,p_next_state:next,p_next_action:action,p_failure_class:failureClass,p_safe_detail:detail});
-  const evidence=(kind,detail={})=>{const payload={run_id:run.runId,source_sha:provenance.sourceSha,deployment_id:provenance.deploymentId,actor:'release-critical-gha',residual_count:0,observed_at:new Date().toISOString(),...detail};return rpc('qa_lifecycle_record_verified_evidence',{p_run_id:run.runId,p_evidence_kind:kind,p_observation:{...payload,proof_sha:sha256(JSON.stringify(payload))}})};
+  const evidence=async(kind,detail={})=>{
+    // Resumed cleanup must record against the immutable provenance registered
+    // for this lifecycle, not against a later safe-path Preview candidate.
+    const lifecycleState=await maybeStatus();
+    const payload={run_id:run.runId,source_sha:lifecycleState?.source_sha??provenance.sourceSha,deployment_id:lifecycleState?.deployment_id??provenance.deploymentId,actor:'release-critical-gha',residual_count:0,observed_at:new Date().toISOString(),...detail};
+    return rpc('qa_lifecycle_record_verified_evidence',{p_run_id:run.runId,p_evidence_kind:kind,p_observation:{...payload,proof_sha:sha256(JSON.stringify(payload))}});
+  };
   return {rpc,transition,evidence,status:()=>rpc('qa_lifecycle_status',{p_run_id:run.runId}),maybeStatus};
 }
 export async function beginLifecycle(life,run,provenance){

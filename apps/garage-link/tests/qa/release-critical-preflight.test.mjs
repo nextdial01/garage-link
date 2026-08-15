@@ -339,6 +339,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(primaryUnmarkedRegexRepair,/\[\[:alnum:\]_\]\{2,48\}/);
   assert.doesNotMatch(primaryUnmarkedRegexRepair,/update auth\.users/i);
   assert.match(primaryUnmarkedRegexRepairRollback,/transport-specific escaping defect/);
+  assert.match(journeys,/source_sha:lifecycleState\?\.source_sha\?\?provenance\.sourceSha/);
+  assert.match(journeys,/deployment_id:lifecycleState\?\.deployment_id\?\?provenance\.deploymentId/);
   assert.doesNotMatch(primaryUnmarkedMigration,/update auth\.users/i);
   assert.match(primaryUnmarkedRollback,/drop function if exists public\.qa_lifecycle_adopt_primary_unmarked_release_fixture/);
   assert.match(workflow,/release-critical-journeys\.mjs/);
