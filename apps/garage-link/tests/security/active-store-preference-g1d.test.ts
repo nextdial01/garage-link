@@ -100,6 +100,7 @@ test.describe('G1-D active store preference', () => {
     expect(shell).toContain('操作する店舗を選択してください');
     expect(shell).toContain("storeContextState === 'no_access'");
     expect(middleware).toContain("postAuthPath.split('?')[0] === pathname");
+    expect(middleware).toContain("pathname !== '/api/stores/active'");
     expect(middleware).toContain("pathname.startsWith('/api/')");
     expect(middleware).toContain("{ error: 'forbidden' }, { status: 403 }");
   });

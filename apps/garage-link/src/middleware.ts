@@ -265,6 +265,7 @@ export async function middleware(request: NextRequest) {
 
     if (
       !isPublicPath(pathname) &&
+      pathname !== '/api/stores/active' &&
       pathname !== '/onboarding' &&
       (postAuthPath.startsWith('/onboarding') || postAuthPath.startsWith('/signup'))
     ) {
