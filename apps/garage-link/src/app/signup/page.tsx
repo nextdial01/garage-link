@@ -6,13 +6,18 @@ import { FormEvent, Suspense, useEffect, useRef, useState } from 'react';
 import BrandLogo from '@/components/BrandLogo';
 import { isEmailConfirmationRequired, translateAuthError } from '@/lib/auth/auth-errors';
 import { hasMinimumPasswordLength, MIN_PASSWORD_LENGTH } from '@/lib/auth/password-policy';
+import { rememberReleaseQaRun, releaseQaNextPath, releaseQaRunId, recordReleaseQaCallback } from '@/lib/auth/releaseQaCallback';
+import { controlledEmailCallbackUrl, controlledEmailConfirmationRedirect } from '@/lib/auth/controlledEmailConfirmation';
 import { readSignupAttribution, trackConversion } from '@/lib/analytics/conversion';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, createReleaseQaManualEmailClient, isStagingReleaseQaImplicitFlow } from '@/lib/supabase/client';
+
+const RELEASE_QA_MARKER = /^\[RELEASE QA \d{8}\]$/;
 
 function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isResumeMode = searchParams.get('resume') === '1';
+  const qaRunId = releaseQaRunId(searchParams.get('qa_run'));
   const hasTrackedSignupStart = useRef(false);
 
   const [storeName, setStoreName] = useState('');
@@ -35,6 +40,13 @@ function SignupForm() {
   }, [searchParams]);
 
   useEffect(() => {
+    rememberReleaseQaRun(qaRunId);
+    if (isResumeMode && qaRunId) {
+      void recordReleaseQaCallback(qaRunId, 'arrival', releaseQaNextPath('/signup?resume=1', qaRunId));
+    }
+  }, [isResumeMode, qaRunId]);
+
+  useEffect(() => {
     async function detectResumeMode() {
       if (!isResumeMode) {
         return;
@@ -52,13 +64,24 @@ function SignupForm() {
       if (!Array.isArray(accessibleStoreIds) || accessibleStoreIds.length === 0) {
         setIsResumeOnly(true);
         setEmail(userData.user.email ?? '');
+        // The manual Gmail journey changes browsers.  Keep its run-bound
+        // synthetic name in Auth app metadata so the operator can use the
+        // real resume form without needing to copy a hidden marker.  This is
+        // Staging-only; ordinary and Production signup stay untouched.
+        const marker = typeof userData.user.app_metadata?.release_qa_marker === 'string'
+          ? userData.user.app_metadata.release_qa_marker
+          : '';
+        if (qaRunId && isStagingReleaseQaImplicitFlow(qaRunId, window.location.hostname) && RELEASE_QA_MARKER.test(marker)) {
+          setStoreName(`${marker} Signup`);
+          setDisplayName(`${marker} Owner`);
+        }
       }
 
       setIsBootstrapping(false);
     }
 
     void detectResumeMode();
-  }, [isResumeMode]);
+  }, [isResumeMode, qaRunId]);
 
   async function createStoreForUser(supabase: ReturnType<typeof createClient>) {
     const { error: onboardingError } = await supabase.rpc('create_store_for_current_user', {
@@ -89,6 +112,7 @@ function SignupForm() {
     setIsSubmitting(false);
 
     if (ok) {
+      await recordReleaseQaCallback(qaRunId, 'store_created', releaseQaNextPath('/signup?resume=1', qaRunId));
       trackConversion('signup_complete');
       router.replace('/onboarding');
     }
@@ -117,13 +141,27 @@ function SignupForm() {
     trackConversion('signup_submit');
 
     setIsSubmitting(true);
-    const supabase = createClient();
+    const supabase = createReleaseQaManualEmailClient(qaRunId);
 
+    const nextPath = releaseQaNextPath('/signup?resume=1', qaRunId);
+    let emailRedirectTo: string;
+    try {
+      const confirmOrigin = process.env.NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN ?? '';
+      const callbackUrl = controlledEmailCallbackUrl(confirmOrigin, nextPath, qaRunId);
+      emailRedirectTo = controlledEmailConfirmationRedirect(
+        confirmOrigin,
+        `${callbackUrl.pathname}${callbackUrl.search}`,
+      );
+    } catch {
+      setMessage('メール認証の安全な入口を準備中です。時間をおいてもう一度お試しください。');
+      setIsSubmitting(false);
+      return;
+    }
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/signup?resume=1')}`,
+        emailRedirectTo,
       },
     });
 
@@ -145,6 +183,7 @@ function SignupForm() {
     setIsSubmitting(false);
 
     if (ok) {
+      await recordReleaseQaCallback(qaRunId, 'store_created', releaseQaNextPath('/signup?resume=1', qaRunId));
       trackConversion('signup_complete');
       router.replace('/onboarding');
     }

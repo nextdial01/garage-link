@@ -2,6 +2,7 @@ import { access, readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { GET as healthGET } from '../../src/app/api/health/route';
 import { GET as provenanceGET } from '../../src/app/api/qa/provenance/route';
+import { POST as callbackEvidencePOST } from '../../src/app/api/qa/callback-evidence/route';
 import { buildStoragePath, privateStorageBucket } from '../../src/lib/storage/pathsCore';
 
 // 認証・実DB・Secretを使わずに、main push前に壊れやすい契約を自動確認するテストです。
@@ -43,9 +44,12 @@ test.describe('Pre-release contracts (認証不要)', () => {
       'VERCEL_DEPLOYMENT_ID',
       'VERCEL_GIT_COMMIT_SHA',
       'VERCEL_GIT_COMMIT_REF',
+      'GARAGE_STAGING_RELEASE_SHA',
+      'GARAGE_STAGING_RELEASE_REF',
       'VERCEL_URL',
       'VERCEL_ENV',
       'VERCEL_TARGET_ENV',
+      'NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN',
     ];
     const saved = new Map(keys.map((key) => [key, process.env[key]]));
     const stagingProjectId = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
@@ -61,6 +65,7 @@ test.describe('Pre-release contracts (認証不要)', () => {
         VERCEL_URL: 'garage-link-staging-qa.vercel.app',
         VERCEL_ENV: 'production',
         VERCEL_TARGET_ENV: 'staging',
+        NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN: 'https://auth-staging.garage-link.tech',
       });
       const response = await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'));
       const body = (await response.json()) as Record<string, unknown>;
@@ -73,6 +78,7 @@ test.describe('Pre-release contracts (認証不要)', () => {
         git_commit_ref: 'main',
         deployment_url: 'https://garage-link-staging-qa.vercel.app',
         environment: 'staging',
+        auth_confirm_origin: 'https://auth-staging.garage-link.tech',
       });
       expect(JSON.stringify(body)).not.toMatch(/secret|token|password|key|supabase|stripe/i);
 
@@ -82,8 +88,44 @@ test.describe('Pre-release contracts (認証不要)', () => {
       process.env.VERCEL_PROJECT_ID = stagingProjectId;
       expect((await provenanceGET(new Request('https://garage-link.tech/api/qa/provenance'))).status).toBe(404);
 
+      process.env.NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN = 'https://garage-link.tech';
+      expect((await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'))).status).toBe(404);
+      process.env.NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN = 'https://auth-staging.garage-link.tech';
+
+      Object.assign(process.env, { VERCEL_URL: 'garage-link-staging-qa.vercel.app', VERCEL_ENV: 'preview', VERCEL_TARGET_ENV: 'production' });
+      expect((await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'))).status).toBe(200);
+
       process.env.VERCEL_GIT_COMMIT_SHA = 'not-a-sha';
       expect((await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'))).status).toBe(404);
+
+      delete process.env.VERCEL_GIT_COMMIT_SHA;
+      delete process.env.VERCEL_GIT_COMMIT_REF;
+      Object.assign(process.env, {
+        GARAGE_STAGING_RELEASE_SHA: sha,
+        GARAGE_STAGING_RELEASE_REF: 'codex/garage-link-launch-closure',
+      });
+      const manualPreview = await provenanceGET(new Request('https://garage-link-staging-qa.vercel.app/api/qa/provenance'));
+      expect(manualPreview.status).toBe(200);
+      expect((await manualPreview.json() as Record<string, unknown>).git_commit_sha).toBe(sha);
+    } finally {
+      for (const [key, value] of saved) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
+
+  test('/api/qa/callback-evidence: Productionでは常に無効で、StagingでもBearerなしは拒否する', async () => {
+    const keys = ['VERCEL_PROJECT_ID', 'VERCEL_ENV', 'VERCEL_TARGET_ENV', 'NODE_ENV', 'GARAGE_PREVIEW_OTP_SINK_SECRET'];
+    const saved = new Map(keys.map((key) => [key, process.env[key]]));
+    const payload = { run_id: '550e8400-e29b-41d4-a716-446655440000', phase: 'callback', next_path: '/signup?resume=1&qa_run=550e8400-e29b-41d4-a716-446655440000' };
+    try {
+      Object.assign(process.env, { VERCEL_PROJECT_ID: 'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64', VERCEL_ENV: 'production', VERCEL_TARGET_ENV: 'production', NODE_ENV: 'production', GARAGE_PREVIEW_OTP_SINK_SECRET: 'x'.repeat(32) });
+      expect((await callbackEvidencePOST(new Request('https://garage-link.tech/api/qa/callback-evidence', { method: 'POST', body: JSON.stringify(payload) }))).status).toBe(404);
+
+      Object.assign(process.env, { VERCEL_PROJECT_ID: 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3', VERCEL_ENV: 'preview', VERCEL_TARGET_ENV: 'preview', NODE_ENV: 'production', GARAGE_PREVIEW_OTP_SINK_SECRET: 'x'.repeat(32) });
+      expect((await callbackEvidencePOST(new Request('https://garage-link-staging-qa.vercel.app/api/qa/callback-evidence', { method: 'POST', body: JSON.stringify(payload) }))).status).toBe(401);
+      expect((await callbackEvidencePOST(new Request('https://staging.garage-link.tech/api/qa/callback-evidence', { method: 'POST', body: JSON.stringify(payload) }))).status).toBe(401);
     } finally {
       for (const [key, value] of saved) {
         if (value === undefined) delete process.env[key];

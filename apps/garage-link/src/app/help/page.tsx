@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { LEGAL_SELLER } from '@/lib/legal/constants';
 
 const faqItems = [
   {
@@ -60,6 +61,19 @@ export default function HelpPage() {
           <p className="mt-2 text-sm leading-7 text-slate-600">
             ログイン後は、`車両一覧` ではなく `車両を登録` から始めるとスムーズです。会社ロゴや帳票設定はあとから追加できます。
           </p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-base font-black">お問い合わせ</h2>
+          <p className="mt-2 text-sm leading-7 text-slate-600">
+            登録前のご相談、契約・個人情報に関するお問い合わせは、正式窓口へメールでお送りください。
+          </p>
+          <a
+            href={`mailto:${LEGAL_SELLER.email}`}
+            className="mt-3 inline-flex rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-bold text-blue-700"
+          >
+            正式窓口へ問い合わせる
+          </a>
         </div>
       </section>
     </main>

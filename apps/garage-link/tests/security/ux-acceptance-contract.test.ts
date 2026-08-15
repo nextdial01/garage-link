@@ -1,19 +1,29 @@
 import { expect, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { hasValidStagingReleaseQaRunBinding, isControlledStagingReleaseQaRuntime } from '../../src/lib/security/stagingReleaseQaHost';
 
 test.describe('UX acceptance regression contracts', () => {
-  test('preview OTP accepts the canonical project alias without weakening preview guards', async () => {
-    const [source, serverContext, migration] = await Promise.all([
+  test('preview OTP accepts only the controlled Staging hosts and a valid release-QA binding', async () => {
+    const [source, serverContext, sharedContract, migration] = await Promise.all([
       readFile('src/lib/security/previewOtpSink.ts', 'utf8'),
       readFile('src/lib/security/adminEmailOtpServer.ts', 'utf8'),
+      readFile('src/lib/security/stagingReleaseQaHost.ts', 'utf8'),
       readFile('supabase/qa/migrations/20260803000100_ux_acceptance_admin_bootstrap.sql', 'utf8'),
     ]);
-    expect(source).toContain('VERCEL_PROJECT_PRODUCTION_URL');
     expect(source).toContain("process.env.VERCEL_ENV === 'preview'");
-    expect(source).toContain("process.env.NODE_ENV === 'production'");
-    expect(source).toContain('requestHost');
+    expect(source).toContain('requestHostname');
+    expect(source).toContain('isControlledStagingReleaseQaRuntime');
+    expect(serverContext).toContain('isControlledStagingReleaseQaRuntime');
+    expect(serverContext).toContain('hasValidStagingReleaseQaRunBinding');
+    expect(sharedContract).toContain("STAGING_RELEASE_QA_CONTROLLED_HOST = 'staging.garage-link.tech'");
+    expect(sharedContract).toContain('STAGING_RELEASE_QA_VERCEL_HOST');
+    expect(sharedContract).toContain("runtime.nodeEnv === 'production'");
     expect(serverContext).toContain("'ux_acceptance_admin_bootstrap_context'");
     expect(serverContext).toContain("'admin_email_otp_bootstrap_context'");
+    expect(serverContext).toContain('const releaseQaRequest = options.requireReleaseQa && isStagingReleaseQaRequest(request);');
+    expect(serverContext).toContain('bearer ? supabase.auth.getUser(bearer) : supabase.auth.getUser()');
+    expect(serverContext).toContain('bearer ? supabase.auth.getClaims(bearer) : supabase.auth.getClaims()');
+    expect(serverContext).toContain('releaseQaRequest && !hasValidStagingReleaseQaRunBinding(user.app_metadata?.release_qa_run_id)');
     expect(migration).toContain('ux_acceptance_admin_bootstrap_context');
     expect(migration).toContain("p_environment <> 'preview'");
     expect(migration).toContain("raw_app_meta_data ->> 'purpose'");
@@ -27,6 +37,22 @@ test.describe('UX acceptance regression contracts', () => {
     expect(migration).toContain('grant execute on function public.ux_acceptance_admin_bootstrap_context');
     expect(migration).toContain('ux_acceptance_prepare_store');
     expect(migration).toContain('set onboarding_completed_at = coalesce');
+
+    const validRuntime = {
+      projectId: 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3',
+      vercelEnv: 'preview',
+      nodeEnv: 'production',
+      previewOtpSecret: 'x'.repeat(32),
+    };
+    const validRunId = '550e8400-e29b-41d4-a716-446655440000';
+    expect(isControlledStagingReleaseQaRuntime({ ...validRuntime, hostname: 'garage-link-staging-abc.vercel.app' })).toBe(true);
+    expect(isControlledStagingReleaseQaRuntime({ ...validRuntime, hostname: 'staging.garage-link.tech' })).toBe(true);
+    expect(hasValidStagingReleaseQaRunBinding(validRunId)).toBe(true);
+    for (const hostname of ['garage-link.tech', 'www.garage-link.tech', 'qa.staging.garage-link.tech', 'localhost', 'unrelated.vercel.app']) {
+      expect(isControlledStagingReleaseQaRuntime({ ...validRuntime, hostname })).toBe(false);
+    }
+    expect(isControlledStagingReleaseQaRuntime({ ...validRuntime, hostname: 'staging.garage-link.tech', vercelEnv: 'production' })).toBe(false);
+    expect(hasValidStagingReleaseQaRunBinding(undefined)).toBe(false);
   });
 
   test('shared modal owns the complete portal and focus-management contract', async () => {

@@ -72,6 +72,132 @@ select public.qa_lifecycle_register_run('61000000-0000-4000-8000-000000000003','
 select public.qa_lifecycle_abort_clean('61000000-0000-4000-8000-000000000003','negative-test');
 do $$ begin begin perform public.qa_lifecycle_transition('61000000-0000-4000-8000-000000000003','ABORTED_CLEAN','CREATED','preflight'); raise exception 'ABORT_RESUME_ACCEPTED'; exception when raise_exception then if sqlerrm='ABORT_RESUME_ACCEPTED' then raise; end if; end; end $$;
 
+-- CTA account-state matrix: every comparison fixture is registry-bound,
+-- service-role-only, reset without disabling the owner trigger, and read back
+-- to zero before its synthetic Auth users are hard-deleted.
+do $$
+begin
+  if has_function_privilege('anon','public.qa_lifecycle_cta_matrix(uuid,text,jsonb)','EXECUTE') or has_function_privilege('authenticated','public.qa_lifecycle_cta_matrix(uuid,text,jsonb)','EXECUTE') then raise exception 'CTA_MATRIX_PUBLIC_EXECUTE'; end if;
+  if has_function_privilege('anon','public.qa_lifecycle_reclaim_expired_release_fixture(uuid)','EXECUTE') or has_function_privilege('authenticated','public.qa_lifecycle_reclaim_expired_release_fixture(uuid)','EXECUTE') then raise exception 'EXPIRED_RELEASE_RECOVERY_PUBLIC_EXECUTE'; end if;
+  if has_function_privilege('anon','public.qa_lifecycle_adopt_primary_unmarked_release_fixture(uuid,uuid,text,uuid,uuid,uuid,text,timestamptz)','EXECUTE') or has_function_privilege('authenticated','public.qa_lifecycle_adopt_primary_unmarked_release_fixture(uuid,uuid,text,uuid,uuid,uuid,text,timestamptz)','EXECUTE') then raise exception 'PRIMARY_UNMARKED_ADOPTION_PUBLIC_EXECUTE'; end if;
+  if (public.qa_lifecycle_cleanup_readiness()->>'ready')<>'true' or (public.qa_lifecycle_cleanup_readiness()->>'service_execute_count')::integer<>16 or (public.qa_lifecycle_cleanup_readiness()->>'expired_release_recovery')<>'service_role_only' or (public.qa_lifecycle_cleanup_readiness()->>'primary_unmarked_actual_email_adoption')<>'service_role_only' then raise exception 'CTA_MATRIX_READINESS_FAILED'; end if;
+end $$;
+
+-- Primary actual-email adoption accepts an existing human-entered label only
+-- when the exact same run-bound callback and active owner graph prove it. The
+-- lifecycle RPC changes the synthetic label to the canonical marker before it
+-- delegates, so the arbitrary human label never becomes a fixture marker.
+select public.qa_lifecycle_register_run('66000000-0000-4000-8000-000000000001','release-critical-acquisition','76cdc9656e9805d2ac61f961ff59b0a199475b3d','dpl_LocalPrimary','test:primary-unmarked',now()+interval '1 day');
+select public.qa_lifecycle_transition('66000000-0000-4000-8000-000000000001','CREATED','PREFLIGHT_RUNNING','preflight');
+select public.qa_lifecycle_transition('66000000-0000-4000-8000-000000000001','PREFLIGHT_RUNNING','PREFLIGHT_READY','signup-lifecycle-registered');
+select public.qa_lifecycle_transition('66000000-0000-4000-8000-000000000001','PREFLIGHT_READY','PROVISIONING','adopt-signup-fixture');
+insert into auth.users(id,email,raw_app_meta_data) values(
+  '66000000-0000-4000-8000-000000000010','qa.primary.unmarked@example.invalid',
+  jsonb_build_object(
+    'release_qa_run_id','66000000-0000-4000-8000-000000000001',
+    'release_qa_callback',jsonb_build_object(
+      'run_id','66000000-0000-4000-8000-000000000001',
+      'signup',jsonb_build_object(
+        'callback',jsonb_build_object('next_path','/signup?resume=1&qa_run=66000000-0000-4000-8000-000000000001','origin','https://staging.garage-link.tech','recorded_at','2026-08-15T00:00:00.000Z'),
+        'arrival',jsonb_build_object('next_path','/signup?resume=1&qa_run=66000000-0000-4000-8000-000000000001','origin','https://staging.garage-link.tech','recorded_at','2026-08-15T00:00:01.000Z'),
+        'store_created',jsonb_build_object('next_path','/signup?resume=1&qa_run=66000000-0000-4000-8000-000000000001','origin','https://staging.garage-link.tech','recorded_at','2026-08-15T00:00:02.000Z','server_bound_continuation',true,'continuation_of_callback_at','2026-08-15T00:00:00.000Z'),
+        'onboarding_completed',jsonb_build_object('next_path','/signup?resume=1&qa_run=66000000-0000-4000-8000-000000000001','origin','https://staging.garage-link.tech','recorded_at','2026-08-15T00:00:03.000Z','server_bound_continuation',true,'continuation_of_callback_at','2026-08-15T00:00:00.000Z','fixture',jsonb_build_object('tenant_id','66000000-0000-4000-8000-000000000020','store_id','66000000-0000-4000-8000-000000000030','membership_id','66000000-0000-4000-8000-000000000040','tenant_name','株式会社かんなぎ','account_state',jsonb_build_object('garage_ui_context','active','active_store','YES','onboarding_completed','YES','membership_role','owner','membership_status','active','contract_access_state','active')))
+      )
+    )
+  )
+);
+insert into public.tenants(id,name,status,plan_code,created_by,updated_by) values('66000000-0000-4000-8000-000000000020','株式会社かんなぎ','active','free','66000000-0000-4000-8000-000000000010','66000000-0000-4000-8000-000000000010');
+insert into public.stores(id,name,company_name,email,status,plan_code,tenant_id,created_by,updated_by,onboarding_completed_at) values('66000000-0000-4000-8000-000000000030','Primary QA Store','株式会社かんなぎ','qa.primary.unmarked@example.invalid','active','free','66000000-0000-4000-8000-000000000020','66000000-0000-4000-8000-000000000010','66000000-0000-4000-8000-000000000010',clock_timestamp());
+insert into public.memberships(id,tenant_id,store_id,user_id,email,role,status,joined_at,invite_accepted_at,created_by,updated_by) values('66000000-0000-4000-8000-000000000040','66000000-0000-4000-8000-000000000020','66000000-0000-4000-8000-000000000030','66000000-0000-4000-8000-000000000010','qa.primary.unmarked@example.invalid','owner','active',clock_timestamp(),clock_timestamp(),'66000000-0000-4000-8000-000000000010','66000000-0000-4000-8000-000000000010');
+do $$ declare v jsonb; begin
+  v:=public.qa_lifecycle_adopt_primary_unmarked_release_fixture('66000000-0000-4000-8000-000000000001','66000000-0000-4000-8000-000000000020','株式会社かんなぎ','66000000-0000-4000-8000-000000000030','66000000-0000-4000-8000-000000000010','66000000-0000-4000-8000-000000000040','[RELEASE QA 20260811]',now()+interval '1 day');
+  if v->>'canonical_marker'<>'[RELEASE QA 20260811]' or v->>'primary_unmarked_actual_email'<>'true' or (select marker from qa_internal.fixtures where run_id='66000000-0000-4000-8000-000000000001')<>'[RELEASE QA 20260811]' or (select name from public.tenants where id='66000000-0000-4000-8000-000000000020')<>'[RELEASE QA 20260811] Actual Email' then raise exception 'PRIMARY_UNMARKED_ADOPTION_CONTRACT'; end if;
+  begin perform public.qa_lifecycle_adopt_primary_unmarked_release_fixture('66000000-0000-4000-8000-000000000001','66000000-0000-4000-8000-000000000020','株式会社かんなぎ','66000000-0000-4000-8000-000000000099','66000000-0000-4000-8000-000000000010','66000000-0000-4000-8000-000000000040','[RELEASE QA 20260811]',now()+interval '1 day'); raise exception 'PRIMARY_UNMARKED_MISMATCH_ACCEPTED'; exception when others then if sqlerrm='PRIMARY_UNMARKED_MISMATCH_ACCEPTED' then raise; end if; end;
+end $$;
+
+-- An expired, exact registry-bound release fixture is renewed only through the
+-- service-role lifecycle recovery function. The normal owner guard remains in
+-- place; this test merely proves the formal recovery can hand the fixture back
+-- to standard adoption/teardown without a raw delete or privilege widening.
+select public.qa_lifecycle_register_run('65000000-0000-4000-8000-000000000001','release-critical-acquisition','76cdc9656e9805d2ac61f961ff59b0a199475b3d','dpl_LocalExpired','test:expired-recovery',now()+interval '1 day');
+select public.qa_lifecycle_transition('65000000-0000-4000-8000-000000000001','CREATED','PREFLIGHT_RUNNING','preflight');
+select public.qa_lifecycle_transition('65000000-0000-4000-8000-000000000001','PREFLIGHT_RUNNING','PREFLIGHT_READY','signup-lifecycle-registered');
+select public.qa_lifecycle_transition('65000000-0000-4000-8000-000000000001','PREFLIGHT_READY','PROVISIONING','adopt-signup-fixture');
+insert into auth.users(id,email,raw_app_meta_data) values('65000000-0000-4000-8000-000000000010','qa.expired.release@example.invalid','{"release_qa_run_id":"65000000-0000-4000-8000-000000000001"}'::jsonb);
+insert into public.tenants(id,name,status,plan_code,created_by,updated_by) values('65000000-0000-4000-8000-000000000020','[RELEASE QA 20260812] Expired Tenant','active','free','65000000-0000-4000-8000-000000000010','65000000-0000-4000-8000-000000000010');
+insert into public.stores(id,name,company_name,email,status,plan_code,tenant_id,created_by,updated_by,onboarding_completed_at) values('65000000-0000-4000-8000-000000000030','[RELEASE QA 20260812] Expired Store','Expired QA','qa.expired.release@example.invalid','active','free','65000000-0000-4000-8000-000000000020','65000000-0000-4000-8000-000000000010','65000000-0000-4000-8000-000000000010',clock_timestamp());
+insert into public.memberships(id,tenant_id,store_id,user_id,email,role,status,joined_at,invite_accepted_at,created_by,updated_by) values('65000000-0000-4000-8000-000000000040','65000000-0000-4000-8000-000000000020','65000000-0000-4000-8000-000000000030','65000000-0000-4000-8000-000000000010','qa.expired.release@example.invalid','owner','active',clock_timestamp(),clock_timestamp(),'65000000-0000-4000-8000-000000000010','65000000-0000-4000-8000-000000000010');
+select public.qa_lifecycle_register_fixture('65000000-0000-4000-8000-000000000001','65000000-0000-4000-8000-000000000020','[RELEASE QA 20260812] Expired Tenant','65000000-0000-4000-8000-000000000030','65000000-0000-4000-8000-000000000010','65000000-0000-4000-8000-000000000040','release','[RELEASE QA 20260812]',now()+interval '1 day');
+update qa_internal.runs set created_at=clock_timestamp()-interval '3 days',cleanup_deadline=clock_timestamp()-interval '1 hour' where run_id='65000000-0000-4000-8000-000000000001';
+update qa_internal.fixtures set created_at=clock_timestamp()-interval '3 days',expires_at=clock_timestamp()-interval '1 hour' where run_id='65000000-0000-4000-8000-000000000001';
+do $$ declare v jsonb; begin
+  v:=public.qa_lifecycle_reclaim_expired_release_fixture('65000000-0000-4000-8000-000000000001');
+  if v->>'reclaimed'<>'true' or v->>'state'<>'PROVISIONING' then raise exception 'EXPIRED_RELEASE_RECOVERY_FAILED'; end if;
+  if (select cleanup_deadline>clock_timestamp() from qa_internal.runs where run_id='65000000-0000-4000-8000-000000000001') is not true or (select expires_at>clock_timestamp() from qa_internal.fixtures where run_id='65000000-0000-4000-8000-000000000001') is not true then raise exception 'EXPIRED_RELEASE_RECOVERY_DATES_INVALID'; end if;
+end $$;
+
+select public.qa_lifecycle_register_run('63000000-0000-4000-8000-000000000001','cta matrix regression','76cdc9656e9805d2ac61f961ff59b0a199475b3d','dpl_LocalMatrix','test:cta-matrix',now()+interval '1 day');
+select public.qa_lifecycle_transition('63000000-0000-4000-8000-000000000001','CREATED','PREFLIGHT_RUNNING','preflight');
+select public.qa_lifecycle_transition('63000000-0000-4000-8000-000000000001','PREFLIGHT_RUNNING','PREFLIGHT_READY','provision');
+select public.qa_lifecycle_transition('63000000-0000-4000-8000-000000000001','PREFLIGHT_READY','PROVISIONING','provision');
+insert into auth.users(id,email,raw_app_meta_data) values('63000000-0000-4000-8000-000000000010','qa.lifecycle.matrix.primary@example.invalid','{"purpose":"qa-lifecycle-canary","run_id":"63000000-0000-4000-8000-000000000001"}'::jsonb);
+select public.qa_lifecycle_register_fixture('63000000-0000-4000-8000-000000000001','63000000-0000-4000-8000-000000000020','[RELEASE QA 20260812] Matrix Primary Tenant','63000000-0000-4000-8000-000000000030','63000000-0000-4000-8000-000000000010','63000000-0000-4000-8000-000000000040','canary','[RELEASE QA 20260812]',now()+interval '1 day');
+select public.qa_lifecycle_provision_canary('63000000-0000-4000-8000-000000000001');
+select public.qa_lifecycle_transition('63000000-0000-4000-8000-000000000001','PROVISIONING','PROVISIONED','auth');
+select public.qa_lifecycle_transition('63000000-0000-4000-8000-000000000001','PROVISIONED','AUTH_READY','run');
+select public.qa_lifecycle_transition('63000000-0000-4000-8000-000000000001','AUTH_READY','TEST_RUNNING','run');
+insert into auth.users(id,email,raw_app_meta_data) values
+  ('64000000-0000-4000-8000-000000000001','qa.cta.matrix.1@example.invalid','{"purpose":"release-cta-matrix","release_qa_cta_matrix_run_id":"63000000-0000-4000-8000-000000000001"}'::jsonb),
+  ('64000000-0000-4000-8000-000000000002','qa.cta.matrix.2@example.invalid','{"purpose":"release-cta-matrix","release_qa_cta_matrix_run_id":"63000000-0000-4000-8000-000000000001"}'::jsonb),
+  ('64000000-0000-4000-8000-000000000003','qa.cta.matrix.3@example.invalid','{"purpose":"release-cta-matrix","release_qa_cta_matrix_run_id":"63000000-0000-4000-8000-000000000001"}'::jsonb),
+  ('64000000-0000-4000-8000-000000000004','qa.cta.matrix.4@example.invalid','{"purpose":"release-cta-matrix","release_qa_cta_matrix_run_id":"63000000-0000-4000-8000-000000000001"}'::jsonb),
+  ('64000000-0000-4000-8000-000000000005','qa.cta.matrix.5@example.invalid','{"purpose":"release-cta-matrix","release_qa_cta_matrix_run_id":"63000000-0000-4000-8000-000000000001"}'::jsonb),
+  ('64000000-0000-4000-8000-000000000006','qa.cta.matrix.6@example.invalid','{"purpose":"release-cta-matrix","release_qa_cta_matrix_run_id":"63000000-0000-4000-8000-000000000001"}'::jsonb),
+  ('64000000-0000-4000-8000-000000000007','qa.cta.matrix.7@example.invalid','{"purpose":"release-cta-matrix","release_qa_cta_matrix_run_id":"63000000-0000-4000-8000-000000000001"}'::jsonb);
+do $$
+declare v jsonb; ids jsonb;
+begin
+  v:=public.qa_lifecycle_cta_matrix('63000000-0000-4000-8000-000000000001','provision',jsonb_build_object(
+    'active_owner',jsonb_build_object('subject_user_id','64000000-0000-4000-8000-000000000001'),
+    'active_non_owner',jsonb_build_object('subject_user_id','64000000-0000-4000-8000-000000000002','support_user_id','64000000-0000-4000-8000-000000000007'),
+    'selection_required',jsonb_build_object('subject_user_id','64000000-0000-4000-8000-000000000003'),
+    'onboarding_incomplete',jsonb_build_object('subject_user_id','64000000-0000-4000-8000-000000000004'),
+    'contract_restricted',jsonb_build_object('subject_user_id','64000000-0000-4000-8000-000000000005'),
+    'admin_security_unverified',jsonb_build_object('subject_user_id','64000000-0000-4000-8000-000000000006')
+  ));
+  if v->>'state'<>'PROVISIONED' or (v->>'fixture_count')::integer<>6 or (select count(*) from qa_internal.cta_matrix_fixtures where run_id='63000000-0000-4000-8000-000000000001')<>6 then raise exception 'CTA_MATRIX_PROVISION_CONTRACT'; end if;
+  if not exists(
+    select 1
+    from qa_internal.cta_matrix_fixtures f
+    join public.company_subscriptions s on s.tenant_id=f.tenant_id and s.company_id=f.primary_store_id
+    where f.run_id='63000000-0000-4000-8000-000000000001'
+      and f.state='active_non_owner'
+      and s.plan='standard'
+      and s.status='active'
+      and s.included_staff_count=3
+  ) then raise exception 'CTA_MATRIX_NON_OWNER_PLAN_CONTRACT'; end if;
+  if not exists(
+    select 1
+    from qa_internal.cta_matrix_fixtures f
+    join public.company_subscriptions s on s.tenant_id=f.tenant_id and s.company_id=f.primary_store_id
+    where f.run_id='63000000-0000-4000-8000-000000000001'
+      and f.state='selection_required'
+      and s.plan='pro'
+      and s.status='active'
+      and s.included_store_count=3
+  ) then raise exception 'CTA_MATRIX_SELECTION_PLAN_CONTRACT'; end if;
+  begin
+    delete from public.memberships where id=(select subject_membership_id from qa_internal.cta_matrix_fixtures where run_id='63000000-0000-4000-8000-000000000001' and state='active_owner');
+    raise exception 'CTA_MATRIX_DIRECT_OWNER_DELETE_ACCEPTED';
+  exception when others then if sqlerrm='CTA_MATRIX_DIRECT_OWNER_DELETE_ACCEPTED' then raise; end if; end;
+  v:=public.qa_lifecycle_cta_matrix('63000000-0000-4000-8000-000000000001','reset','{}'::jsonb);
+  ids:=v->'auth_user_ids';
+  if v->>'state'<>'DB_CLEANED' or jsonb_array_length(ids)<>7 or exists(select 1 from qa_internal.cta_matrix_fixtures where run_id='63000000-0000-4000-8000-000000000001') then raise exception 'CTA_MATRIX_RESET_CONTRACT'; end if;
+  delete from auth.users where id in (select value::uuid from jsonb_array_elements_text(ids));
+  v:=public.qa_lifecycle_cta_matrix('63000000-0000-4000-8000-000000000001','verify_clean',jsonb_build_object('auth_user_ids',ids));
+  if v->>'clean'<>'true' then raise exception 'CTA_MATRIX_VERIFY_CLEAN_FAILED'; end if;
+end $$;
+
 -- Owner Preview contract regression: synthetic-only, service_role-only, and reset-safe.
 do $$ declare v jsonb; t uuid; s uuid; m uuid; begin
   if has_function_privilege('anon','public.qa_owner_preview_ensure_fixture(text,text,text,text,uuid)','EXECUTE') or has_function_privilege('authenticated','public.qa_owner_preview_ensure_fixture(text,text,text,text,uuid)','EXECUTE') then raise exception 'OWNER_PREVIEW_PUBLIC_EXECUTE'; end if;

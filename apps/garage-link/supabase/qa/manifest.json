@@ -70,9 +70,132 @@
         "20260804130008"
       ],
       "checksum": "078fde0c193b0639630f02814ba047575e7b4251a856e86abc191cc5a2b56834"
+    },
+    {
+      "version": "20260811144934",
+      "name": "qa_lifecycle_evidence_helpers",
+      "kind": "repair",
+      "file": "migrations/20260811144934_qa_lifecycle_evidence_helpers.sql",
+      "dependsOn": [
+        "20260804033831"
+      ],
+      "checksum": "2cd28770d064362797a73a25bfde524842251a71034678dcba6a1d55537bc1a2"
+    },
+    {
+      "version": "20260811151006",
+      "name": "qa_lifecycle_evidence_table",
+      "kind": "repair",
+      "file": "migrations/20260811151006_qa_lifecycle_evidence_table.sql",
+      "dependsOn": [
+        "20260804033831",
+        "20260811144934"
+      ],
+      "checksum": "4098392659f527f353921adb996e26043cf67946d018d30d8c4b9c5e3fa36e80"
+    },
+    {
+      "version": "20260811152300",
+      "name": "qa_lifecycle_state_machine_repair",
+      "kind": "repair",
+      "file": "migrations/20260811152300_qa_lifecycle_state_machine_repair.sql",
+      "dependsOn": [
+        "20260811144934",
+        "20260811151006"
+      ],
+      "checksum": "ca693070740284613d6896322fbbbfb8e2cb2143aaaddf12f92a0defc079f3a1"
+    },
+    {
+      "version": "20260812000100",
+      "name": "qa_lifecycle_cta_account_state_matrix",
+      "kind": "contract",
+      "file": "migrations/20260812000100_qa_lifecycle_cta_account_state_matrix.sql",
+      "dependsOn": [
+        "20260804133000",
+        "20260811152300"
+      ],
+      "checksum": "1b80dcee3d3b666fda3f7b5b32b3fb76bcde7c4d214e4e891f41f2a6fac54f9b"
+    },
+    {
+      "version": "20260812101500",
+      "name": "qa_lifecycle_expired_release_fixture_recovery",
+      "kind": "repair",
+      "file": "migrations/20260812101500_qa_lifecycle_expired_release_fixture_recovery.sql",
+      "dependsOn": [
+        "20260812000100"
+      ],
+      "checksum": "dd7bed703f69251dc798b438ec69e32bc267ffe4f75f5bfd874430e4e96b8a6c"
+    },
+    {
+      "version": "20260813162000",
+      "name": "qa_lifecycle_unmarked_release_fixture_adopt",
+      "kind": "repair",
+      "file": "migrations/20260813162000_qa_lifecycle_unmarked_release_fixture_adopt.sql",
+      "dependsOn": [
+        "20260804043651"
+      ],
+      "checksum": "b610f0d93fdf0a17df04477f652d9d2db759e908ed8d6cdfecd7e9aea383aba9"
+    },
+    {
+      "version": "20260815100934",
+      "name": "qa_primary_unmarked_actual_email_fixture_adopt",
+      "kind": "repair",
+      "file": "migrations/20260815100934_qa_primary_unmarked_actual_email_fixture_adopt.sql",
+      "dependsOn": [
+        "20260804043651"
+      ],
+      "checksum": "35170826b66ed7e6fd2574d9b0baf81c060d6ccb364dc4315d140e2e38513994"
+    },
+    {
+      "version": "20260815105700",
+      "name": "qa_primary_unmarked_callback_regex_repair",
+      "kind": "repair",
+      "file": "migrations/20260815105700_qa_primary_unmarked_callback_regex_repair.sql",
+      "dependsOn": [
+        "20260815100934"
+      ],
+      "checksum": "22d4d76a061244473699e95d3dcfccb3cdce3b27088a8a3e11e52fcefdeba1fe"
     }
   ],
   "rollbacks": [
+    {
+      "version": "20260815105700",
+      "file": "rollback/20260815105700_qa_primary_unmarked_callback_regex_repair.down.sql",
+      "checksum": "57950f34837163d0e1af381f1da4606ec9ac7bb08b8a13f0b0cd2f5af9746126"
+    },
+    {
+      "version": "20260815100934",
+      "file": "rollback/20260815100934_qa_primary_unmarked_actual_email_fixture_adopt.down.sql",
+      "checksum": "d2dda0123d6268b325ad4ad4cfdf337e4c09ad8cf6dc61eb1dbded79ea8986fe"
+    },
+    {
+      "version": "20260813162000",
+      "file": "rollback/20260813162000_qa_lifecycle_unmarked_release_fixture_adopt.down.sql",
+      "checksum": "3d41526f6b0b3eaaea28b385a62475266ceaea3986ec410496c6cb3521198553"
+    },
+    {
+      "version": "20260812101500",
+      "file": "rollback/20260812101500_qa_lifecycle_expired_release_fixture_recovery.down.sql",
+      "checksum": "e765b8b9050a9d0567745bff1efe0f624ecc12ba0b00ce22e451c8ac263bf026"
+    },
+    {
+      "version": "20260812000100",
+      "file": "rollback/20260812000100_qa_lifecycle_cta_account_state_matrix.down.sql",
+      "checksum": "bdd491185406ea17680ffdeaf16ce23a64e0614cef1523548a7b76ed187422b7"
+    },
+    {
+      "version": "20260811152300",
+      "file": "rollback/20260811152300_qa_lifecycle_state_machine_repair.down.sql",
+      "checksum": "e848797e4d2d0bb42f02d5d50392320a5665de951be5e3ba8b4eff5eceaeb88d"
+    },
+    {
+      "version": "20260811151006",
+      "file": "rollback/20260811151006_qa_lifecycle_evidence_table.down.sql",
+      "checksum": "bbe522bdf53e0ffaf54bb126fe4896a7b113c39690fdcf0464567d706dc69a11"
+    },
+    {
+      "version": "20260811144934",
+      "file": "rollback/20260811144934_qa_lifecycle_evidence_helpers.down.sql",
+      "checksum": "fd3e27f4ad8516fed6b4190f033d3b528b7a04142274afc66f226b33495b22c5"
+    },
     {
       "version": "20260804133000",
       "file": "rollback/20260804133000_owner_preview_reset_hardening.down.sql",

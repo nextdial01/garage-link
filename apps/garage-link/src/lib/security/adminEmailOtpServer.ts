@@ -1,7 +1,19 @@
 import 'server-only';
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { hasValidStagingReleaseQaRunBinding, isControlledStagingReleaseQaRuntime } from '@/lib/security/stagingReleaseQaHost';
+
+export function isStagingReleaseQaRequest(request: NextRequest) {
+  return isControlledStagingReleaseQaRuntime({
+    hostname: request.nextUrl.hostname,
+    projectId: process.env.VERCEL_PROJECT_ID,
+    vercelEnv: process.env.VERCEL_ENV,
+    nodeEnv: process.env.NODE_ENV,
+    previewOtpSecret: process.env.GARAGE_PREVIEW_OTP_SINK_SECRET,
+  });
+}
 
 export async function getAuthenticatedAdminContext(
   request: NextRequest,
@@ -11,11 +23,23 @@ export async function getAuthenticatedAdminContext(
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
   const service = createAdminClient();
   if (!url || !anonKey || !service) return null;
-  const supabase = createServerClient(url, anonKey, { cookies: { getAll: () => request.cookies.getAll(), setAll: () => undefined } });
-  const [{ data: userData }, { data: claimsData }] = await Promise.all([supabase.auth.getUser(), supabase.auth.getClaims()]);
+  const releaseQaRequest = options.requireReleaseQa && isStagingReleaseQaRequest(request);
+  const bearer = releaseQaRequest
+    ? request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]
+    : undefined;
+  const supabase = bearer
+    ? createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } })
+    : createServerClient(url, anonKey, { cookies: { getAll: () => request.cookies.getAll(), setAll: () => undefined } });
+  const [{ data: userData }, { data: claimsData }] = await Promise.all([
+    bearer ? supabase.auth.getUser(bearer) : supabase.auth.getUser(),
+    bearer ? supabase.auth.getClaims(bearer) : supabase.auth.getClaims(),
+  ]);
   const user = userData.user;
   const sessionId = typeof claimsData?.claims?.session_id === 'string' ? claimsData.claims.session_id : '';
   if (!user?.id || !user.email || !sessionId) return null;
+  // The Preview OTP sink is limited to the exact Staging QA run binding.
+  // Legacy plus-address fixtures remain cleanup-only and cannot request OTPs.
+  if (releaseQaRequest && !hasValidStagingReleaseQaRunBinding(user.app_metadata?.release_qa_run_id)) return null;
   const rpcCalls = options.requireReleaseQa
     ? [
         service.rpc('release_qa_admin_bootstrap_context', {

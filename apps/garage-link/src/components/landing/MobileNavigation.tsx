@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { TrackedLoginLink } from './TrackedSignupLink';
 import { Menu, X } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import styles from './garage-landing.module.css';
@@ -53,7 +54,7 @@ export function MobileNavigation() {
         <Link href="/pricing" onClick={close}>料金</Link>
         <a href="#industries" onClick={close}>業種別</a>
         <Link href="/faq" onClick={close}>FAQ</Link>
-        <Link href="/login" onClick={close}>ログイン</Link>
+        <TrackedLoginLink onClick={close}>ログイン</TrackedLoginLink>
       </nav>
     </div>
   );

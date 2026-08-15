@@ -15,10 +15,12 @@ const PUBLIC_PATHS = [
   '/staging-preview',
   '/signup',
   '/forgot-password',
+  '/auth/confirm',
   '/auth/callback',
   '/auth/reset-password',
   '/membership/accept',
   '/api/auth/password-login',
+  '/api/auth/confirm',
   '/api/health',
   '/help',
   '/logout',
@@ -31,6 +33,8 @@ const PUBLIC_PATHS = [
   '/pricing',
   '/faq',
 ];
+
+const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
 
 const CANCELLED_RETENTION_ALLOWED = [
   '/settings/billing',
@@ -65,6 +69,16 @@ function isPublicPath(pathname: string) {
   // Vercel project ID and Production host deny-list. The Release Critical
   // runner reaches it through Vercel Automation Bypass, not a user session.
   if (pathname === '/api/qa/provenance') return true;
+  // These two QA routes enforce a Staging-preview runtime, an exact synthetic
+  // marker, and a bearer session in the route itself. They must reach that
+  // route-level contract rather than being rejected by middleware before the
+  // synthetic owner's token can be verified. Production still returns 404.
+  if (pathname === '/api/qa/callback-evidence' || pathname === '/api/qa/fixture-discovery') return true;
+  // These routes authenticate again inside the handler. Keeping the exact
+  // endpoints reachable lets a Staging-only synthetic Bearer session satisfy
+  // the same administrator OTP pre-request gate; Production Bearer access is
+  // still rejected by the route's staging runtime contract.
+  if (pathname === '/api/auth/admin-email-otp/request' || pathname === '/api/auth/admin-email-otp/verify') return true;
   return false;
 }
 
@@ -85,6 +99,30 @@ function redirectWithSessionCookies(url: URL, source: NextResponse) {
   const redirect = NextResponse.redirect(url);
   source.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
   return redirect;
+}
+
+function attachReleaseQaAuthBoundary(
+  request: NextRequest,
+  response: NextResponse,
+  authCookiePresent: boolean,
+  authErrorCode: string | undefined,
+) {
+  // This is deliberately a Staging-preview-only, opt-in QA diagnostic. It
+  // carries no token, email, user ID, or error text; it only separates an
+  // expired/invalid SSR session from a route-level redirect during the
+  // Release Critical synthetic journey. Production never emits this header.
+  if (
+    request.headers.get('x-garage-release-qa') === '1'
+    && process.env.VERCEL_ENV === 'preview'
+    && process.env.VERCEL_PROJECT_ID === STAGING_PROJECT_ID
+  ) {
+    const code = (authErrorCode ?? 'NONE').replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 32) || 'NONE';
+    response.headers.set(
+      'x-garage-release-qa-auth-boundary',
+      `USER_ABSENT:${authCookiePresent ? 'AUTH_COOKIE_PRESENT' : 'AUTH_COOKIE_ABSENT'}:${code}`,
+    );
+  }
+  return response;
 }
 
 async function requiresAdminSecurity(
@@ -157,6 +195,7 @@ export async function middleware(request: NextRequest) {
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
   const { data: claimData } = user ? await supabase.auth.getClaims() : { data: null };
 
@@ -164,12 +203,22 @@ export async function middleware(request: NextRequest) {
 
   if (!user && !isPublicPath(pathname)) {
     if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+      return attachReleaseQaAuthBoundary(
+        request,
+        NextResponse.json({ error: 'unauthorized' }, { status: 401 }),
+        request.cookies.getAll().some((cookie) => /^sb-[a-z0-9]+-auth-token(?:\.\d+)?$/i.test(cookie.name)),
+        authError?.code,
+      );
     }
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     loginUrl.searchParams.set('next', pathname);
-    return NextResponse.redirect(loginUrl);
+    return attachReleaseQaAuthBoundary(
+      request,
+      NextResponse.redirect(loginUrl),
+      request.cookies.getAll().some((cookie) => /^sb-[a-z0-9]+-auth-token(?:\.\d+)?$/i.test(cookie.name)),
+      authError?.code,
+    );
   }
 
   if (user) {
@@ -216,6 +265,7 @@ export async function middleware(request: NextRequest) {
 
     if (
       !isPublicPath(pathname) &&
+      pathname !== '/api/stores/active' &&
       pathname !== '/onboarding' &&
       (postAuthPath.startsWith('/onboarding') || postAuthPath.startsWith('/signup'))
     ) {

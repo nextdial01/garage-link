@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { MobileNavigation } from './MobileNavigation';
-import { TrackedSignupLink } from './TrackedSignupLink';
+import { TrackedLoginLink, TrackedSignupLink } from './TrackedSignupLink';
 import styles from './garage-landing.module.css';
 
 type IconName =
@@ -109,7 +109,7 @@ export function GarageLandingPage() {
         <div className={styles.headerInner}>
           <Link href="/" aria-label="GARAGE LINK トップページ" className={styles.brand}><BrandLogo className={styles.brandLogo} priority /></Link>
           <nav className={styles.nav} aria-label="メインナビゲーション"><a href="#features">機能</a><Link href="/pricing">料金</Link><a href="#industries">業種別</a><Link href="/faq">FAQ</Link></nav>
-          <Link href="/login" className={styles.loginLink}>ログイン</Link>
+          <TrackedLoginLink className={styles.loginLink}>ログイン</TrackedLoginLink>
           <TrackedSignupLink placement="header" className={styles.headerCta}>無料で始める</TrackedSignupLink>
           <MobileNavigation />
         </div>

@@ -4,27 +4,40 @@ on:
   workflow_dispatch:
     inputs:
       email_mode:
-        description: Email verification mode for this Staging QA run
+        description: Optional actual-email transport mode; machine gates never depend on it
         required: true
-        default: manual_gmail
+        default: deferred
         type: choice
         options:
+          - deferred
           - manual_gmail
-      manual_gmail_address:
-        description: Existing Gmail base address used only for this run (never print it)
-        required: true
-        type: string
       staging_base_url:
-        description: Optional exact garage-link-staging preview URL for this QA run
-        required: false
-        type: string
-      candidate_sha:
-        description: Exact 40-character SHA returned by the target Staging runtime provenance endpoint
+        description: Exact garage-link-staging preview URL for this QA run
         required: true
         type: string
-      apply_staging_password_minimum:
-        description: Apply the approved Staging-only 8-character Auth minimum and read it back
-        required: false
+      auth_config_mode:
+        description: Normal runs prove redirects through Hosted Auth; admin_config_only is a no-email Staging control-plane lane
+        required: true
+        default: verify_by_journey
+        type: choice
+        options:
+          - verify_by_journey
+          - repair_staging_once
+          - admin_config_only
+      execution_scope:
+        description: full reruns machine gates; actual_email_prepare persists one bounded human checkpoint; actual_email_resume verifies that same checkpoint; callback_probe_only verifies callback reach; context_probe_only verifies fresh-tab QA context without sending email
+        required: true
+        default: full
+        type: choice
+        options:
+          - full
+          - actual_email_prepare
+          - actual_email_resume
+          - callback_probe_only
+          - context_probe_only
+      recover_unbound_actual_email:
+        description: One-time Staging recovery for the exact approved QA recipient created by a pre-binding runner defect; normal runs must remain false
+        required: true
         default: false
         type: boolean
 
@@ -36,14 +49,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  stage-auth-password-minimum:
-    name: Staging Auth password minimum 8 (write window only)
-    if: ${{ inputs.apply_staging_password_minimum }}
+  preflight:
+    name: Staging-only preflight (no billing)
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 10
+    outputs:
+      source_sha: ${{ steps.contract.outputs.source_sha }}
+      base_url: ${{ steps.contract.outputs.base_url }}
+      deployment_id: ${{ steps.contract.outputs.deployment_id }}
+      auth_confirm_origin: ${{ steps.contract.outputs.auth_confirm_origin }}
     env:
-      GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN }}
+      PLAYWRIGHT_BASE_URL: ${{ inputs.staging_base_url }}
+      E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
+      E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
+      RELEASE_CRITICAL_EXPECTED_SHA: ${{ github.sha }}
+      RELEASE_CRITICAL_EMAIL_MODE: ${{ inputs.email_mode }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -54,21 +76,23 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Apply and read back the Staging-only minimum
-        run: node apps/garage-link/scripts/qa/release-critical-stage-auth.mjs
+      - id: contract
+        name: Verify Staging-only execution contract
+        run: |
+          node apps/garage-link/scripts/qa/release-critical-preflight.mjs > "$RUNNER_TEMP/preflight.json"
+          node -e "const value=JSON.parse(require('node:fs').readFileSync(process.argv[1],'utf8')); if(value.state!=='PREFLIGHT_READY'||!(/^[0-9a-f]{40}$/i.test(value.source_sha??''))||!value.base_url||!/^dpl_[A-Za-z0-9]+$/.test(value.deployment_id??'')||!/^https:\/\/[^/]+\.garage-link\.tech$/i.test(value.auth_confirm_origin??''))process.exit(1); for(const key of ['source_sha','base_url','deployment_id','auth_confirm_origin'])process.stdout.write(key+'='+value[key]+'\\n');" "$RUNNER_TEMP/preflight.json" >> "$GITHUB_OUTPUT"
 
-  preflight:
-    if: ${{ !inputs.apply_staging_password_minimum }}
-    name: Staging-only preflight (no billing)
+  stage-auth-contract:
+    name: Staging Auth redirect and password contract
+    needs: preflight
+    if: ${{ inputs.auth_config_mode == 'repair_staging_once' }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 15
     env:
-      RELEASE_CRITICAL_EMAIL_MODE: ${{ inputs.email_mode }}
-      PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
-      E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
-      E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
       GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN }}
+      STAGING_RUNTIME_ORIGIN: ${{ needs.preflight.outputs.base_url }}
+      RELEASE_CRITICAL_EXPECTED_SHA: ${{ needs.preflight.outputs.source_sha }}
       VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
     steps:
       - uses: actions/checkout@v4
@@ -80,20 +104,70 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Verify Staging-only execution contract
-        run: node apps/garage-link/scripts/qa/release-critical-preflight.mjs
+      - name: Apply and read back the Staging-only Auth contract
+        run: node apps/garage-link/scripts/qa/release-critical-stage-auth.mjs
 
-  journeys:
-    name: Release-critical acquisition journeys
+  staging-auth-admin-config:
+    name: Staging Auth admin config (no email)
+    if: ${{ inputs.auth_config_mode == 'admin_config_only' }}
+    runs-on: ubuntu-latest
+    environment: garage-link-commercial-staging
+    timeout-minutes: 15
+    env:
+      GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN: ${{ secrets.GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN }}
+      STAGING_RUNTIME_ORIGIN: ${{ inputs.staging_base_url }}
+      RELEASE_CRITICAL_EXPECTED_SHA: ${{ github.sha }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply and read back Staging Auth without sending email
+        run: node apps/garage-link/scripts/qa/release-critical-stage-auth.mjs
+
+  qa-lifecycle-contract:
+    name: Registry-bound Staging CTA fixture contract
     needs: preflight
+    if: ${{ inputs.execution_scope == 'full' && needs.preflight.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: garage-link-commercial-staging
+    timeout-minutes: 10
+    env:
+      E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
+      E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Read back the registry-bound Staging CTA fixture contract
+        run: node apps/garage-link/scripts/qa/release-critical-qa-lifecycle-contract.mjs
+
+  machine-gates:
+    name: Release-critical machine-only gates
+    needs: [preflight, stage-auth-contract, qa-lifecycle-contract]
+    if: ${{ inputs.execution_scope == 'full' && always() && needs.preflight.result == 'success' && (needs.stage-auth-contract.result == 'success' || needs.stage-auth-contract.result == 'skipped') && needs.qa-lifecycle-contract.result == 'success' }}
     runs-on: ubuntu-latest
     environment: garage-link-commercial-staging
     timeout-minutes: 50
     env:
-      PLAYWRIGHT_BASE_URL: ${{ secrets.GARAGE_STAGING_BASE_URL }}
-      RELEASE_CRITICAL_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      PLAYWRIGHT_BASE_URL: ${{ needs.preflight.outputs.base_url }}
+      RELEASE_CRITICAL_CANDIDATE_SHA: ${{ needs.preflight.outputs.source_sha }}
       E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
       E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
+      RELEASE_CRITICAL_EXECUTION_MODE: machine_only
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -106,5 +180,159 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Install release-critical browsers
         run: pnpm --filter @apps/garage-link exec playwright install --with-deps chromium webkit
-      - name: Run Staging acquisition journeys with guaranteed teardown
+      - name: Run callback mechanics, CTA, inquiry, and fixture gates with guaranteed teardown
         run: node apps/garage-link/scripts/qa/release-critical-journeys.mjs
+
+  email-transport-state:
+    name: Email transport readiness (fail-closed before provider send)
+    needs: [preflight, machine-gates]
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_prepare' || inputs.execution_scope == 'actual_email_resume' || inputs.execution_scope == 'callback_probe_only' || inputs.execution_scope == 'context_probe_only') }}
+    runs-on: ubuntu-latest
+    environment: garage-link-commercial-staging
+    timeout-minutes: 5
+    outputs:
+      transport_ready: ${{ steps.transport.outputs.ready }}
+      transport_state: ${{ steps.transport.outputs.state }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: transport
+        name: Record separated email transport state
+        env:
+          RELEASE_CRITICAL_EMAIL_MODE: ${{ inputs.email_mode }}
+          RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
+          # This workflow is bound to the garage-link-commercial-staging
+          # environment.  The default SMTP exception is never available to
+          # Production transport classification or customer-facing runtime.
+          RELEASE_CRITICAL_CONTROLLED_AUTH_EMAIL_CONTRACT: staging_default_smtp_tokenhash_v1
+          RELEASE_CRITICAL_CONTROLLED_AUTH_CONFIRM_ORIGIN: ${{ needs.preflight.outputs.auth_confirm_origin }}
+        run: |
+          if [ "$RELEASE_CRITICAL_EMAIL_MODE" != "manual_gmail" ]; then
+            echo '{"state":"EMAIL_TRANSPORT_WAITING","reason":"NO_PERMANENT_QA_TRANSPORT"}'
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo 'state=EMAIL_TRANSPORT_WAITING' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          transport="$(node --input-type=module -e "import { validateActualEmailTransportRecipient as validateRecipient, validateControlledAuthEmailTransportContract as validateContract, validateControlledAuthConfirmOrigin as validateOrigin } from './apps/garage-link/scripts/qa/release-critical-email-transport.mjs'; try { validateRecipient(process.env.RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS); validateContract(process.env.RELEASE_CRITICAL_CONTROLLED_AUTH_EMAIL_CONTRACT,{allowStagingDefaultSmtp:true}); const origin=validateOrigin(process.env.RELEASE_CRITICAL_CONTROLLED_AUTH_CONFIRM_ORIGIN); console.log(JSON.stringify({state:'EMAIL_TRANSPORT_READY',mode:'manual_gmail',recipient:'REDACTED_APPROVED_QA_MAILBOX',plus_addressing:false,architecture:'STAGING_DEFAULT_SMTP_TOKENHASH',confirm_origin:origin.origin})); } catch (error) { console.log(JSON.stringify({state:'EMAIL_TRANSPORT_NOT_CONFIGURED',reason:String(error?.message??'INVALID_RECIPIENT').replace(/[^A-Z_:]/g,'').slice(0,120)})); }")"
+          echo "$transport"
+          transport_state="$(node -e "const value=JSON.parse(process.argv[1]); process.stdout.write(value.state)" "$transport")"
+          echo "state=$transport_state" >> "$GITHUB_OUTPUT"
+          if [ "$transport_state" = "EMAIL_TRANSPORT_READY" ]; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+          fi
+
+  actual-email-gates:
+    name: Actual email transport and callback gates
+    needs: [preflight, machine-gates, email-transport-state]
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.machine-gates.result == 'success' || inputs.execution_scope == 'actual_email_prepare' || inputs.execution_scope == 'actual_email_resume' || inputs.execution_scope == 'callback_probe_only' || inputs.execution_scope == 'context_probe_only') && (inputs.execution_scope == 'callback_probe_only' || inputs.execution_scope == 'context_probe_only' || needs.email-transport-state.outputs.transport_ready == 'true') }}
+    runs-on: ubuntu-latest
+    environment: garage-link-commercial-staging
+    timeout-minutes: 45
+    outputs:
+      phase: ${{ steps.journey.outputs.phase }}
+    env:
+      PLAYWRIGHT_BASE_URL: ${{ needs.preflight.outputs.base_url }}
+      RELEASE_CRITICAL_CANDIDATE_SHA: ${{ needs.preflight.outputs.source_sha }}
+      E2E_TEST_SUPABASE_URL: ${{ secrets.GARAGE_STAGING_SUPABASE_URL }}
+      E2E_TEST_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.GARAGE_STAGING_SUPABASE_SERVICE_ROLE_KEY }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.GARAGE_STAGING_VERCEL_BYPASS_SECRET }}
+      RELEASE_CRITICAL_EXECUTION_MODE: ${{ inputs.execution_scope == 'callback_probe_only' && 'callback_probe_only' || inputs.execution_scope == 'context_probe_only' && 'context_probe_only' || inputs.execution_scope }}
+      RELEASE_CRITICAL_ALLOW_UNBOUND_ACTUAL_EMAIL_RECOVERY: ${{ inputs.recover_unbound_actual_email }}
+      RELEASE_CRITICAL_MANUAL_GMAIL_ADDRESS: ${{ secrets.GARAGE_STAGING_E2E_EMAIL }}
+      RELEASE_CRITICAL_CONTROLLED_AUTH_CONFIRM_ORIGIN: ${{ needs.preflight.outputs.auth_confirm_origin }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 6
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install release-critical browsers
+        run: pnpm --filter @apps/garage-link exec playwright install --with-deps chromium webkit
+      - id: journey
+        name: Run bounded actual-email checkpoint or resume
+        run: |
+          node apps/garage-link/scripts/qa/release-critical-journeys.mjs
+          if [ "$RELEASE_CRITICAL_EXECUTION_MODE" = actual_email_prepare ]; then
+            echo 'phase=PREPARED' >> "$GITHUB_OUTPUT"
+          elif [ "$RELEASE_CRITICAL_EXECUTION_MODE" = actual_email_resume ]; then
+            echo 'phase=COMPLETED' >> "$GITHUB_OUTPUT"
+          else
+            echo 'phase=PROBED' >> "$GITHUB_OUTPUT"
+          fi
+
+  production-email-transport:
+    name: Production email transport classification (read-only)
+    needs: preflight
+    if: ${{ always() && needs.preflight.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      classification: ${{ steps.classify.outputs.classification }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: classify
+        name: Classify Production transport without mutation
+        run: node apps/garage-link/scripts/qa/release-critical-production-transport.mjs
+
+  final-clean-verdict:
+    name: Release Critical convergence verdict
+    needs: [preflight, stage-auth-contract, staging-auth-admin-config, qa-lifecycle-contract, machine-gates, email-transport-state, actual-email-gates, production-email-transport]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Emit one converged verdict
+        env:
+          PREFLIGHT: ${{ needs.preflight.result }}
+          AUTH_CONTRACT: ${{ needs.stage-auth-contract.result }}
+          ADMIN_AUTH_CONFIG: ${{ needs.staging-auth-admin-config.result }}
+          AUTH_CONFIG_MODE: ${{ inputs.auth_config_mode }}
+          QA_LIFECYCLE_CONTRACT: ${{ needs.qa-lifecycle-contract.result }}
+          MACHINE: ${{ needs.machine-gates.result }}
+          EXECUTION_SCOPE: ${{ inputs.execution_scope }}
+          TRANSPORT_READY: ${{ needs.email-transport-state.outputs.transport_ready }}
+          TRANSPORT_STATE: ${{ needs.email-transport-state.outputs.transport_state }}
+          ACTUAL_EMAIL: ${{ needs.actual-email-gates.result }}
+          ACTUAL_EMAIL_PHASE: ${{ needs.actual-email-gates.outputs.phase }}
+          PRODUCTION_TRANSPORT: ${{ needs.production-email-transport.outputs.classification }}
+        run: |
+          if [ "$AUTH_CONFIG_MODE" = admin_config_only ]; then
+            if [ "$ADMIN_AUTH_CONFIG" != success ]; then
+              echo '{"state":"STAGING_AUTH_ADMIN_CONFIG_NOT_READY"}'
+              exit 1
+            fi
+            echo '{"state":"STAGING_AUTH_ADMIN_CONFIG_PASS","email":"NOT_SENT"}'
+            exit 0
+          fi
+          if [ "$PREFLIGHT" != success ] || { [ "$EXECUTION_SCOPE" = full ] && { [ "$QA_LIFECYCLE_CONTRACT" != success ] || [ "$MACHINE" != success ]; }; }; then
+            echo '{"state":"RELEASE_CRITICAL_NOT_READY","reason":"MACHINE_OR_PRODUCTION_TRANSPORT_GATE_FAILED"}'
+            exit 1
+          fi
+          if [ "$PRODUCTION_TRANSPORT" != PRODUCTION_CUSTOM_SMTP_PROVEN ]; then
+            echo '{"state":"RELEASE_CRITICAL_WAITING_PRODUCTION_TRANSPORT","classification":"'"$PRODUCTION_TRANSPORT"'"}'
+            exit 1
+          fi
+          if [ "$TRANSPORT_READY" != true ]; then
+            echo '{"state":"RELEASE_CRITICAL_WAITING_TRANSPORT","reason":"'"${TRANSPORT_STATE:-NO_PERMANENT_QA_TRANSPORT}"'"}'
+            exit 1
+          fi
+          if [ "$ACTUAL_EMAIL_PHASE" = PREPARED ]; then
+            echo '{"state":"RELEASE_CRITICAL_WAITING_MANUAL_GMAIL","checkpoint":"PERSISTED"}'
+            exit 1
+          fi
+          if [ "$ACTUAL_EMAIL" != success ]; then
+            echo '{"state":"RELEASE_CRITICAL_NOT_READY","reason":"ACTUAL_EMAIL_GATE_FAILED"}'
+            exit 1
+          fi
+          if [ "$EXECUTION_SCOPE" = actual_email_resume ] && [ "$ACTUAL_EMAIL_PHASE" != COMPLETED ]; then
+            echo '{"state":"RELEASE_CRITICAL_NOT_READY","reason":"ACTUAL_EMAIL_RESUME_UNPROVEN"}'
+            exit 1
+          fi
+          echo '{"state":"RELEASE_CRITICAL_CONVERGED_PASS"}'

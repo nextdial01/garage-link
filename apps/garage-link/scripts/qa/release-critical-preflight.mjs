@@ -2,6 +2,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
+import { validateActualEmailTransportRecipient, validateControlledAuthConfirmOrigin } from './release-critical-email-transport.mjs';
+
+export { validateActualEmailTransportRecipient } from './release-critical-email-transport.mjs';
 
 const STAGING_REF='gaytoojzwqkpuvfofeql';
 const PRODUCTION_REF='wmlpuzuskfiwdipluglz';
@@ -57,16 +60,40 @@ function bypassCookie(response){
   return cookies.length?cookies.join('; '):null;
 }
 
-export async function fetchVerifiedVercelRequest(url,headers,fetchImpl=fetch){
-  const first=await fetchImpl(url,{headers,redirect:'manual',cache:'no-store'});
+export async function fetchVerifiedVercelRequest(url,headers,fetchImpl=fetch,requestInit={}){
+  const request={...requestInit,headers,redirect:'manual',cache:'no-store'};
+  const first=await fetchImpl(url,request);
   const firstLocation=first.headers.get('location');
   const firstDiagnostic=diagnosticResponse(first,firstLocation,url);
   if(first.status<300||first.status>=400||!firstDiagnostic.same_origin||!firstDiagnostic.same_path)return {response:first,initial:firstDiagnostic};
   const cookie=bypassCookie(first);
   if(!cookie)return {response:first,initial:firstDiagnostic};
   const target=new URL(firstLocation,url);
-  const response=await fetchImpl(target,{headers:{...headers,cookie},redirect:'manual',cache:'no-store'});
+  const response=await fetchImpl(target,{...requestInit,headers:{...headers,cookie},redirect:'manual',cache:'no-store'});
   return {response,initial:firstDiagnostic};
+}
+
+// Manual Gmail links open in the operator's browser, not the CI browser that
+// carries the Automation Bypass header.  Do not send a new Auth email unless
+// the exact callback route is publicly reachable on this Staging QA window.
+// This is an access-boundary preflight only; it is not callback-mechanics
+// evidence and never follows a redirect or records a URL query.
+export async function verifyManualGmailCallbackReach(baseUrl,fetchImpl=fetch){
+  let callback;
+  try {
+    callback=new URL('/auth/callback',baseUrl);
+    if(callback.protocol!=='https:'||!/^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i.test(callback.hostname)||PRODUCTION_HOSTS.has(callback.hostname))fail('MANUAL_GMAIL_CALLBACK_ORIGIN_DENIED');
+  } catch(error) {
+    if(String(error?.message)==='MANUAL_GMAIL_CALLBACK_ORIGIN_DENIED')throw error;
+    fail('MANUAL_GMAIL_CALLBACK_ORIGIN_DENIED');
+  }
+  const response=await fetchImpl(callback,{redirect:'manual',cache:'no-store',headers:{accept:'text/html'}});
+  // Standard fetch responses expose response.url.  Keep the callback itself as
+  // the safe diagnostic fallback for unit-test and adapter responses that do
+  // not retain it; redirects are still rejected by the explicit Location test.
+  const finalUrl=safeUrlParts(response.url||callback.toString(),callback);
+  if(response.status<200||response.status>=300||response.headers.has('location')||!finalUrl||finalUrl.origin!==callback.origin||finalUrl.pathname!=='/auth/callback')fail(`MANUAL_GMAIL_CALLBACK_UNREACHED:${response.status}`);
+  return {state:'MANUAL_GMAIL_CALLBACK_REACH_PASS',http_status:response.status,redirect:false};
 }
 
 export async function readManagementProfile(token,fetchImpl=fetch){
@@ -95,7 +122,7 @@ async function mailSlurpJson(path,apiKey,options,code,fetchImpl=fetch){
   const response=await fetchImpl(`${MAILSLURP_API_BASE}${path}`,{...options,headers:{...mailSlurpHeaders(apiKey,Boolean(options.body)),...options.headers},cache:'no-store'});
   return json(response,code);
 }
-function requiredRunMarker(marker){if(typeof marker!=='string'||!/^garage-link-[a-z0-9-]{8,}$/i.test(marker))fail('MAILSLURP_RUN_MARKER_INVALID');return marker}
+function requiredRunMarker(marker){if(typeof marker!=='string'||!(/^(?:garage-link-[a-z0-9-]{8,}|g[0-9a-f]{6})$/i.test(marker)))fail('MAILSLURP_RUN_MARKER_INVALID');return marker}
 function normalizeEmail(value){return String(value??'').trim().toLowerCase()}
 function manualGmailBaseAddress(value){
   const email=normalizeEmail(value);
@@ -103,20 +130,19 @@ function manualGmailBaseAddress(value){
   if(!match)fail('MANUAL_GMAIL_PLUS_ADDRESS_UNAVAILABLE');
   return {localPart:match[1],domain:match[2]};
 }
-function manualGmailAddress(baseAddress,runMarker){
+function manualGmailAddress(baseAddress,runMarker,plusAddressing=true){
   const marker=requiredRunMarker(runMarker);
   const base=manualGmailBaseAddress(baseAddress);
-  return `${base.localPart}+${marker}@${base.domain}`;
-}
-export async function manualGmailWorkflowInput(eventPath,readFileImpl=readFile){
-  if(typeof eventPath!=='string'||!eventPath.trim())fail('MANUAL_GMAIL_WORKFLOW_EVENT_MISSING');
-  let event;
-  try {event=JSON.parse(await readFileImpl(eventPath,'utf8'))} catch {fail('MANUAL_GMAIL_WORKFLOW_EVENT_INVALID')}
-  const address=event?.inputs?.manual_gmail_address;
-  if(typeof address!=='string'||!address.trim())fail('MANUAL_GMAIL_WORKFLOW_INPUT_MISSING');
-  return address.trim();
+  if(!plusAddressing)return `${base.localPart}@${base.domain}`;
+  const localPart=`${base.localPart}+${marker}`;
+  if(localPart.length>64)fail('MANUAL_GMAIL_PLUS_ADDRESS_TOO_LONG');
+  return `${localPart}@${base.domain}`;
 }
 
+// The actual-email lane intentionally does not use a run-specific plus alias.
+// Staging may use Supabase's default SMTP, whose recipient policy can differ
+// from a Workspace mailbox's alias policy.  The lifecycle registry, run ID,
+// and cleanup—not address mutation—bind the synthetic run.
 export async function releaseCriticalBaseUrl(eventPath,fallback=process.env.PLAYWRIGHT_BASE_URL,readFileImpl=readFile){
   let event;
   try {event=JSON.parse(await readFileImpl(eventPath,'utf8'))} catch {fail('RELEASE_CRITICAL_WORKFLOW_EVENT_INVALID')}
@@ -131,9 +157,15 @@ export async function releaseCriticalBaseUrl(eventPath,fallback=process.env.PLAY
   return fallback.trim();
 }
 
-export function createManualGmailSession(baseAddress,runMarker=`garage-link-${crypto.randomUUID()}`){
+export function createManualGmailSession(baseAddress,runMarker=`garage-link-${crypto.randomUUID()}`,{plusAddressing=true}={}){
   const marker=requiredRunMarker(runMarker);
-  return {emailMode:'manual_gmail',runMarker:marker,emailAddress:manualGmailAddress(baseAddress,marker)};
+  return {emailMode:'manual_gmail',runMarker:marker,emailAddress:manualGmailAddress(baseAddress,marker,plusAddressing),plusAddressing};
+}
+
+export function createActualEmailTransportSession(baseAddress,runMarker=`garage-link-${crypto.randomUUID()}`){
+  const marker=requiredRunMarker(runMarker);
+  const recipient=validateActualEmailTransportRecipient(baseAddress);
+  return {emailMode:'manual_gmail',runMarker:marker,...recipient};
 }
 
 export function manualGmailCheckpoint(session,purpose){
@@ -208,9 +240,10 @@ export async function withMailSlurpRunInbox({apiKey,runMarker,run,fetchImpl=fetc
 function runtimeProvenance(value,baseUrl){
   if(!value||typeof value!=='object'||Array.isArray(value))fail('RUNTIME_PROVENANCE_INVALID');
   const keys=Object.keys(value).sort();
-  const expected=['deployment_id','deployment_url','environment','git_commit_ref','git_commit_sha','project_id'];
+  const expected=['auth_confirm_origin','deployment_id','deployment_url','environment','git_commit_ref','git_commit_sha','project_id'];
   if(keys.length!==expected.length||keys.some((key,index)=>key!==expected[index]))fail('RUNTIME_PROVENANCE_RESPONSE_SHAPE_INVALID');
   if(value.project_id!==STAGING_PROJECT_ID||!/^dpl_[A-Za-z0-9]+$/.test(value.deployment_id)||!/^[0-9a-f]{40}$/i.test(value.git_commit_sha)||typeof value.git_commit_ref!=='string'||!value.git_commit_ref||typeof value.environment!=='string'||!value.environment)fail('RUNTIME_PROVENANCE_INVALID');
+  try {const origin=validateControlledAuthConfirmOrigin(value.auth_confirm_origin); if(['garage-link.tech','www.garage-link.tech'].includes(new URL(origin.origin).hostname))fail('RUNTIME_PROVENANCE_INVALID')} catch {fail('RUNTIME_PROVENANCE_INVALID')}
   let deploymentUrl;
   try {deploymentUrl=new URL(value.deployment_url)} catch {fail('RUNTIME_PROVENANCE_INVALID')}
   if(deploymentUrl.protocol!=='https:'||!deploymentUrl.hostname.endsWith('.vercel.app')||PRODUCTION_HOSTS.has(deploymentUrl.hostname)||deploymentUrl.hostname.endsWith('.garage-link.tech')||baseUrl.hostname.endsWith('.garage-link.tech'))fail('RUNTIME_PROVENANCE_INVALID');
@@ -222,27 +255,12 @@ async function main(){
   const baseUrl=new URL(await releaseCriticalBaseUrl(eventPath));
   const supabaseUrl=new URL(required('E2E_TEST_SUPABASE_URL'));
   const serviceRole=required('E2E_TEST_SUPABASE_SERVICE_ROLE_KEY');
-  const managementToken=required('GARAGE_STAGING_SUPABASE_MANAGEMENT_TOKEN');
-  const emailMode=required('RELEASE_CRITICAL_EMAIL_MODE');
-  const manualGmail=await manualGmailWorkflowInput(eventPath);
   const bypassSecret=required('VERCEL_AUTOMATION_BYPASS_SECRET');
   if(supabaseUrl.hostname!==`${STAGING_REF}.supabase.co`||supabaseUrl.hostname.includes(PRODUCTION_REF))fail('SUPABASE_STAGING_REF_MISMATCH');
   if(PRODUCTION_HOSTS.has(baseUrl.hostname)||baseUrl.hostname.endsWith('.garage-link.tech'))fail('VERCEL_PRODUCTION_HOST_DENIED');
-  if(emailMode!=='manual_gmail')fail('RELEASE_CRITICAL_EMAIL_MODE_INVALID');
-  manualGmailBaseAddress(manualGmail);
-
   const admin=createClient(supabaseUrl.toString(),serviceRole,{auth:{autoRefreshToken:false,persistSession:false}});
   const {data:users,error:usersError}=await admin.auth.admin.listUsers({page:1,perPage:1});
   if(usersError||!users)fail(`SUPABASE_SERVICE_ROLE_ADMIN_API_FAILED:${usersError?.status??0}`);
-  const profile=await readManagementProfile(managementToken);
-  if(profile.status===401||profile.status===403)fail(`SB_PROFILE_AUTH_FAILURE:${profile.status}`);
-  if(profile.status!==200)fail(`SB_PROFILE_UNEXPECTED:${profile.status}`);
-  const stagingAuthResult=await readAuthConfig(STAGING_REF,managementToken);
-  const stagingAuth=stagingAuthResult.config;
-  const productionAuthResult=await readAuthConfig(PRODUCTION_REF,managementToken);
-  const productionAuth=productionAuthResult.config;
-  const passwordMinimum=stagingAuth.password_min_length??stagingAuth.minimum_password_length;
-  if(!Number.isInteger(passwordMinimum)||passwordMinimum<6||!productionAuth||typeof productionAuth!=='object')fail('SUPABASE_AUTH_CONFIG_INVALID');
 
   // PREFLIGHT verifies direct Automation Bypass access. Cookie issuance is only
   // needed by browser follow-up requests and deliberately causes a redirect.
@@ -251,16 +269,34 @@ async function main(){
   const provenanceRequest=await fetchVerifiedVercelRequest(provenanceUrl,bypassHeaders);
   const provenanceResponse=provenanceRequest.response;
   if(provenanceResponse.status<200||provenanceResponse.status>=300||provenanceResponse.headers.has('location')||new URL(provenanceResponse.url).origin!==baseUrl.origin){
-    process.stdout.write(`${JSON.stringify({ok:false,state:'PREFLIGHT_VERCEL_REDIRECT_DIAGNOSTIC',vercel_provenance:{initial:provenanceRequest.initial,final:diagnosticResponse(provenanceResponse,provenanceResponse.headers.get('location'),provenanceUrl)}})}\n`);
-    fail(`RUNTIME_PROVENANCE_ACCESS_FAILED:${provenanceResponse.status}`);
+    const runtimeContract=String(provenanceResponse.headers.get('x-garage-qa-provenance-error')??'UNCLASSIFIED').replace(/[^A-Z_]/g,'').slice(0,32);
+    process.stdout.write(`${JSON.stringify({ok:false,state:'PREFLIGHT_VERCEL_REDIRECT_DIAGNOSTIC',runtime_contract:runtimeContract,vercel_provenance:{initial:provenanceRequest.initial,final:diagnosticResponse(provenanceResponse,provenanceResponse.headers.get('location'),provenanceUrl)}})}\n`);
+    // Preserve only the route's Staging-safe format category.  The deployed
+    // endpoint never returns an env value, token, or URL query; without this
+    // category a 404 cannot distinguish a missing runtime provenance variable
+    // from Deployment Protection and encourages blind reruns.
+    fail(`RUNTIME_PROVENANCE_ACCESS_FAILED:${provenanceResponse.status}:${runtimeContract}`);
   }
   const provenance=runtimeProvenance(await provenanceResponse.json().catch(()=>null),baseUrl);
+  const expectedSha=process.env.RELEASE_CRITICAL_EXPECTED_SHA?.trim();
+  if(expectedSha&&(!/^[0-9a-f]{40}$/i.test(expectedSha)||provenance.git_commit_sha.toLowerCase()!==expectedSha.toLowerCase())){
+    // Both SHAs and the deployment identifier are public runtime provenance,
+    // not credentials.  Emit them only on this fail-closed boundary so a
+    // mismatch can be diagnosed without retrying or exposing request secrets.
+    process.stderr.write(`${JSON.stringify({ok:false,state:'PREFLIGHT_RUNTIME_PROVENANCE_SHA_MISMATCH',expected_sha:expectedSha,runtime:{deployment_id:provenance.deployment_id,git_commit_sha:provenance.git_commit_sha,git_commit_ref:provenance.git_commit_ref}})}\n`);
+    fail('RUNTIME_PROVENANCE_SHA_MISMATCH');
+  }
   const healthUrl=new URL('/api/health',baseUrl);
   const bypass=(await fetchVerifiedVercelRequest(healthUrl,bypassHeaders)).response;
   if(bypass.status<200||bypass.status>=300||bypass.headers.has('location')||new URL(bypass.url).origin!==baseUrl.origin)fail(`VERCEL_AUTOMATION_BYPASS_FAILED:${bypass.status}`);
   const health=await bypass.json().catch(()=>null);
   if(health?.ok!==true||health.service!=='garage-link')fail('VERCEL_AUTOMATION_BYPASS_APPLICATION_UNREACHED');
-  process.stdout.write(`${JSON.stringify({ok:true,state:'PREFLIGHT_READY',environment:'garage-link-staging',source_sha:provenance.git_commit_sha,branch:provenance.git_commit_ref,deployment_id:provenance.deployment_id,auth:{service_role_admin_api:'PASS',management_profile:profile,staging_management_read:'PASS',staging_auth_config:stagingAuthResult.initial,production_management_read_only:'PASS',production_auth_config:productionAuthResult.initial,password_minimum:passwordMinimum},email:{mode:'manual_gmail',base_address:'REDACTED'},vercel:{project:STAGING_PROJECT_NAME,ready:'PASS',protection_bypass:'VERCEL_AUTOMATION_BYPASS_PASS'}})}\n`);
+  const emailMode=String(process.env.RELEASE_CRITICAL_EMAIL_MODE??'deferred').trim();
+  let manualCallback={state:'NOT_APPLICABLE'};
+  if(emailMode==='manual_gmail'){
+    manualCallback=await verifyManualGmailCallbackReach(baseUrl);
+  }
+  process.stdout.write(`${JSON.stringify({ok:true,state:'PREFLIGHT_READY',environment:'garage-link-staging',source_sha:provenance.git_commit_sha,branch:provenance.git_commit_ref,deployment_id:provenance.deployment_id,base_url:baseUrl.origin,auth_confirm_origin:provenance.auth_confirm_origin,auth:{service_role_admin_api:'PASS',management_api:'NOT_REQUIRED_FOR_NORMAL_RUN',hosted_contract_baseline_run_id:'31488195475',redirect_drift_gate:'HOSTED_GENERATED_LINK_AND_ACTUAL_CALLBACK_FAIL_CLOSED'},manual_gmail_callback:manualCallback,email_transport:{state:'DECOUPLED_WAITING_TRANSPORT'},vercel:{project:STAGING_PROJECT_NAME,ready:'PASS',protection_bypass:'VERCEL_AUTOMATION_BYPASS_PASS'}})}\n`);
 }
 
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)main().catch(error=>{process.stderr.write(`${JSON.stringify({ok:false,code:redact(error)})}\n`);process.exitCode=1});

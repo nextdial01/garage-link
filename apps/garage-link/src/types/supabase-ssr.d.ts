@@ -2,6 +2,7 @@ declare module '@supabase/ssr' {
   type AuthUser = {
     id: string;
     email?: string | null;
+    app_metadata?: Record<string, unknown>;
   };
 
   type AuthError = {
@@ -54,7 +55,7 @@ declare module '@supabase/ssr' {
   type SupabaseClient = {
     auth: {
       getSession(): Promise<{
-        data: { session: { user: AuthUser | null } | null };
+        data: { session: { user: AuthUser | null; access_token?: string } | null };
         error: AuthError | null;
       }>;
       getUser(): Promise<{
@@ -93,7 +94,7 @@ declare module '@supabase/ssr' {
       }): Promise<{ data: { session: unknown; user: AuthUser | null }; error: AuthError | null }>;
       verifyOtp(credentials: {
         token_hash: string;
-        type: 'magiclink' | 'email';
+        type: 'magiclink' | 'email' | 'recovery';
       }): Promise<{ data: { session: unknown; user: AuthUser | null }; error: AuthError | null }>;
       mfa: {
         getAuthenticatorAssuranceLevel(): Promise<{

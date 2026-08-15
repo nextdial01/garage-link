@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { translateAuthError } from '@/lib/auth/auth-errors';
-import { createClient } from '@/lib/supabase/client';
+import { rememberedReleaseQaRun, releaseQaNextPath, releaseQaRunId } from '@/lib/auth/releaseQaCallback';
+import { controlledEmailCallbackUrl, controlledEmailConfirmationRedirect } from '@/lib/auth/controlledEmailConfirmation';
+import { createReleaseQaManualEmailClient } from '@/lib/supabase/client';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -17,9 +19,27 @@ export default function ForgotPasswordPage() {
     setIsSuccess(false);
     setIsLoading(true);
 
-    const supabase = createClient();
+    // A confirmation or recovery link may be opened in a different tab. The
+    // query is the durable Staging QA continuation; sessionStorage is only a
+    // same-tab fallback for older links.
+    const qaRunId = releaseQaRunId(new URLSearchParams(window.location.search).get('qa_run')) ?? rememberedReleaseQaRun();
+    const supabase = createReleaseQaManualEmailClient(qaRunId);
+    const nextPath = releaseQaNextPath('/auth/reset-password', qaRunId);
+    let redirectTo: string;
+    try {
+      const confirmOrigin = process.env.NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN ?? '';
+      const callbackUrl = controlledEmailCallbackUrl(confirmOrigin, nextPath, qaRunId);
+      redirectTo = controlledEmailConfirmationRedirect(
+        confirmOrigin,
+        `${callbackUrl.pathname}${callbackUrl.search}`,
+      );
+    } catch {
+      setIsLoading(false);
+      setMessage('メール認証の安全な入口を準備中です。時間をおいてもう一度お試しください。');
+      return;
+    }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
+      redirectTo,
     });
 
     setIsLoading(false);
@@ -67,6 +87,8 @@ export default function ForgotPasswordPage() {
 
           {message && (
             <p
+              role={isSuccess ? 'status' : 'alert'}
+              aria-live="polite"
               className={`rounded-xl px-4 py-3 text-sm font-semibold ${
                 isSuccess
                   ? 'bg-green-50 text-green-700'

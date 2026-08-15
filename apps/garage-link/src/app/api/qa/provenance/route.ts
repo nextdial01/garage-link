@@ -4,6 +4,7 @@ const STAGING_PROJECT_ID = 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3';
 const PRODUCTION_PROJECT_ID = 'prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64';
 const BLOCKED_PROJECT_IDS = new Set([PRODUCTION_PROJECT_ID]);
 const PRODUCTION_HOSTS = new Set(['garage-link.tech', 'www.garage-link.tech']);
+const STAGING_HOST = /^garage-link-staging-[a-z0-9-]+\.vercel\.app$/i;
 
 function value(name: string) {
   return process.env[name]?.trim() ?? '';
@@ -18,26 +19,72 @@ function deploymentUrl(hostname: string) {
   return `https://${hostname}`;
 }
 
+function controlledStagingAuthConfirmOrigin(value: string) {
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    if (
+      url.protocol !== 'https:'
+      || url.pathname !== '/'
+      || url.search
+      || url.hash
+      || hostname === 'garage-link.tech'
+      || hostname === 'www.garage-link.tech'
+      || !hostname.endsWith('.garage-link.tech')
+    ) return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: Request) {
   const runtimeHost = new URL(request.url).hostname.toLowerCase();
   const projectId = value('VERCEL_PROJECT_ID');
   const deploymentId = value('VERCEL_DEPLOYMENT_ID');
-  const gitCommitSha = value('VERCEL_GIT_COMMIT_SHA');
-  const gitCommitRef = value('VERCEL_GIT_COMMIT_REF');
+  // Vercel only injects VERCEL_GIT_* for Git-triggered deployments. The
+  // Staging-only Closure lane intentionally uses an explicitly authorised
+  // manual preview deploy, so it supplies these two immutable, non-secret
+  // provenance values at deploy time instead. They are accepted only after
+  // the Staging project/host checks below; Production never exposes this API.
+  const gitCommitSha = value('VERCEL_GIT_COMMIT_SHA') || value('GARAGE_STAGING_RELEASE_SHA');
+  const gitCommitRef = value('VERCEL_GIT_COMMIT_REF') || value('GARAGE_STAGING_RELEASE_REF');
   const url = value('VERCEL_URL').toLowerCase();
-  const environment = value('VERCEL_TARGET_ENV') || value('VERCEL_ENV');
+  const vercelEnvironment = value('VERCEL_ENV');
+  const targetEnvironment = value('VERCEL_TARGET_ENV');
+  // This is intentionally a public, build-time Next.js value. Returning the
+  // validated origin lets the no-email control lane derive its redirect target
+  // from the exact deployed runtime instead of a mutable GitHub Environment
+  // variable. No token, sender address, or Supabase configuration is exposed.
+  const authConfirmOrigin = controlledStagingAuthConfirmOrigin(value('NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN'));
+  // A manual preview can retain a project-level target value (for example
+  // "production") while VERCEL_ENV correctly identifies the deployment as a
+  // preview. Only an explicitly safe target may override that runtime value.
+  const environment = ['preview', 'staging'].includes(targetEnvironment)
+    ? targetEnvironment
+    : vercelEnvironment;
   const urlValue = deploymentUrl(url);
 
-  const valid = projectId === STAGING_PROJECT_ID
-    && !BLOCKED_PROJECT_IDS.has(projectId)
-    && !isProductionHost(runtimeHost)
-    && /^dpl_[A-Za-z0-9]+$/.test(deploymentId)
-    && /^[0-9a-f]{40}$/i.test(gitCommitSha)
-    && /^[A-Za-z0-9._/-]{1,255}$/.test(gitCommitRef)
-    && Boolean(urlValue)
-    && Boolean(environment);
-
-  if (!valid) return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } });
+  const checks = [
+    [projectId === STAGING_PROJECT_ID && !BLOCKED_PROJECT_IDS.has(projectId), 'PROJECT'],
+    [!isProductionHost(runtimeHost) && STAGING_HOST.test(runtimeHost), 'HOST'],
+    [/^dpl_[A-Za-z0-9]+$/.test(deploymentId), 'DEPLOYMENT_ID'],
+    [/^[0-9a-f]{40}$/i.test(gitCommitSha), 'GIT_SHA'],
+    [/^[A-Za-z0-9._/-]{1,255}$/.test(gitCommitRef), 'GIT_REF'],
+    [Boolean(urlValue), 'DEPLOYMENT_URL'],
+    [Boolean(environment), 'ENVIRONMENT'],
+    [Boolean(authConfirmOrigin), 'AUTH_CONFIRM_ORIGIN'],
+  ] as const;
+  const failed = checks.find(([passed]) => !passed)?.[1];
+  if (failed) {
+    const headers: Record<string, string> = { 'Cache-Control': 'no-store' };
+    // Only an already-identified Staging project and hostname may disclose a
+    // non-secret format category. Production and ambiguous runtimes stay 404-only.
+    if (projectId === STAGING_PROJECT_ID && STAGING_HOST.test(runtimeHost)) {
+      headers['x-garage-qa-provenance-error'] = failed;
+    }
+    return new Response(null, { status: 404, headers });
+  }
 
   return Response.json({
     project_id: projectId,
@@ -46,5 +93,6 @@ export async function GET(request: Request) {
     git_commit_ref: gitCommitRef,
     deployment_url: urlValue,
     environment,
+    auth_confirm_origin: authConfirmOrigin,
   }, { headers: { 'Cache-Control': 'no-store' } });
 }
