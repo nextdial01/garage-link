@@ -102,7 +102,7 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   const actualEmailJob=workflow.slice(workflow.indexOf('\n  actual-email-gates:'),workflow.indexOf('\n  production-email-transport:'));
   assert.doesNotMatch(actualEmailPrepareSource,/requestRecoveryForPreparedSession/);
   assert.match(actualEmailResumeSource,/requestRecoveryForPreparedSession/);
-  assert.match(actualEmailJob,/fetch-depth: 2/);
+  assert.match(actualEmailJob,/fetch-depth: 6/);
   assert.match(actualEmailResumeSource,/bridgeActualEmailCheckpointProvenance/);
   assert.doesNotMatch(journeys,/run\.emailMarker}-contract/);
   assert.match(journeys,/requireOnboardingCompleted:true/);
@@ -546,19 +546,20 @@ test('actual-email checkpoint separates signup and recovery transport without st
   assert.throws(()=>validateActualEmailCheckpoint(checkpoint,{run,provenance,userId:'staging-user',emailAddress:'other@kannagi-co.com'}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_MISMATCH/);
 });
 
-test('actual-email checkpoint permits one exact direct-child OTP host-fix provenance bridge',()=>{
+test('actual-email checkpoint permits a bounded safe-path provenance bridge',()=>{
   const run=createReleaseCriticalRun('550e8400-e29b-41d4-a716-446655440000');
   const predecessor='08d2cd575c4637da57b994cb02d29d9b43269b87';
   const successor='b'.repeat(40);
   const checkpoint=createActualEmailCheckpoint({run,provenance:{sourceSha:predecessor,deploymentId:'dpl_Predecessor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',confirmationOrigin:'https://staging.garage-link.tech',generatedAt:'2026-08-14T00:00:00.000Z'});
-  const metadata={head:successor,parent:predecessor,changedPaths:['apps/garage-link/src/lib/security/stagingReleaseQaHost.ts','apps/garage-link/src/lib/security/previewOtpSink.ts']};
+  const metadata={head:successor,descendant:true,commitCount:4,changedPaths:['apps/garage-link/src/lib/security/stagingReleaseQaHost.ts','apps/garage-link/src/lib/security/previewOtpSink.ts']};
   const bridged=bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',bridgedAt:'2026-08-14T00:01:00.000Z',readGitMetadata:()=>metadata});
   assert.equal(bridged.bridged,true);
   assert.equal(bridged.checkpoint.candidate_sha,successor);
   assert.equal(bridged.checkpoint.provenance_bridge.predecessor_sha,predecessor);
   assert.equal(bridged.checkpoint.provenance_bridge.successor_sha,successor);
   assert.equal(bridged.checkpoint.generated_at,checkpoint.generated_at);
-  assert.throws(()=>bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',readGitMetadata:()=>({...metadata,parent:'a'.repeat(40)})}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED/);
+  assert.throws(()=>bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',readGitMetadata:()=>({...metadata,descendant:false})}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED/);
+  assert.throws(()=>bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',readGitMetadata:()=>({...metadata,commitCount:5})}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED/);
   assert.throws(()=>bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance:{sourceSha:successor,deploymentId:'dpl_Successor'},userId:'staging-user',emailAddress:'release.qa@kannagi-co.com',readGitMetadata:()=>({...metadata,changedPaths:['apps/garage-link/src/app/page.tsx']})}),/RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED/);
 });
 

@@ -15,13 +15,18 @@ const INTERRUPTED_RUN_ID='16a2c261-29ea-4441-b905-2144dc7d320f';
 const RESUME_EVIDENCE_TIMEOUT_MS=90_000;
 const MANUAL_GMAIL_HANDOFF_FRESHNESS_MS=15*60_000;
 const ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA='08d2cd575c4637da57b994cb02d29d9b43269b87';
+const ACTUAL_EMAIL_SUCCESSOR_BRIDGE_MAX_COMMITS=4;
 const ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PATHS=new Set([
   '.github/workflows/garage-link-release-critical.yml',
   'apps/garage-link/scripts/qa/release-critical-journeys.mjs',
   'apps/garage-link/src/lib/security/adminEmailOtpServer.ts',
   'apps/garage-link/src/lib/security/previewOtpSink.ts',
   'apps/garage-link/src/lib/security/stagingReleaseQaHost.ts',
+  'apps/garage-link/src/app/api/qa/callback-evidence/route.ts',
+  'apps/garage-link/src/middleware.ts',
   'apps/garage-link/tests/qa/release-critical-preflight.test.mjs',
+  'apps/garage-link/tests/security/active-store-preference-g1d.test.ts',
+  'apps/garage-link/tests/security/prerelease-contracts.test.ts',
   'apps/garage-link/tests/security/ux-acceptance-contract.test.ts',
 ]);
 
@@ -110,10 +115,12 @@ export function validateActualEmailCheckpoint(checkpoint,{run,provenance,userId,
 function readActualEmailSuccessorBridgeGitMetadata(sourceSha){
   const git=(args)=>execFileSync('git',args,{encoding:'utf8'}).trim().toLowerCase();
   const head=git(['rev-parse','HEAD']);
-  const parent=git(['rev-parse',`${sourceSha}^`]);
-  const changedPaths=execFileSync('git',['diff','--name-only',parent,sourceSha],{encoding:'utf8'})
+  let descendant=false;
+  try { execFileSync('git',['merge-base','--is-ancestor',ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA,sourceSha],{stdio:'ignore'}); descendant=true; } catch {}
+  const commitCount=Number(git(['rev-list','--count',`${ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA}..${sourceSha}`]));
+  const changedPaths=execFileSync('git',['diff','--name-only',ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA,sourceSha],{encoding:'utf8'})
     .split('\n').map(value=>value.trim()).filter(Boolean);
-  return {head,parent,changedPaths};
+  return {head,descendant,commitCount,changedPaths};
 }
 export function bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance,userId,emailAddress,bridgedAt=new Date().toISOString(),readGitMetadata=readActualEmailSuccessorBridgeGitMetadata}){
   try {
@@ -123,7 +130,7 @@ export function bridgeActualEmailCheckpointProvenance(checkpoint,{run,provenance
   }
   if(checkpoint?.candidate_sha!==ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA||checkpoint?.provenance_bridge)fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
   const metadata=readGitMetadata(provenance?.sourceSha);
-  if(metadata?.head!==provenance?.sourceSha||metadata?.parent!==ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PREDECESSOR_SHA||!Array.isArray(metadata?.changedPaths)||metadata.changedPaths.length===0||metadata.changedPaths.some(path=>!ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PATHS.has(path)))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
+  if(metadata?.head!==provenance?.sourceSha||metadata?.descendant!==true||!Number.isInteger(metadata?.commitCount)||metadata.commitCount<1||metadata.commitCount>ACTUAL_EMAIL_SUCCESSOR_BRIDGE_MAX_COMMITS||!Array.isArray(metadata?.changedPaths)||metadata.changedPaths.length===0||metadata.changedPaths.some(path=>!ACTUAL_EMAIL_SUCCESSOR_BRIDGE_PATHS.has(path)))fail('RELEASE_CRITICAL_EMAIL_CHECKPOINT_PROVENANCE_BRIDGE_DENIED');
   const bridged={
     ...checkpoint,
     candidate_sha:provenance.sourceSha,
