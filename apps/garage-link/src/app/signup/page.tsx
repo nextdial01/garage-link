@@ -131,6 +131,15 @@ function SignupForm() {
       return;
     }
 
+    // When email confirmation is enabled, Supabase returns a synthetic user for
+    // an address that already exists. Do not claim a confirmation email was sent.
+    const identities = (authData.user as (typeof authData.user & { identities?: unknown[] }) | null)?.identities;
+    if (identities?.length === 0) {
+      setMessage('登録を続けられませんでした。登録済みの場合は、ログインまたはパスワードを再設定してください。');
+      setIsSubmitting(false);
+      return;
+    }
+
     trackConversion('account_created');
 
     if (!authData.user?.id || !authData.session) {
