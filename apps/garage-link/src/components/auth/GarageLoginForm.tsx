@@ -5,8 +5,8 @@ import Script from 'next/script';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import BrandLogo from '@/components/BrandLogo';
+import { loginErrorMessage } from '@/lib/auth/login-error-contract';
 import { releaseQaRunId } from '@/lib/auth/releaseQaCallback';
-import { toUserErrorMessage } from '@/lib/errors/user-error';
 
 export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
@@ -61,10 +61,10 @@ export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
       setIsLoading(false);
       return;
     }
-    const result = await response.json().catch(() => null) as { error?: string } | null;
+    const result = await response.json().catch(() => null) as { code?: string } | null;
 
     if (!response.ok) {
-      setMessage(toUserErrorMessage(result?.error, 'ログインに失敗しました。時間をおいて再試行してください。'));
+      setMessage(loginErrorMessage(result?.code));
       const browser = window as typeof window & { turnstile?: { reset: () => void } };
       browser.turnstile?.reset();
       setCaptchaToken(null);

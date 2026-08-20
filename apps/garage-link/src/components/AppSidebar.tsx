@@ -161,11 +161,11 @@ export default function AppSidebar({ activeLabel }: AppSidebarProps) {
     <>
       <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-[#F4F6FA] lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
         <div className="border-b border-slate-200 px-5 py-5">
-          <div className="rounded-3xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <BrandLogo className="h-10 w-36 max-w-full" priority />
+          <div data-testid="sidebar-brand-card" className="w-full rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex w-full min-w-0 flex-col items-start">
+              <BrandLogo className="h-12 max-w-full" priority />
             </div>
-            <p className="mt-2 truncate text-sm font-black text-slate-900">{storeLabel}</p>
+            <p className="mt-3 w-full min-w-0 break-words text-sm font-black text-slate-900">{storeLabel}</p>
           </div>
         </div>
 

@@ -1,5 +1,9 @@
 import { createServerClient } from '@supabase/ssr';
 import { type NextRequest, NextResponse } from 'next/server';
+import {
+  classifyPasswordLoginFailure,
+  type LoginErrorCode,
+} from '@/lib/auth/login-error-contract';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { loginIdentityHash } from '@/lib/security/authSecurity';
 
@@ -9,6 +13,10 @@ type LoginBody = {
   captchaToken?: unknown;
 };
 
+function loginError(code: LoginErrorCode, status: number) {
+  return NextResponse.json({ code }, { status });
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as LoginBody | null;
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
@@ -16,7 +24,7 @@ export async function POST(request: NextRequest) {
   const captchaToken = typeof body?.captchaToken === 'string' ? body.captchaToken : undefined;
 
   if (!email || !password) {
-    return NextResponse.json({ error: 'メールアドレスとパスワードを入力してください。' }, { status: 400 });
+    return loginError('INVALID_CREDENTIALS', 400);
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -26,7 +34,7 @@ export async function POST(request: NextRequest) {
     ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
   const service = createAdminClient();
   if (!url || !anonKey || !secret || !service) {
-    return NextResponse.json({ error: 'ログインの安全確認を利用できません。管理者に連絡してください。' }, { status: 503 });
+    return loginError('LOGIN_SECURITY_CHECK_FAILED', 503);
   }
 
   const identityHash = await loginIdentityHash(secret, email);
@@ -34,13 +42,10 @@ export async function POST(request: NextRequest) {
     p_identity_hash: identityHash,
   });
   if (lockError) {
-    return NextResponse.json({ error: 'ログインの安全確認に失敗しました。時間をおいて再試行してください。' }, { status: 503 });
+    return loginError('LOGIN_SECURITY_CHECK_FAILED', 503);
   }
   if (typeof lockedUntil === 'string' && new Date(lockedUntil).getTime() > Date.now()) {
-    return NextResponse.json(
-      { error: 'ログイン試行回数の上限に達しました。30分後に再試行してください。' },
-      { status: 429 },
-    );
+    return loginError('LOGIN_LOCKED', 429);
   }
 
   const authCookies: Array<{ name: string; value: string; options?: Record<string, unknown> }> = [];
@@ -59,22 +64,20 @@ export async function POST(request: NextRequest) {
     options: captchaToken ? { captchaToken } : undefined,
   });
 
-  if (error || !data.user?.id) {
-    if (error?.code && error.code !== 'invalid_credentials') {
-      return NextResponse.json({ error: 'ログインを確認できませんでした。入力内容またはボット対策を確認してください。' }, { status: 401 });
+  if (error || !data.user?.id || !data.session) {
+    const failureCode = classifyPasswordLoginFailure(error, Boolean(captchaToken));
+    if (failureCode !== 'INVALID_CREDENTIALS') {
+      return loginError(failureCode, failureCode === 'BOT_PROTECTION_FAILED' || failureCode === 'BOT_PROTECTION_REQUIRED' ? 401 : 503);
     }
     const { data: failure, error: failureError } = await service.rpc('record_login_failure', {
       p_identity_hash: identityHash,
     });
     if (failureError) {
-      return NextResponse.json({ error: 'ログインの安全確認に失敗しました。時間をおいて再試行してください。' }, { status: 503 });
+      return loginError('LOGIN_SECURITY_CHECK_FAILED', 503);
     }
     const result = Array.isArray(failure) ? failure[0] : failure;
     const isLocked = Boolean(result?.locked_until && new Date(result.locked_until as string).getTime() > Date.now());
-    return NextResponse.json(
-      { error: isLocked ? 'ログイン試行回数の上限に達しました。30分後に再試行してください。' : 'メールアドレスまたはパスワードが正しくありません。' },
-      { status: isLocked ? 429 : 401 },
-    );
+    return loginError(isLocked ? 'LOGIN_LOCKED' : 'INVALID_CREDENTIALS', isLocked ? 429 : 401);
   }
 
   const { error: clearError } = await service.rpc('clear_login_failures', {
@@ -82,7 +85,7 @@ export async function POST(request: NextRequest) {
   });
   if (clearError) {
     await supabase.auth.signOut();
-    return NextResponse.json({ error: 'ログインの安全確認に失敗しました。時間をおいて再試行してください。' }, { status: 503 });
+    return loginError('LOGIN_SECURITY_CHECK_FAILED', 503);
   }
 
   const response = NextResponse.json({ ok: true });

@@ -7,6 +7,7 @@ import {
   resolveEffectiveContractAccess,
 } from '@/lib/billing/contractAccess';
 import { resolvePostAuthPath } from '@/lib/auth/post-auth-redirect';
+import { getSupabaseAuthCookieNames, isRecoverableStaleSessionError } from '@/lib/auth/stale-session-recovery';
 import { ADMIN_EMAIL_OTP_COOKIE, deviceTokenHash, getAdminEmailOtpSecret, hasEffectiveAdminRole, readTrustedDeviceCookieValue } from '@/lib/security/adminEmailOtp';
 
 const PUBLIC_PATHS = [
@@ -99,6 +100,26 @@ function redirectWithSessionCookies(url: URL, source: NextResponse) {
   const redirect = NextResponse.redirect(url);
   source.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
   return redirect;
+}
+
+function responseWithSessionCookies(target: NextResponse, source: NextResponse) {
+  source.cookies.getAll().forEach((cookie) => target.cookies.set(cookie));
+  return target;
+}
+
+function clearStaleSupabaseAuthCookies(response: NextResponse, request: NextRequest) {
+  getSupabaseAuthCookieNames(request.cookies.getAll()).forEach((name) => {
+    response.cookies.set({
+      name,
+      value: '',
+      path: '/',
+      maxAge: 0,
+      expires: new Date(0),
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: request.nextUrl.protocol === 'https:',
+    });
+  });
 }
 
 function attachReleaseQaAuthBoundary(
@@ -201,12 +222,16 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  if (!user && isRecoverableStaleSessionError(authError)) {
+    clearStaleSupabaseAuthCookies(response, request);
+  }
+
   if (!user && !isPublicPath(pathname)) {
     if (pathname.startsWith('/api/')) {
       return attachReleaseQaAuthBoundary(
         request,
-        NextResponse.json({ error: 'unauthorized' }, { status: 401 }),
-        request.cookies.getAll().some((cookie) => /^sb-[a-z0-9]+-auth-token(?:\.\d+)?$/i.test(cookie.name)),
+        responseWithSessionCookies(NextResponse.json({ error: 'unauthorized' }, { status: 401 }), response),
+        getSupabaseAuthCookieNames(request.cookies.getAll()).length > 0,
         authError?.code,
       );
     }
@@ -215,8 +240,8 @@ export async function middleware(request: NextRequest) {
     loginUrl.searchParams.set('next', pathname);
     return attachReleaseQaAuthBoundary(
       request,
-      NextResponse.redirect(loginUrl),
-      request.cookies.getAll().some((cookie) => /^sb-[a-z0-9]+-auth-token(?:\.\d+)?$/i.test(cookie.name)),
+      redirectWithSessionCookies(loginUrl, response),
+      getSupabaseAuthCookieNames(request.cookies.getAll()).length > 0,
       authError?.code,
     );
   }
