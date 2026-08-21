@@ -10,6 +10,20 @@ const nextConfig: NextConfig = {
     "@garage-link/database",
     "@garage-link/ui",
   ],
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "llink.tech",
+        pathname: "/l-link-logo.png",
+      },
+      {
+        protocol: "https",
+        hostname: "aftercare-link.jp",
+        pathname: "/brand/aftercare-link-logo.png",
+      },
+    ],
+  },
   async headers() {
     if (!isStagingDeployment) return [];
     return [
