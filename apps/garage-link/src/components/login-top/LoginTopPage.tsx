@@ -11,6 +11,39 @@ const features = [
   { label: '在庫と商談を\n同じ数字で確認', icon: 'chart' },
 ];
 
+const kannagiServices = [
+  {
+    name: 'L-LINK',
+    href: 'https://llink.tech/',
+    logoSrc: 'https://llink.tech/l-link-logo.png',
+    logoWidth: 1600,
+    logoHeight: 900,
+    logoClassName: styles.llinkLogo,
+    headline: 'LINEの反応から、次の案内を判断',
+    description: '友だち・回答・配信履歴の管理',
+  },
+  {
+    name: 'L-touring',
+    href: 'https://l-touring.tech/',
+    logoSrc: '/branding/l-touring-logo.png',
+    logoWidth: 1600,
+    logoHeight: 900,
+    logoClassName: styles.touringLogo,
+    headline: 'LINE導線の設計と初期構築を支援',
+    description: '車・バイク業界向けLINE支援',
+  },
+  {
+    name: 'AFTERCARE LINK',
+    href: 'https://aftercare-link.jp/',
+    logoSrc: 'https://aftercare-link.jp/brand/aftercare-link-logo.png',
+    logoWidth: 880,
+    logoHeight: 640,
+    logoClassName: styles.aftercareLogo,
+    headline: '修理・メンテナンスの進捗共有を軽く',
+    description: '預けた後から、返した後までを見える化',
+  },
+] as const;
+
 function FeatureIcon({ name }: { name: string }) {
   if (name === 'shield') {
     return (
@@ -105,22 +138,23 @@ export function LoginTopPage() {
           <h2 id="kannagi-services-title">かんなぎのサービス</h2>
         </div>
         <div className={styles.serviceGrid}>
-          <a href="https://llink.tech/" className={styles.serviceCard}>
-            <Image src="/branding/l-link-logo.png" alt="L-LINK" width={2172} height={724} className={styles.llinkLogo} />
-            <span className={styles.serviceCopy}>
-              <strong>LINEの反応から、次の案内を判断</strong>
-              <small>友だち・回答・配信履歴の管理</small>
-            </span>
-            <ArrowIcon />
-          </a>
-          <a href="https://l-touring.tech/" className={styles.serviceCard}>
-            <Image src="/branding/l-touring-logo.png" alt="L-touring" width={1600} height={900} className={styles.touringLogo} />
-            <span className={styles.serviceCopy}>
-              <strong>LINE導線の設計と初期構築を支援</strong>
-              <small>車・バイク業界向けLINE支援</small>
-            </span>
-            <ArrowIcon />
-          </a>
+          {kannagiServices.map((service) => (
+            <a href={service.href} className={styles.serviceCard} key={service.name}>
+              <Image
+                src={service.logoSrc}
+                alt={service.name}
+                width={service.logoWidth}
+                height={service.logoHeight}
+                className={service.logoClassName}
+              />
+              <span className={styles.serviceCopy}>
+                <span className={styles.serviceName}>{service.name}</span>
+                <strong>{service.headline}</strong>
+                <small>{service.description}</small>
+              </span>
+              <ArrowIcon />
+            </a>
+          ))}
         </div>
       </section>
 
