@@ -17,6 +17,8 @@
     "test:l-link-inquiry-s2s": "node scripts/check-l-link-inquiry-s2s.mjs",
     "test:inquiry-response-management": "node scripts/check-inquiry-response-management.mjs",
     "test:line-link-s2s-ack": "node scripts/check-line-link-s2s-ack.mjs",
+    "test:mobile-financial-boundary": "node scripts/check-mobile-native-financial-boundary.mjs",
+    "test:mobile-maintenance-update": "node scripts/check-mobile-maintenance-update-contract.mjs",
     "test:e2e": "playwright test",
     "test:e2e:local-chrome": "node scripts/run-local-browser-smoke.mjs",
     "qa:provision": "node scripts/provision-qa-account.mjs",

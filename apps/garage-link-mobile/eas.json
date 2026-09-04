@@ -1,0 +1,9 @@
+{
+  "cli": { "version": ">= 20.4.0", "requireCommit": true, "appVersionSource": "remote" },
+  "build": {
+    "development": { "developmentClient": true, "distribution": "internal", "android": { "buildType": "apk" } },
+    "preview": { "distribution": "internal", "android": { "buildType": "apk" } },
+    "production": { "autoIncrement": true, "env": { "EXPO_PUBLIC_APP_ENV": "production" } }
+  },
+  "submit": { "production": {} }
+}

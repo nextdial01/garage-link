@@ -5,6 +5,7 @@ import {
   resolveStoreTenantContext,
   type GarageTenantRole,
 } from '@/lib/security/garageTenantContext';
+import { getGarageMobileBearerContext } from '@/lib/mobile/bearerAuth';
 
 type StoreMemberRow = {
   tenant_id: string;
@@ -49,6 +50,16 @@ export function userAgent(request: Request) {
 }
 
 export async function getStorageAuthContext(request: Request) {
+  if (/^Bearer\s+\S+/i.test(request.headers.get('authorization') ?? '')) {
+    const mobile = await getGarageMobileBearerContext(request);
+    if (!mobile.ok) return mobile;
+    return {
+      ...mobile,
+      // Storage audit/security events must be durable even when the request is
+      // bearer-authenticated, so use the already revalidated service client.
+      supabase: mobile.service,
+    };
+  }
   const supabase = await createClient();
   const { data: userData, error: userError } = await supabase.auth.getUser();
 

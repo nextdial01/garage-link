@@ -105,6 +105,27 @@ export async function POST(request: Request) {
       );
     }
 
+    if (purpose === 'vehicle_image' && (!safeRelatedType || !safeRelatedId)) {
+      return Response.json({ ok: false, error: '車両画像には関連車両の指定が必要です。', code: 'vehicle_required' }, { status: 400 });
+    }
+    if (safeRelatedType === 'vehicle' && safeRelatedId) {
+      const { data: vehicle, error: vehicleError } = await context.service
+        .from('vehicles')
+        .select('id')
+        .eq('id', safeRelatedId)
+        .eq('store_id', context.member.storeId)
+        .maybeSingle();
+      if (vehicleError || !vehicle) {
+        await logStorageSecurityEvent({
+          context: { supabase: context.supabase, tenantId: context.member.tenantId, userId: context.user.id, ipAddress: context.ipAddress, userAgent: context.userAgent },
+          eventType: 'cross_tenant_file_access_blocked',
+          severity: 'critical',
+          details: { reason: 'related_vehicle_not_in_selected_store' },
+        });
+        return Response.json({ ok: false, error: '関連車両にアクセスできません。', code: 'forbidden_vehicle' }, { status: 403 });
+      }
+    }
+
     const validation = validateUploadFile({ file, purpose });
     if (!validation.ok) {
       await logStorageSecurityEvent({
