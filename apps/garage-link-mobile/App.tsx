@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import type { Session } from '@supabase/supabase-js';
-import { mobileApi, type Customer, type CustomerDetail, type MaintenanceJob, type Quote, type QuoteDraft, type Store, type Today, type Vehicle, type VehicleDetail } from './src/mobileApi';
+import { MobileApiError, mobileApi, type Customer, type CustomerDetail, type MaintenanceJob, type Quote, type QuoteDraft, type Store, type Today, type Vehicle, type VehicleDetail } from './src/mobileApi';
 import { mobileConfigurationError, supabase } from './src/supabase';
 
 type Page = 'stores' | 'today' | 'vehicles' | 'vehicleDetail' | 'maintenance' | 'maintenanceDetail' | 'customers' | 'customerDetail' | 'quotes' | 'quoteCreate' | 'quotePreview';
@@ -60,7 +60,15 @@ export default function App() {
 
   async function run<T>(task: () => Promise<T>) {
     setLoading(true); setError(null);
-    try { return await task(); } catch (reason) { setError(displayError(reason)); return undefined; } finally { setLoading(false); }
+    try { return await task(); } catch (reason) {
+      if (reason instanceof MobileApiError) {
+        // QA diagnostics stay in native logs; customer-facing UI intentionally
+        // receives the categorized message below rather than endpoint details.
+        console.warn('[garage-mobile-api]', JSON.stringify({ endpoint: reason.endpoint, status: reason.status, code: reason.code }));
+      }
+      setError(displayError(reason));
+      return undefined;
+    } finally { setLoading(false); }
   }
   async function loadStores() {
     const next = await run(() => mobileApi.stores());

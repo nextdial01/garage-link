@@ -30,7 +30,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "eas-build-post-install": "node ./scripts/embed-build-provenance.cjs"
+    "eas-build-post-install": "node ./scripts/embed-build-provenance.cjs",
+    "check:pre-owner": "node scripts/check-pre-owner-gate.mjs",
+    "check:pre-owner:production": "node scripts/check-pre-owner-gate.mjs --production-config"
   },
   "private": true
 }

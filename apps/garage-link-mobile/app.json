@@ -4,7 +4,7 @@
     "slug": "garage-link-mobile",
     "version": "1.0.0",
     "orientation": "default",
-    "icon": "./assets/android-icon-foreground.png",
+    "icon": "./assets/app-icon-ios.png",
     "scheme": "garagelink",
     "userInterfaceStyle": "light",
     "ios": {
@@ -39,7 +39,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/android-icon-foreground.png",
+          "image": "./assets/splash-icon.png",
           "resizeMode": "contain",
           "backgroundColor": "#F8FAFC"
         }

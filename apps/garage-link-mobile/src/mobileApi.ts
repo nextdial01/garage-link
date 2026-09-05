@@ -13,13 +13,27 @@ export type Quote = { id: string; quoteNo: string | null; title: string | null; 
 export type CustomerDetail = { customer: Customer; vehicles: Vehicle[]; maintenance: MaintenanceJob[]; deals: { id: string; deal_no: string | null; title: string | null; status: string | null; vehicle_id: string | null; next_action_at: string | null }[]; quotes: Quote[] };
 export type QuoteDraft = { title?: string; customerId?: string; vehicleId?: string; dealId?: string; issueDate?: string; expiryDate?: string; customerHonorific?: string; customerNote?: string; items: Pick<QuoteItem, 'itemType' | 'name' | 'description' | 'quantity' | 'unitPrice' | 'taxRate'>[] };
 
+export class MobileApiError extends Error {
+  constructor(
+    message: string,
+    readonly endpoint: string,
+    readonly status: number,
+    readonly code: string | null,
+  ) {
+    super(message);
+    this.name = 'MobileApiError';
+  }
+}
+
 async function accessToken() { const { data } = await supabase.auth.getSession(); if (!data.session?.access_token) throw new Error('ログインが必要です。'); return data.session.access_token; }
 async function request<T>(path: string, init: RequestInit = {}, storeId?: string): Promise<T> {
-  if (!baseUrl) throw new Error('EXPO_PUBLIC_APP_BASE_URL をproduction環境に設定してください。');
+  if (!baseUrl || !/^https:\/\//.test(baseUrl) || /localhost|127\.0\.0\.1/.test(baseUrl)) {
+    throw new MobileApiError('アプリの接続先設定が正しくありません。', path, 0, 'invalid_base_url');
+  }
   const token = await accessToken();
   const response = await fetch(`${baseUrl}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, ...(storeId ? { 'x-garage-store-id': storeId } : {}), ...(init.headers ?? {}) } });
-  const body = await response.json().catch(() => null) as { error?: string } | null;
-  if (!response.ok) throw new Error(body?.error || '通信に失敗しました。');
+  const body = await response.json().catch(() => null) as { error?: string; code?: string } | null;
+  if (!response.ok) throw new MobileApiError(body?.error || '通信に失敗しました。', path, response.status, body?.code ?? null);
   return body as T;
 }
 export const mobileApi = {
