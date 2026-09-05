@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "GARAGE LINK",
+    "slug": "garage-link-mobile",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "scheme": "garagelink",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.kannagi.garagelink",
+      "supportsTablet": true,
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.kannagi.garagelink",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#F8FAFC",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "車両写真を追加するために写真ライブラリを使用します。",
+          "cameraPermission": "車両写真を撮影するためにカメラを使用します。"
+        }
+      ],
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#F8FAFC"
+        }
+      ]
+    ],
+    "extra": {
+      "releaseEnvironment": "production",
+      "eas": {
+        "projectId": "a4c3cd50-ca8d-4aba-8cd5-0450e7725ced"
+      }
+    },
+    "owner": "ksk13s-team"
+  }
+}
