@@ -1,6 +1,7 @@
 {
   "name": "garage-link-mobile",
   "version": "1.0.0",
+  "packageManager": "pnpm@10.33.0",
   "main": "index.ts",
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
