@@ -47,6 +47,11 @@
     ],
     "extra": {
       "releaseEnvironment": "production",
+      "buildProvenance": {
+        "sourceSha": "set-by-eas-build",
+        "appVersion": "1.0.0",
+        "buildNumber": "CFBundleVersion"
+      },
       "eas": {
         "projectId": "a4c3cd50-ca8d-4aba-8cd5-0450e7725ced"
       }
