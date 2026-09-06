@@ -37,6 +37,13 @@ function denied(status: number, code: string, error: string) {
   return { ok: false as const, response: Response.json({ ok: false, code, error }, { status }) };
 }
 
+function providerErrorClass(error: { message?: string | null } | null) {
+  const message = error?.message?.toLowerCase() ?? '';
+  if (message.includes('permission denied for function')) return 'function_execute_denied';
+  if (message.includes('permission denied for relation') || message.includes('row-level security')) return 'relation_read_denied';
+  return message ? 'other_provider_error' : null;
+}
+
 async function authenticatedMember(request: Request) {
   const token = bearerToken(request);
   if (!token) return denied(401, 'unauthorized', 'ログイン情報を取得できませんでした。');
@@ -57,7 +64,7 @@ async function authenticatedMember(request: Request) {
     : null;
   const role = roleFrom(context?.role ?? null);
   if (contextError || !context || context.state !== 'active' || !context.tenant_id || !context.store_id || !role || !Array.isArray(context.stores)) {
-    console.warn('[garage-mobile-auth]', { stage: 'ui_context', providerCode: contextError?.code?.slice(0, 32) ?? null });
+    console.warn('[garage-mobile-auth]', { stage: 'ui_context', providerCode: contextError?.code?.slice(0, 32) ?? null, providerClass: providerErrorClass(contextError) });
     return denied(403, 'forbidden_store_context', '所属情報を確認できませんでした。');
   }
 
