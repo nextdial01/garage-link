@@ -2,6 +2,7 @@ import { getGarageMobileBearerContext } from '@/lib/mobile/bearerAuth';
 import { MOBILE_QUOTE_FIELDS, mobileQuote } from '@/lib/mobile/dto';
 import { readMobileQuote } from '@/lib/mobile/quoteService';
 import { logAudit } from '@/lib/audit/logAudit';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const ITEM_TYPES = new Set(['vehicle', 'part', 'labor', 'service', 'registration', 'inspection', 'tax', 'insurance', 'other', 'discount', 'trade_in']);
 const NEGATIVE_TYPES = new Set(['discount', 'trade_in']);
@@ -52,10 +53,21 @@ export async function POST(request: Request) {
   const quoteNo = `Q-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
   const customer = customerResult.data; const vehicle = vehicleResult.data;
   const quote = { quoteNo, title: text(body.title, 160), customerId, vehicleId, dealId, issueDate: text(body.issueDate, 10), expiryDate: text(body.expiryDate, 10), customerName: customer?.name ?? null, customerPhone: customer?.phone ?? null, customerEmail: customer?.email ?? null, customerAddress: customer?.address ?? null, customerHonorific: text(body.customerHonorific, 40), vehicleLabel: vehicle ? [vehicle.management_no, vehicle.maker, vehicle.model_name].filter(Boolean).join(' / ') : null, vehicleMaker: vehicle?.maker ?? null, vehicleModelName: vehicle?.model_name ?? null, vehicleYear: vehicle?.model_year ?? null, vehicleMileageKm: vehicle?.mileage_km ?? null, vehicleVin: vehicle?.vin ?? null, vehicleInspectionExpiryDate: vehicle?.inspection_expiry_date ?? null, subtotalAmount, taxAmount, discountAmount, tradeInAmount, totalAmount: subtotalAmount + taxAmount, customerNote: text(body.customerNote, 2_000) };
-  const { data: quoteId, error } = await context.service.rpc('garage_mobile_create_quote', { p_store_id: context.member.storeId, p_actor_user_id: context.user.id, p_actor_role: context.member.role, p_idempotency_key: idempotencyKey, p_quote: quote, p_items: safeItems });
-  if (error || typeof quoteId !== 'string') return Response.json({ ok: false, code: 'quote_create_failed', error: '見積を保存できませんでした。' }, { status: 500 });
+  // The route has already validated this Bearer against the selected store.
+  // Keep the SECURITY DEFINER write RPC service-only: granting it to
+  // `authenticated` would allow direct RPC calls to bypass that route guard.
+  const admin = createAdminClient();
+  if (!admin) return Response.json({ ok: false, code: 'mobile_config_missing', error: 'サーバー側の認証設定が不足しています。' }, { status: 500 });
+  const { data: quoteId, error } = await admin.rpc('garage_mobile_create_quote', { p_store_id: context.member.storeId, p_actor_user_id: context.user.id, p_actor_role: context.member.role, p_idempotency_key: idempotencyKey, p_quote: quote, p_items: safeItems });
+  if (error || typeof quoteId !== 'string') {
+    console.error('[mobile-quote-write]', { stage: 'rpc', providerCode: typeof error?.code === 'string' ? error.code.slice(0, 64) : 'invalid_result' });
+    return Response.json({ ok: false, code: 'quote_create_failed', error: '見積を保存できませんでした。' }, { status: 500 });
+  }
   const saved = await readMobileQuote(context.service, context.member.storeId, quoteId);
-  if (!saved) return Response.json({ ok: false, code: 'quote_readback_failed', error: '保存した見積を取得できませんでした。' }, { status: 500 });
+  if (!saved) {
+    console.error('[mobile-quote-write]', { stage: 'readback', providerCode: 'quote_not_visible' });
+    return Response.json({ ok: false, code: 'quote_readback_failed', error: '保存した見積を取得できませんでした。' }, { status: 500 });
+  }
   await logAudit({ supabase: context.service, storeId: context.member.storeId, userId: context.user.id, userEmail: context.member.email, userRole: context.member.role, userDisplayName: context.member.displayName, action: 'create', targetType: 'quote', targetId: quoteId, targetLabel: quoteNo, metadata: { source: 'native_mobile', item_count: safeItems.length, operation_key_hash_present: true }, ipAddress: context.ipAddress, userAgent: context.userAgent });
   return Response.json({ ok: true, quote: saved }, { status: 201 });
 }
