@@ -30,6 +30,10 @@ export function createBearerClient(token: string) {
   }
 
   return createServiceClient(url, anonKey, {
+    // A server client has no persisted browser session. Supplying the access
+    // token explicitly prevents PostgREST/RPC calls from falling back to the
+    // anon role after the route has already verified this bearer.
+    accessToken: async () => token,
     auth: {
       persistSession: false,
       autoRefreshToken: false,
