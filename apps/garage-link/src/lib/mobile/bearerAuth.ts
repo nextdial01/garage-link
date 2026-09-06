@@ -39,7 +39,11 @@ function denied(status: number, code: string, error: string) {
 
 function providerErrorClass(error: { message?: string | null } | null) {
   const message = error?.message?.toLowerCase() ?? '';
+  if (message.includes('g1d_unauthenticated')) return 'jwt_context_missing';
+  if (message.includes('g1d_active_store_required')) return 'active_store_missing';
+  if (message.includes('g1d_store_forbidden')) return 'store_forbidden';
   if (message.includes('permission denied for function')) return 'function_execute_denied';
+  if (message.includes('permission denied')) return 'permission_denied';
   if (message.includes('permission denied for relation') || message.includes('row-level security')) return 'relation_read_denied';
   return message ? 'other_provider_error' : null;
 }
