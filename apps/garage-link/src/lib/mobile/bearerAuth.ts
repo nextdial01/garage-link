@@ -45,7 +45,10 @@ async function authenticatedMember(request: Request) {
   // role for each returned tenant. Both functions derive auth.uid() on the
   // server; neither accepts client-supplied user, tenant, or store scope.
   const { data: accessible, error: accessibleError } = await service.rpc('list_accessible_garage_stores');
-  if (accessibleError || !Array.isArray(accessible)) return denied(403, 'forbidden_store_context', '所属情報を確認できませんでした。');
+  if (accessibleError || !Array.isArray(accessible)) {
+    console.warn('[garage-mobile-auth]', { stage: 'accessible_stores', providerCode: accessibleError?.code?.slice(0, 32) ?? null });
+    return denied(403, 'forbidden_store_context', '所属情報を確認できませんでした。');
+  }
 
   const stores = (accessible as AccessibleStoreRow[]).filter((store) =>
     Boolean(store?.id && store?.tenant_id)
@@ -56,7 +59,10 @@ async function authenticatedMember(request: Request) {
   for (const tenantId of [...new Set(stores.map((store) => store.tenant_id))]) {
     const { data: role, error: roleError } = await service.rpc('current_user_role_for_tenant', { target_tenant_id: tenantId });
     const resolved = typeof role === 'string' ? roleFrom(role) : null;
-    if (roleError || !resolved) return denied(403, 'forbidden_tenant_role', '所属情報を確認できませんでした。');
+    if (roleError || !resolved) {
+      console.warn('[garage-mobile-auth]', { stage: 'tenant_role', providerCode: roleError?.code?.slice(0, 32) ?? null });
+      return denied(403, 'forbidden_tenant_role', '所属情報を確認できませんでした。');
+    }
     roles.set(tenantId, resolved);
   }
 
