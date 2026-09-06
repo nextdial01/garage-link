@@ -80,6 +80,10 @@ function isPublicPath(pathname: string) {
   // the same administrator OTP pre-request gate; Production Bearer access is
   // still rejected by the route's staging runtime contract.
   if (pathname === '/api/auth/admin-email-otp/request' || pathname === '/api/auth/admin-email-otp/verify') return true;
+  // Native clients authenticate every request with an Authorization Bearer
+  // token in the route handler. Do not require a web-only Supabase cookie
+  // before that route-level bearer and store-membership boundary can run.
+  if (pathname.startsWith('/api/mobile/')) return true;
   return false;
 }
 
