@@ -20,6 +20,13 @@ type GarageUiContext = {
   stores: unknown;
 };
 
+type GarageUiContextProviderError = {
+  code: string | null;
+  message: string | null;
+  details: string | null;
+  hint: string | null;
+};
+
 export type GarageMobileStore = Readonly<{ id: string; tenantId: string; name: string; role: GarageTenantRole }>;
 
 function roleFrom(value: string | null): GarageTenantRole | null {
@@ -37,8 +44,11 @@ function denied(status: number, code: string, error: string) {
   return { ok: false as const, response: Response.json({ ok: false, code, error }, { status }) };
 }
 
-function providerErrorClass(error: { message?: string | null } | null) {
-  const message = error?.message?.toLowerCase() ?? '';
+function providerErrorClass(error: GarageUiContextProviderError | null) {
+  const message = [error?.message, error?.details, error?.hint]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+    .toLowerCase();
   if (message.includes('g1d_unauthenticated')) return 'jwt_context_missing';
   if (message.includes('g1d_active_store_required')) return 'active_store_missing';
   if (message.includes('g1d_store_forbidden')) return 'store_forbidden';
@@ -46,6 +56,51 @@ function providerErrorClass(error: { message?: string | null } | null) {
   if (message.includes('permission denied')) return 'permission_denied';
   if (message.includes('permission denied for relation') || message.includes('row-level security')) return 'relation_read_denied';
   return message ? 'other_provider_error' : null;
+}
+
+/**
+ * The existing web session calls this SECURITY DEFINER context RPC through
+ * PostgREST with the caller's JWT. Keep mobile on the identical authenticated
+ * transport: a server SDK client without a persisted session can otherwise
+ * fall back to anon before PostgreSQL evaluates auth.uid().
+ */
+async function readGarageUiContext(token: string): Promise<{
+  context: GarageUiContext | null;
+  error: GarageUiContextProviderError | null;
+}> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  if (!url || !anonKey) {
+    return { context: null, error: { code: 'mobile_config_missing', message: null, details: null, hint: null } };
+  }
+  const response = await fetch(new URL('/rest/v1/rpc/get_garage_ui_context_v2', url), {
+    method: 'POST',
+    headers: {
+      apikey: anonKey,
+      authorization: `Bearer ${token}`,
+      accept: 'application/json',
+      'content-type': 'application/json',
+    },
+    body: '{}',
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as Record<string, unknown> | null;
+    return {
+      context: null,
+      error: {
+        code: typeof body?.code === 'string' ? body.code.slice(0, 32) : `http_${response.status}`,
+        message: typeof body?.message === 'string' ? body.message.slice(0, 160) : null,
+        details: typeof body?.details === 'string' ? body.details.slice(0, 160) : null,
+        hint: typeof body?.hint === 'string' ? body.hint.slice(0, 160) : null,
+      },
+    };
+  }
+  const raw = await response.json().catch(() => null);
+  return {
+    context: raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as GarageUiContext : null,
+    error: null,
+  };
 }
 
 async function authenticatedMember(request: Request) {
@@ -63,13 +118,10 @@ async function authenticatedMember(request: Request) {
   // the existing Web application's authenticated UI-context contract, which
   // derives auth.uid(), membership, role, and stores on the server. Mobile is
   // deliberately fail-closed to the context's resolved tenant.
-  const { data: rawContext, error: contextError } = await service.rpc('get_garage_ui_context_v2');
-  const context = rawContext && typeof rawContext === 'object' && !Array.isArray(rawContext)
-    ? rawContext as GarageUiContext
-    : null;
+  const { context, error: contextError } = await readGarageUiContext(token);
   const role = roleFrom(context?.role ?? null);
   if (contextError || !context || context.state !== 'active' || !context.tenant_id || !context.store_id || !role || !Array.isArray(context.stores)) {
-    console.warn('[garage-mobile-auth]', { stage: 'ui_context', providerCode: contextError?.code?.slice(0, 32) ?? null, providerClass: providerErrorClass(contextError) });
+    console.warn('[garage-mobile-auth]', { stage: 'ui_context', providerCode: contextError?.code ?? null, providerClass: providerErrorClass(contextError) });
     return denied(403, 'forbidden_store_context', '所属情報を確認できませんでした。');
   }
 
