@@ -27,6 +27,13 @@ type GarageUiContextProviderError = {
   hint: string | null;
 };
 
+type ActiveStoreMembership = {
+  tenant_id: string | null;
+  store_id: string | null;
+  role: string | null;
+  display_name: string | null;
+};
+
 export type GarageMobileStore = Readonly<{ id: string; tenantId: string; name: string; role: GarageTenantRole }>;
 
 function roleFrom(value: string | null): GarageTenantRole | null {
@@ -103,6 +110,66 @@ async function readGarageUiContext(token: string): Promise<{
   };
 }
 
+/**
+ * Compatibility fallback for a Production installation where the UI-context
+ * RPC grant has drifted. This is not a base-memberships lookup: the existing
+ * security-invoker active-store view evaluates the subject JWT, active member,
+ * active tenant, and store authorization before returning one resolved store.
+ */
+async function readActiveStoreMembershipContext(token: string, userId: string): Promise<{
+  context: GarageUiContext | null;
+  error: GarageUiContextProviderError | null;
+}> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+  if (!url || !anonKey) {
+    return { context: null, error: { code: 'mobile_config_missing', message: null, details: null, hint: null } };
+  }
+  const endpoint = new URL('/rest/v1/current_user_active_store_membership', url);
+  endpoint.searchParams.set('select', 'tenant_id,store_id,role,display_name');
+  endpoint.searchParams.set('user_id', `eq.${userId}`);
+  const response = await fetch(endpoint, {
+    headers: {
+      apikey: anonKey,
+      authorization: `Bearer ${token}`,
+      accept: 'application/json',
+    },
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as Record<string, unknown> | null;
+    return {
+      context: null,
+      error: {
+        code: typeof body?.code === 'string' ? body.code.slice(0, 32) : `http_${response.status}`,
+        message: typeof body?.message === 'string' ? body.message.slice(0, 160) : null,
+        details: typeof body?.details === 'string' ? body.details.slice(0, 160) : null,
+        hint: typeof body?.hint === 'string' ? body.hint.slice(0, 160) : null,
+      },
+    };
+  }
+  const rows = await response.json().catch(() => null) as ActiveStoreMembership[] | null;
+  if (!Array.isArray(rows) || rows.length !== 1) {
+    return { context: null, error: { code: 'active_store_cardinality', message: null, details: null, hint: null } };
+  }
+  const row = rows[0];
+  const role = roleFrom(row.role);
+  if (!row?.tenant_id || !row.store_id || !role) {
+    return { context: null, error: { code: 'active_store_shape', message: null, details: null, hint: null } };
+  }
+  return {
+    context: {
+      state: 'active',
+      tenant_id: row.tenant_id,
+      store_id: row.store_id,
+      role,
+      display_name: row.display_name,
+      stores: [{ id: row.store_id, tenant_id: row.tenant_id, name: '選択中の店舗', company_name: null }],
+    },
+    error: null,
+  };
+}
+
 async function authenticatedMember(request: Request) {
   const token = bearerToken(request);
   if (!token) return denied(401, 'unauthorized', 'ログイン情報を取得できませんでした。');
@@ -118,7 +185,12 @@ async function authenticatedMember(request: Request) {
   // the existing Web application's authenticated UI-context contract, which
   // derives auth.uid(), membership, role, and stores on the server. Mobile is
   // deliberately fail-closed to the context's resolved tenant.
-  const { context, error: contextError } = await readGarageUiContext(token);
+  const contextResult = await readGarageUiContext(token);
+  const fallbackResult = !contextResult.context && contextResult.error?.code === '42501'
+    ? await readActiveStoreMembershipContext(token, userData.user.id)
+    : null;
+  const context = fallbackResult?.context ?? contextResult.context;
+  const contextError = fallbackResult?.error ?? contextResult.error;
   const role = roleFrom(context?.role ?? null);
   if (contextError || !context || context.state !== 'active' || !context.tenant_id || !context.store_id || !role || !Array.isArray(context.stores)) {
     console.warn('[garage-mobile-auth]', { stage: 'ui_context', providerCode: contextError?.code ?? null, providerClass: providerErrorClass(contextError) });
