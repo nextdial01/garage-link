@@ -11,6 +11,14 @@ type MembershipRow = {
 };
 
 type AccessibleStoreRow = { id: string; tenant_id: string; name: string | null; company_name: string | null };
+type GarageUiContext = {
+  state: string | null;
+  tenant_id: string | null;
+  store_id: string | null;
+  role: string | null;
+  display_name: string | null;
+  stores: unknown;
+};
 
 export type GarageMobileStore = Readonly<{ id: string; tenantId: string; name: string; role: GarageTenantRole }>;
 
@@ -38,37 +46,23 @@ async function authenticatedMember(request: Request) {
   const { data: userData, error: userError } = await service.auth.getUser(token);
   if (userError || !userData.user?.id) return denied(401, 'unauthorized', 'ログイン情報を取得できませんでした。');
 
-  // `memberships` is intentionally not the mobile authorization read model:
-  // direct relation access has a narrower RLS contract than the existing
-  // web application. Resolve the caller's permitted stores through the
-  // established authenticated, security-definer RPC, then resolve the
-  // role for each returned tenant. Both functions derive auth.uid() on the
-  // server; neither accepts client-supplied user, tenant, or store scope.
-  const { data: accessible, error: accessibleError } = await service.rpc('list_accessible_garage_stores');
-  if (accessibleError || !Array.isArray(accessible)) {
-    console.warn('[garage-mobile-auth]', { stage: 'accessible_stores', providerCode: accessibleError?.code?.slice(0, 32) ?? null });
+  // Direct memberships and the external accessible-stores RPC have a narrower
+  // Production grant contract than their server-side implementations. Reuse
+  // the existing Web application's authenticated UI-context contract, which
+  // derives auth.uid(), membership, role, and stores on the server. Mobile is
+  // deliberately fail-closed to the context's resolved tenant.
+  const { data: rawContext, error: contextError } = await service.rpc('get_garage_ui_context_v2');
+  const context = rawContext && typeof rawContext === 'object' && !Array.isArray(rawContext)
+    ? rawContext as GarageUiContext
+    : null;
+  const role = roleFrom(context?.role ?? null);
+  if (contextError || !context || context.state !== 'active' || !context.tenant_id || !context.store_id || !role || !Array.isArray(context.stores)) {
+    console.warn('[garage-mobile-auth]', { stage: 'ui_context', providerCode: contextError?.code?.slice(0, 32) ?? null });
     return denied(403, 'forbidden_store_context', '所属情報を確認できませんでした。');
   }
 
-  const stores = (accessible as AccessibleStoreRow[]).filter((store) =>
-    Boolean(store?.id && store?.tenant_id)
-  );
-  if (!stores.length) return denied(403, 'forbidden_no_membership', '所属情報を確認できませんでした。');
-
-  const roles = new Map<string, GarageTenantRole>();
-  for (const tenantId of [...new Set(stores.map((store) => store.tenant_id))]) {
-    const { data: role, error: roleError } = await service.rpc('current_user_role_for_tenant', { target_tenant_id: tenantId });
-    const resolved = typeof role === 'string' ? roleFrom(role) : null;
-    if (roleError || !resolved) {
-      console.warn('[garage-mobile-auth]', { stage: 'tenant_role', providerCode: roleError?.code?.slice(0, 32) ?? null });
-      return denied(403, 'forbidden_tenant_role', '所属情報を確認できませんでした。');
-    }
-    roles.set(tenantId, resolved);
-  }
-
-  const activeStores: GarageMobileStore[] = stores.flatMap((store) => {
-    const role = roles.get(store.tenant_id);
-    if (!role) return [];
+  const activeStores: GarageMobileStore[] = (context.stores as AccessibleStoreRow[]).flatMap((store) => {
+    if (!store?.id || store.tenant_id !== context.tenant_id) return [];
     return [{
       id: store.id,
       tenantId: store.tenant_id,
@@ -78,15 +72,7 @@ async function authenticatedMember(request: Request) {
   });
   if (!activeStores.length) return denied(403, 'forbidden_resolved_store', '所属情報を確認できませんでした。');
 
-  const { data: activeMembership } = await service
-    .from('current_user_active_store_membership')
-    .select('tenant_id, role, display_name')
-    .eq('user_id', userData.user.id)
-    .eq('status', 'active')
-    .maybeSingle();
-  const membership: MembershipRow | null = activeMembership && typeof activeMembership.tenant_id === 'string'
-    ? { tenant_id: activeMembership.tenant_id, role: activeMembership.role, display_name: activeMembership.display_name }
-    : null;
+  const membership: MembershipRow = { tenant_id: context.tenant_id, role, display_name: context.display_name };
 
   return { ok: true as const, service, user: userData.user, stores: activeStores, membership };
 }
