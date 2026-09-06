@@ -2,7 +2,7 @@ import 'server-only';
 
 import type { User } from '@supabase/supabase-js';
 import { resolveStoreTenantContext, type GarageTenantRole } from '@/lib/security/garageTenantContext';
-import { createBearerClient } from '@/lib/supabase/admin';
+import { createBearerAuthClient, createBearerClient } from '@/lib/supabase/admin';
 
 type MembershipRow = {
   tenant_id: string;
@@ -48,9 +48,10 @@ async function authenticatedMember(request: Request) {
   const token = bearerToken(request);
   if (!token) return denied(401, 'unauthorized', 'ログイン情報を取得できませんでした。');
   const service = createBearerClient(token);
-  if (!service) return denied(500, 'mobile_config_missing', 'サーバー側の認証設定が不足しています。');
+  const auth = createBearerAuthClient();
+  if (!service || !auth) return denied(500, 'mobile_config_missing', 'サーバー側の認証設定が不足しています。');
 
-  const { data: userData, error: userError } = await service.auth.getUser(token);
+  const { data: userData, error: userError } = await auth.auth.getUser(token);
   if (userError || !userData.user?.id) return denied(401, 'unauthorized', 'ログイン情報を取得できませんでした。');
 
   // Direct memberships and the external accessible-stores RPC have a narrower

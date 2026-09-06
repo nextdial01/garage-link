@@ -45,3 +45,20 @@ export function createBearerClient(token: string) {
     },
   });
 }
+
+/** Validates a supplied bearer with Supabase Auth before it is bound to PostgREST. */
+export function createBearerAuthClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
+  if (!url || !anonKey) {
+    return null;
+  }
+
+  return createServiceClient(url, anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
