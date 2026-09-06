@@ -51,11 +51,16 @@ const iconSha256 = createHash('sha256').update(icon).digest('hex');
 const fullLogoSha256 = createHash('sha256').update(fullLogo).digest('hex');
 if (config.icon !== './assets/app-icon-ios.png') failures.push('icon:not-dedicated-ios-source');
 if (config.android?.adaptiveIcon?.foregroundImage !== './assets/android-icon-foreground.png') failures.push('adaptive-icon:not-android-foreground');
+if (!config.android?.blockedPermissions?.includes('android.permission.RECORD_AUDIO')) failures.push('android:record-audio-not-blocked');
+if (!config.android?.blockedPermissions?.includes('android.permission.SYSTEM_ALERT_WINDOW')) failures.push('android:system-alert-window-not-blocked');
 if (iconSha256 !== approvedAppIconSha256) failures.push('icon:does-not-match-owner-approved-asset');
 if (requireProductionConfig && process.env.EXPO_PUBLIC_APP_BASE_URL?.replace(/\/$/, '') !== expectedProductionApiUrl) failures.push('production-api-url:not-garage-link-tech');
 if (!client.includes('MobileApiError') || !client.includes('invalid_base_url')) failures.push('client:missing-runtime-diagnostics');
 if (!app.includes("console.warn('[garage-mobile-api]'")) failures.push('qa-log:missing-http-diagnostics');
 if (!app.includes("require('./assets/garage-link-logo.png')")) failures.push('full-logo:login-missing-official-asset');
+if (!app.includes('const [authResolved, setAuthResolved] = useState(false);') || !app.includes('if (!authResolved) return <SessionRestoring />;') || !app.includes('setAuthResolved(true);')) failures.push('session-restore:login-can-render-before-resolution');
+if ((app.match(/<ListState /g) ?? []).length < 5) failures.push('list-state:missing-error-empty-gate');
+if ((app.match(/error=\{null\}/g) ?? []).length < 4) failures.push('list-state:screen-can-double-render-error');
 for (const page of ['stores', 'today', 'vehicles', 'vehicleDetail', 'maintenance', 'maintenanceDetail', 'customers', 'customerDetail', 'quoteCreate', 'quotePreview']) if (!app.includes(`page === '${page}'`)) failures.push(`screen:missing:${page}`);
 for (const state of ['ActivityIndicator', 'EmptyState', 'ErrorNotice', 'SafeAreaView', 'TextInput']) if (!app.includes(state)) failures.push(`render-state:missing:${state}`);
 for (const endpoint of endpoints) if (!client.includes(endpoint)) failures.push(`client:missing:${endpoint}`);
@@ -85,5 +90,5 @@ if (process.argv.includes('--runtime')) {
   }
 }
 
-console.log(JSON.stringify({ gate: 'GARAGE_LINK_PRE_OWNER_GATE', iconSha256, fullLogoSha256, apiBaseUrl: requireProductionConfig ? baseUrl : 'not-checked', runtime, failures }, null, 2));
+console.log(JSON.stringify({ gate: 'GARAGE_LINK_PRE_OWNER_GATE', iconSha256, fullLogoSha256, apiBaseUrl: requireProductionConfig ? baseUrl : 'not-checked', authResolvedGate: !failures.some((failure) => failure.startsWith('session-restore:')), errorEmptySeparationGate: !failures.some((failure) => failure.startsWith('list-state:')), systemAlertWindowBlocked: config.android?.blockedPermissions?.includes('android.permission.SYSTEM_ALERT_WINDOW') === true, runtime, failures }, null, 2));
 if (failures.length) process.exitCode = 1;
