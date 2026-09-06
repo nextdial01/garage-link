@@ -5,19 +5,12 @@ import { resolveStoreTenantContext, type GarageTenantRole } from '@/lib/security
 import { createBearerClient } from '@/lib/supabase/admin';
 
 type MembershipRow = {
-  id: string;
   tenant_id: string;
   role: string | null;
   display_name: string | null;
-  email: string | null;
-  status: string | null;
-  disabled_at: string | null;
-  deleted_at: string | null;
-  invite_accepted_at: string | null;
-  joined_at: string | null;
 };
 
-type StoreRow = { id: string; tenant_id: string; name: string | null; company_name: string | null; status: string | null };
+type AccessibleStoreRow = { id: string; tenant_id: string; name: string | null; company_name: string | null };
 
 export type GarageMobileStore = Readonly<{ id: string; tenantId: string; name: string; role: GarageTenantRole }>;
 
@@ -45,38 +38,51 @@ async function authenticatedMember(request: Request) {
   const { data: userData, error: userError } = await service.auth.getUser(token);
   if (userError || !userData.user?.id) return denied(401, 'unauthorized', 'ログイン情報を取得できませんでした。');
 
-  const { data: memberships, error: membershipError } = await service
-    .from('memberships')
-    .select('id, tenant_id, role, display_name, email, status, disabled_at, deleted_at, invite_accepted_at, joined_at')
+  // `memberships` is intentionally not the mobile authorization read model:
+  // direct relation access has a narrower RLS contract than the existing
+  // web application. Resolve the caller's permitted stores through the
+  // established authenticated, security-definer RPC, then resolve the
+  // role for each returned tenant. Both functions derive auth.uid() on the
+  // server; neither accepts client-supplied user, tenant, or store scope.
+  const { data: accessible, error: accessibleError } = await service.rpc('list_accessible_garage_stores');
+  if (accessibleError || !Array.isArray(accessible)) return denied(403, 'forbidden_no_membership', '所属情報を確認できませんでした。');
+
+  const stores = (accessible as AccessibleStoreRow[]).filter((store) =>
+    Boolean(store?.id && store?.tenant_id)
+  );
+  if (!stores.length) return denied(403, 'forbidden_no_membership', '所属情報を確認できませんでした。');
+
+  const roles = new Map<string, GarageTenantRole>();
+  for (const tenantId of [...new Set(stores.map((store) => store.tenant_id))]) {
+    const { data: role, error: roleError } = await service.rpc('current_user_role_for_tenant', { target_tenant_id: tenantId });
+    const resolved = typeof role === 'string' ? roleFrom(role) : null;
+    if (roleError || !resolved) return denied(403, 'forbidden_no_membership', '所属情報を確認できませんでした。');
+    roles.set(tenantId, resolved);
+  }
+
+  const activeStores: GarageMobileStore[] = stores.flatMap((store) => {
+    const role = roles.get(store.tenant_id);
+    if (!role) return [];
+    return [{
+      id: store.id,
+      tenantId: store.tenant_id,
+      name: store.name || store.company_name || '名称未設定の店舗',
+      role,
+    }];
+  });
+  if (!activeStores.length) return denied(403, 'forbidden_no_membership', '所属情報を確認できませんでした。');
+
+  const { data: activeMembership } = await service
+    .from('current_user_active_store_membership')
+    .select('tenant_id, role, display_name')
     .eq('user_id', userData.user.id)
     .eq('status', 'active')
-    .is('disabled_at', null)
-    .is('deleted_at', null);
-  if (membershipError || !Array.isArray(memberships)) return denied(403, 'forbidden_no_membership', '所属情報を確認できませんでした。');
+    .maybeSingle();
+  const membership: MembershipRow | null = activeMembership && typeof activeMembership.tenant_id === 'string'
+    ? { tenant_id: activeMembership.tenant_id, role: activeMembership.role, display_name: activeMembership.display_name }
+    : null;
 
-  const active = (memberships as MembershipRow[]).filter((membership) =>
-    Boolean(roleFrom(membership.role) && (membership.invite_accepted_at || membership.joined_at))
-  );
-  if (!active.length) return denied(403, 'forbidden_no_membership', '所属情報を確認できませんでした。');
-
-  return { ok: true as const, service, user: userData.user, memberships: active };
-}
-
-async function accessibleStores(service: NonNullable<ReturnType<typeof createBearerClient>>, userId: string, memberships: MembershipRow[]) {
-  const tenantIds = [...new Set(memberships.map((membership) => membership.tenant_id))];
-  const membershipIds = memberships.map((membership) => membership.id);
-  const [{ data: stores, error: storesError }, { data: assignments, error: assignmentsError }] = await Promise.all([
-    service.from('stores').select('id, tenant_id, name, company_name, status').in('tenant_id', tenantIds).in('status', ['active', 'trial']),
-    service.from('membership_store_assignments').select('membership_id, tenant_id, store_id, deleted_at').in('membership_id', membershipIds).is('deleted_at', null),
-  ]);
-  if (storesError || assignmentsError || !Array.isArray(stores) || !Array.isArray(assignments)) return [];
-  const assigned = new Set((assignments as Array<{ membership_id: string; store_id: string }>).map((row) => `${row.membership_id}:${row.store_id}`));
-  return (stores as StoreRow[]).flatMap((store) => {
-    const membership = memberships.find((candidate) => candidate.tenant_id === store.tenant_id);
-    const role = membership ? roleFrom(membership.role) : null;
-    if (!membership || !role || (role !== 'owner' && role !== 'admin' && !assigned.has(`${membership.id}:${store.id}`))) return [];
-    return [{ id: store.id, tenantId: store.tenant_id, name: store.name || store.company_name || '名称未設定の店舗', role }];
-  });
+  return { ok: true as const, service, user: userData.user, stores: activeStores, membership };
 }
 
 /** Validates the bearer identity and selected store on every mobile request. */
@@ -85,8 +91,7 @@ export async function getGarageMobileBearerContext(request: Request) {
   if (!identity.ok) return identity;
   const storeId = request.headers.get('x-garage-store-id')?.trim() || '';
   if (!storeId) return denied(400, 'store_required', '店舗を選択してください。');
-  const stores = await accessibleStores(identity.service, identity.user.id, identity.memberships);
-  const store = stores.find((candidate) => candidate.id === storeId);
+  const store = identity.stores.find((candidate) => candidate.id === storeId);
   if (!store) return denied(403, 'forbidden_store', 'この店舗へアクセスする権限がありません。');
   try {
     const tenantContext = await resolveStoreTenantContext(identity.service, {
@@ -102,7 +107,7 @@ export async function getGarageMobileBearerContext(request: Request) {
       service: identity.service,
       user: identity.user as User,
       tenantContext,
-      member: { storeId: store.id, tenantId: store.tenantId, role: store.role, displayName: identity.memberships.find((item) => item.tenant_id === store.tenantId)?.display_name ?? null, email: identity.user.email ?? null },
+      member: { storeId: store.id, tenantId: store.tenantId, role: store.role, displayName: identity.membership?.tenant_id === store.tenantId ? identity.membership.display_name : null, email: identity.user.email ?? null },
       ipAddress: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || null,
       userAgent: request.headers.get('user-agent'),
     };
@@ -114,5 +119,5 @@ export async function getGarageMobileBearerContext(request: Request) {
 export async function listGarageMobileStores(request: Request) {
   const identity = await authenticatedMember(request);
   if (!identity.ok) return identity;
-  return { ok: true as const, user: identity.user as User, stores: await accessibleStores(identity.service, identity.user.id, identity.memberships) };
+  return { ok: true as const, user: identity.user as User, stores: identity.stores };
 }
