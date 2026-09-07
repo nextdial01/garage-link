@@ -46,6 +46,9 @@ export default function App() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [adminOtpRequired, setAdminOtpRequired] = useState(false);
+  const [adminOtpSent, setAdminOtpSent] = useState(false);
+  const [adminOtpCode, setAdminOtpCode] = useState('');
   const [quoteTitle, setQuoteTitle] = useState('');
   const [itemName, setItemName] = useState('');
   const [itemPrice, setItemPrice] = useState('');
@@ -73,6 +76,11 @@ export default function App() {
         // QA diagnostics stay in native logs; customer-facing UI intentionally
         // receives the categorized message below rather than endpoint details.
         console.warn('[garage-mobile-api]', JSON.stringify({ endpoint: reason.endpoint, status: reason.status, code: reason.code }));
+        if (reason.code === 'admin_security_required') {
+          setAdminOtpRequired(true);
+          setError(null);
+          return undefined;
+        }
       }
       setError(displayError(reason));
       return undefined;
@@ -81,6 +89,19 @@ export default function App() {
   async function loadStores() {
     const next = await run(() => mobileApi.stores());
     if (next) { setStores(next); if (next.length === 1) await selectStore(next[0]); }
+  }
+  async function requestAdminOtp() {
+    const result = await run(() => mobileApi.requestAdminEmailOtp());
+    if (result) setAdminOtpSent(true);
+  }
+  async function verifyAdminOtp() {
+    if (!/^\d{6}$/.test(adminOtpCode)) { setError('6桁の確認コードを入力してください。'); return; }
+    const verified = await run(() => mobileApi.verifyAdminEmailOtp(adminOtpCode));
+    if (!verified) return;
+    setAdminOtpRequired(false);
+    setAdminOtpSent(false);
+    setAdminOtpCode('');
+    await loadStores();
   }
   async function selectStore(next: Store) { setStore(next); await openToday(next); }
   async function openToday(target = store) {
@@ -176,6 +197,7 @@ export default function App() {
   if (mobileConfigurationError) return <Centered message={mobileConfigurationError} />;
   if (!authResolved) return <SessionRestoring />;
   if (!session) return <Login email={email} password={password} error={error} loading={loading} onEmail={setEmail} onPassword={setPassword} onLogin={() => void run(async () => { const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password }); if (authError) throw authError; })} />;
+  if (adminOtpRequired) return <AdminOtp emailCode={adminOtpCode} sent={adminOtpSent} error={error} loading={loading} onCode={setAdminOtpCode} onRequest={() => void requestAdminOtp()} onVerify={() => void verifyAdminOtp()} />;
   if (page === 'stores') return <SafeAreaView style={styles.screen}><Header title="店舗を選択" onLogout={() => void supabase.auth.signOut()} /><View style={styles.intro}><Text style={styles.eyebrow}>STORE</Text><Text style={styles.lead}>利用する店舗を選択してください。</Text></View><ListState loading={loading} error={error} onRetry={() => void loadStores()}><FlatList data={stores} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} renderItem={({ item }) => <EntityRow title={item.name} subtitle={roleLabel(item.role)} onPress={() => void selectStore(item)} />} ListEmptyComponent={<EmptyState title="利用可能な店舗がありません" description="管理者へアクセス権をご確認ください。" />} /></ListState></SafeAreaView>;
   if (page === 'today') return <Screen title={store?.name || 'GARAGE LINK'} onStore={() => setPage('stores')} onLogout={() => void supabase.auth.signOut()} nav={nav} error={error}><TodayScreen today={today} onMaintenance={() => void openMaintenance()} tablet={tablet} /></Screen>;
   if (page === 'vehicleDetail' && vehicle && store) return <Screen title="車両詳細" onBack={() => void openVehicles()} nav={nav} error={error}><ScrollView contentContainerStyle={tablet ? styles.tabletDetail : styles.detail}><DetailHero title={[vehicle.vehicle.maker, vehicle.vehicle.modelName].filter(Boolean).join(' ') || '車両'} status={vehicle.vehicle.status} /><InfoRow label="管理番号" value={vehicle.vehicle.managementNo || '-'} /><SectionLabel label="状態を更新" /><View style={styles.actions}><ActionButton title="在庫中" onPress={() => void changeVehicleStatus('在庫中')} variant="secondary" /><ActionButton title="整備中" onPress={() => void changeVehicleStatus('整備中')} variant="secondary" /></View><SectionLabel label="写真" /><View style={styles.actions}><ActionButton title="カメラで追加" onPress={() => void addPhoto(true)} /><ActionButton title="写真から追加" onPress={() => void addPhoto(false)} variant="secondary" /></View>{vehicle.imageFiles.map((item) => <SignedImage key={item.id} storeId={store.id} fileId={item.id} />)}{!vehicle.imageFiles.length && <EmptyState title="画像はまだありません" description="カメラまたは写真ライブラリから追加できます。" compact />}</ScrollView></Screen>;
@@ -191,6 +213,9 @@ export default function App() {
 
 function Login({ email, password, error, loading, onEmail, onPassword, onLogin }: { email: string; password: string; error: string | null; loading: boolean; onEmail: (value: string) => void; onPassword: (value: string) => void; onLogin: () => void }) {
   return <SafeAreaView style={styles.loginScreen}><View style={styles.loginContent}><Image source={require('./assets/garage-link-logo.png')} style={styles.logo} resizeMode="contain" accessibilityLabel="GARAGE LINK" /><Text style={styles.loginTitle}>ログイン</Text><Text style={styles.loginLead}>アカウント情報を入力してください</Text><View style={styles.loginCard}><FieldLabel label="メールアドレス" /><TextInput style={styles.input} placeholder="name@example.com" placeholderTextColor={colors.muted} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="username" autoComplete="email" value={email} onChangeText={onEmail} /><FieldLabel label="パスワード" /><TextInput style={styles.input} placeholder="パスワードを入力" placeholderTextColor={colors.muted} secureTextEntry textContentType="password" autoComplete="current-password" value={password} onChangeText={onPassword} /><ActionButton title="ログイン" onPress={onLogin} disabled={!email || !password || loading} />{error && <ErrorNotice message={error} />}</View></View></SafeAreaView>;
+}
+function AdminOtp({ emailCode, sent, error, loading, onCode, onRequest, onVerify }: { emailCode: string; sent: boolean; error: string | null; loading: boolean; onCode: (value: string) => void; onRequest: () => void; onVerify: () => void }) {
+  return <SafeAreaView style={styles.loginScreen}><View style={styles.loginContent}><Image source={require('./assets/garage-link-logo.png')} style={styles.logo} resizeMode="contain" accessibilityLabel="GARAGE LINK" /><Text style={styles.loginTitle}>追加の本人確認</Text><Text style={styles.loginLead}>管理者アカウントの確認コードをメールで受け取り、入力してください。</Text><View style={styles.loginCard}>{!sent ? <ActionButton title="確認コードを送信" onPress={onRequest} disabled={loading} /> : <><FieldLabel label="確認コード" /><TextInput style={styles.input} placeholder="6桁の確認コード" placeholderTextColor={colors.muted} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="one-time-code" maxLength={6} value={emailCode} onChangeText={(value) => onCode(value.replace(/\D/g, ''))} /><ActionButton title="確認して続ける" onPress={onVerify} disabled={loading || emailCode.length !== 6} /><ActionButton title="確認コードを再送" onPress={onRequest} disabled={loading} variant="ghost" /></>}{error && <ErrorNotice message={error} />}</View></View></SafeAreaView>;
 }
 function Screen({ title, onBack, onStore, onLogout, nav, error, children }: { title: string; onBack?: () => void; onStore?: () => void; onLogout?: () => void; nav: React.ReactNode; error: string | null; children: React.ReactNode }) { return <SafeAreaView style={styles.screen}><Header title={title} onBack={onBack || onStore} backTitle={onBack ? '戻る' : '店舗'} onLogout={onLogout} />{nav}<View style={styles.content}>{children}</View>{error && <ErrorNotice message={error} />}</SafeAreaView>; }
 function Header({ title, onBack, backTitle = '戻る', onLogout }: { title: string; onBack?: () => void; backTitle?: string; onLogout?: () => void }) { return <View style={styles.header}>{onBack ? <ActionButton title={backTitle} onPress={onBack} compact variant="ghost" /> : <View style={styles.headerSpacer} />}<Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>{onLogout ? <ActionButton title="ログアウト" onPress={onLogout} compact variant="ghost" /> : <View style={styles.headerSpacer} />}</View>; }

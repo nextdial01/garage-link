@@ -38,6 +38,8 @@ async function request<T>(path: string, init: RequestInit = {}, storeId?: string
 }
 export const mobileApi = {
   async stores() { return (await request<{ stores: Store[] }>('/api/mobile/stores')).stores; },
+  requestAdminEmailOtp() { return request<{ ok: true; maskedEmail: string; retryAfter: number }>('/api/auth/admin-email-otp/request', { method: 'POST' }); },
+  verifyAdminEmailOtp(code: string) { return request<{ ok: true }>('/api/auth/admin-email-otp/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code }) }); },
   async vehicles(storeId: string, q = '') { return (await request<{ vehicles: Vehicle[] }>(`/api/mobile/vehicles${q ? `?q=${encodeURIComponent(q)}` : ''}`, {}, storeId)).vehicles; },
   detail(storeId: string, vehicleId: string) { return request<VehicleDetail>(`/api/mobile/vehicles/${vehicleId}`, {}, storeId); },
   async updateStatus(storeId: string, vehicleId: string, status: string) { return (await request<{ vehicle: Vehicle }>(`/api/mobile/vehicles/${vehicleId}/status`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status }) }, storeId)).vehicle; },

@@ -24,9 +24,12 @@ export async function getAuthenticatedAdminContext(
   const service = createAdminClient();
   if (!url || !anonKey || !service) return null;
   const releaseQaRequest = options.requireReleaseQa && isStagingReleaseQaRequest(request);
-  const bearer = releaseQaRequest
-    ? request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]
-    : undefined;
+  // Native clients cannot present the web-only Supabase cookie, but they do
+  // present the same authenticated Bearer token used by every mobile API.
+  // Keep the release-QA marker check below scoped to its staging-only path;
+  // production Bearer callers still have to satisfy the existing bootstrap
+  // RPC, which accepts only an effective administrator context.
+  const bearer = request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
   const supabase = bearer
     ? createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } })
     : createServerClient(url, anonKey, { cookies: { getAll: () => request.cookies.getAll(), setAll: () => undefined } });
