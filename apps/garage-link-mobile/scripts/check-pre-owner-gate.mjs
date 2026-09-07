@@ -63,6 +63,10 @@ if ((app.match(/<ListState /g) ?? []).length < 5) failures.push('list-state:miss
 if ((app.match(/error=\{null\}/g) ?? []).length < 4) failures.push('list-state:screen-can-double-render-error');
 for (const page of ['stores', 'today', 'vehicles', 'vehicleDetail', 'maintenance', 'maintenanceDetail', 'customers', 'customerDetail', 'quoteCreate', 'quotePreview']) if (!app.includes(`page === '${page}'`)) failures.push(`screen:missing:${page}`);
 for (const state of ['ActivityIndicator', 'EmptyState', 'ErrorNotice', 'SafeAreaView', 'TextInput']) if (!app.includes(state)) failures.push(`render-state:missing:${state}`);
+if (!app.includes('SafeAreaProvider')) failures.push('safe-area:provider-missing');
+if (!app.includes('bottomTabs') || !app.includes('accessibilityRole="tablist"')) failures.push('navigation:fixed-bottom-tabs-missing');
+if (app.includes('return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.nav}')) failures.push('navigation:legacy-horizontal-scroll-present');
+if (!app.includes("navButton: { flex: 1") || !app.includes("minHeight: 50")) failures.push('navigation:tab-sizing-missing');
 for (const endpoint of endpoints) if (!client.includes(endpoint)) failures.push(`client:missing:${endpoint}`);
 for (let index = 0; index < serverRoutes.length; index += 1) if (!serverFiles[index]) failures.push(`server:missing:${serverRoutes[index]}`);
 if (!serverFiles[11].includes('getGarageMobileBearerContext') || !serverFiles[11].includes('listGarageMobileStores')) failures.push('server:missing-bearer-revalidation');
