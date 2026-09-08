@@ -6,6 +6,7 @@ import * as Sharing from 'expo-sharing';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Session } from '@supabase/supabase-js';
 import { MobileApiError, mobileApi, type Customer, type CustomerDetail, type MaintenanceJob, type Quote, type QuoteDraft, type Store, type Today, type Vehicle, type VehicleDetail } from './src/mobileApi';
+import { localSignOutScope, sessionAfterAuthEvent, shouldRefreshForAppState } from './src/authLifecycle';
 import { mobileConfigurationError, supabase } from './src/supabase';
 
 type Page = 'stores' | 'today' | 'vehicles' | 'vehicleDetail' | 'maintenance' | 'maintenanceDetail' | 'customers' | 'customerDetail' | 'quotes' | 'quoteCreate' | 'quotePreview';
@@ -70,12 +71,11 @@ function GarageMobileApp() {
       // Only an explicit server-side sign-out may clear the persisted local
       // session. A temporary refresh or network failure must keep the user in
       // the app and allow the next foreground refresh or retry to recover.
-      if (event === 'SIGNED_OUT') setSession(null);
-      else if (next) setSession(next);
+      setSession((current) => sessionAfterAuthEvent(current, event, next));
       setAuthResolved(true);
     });
     const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
+      if (shouldRefreshForAppState(nextAppState)) {
         supabase.auth.startAutoRefresh();
         // getSession reads the persisted session and performs a silent refresh
         // when necessary. It intentionally does not clear the current session
@@ -87,7 +87,7 @@ function GarageMobileApp() {
         supabase.auth.stopAutoRefresh();
       }
     });
-    if (AppState.currentState === 'active') supabase.auth.startAutoRefresh();
+    if (shouldRefreshForAppState(AppState.currentState)) supabase.auth.startAutoRefresh();
     return () => { mounted = false; appStateSubscription.remove(); supabase.auth.stopAutoRefresh(); data.subscription.unsubscribe(); };
   }, []);
   useEffect(() => { if (session) void loadStores(); }, [session]);
@@ -131,7 +131,7 @@ function GarageMobileApp() {
   }
   async function logout() {
     resetLocalState();
-    const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+    const { error: signOutError } = await supabase.auth.signOut(localSignOutScope);
     if (signOutError) setError(displayError(signOutError));
   }
   async function selectStore(next: Store) { setStore(next); await openToday(next); }
