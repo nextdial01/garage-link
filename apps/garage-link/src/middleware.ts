@@ -30,6 +30,8 @@ const PUBLIC_PATHS = [
   '/robots.txt',
   '/sitemap.xml',
   '/llms.txt',
+  '/.well-known/kannagi-release.json',
+  '/manifest.webmanifest',
   '/features',
   '/pricing',
   '/faq',

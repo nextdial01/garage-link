@@ -20,6 +20,7 @@ import {
 import BrandLogo from '@/components/BrandLogo';
 import { MobileNavigation } from './MobileNavigation';
 import { TrackedLoginLink, TrackedSignupLink } from './TrackedSignupLink';
+import { RELATED_SERVICES } from '@/lib/related-services';
 import styles from './garage-landing.module.css';
 
 type IconName =
@@ -230,6 +231,14 @@ export function GarageLandingPage() {
           </div>
         </div>
       </section>
+
+      <section className={styles.kannagiServices} aria-labelledby="kannagi-services-title"><div className={styles.container}>
+        <p className={styles.sectionKicker}>KANNAGI SERVICES</p><h2 id="kannagi-services-title">かんなぎのサービス</h2>
+        <div className={styles.relatedServiceGrid}>{RELATED_SERVICES.map((service) => <a href={service.href} key={service.name} className={styles.relatedServiceCard}>
+          <Image src={service.logoSrc} alt={service.name} width={service.logoWidth} height={service.logoHeight} className={styles.relatedServiceLogo} />
+          <strong>{service.name}</strong><span>{service.headline}</span>
+        </a>)}</div>
+      </div></section>
 
       <footer className={styles.footer}>
         <div className={styles.container}>

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import BrandLogo from '@/components/BrandLogo';
 import { GarageLoginForm } from '@/components/auth/GarageLoginForm';
+import { RELATED_SERVICES } from '@/lib/related-services';
 import styles from './login-top.module.css';
 
 const features = [
@@ -10,39 +11,6 @@ const features = [
   { label: '役割に合わせて\n権限を設定', icon: 'shield' },
   { label: '在庫と商談を\n同じ数字で確認', icon: 'chart' },
 ];
-
-const kannagiServices = [
-  {
-    name: 'L-LINK',
-    href: 'https://llink.tech/',
-    logoSrc: 'https://llink.tech/l-link-logo.png',
-    logoWidth: 1600,
-    logoHeight: 900,
-    logoClassName: styles.llinkLogo,
-    headline: 'LINEの反応から、次の案内を判断',
-    description: '友だち・回答・配信履歴の管理',
-  },
-  {
-    name: 'TurnKey LINK',
-    href: 'https://turnkey-link.jp/',
-    logoSrc: 'https://turnkey-link.jp/brand/turnkey-link-logo-horizontal.png',
-    logoWidth: 174,
-    logoHeight: 43,
-    logoClassName: styles.touringLogo,
-    headline: '案件を、次の判断までつなぐ',
-    description: '不動産・リフォームの業務管理',
-  },
-  {
-    name: 'AFTERCARE LINK',
-    href: 'https://aftercare-link.jp/',
-    logoSrc: 'https://aftercare-link.jp/brand/aftercare-link-logo.png',
-    logoWidth: 880,
-    logoHeight: 640,
-    logoClassName: styles.aftercareLogo,
-    headline: '修理・メンテナンスの進捗共有を軽く',
-    description: '預けた後から、返した後までを見える化',
-  },
-] as const;
 
 function FeatureIcon({ name }: { name: string }) {
   if (name === 'shield') {
@@ -138,14 +106,14 @@ export function LoginTopPage() {
           <h2 id="kannagi-services-title">かんなぎのサービス</h2>
         </div>
         <div className={styles.serviceGrid}>
-          {kannagiServices.map((service) => (
+          {RELATED_SERVICES.map((service) => (
             <a href={service.href} className={styles.serviceCard} key={service.name}>
               <Image
                 src={service.logoSrc}
                 alt={service.name}
                 width={service.logoWidth}
                 height={service.logoHeight}
-                className={service.logoClassName}
+                className={styles.relatedLogo}
               />
               <span className={styles.serviceCopy}>
                 <span className={styles.serviceName}>{service.name}</span>
