@@ -22,6 +22,11 @@ const nextConfig: NextConfig = {
         hostname: "aftercare-link.jp",
         pathname: "/brand/aftercare-link-logo.png",
       },
+      {
+        protocol: "https",
+        hostname: "turnkey-link.jp",
+        pathname: "/brand/turnkey-link-logo-horizontal.png",
+      },
     ],
   },
   async headers() {

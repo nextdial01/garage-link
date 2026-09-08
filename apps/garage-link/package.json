@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:brand-release": "node scripts/check-brand-release.mjs",
     "test": "npm run test:security",
     "test:security": "playwright test -c playwright.security.config.ts",
     "test:billing": "playwright test -c playwright.security.config.ts tests/security/garage-billing.test.ts",

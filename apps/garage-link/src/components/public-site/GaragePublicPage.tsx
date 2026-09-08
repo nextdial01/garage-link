@@ -546,7 +546,7 @@ export function GaragePublicPage({ pageKey }: { pageKey: GaragePublicPageKey }) 
         <div className={styles.container}>
           <span className={styles.relatedLabel}>KANNAGI SERVICES</span>
           <h2>LINEでの受付や再案内までつなげる場合</h2>
-          <p>LINE公式アカウントの運用は <a href="https://llink.tech/">L-LINK</a>、車・バイク業界向けのLINE設計・初期構築は <a href="https://l-touring.tech/">L-touring</a> が担当します。</p>
+          <p>LINE公式アカウントの運用は <a href="https://llink.tech/">L-LINK</a>、修理・メンテナンスの進捗共有は <a href="https://aftercare-link.jp/">AFTERCARE LINK</a>、不動産・リフォームの案件管理は <a href="https://turnkey-link.jp/">TurnKey LINK</a> が担当します。</p>
         </div>
       </aside>
 

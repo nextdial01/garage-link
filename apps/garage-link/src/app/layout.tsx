@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { GarageAnalytics } from "@/components/analytics/GarageAnalytics";
+import { BRAND } from "@/lib/brand";
 import "./globals.css";
 
-const metadataBase = new URL("https://garage-link.tech");
+const metadataBase = new URL(BRAND.canonicalUrl);
 const isStagingDeployment = process.env.GARAGE_DEPLOYMENT_ENV === "staging";
 
 export const metadata: Metadata = {
@@ -11,12 +12,12 @@ export const metadata: Metadata = {
     google: "JBNIm9scPumEg0iyblwGmf9salq9Ch-tBLdFGQe6KlU",
   },
   title: {
-    default: "GARAGE LINK",
-    template: "%s | GARAGE LINK",
+    default: BRAND.serviceName,
+    template: `%s | ${BRAND.serviceName}`,
   },
-  description:
-    "中古車販売店・バイクショップ・整備工場の在庫、顧客、商談、見積、請求、整備をひとつにまとめる店舗管理ツールです。",
-  applicationName: "GARAGE LINK",
+  description: BRAND.description,
+  applicationName: BRAND.serviceName,
+  manifest: "/manifest.webmanifest",
   robots: isStagingDeployment
     ? {
         index: false,
@@ -28,28 +29,31 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/search-icon.svg",
-        type: "image/svg+xml",
+        url: BRAND.assets.favicon,
+        type: "image/png",
         sizes: "64x64",
       },
+      { url: "/favicon.ico", sizes: "any", type: "image/x-icon" },
     ],
+    apple: [{ url: BRAND.assets.appleTouchIcon, sizes: "180x180", type: "image/png" }],
   },
+  alternates: { canonical: "/" },
   openGraph: {
-    title: "GARAGE LINK",
-    description:
-      "中古車販売店・バイクショップ・整備工場の在庫、顧客、商談、見積、請求、整備をひとつにまとめる店舗管理ツールです。",
-    siteName: "GARAGE LINK",
+    title: BRAND.serviceName,
+    description: BRAND.description,
+    siteName: BRAND.serviceName,
     type: "website",
     url: "/",
     images: [
       {
-        url: "/branding/garage-link-logo.png",
-        width: 1058,
-        height: 444,
-        alt: "GARAGE LINK",
+        url: BRAND.assets.ogImage,
+        width: 1200,
+        height: 630,
+        alt: BRAND.serviceName,
       },
     ],
   },
+  twitter: { card: "summary_large_image", title: BRAND.serviceName, description: BRAND.description, images: [BRAND.assets.ogImage] },
 };
 
 export default function RootLayout({
