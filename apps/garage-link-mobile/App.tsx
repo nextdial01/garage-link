@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, Image, Keyboard, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -65,12 +65,30 @@ function GarageMobileApp() {
     void supabase.auth.getSession()
       .then(({ data }) => { if (mounted) setSession(data.session); })
       .finally(() => { if (mounted) setAuthResolved(true); });
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data } = supabase.auth.onAuthStateChange((event, next) => {
       if (!mounted) return;
-      setSession(next);
+      // Only an explicit server-side sign-out may clear the persisted local
+      // session. A temporary refresh or network failure must keep the user in
+      // the app and allow the next foreground refresh or retry to recover.
+      if (event === 'SIGNED_OUT') setSession(null);
+      else if (next) setSession(next);
       setAuthResolved(true);
     });
-    return () => { mounted = false; data.subscription.unsubscribe(); };
+    const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        supabase.auth.startAutoRefresh();
+        // getSession reads the persisted session and performs a silent refresh
+        // when necessary. It intentionally does not clear the current session
+        // when a transient refresh attempt cannot reach the network.
+        void supabase.auth.getSession().then(({ data: next }) => {
+          if (mounted && next.session) setSession(next.session);
+        }).catch(() => undefined);
+      } else {
+        supabase.auth.stopAutoRefresh();
+      }
+    });
+    if (AppState.currentState === 'active') supabase.auth.startAutoRefresh();
+    return () => { mounted = false; appStateSubscription.remove(); supabase.auth.stopAutoRefresh(); data.subscription.unsubscribe(); };
   }, []);
   useEffect(() => { if (session) void loadStores(); }, [session]);
 
@@ -107,6 +125,14 @@ function GarageMobileApp() {
     setAdminOtpSent(false);
     setAdminOtpCode('');
     await loadStores();
+  }
+  function resetLocalState() {
+    setStore(null); setStores([]); setPage('stores'); setVehicles([]); setVehicle(null); setToday(null); setJobs([]); setJob(null); setCustomers([]); setCustomer(null); setQuotes([]); setQuote(null); setSearch(''); setError(null); setLoading(false); setAdminOtpRequired(false); setAdminOtpSent(false); setAdminOtpCode(''); setQuoteTitle(''); setItemName(''); setItemPrice('');
+  }
+  async function logout() {
+    resetLocalState();
+    const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+    if (signOutError) setError(displayError(signOutError));
   }
   async function selectStore(next: Store) { setStore(next); await openToday(next); }
   async function openToday(target = store) {
@@ -203,8 +229,8 @@ function GarageMobileApp() {
   if (!authResolved) return <SessionRestoring />;
   if (!session) return <Login email={email} password={password} error={error} loading={loading} onEmail={setEmail} onPassword={setPassword} onLogin={() => void run(async () => { const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password }); if (authError) throw authError; })} />;
   if (adminOtpRequired) return <AdminOtp emailCode={adminOtpCode} sent={adminOtpSent} error={error} loading={loading} onCode={setAdminOtpCode} onRequest={() => void requestAdminOtp()} onVerify={() => void verifyAdminOtp()} />;
-  if (page === 'stores') return <SafeAreaView style={styles.screen}><Header title="店舗を選択" onLogout={() => void supabase.auth.signOut()} /><View style={styles.storeContent}><View style={styles.intro}><Text style={styles.eyebrow}>STORE</Text><Text style={styles.lead}>利用する店舗を選択してください。</Text></View><ListState loading={loading} error={error} onRetry={() => void loadStores()}><FlatList data={stores} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} renderItem={({ item }) => <EntityRow title={item.name} subtitle={roleLabel(item.role)} onPress={() => void selectStore(item)} />} ListEmptyComponent={<EmptyState title="利用可能な店舗がありません" description="管理者へアクセス権をご確認ください。" />} /></ListState></View></SafeAreaView>;
-  if (page === 'today') return <Screen title={store?.name || 'GARAGE LINK'} onStore={() => setPage('stores')} onLogout={() => void supabase.auth.signOut()} nav={nav} error={error}><TodayScreen today={today} onMaintenance={() => void openMaintenance()} tablet={tablet} /></Screen>;
+  if (page === 'stores') return <SafeAreaView style={styles.screen}><Header title="店舗を選択" onLogout={() => void logout()} /><View style={styles.storeContent}><View style={styles.intro}><Text style={styles.eyebrow}>STORE</Text><Text style={styles.lead}>利用する店舗を選択してください。</Text></View><ListState loading={loading} error={error} onRetry={() => void loadStores()}><FlatList data={stores} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} renderItem={({ item }) => <EntityRow title={item.name} subtitle={roleLabel(item.role)} onPress={() => void selectStore(item)} />} ListEmptyComponent={<EmptyState title="利用可能な店舗がありません" description="管理者へアクセス権をご確認ください。" />} /></ListState></View></SafeAreaView>;
+  if (page === 'today') return <Screen title={store?.name || 'GARAGE LINK'} onStore={() => setPage('stores')} onLogout={() => void logout()} nav={nav} error={error}><TodayScreen today={today} onMaintenance={() => void openMaintenance()} tablet={tablet} /></Screen>;
   if (page === 'vehicleDetail' && vehicle && store) return <Screen title="車両詳細" onBack={() => void openVehicles()} nav={nav} error={error}><ScrollView contentContainerStyle={tablet ? styles.tabletDetail : styles.detail}><DetailHero title={[vehicle.vehicle.maker, vehicle.vehicle.modelName].filter(Boolean).join(' ') || '車両'} status={vehicle.vehicle.status} /><InfoRow label="管理番号" value={vehicle.vehicle.managementNo || '-'} /><SectionLabel label="状態を更新" /><View style={styles.actions}><ActionButton title="在庫中" onPress={() => void changeVehicleStatus('在庫中')} variant="secondary" /><ActionButton title="整備中" onPress={() => void changeVehicleStatus('整備中')} variant="secondary" /></View><SectionLabel label="写真" /><View style={styles.actions}><ActionButton title="カメラで追加" onPress={() => void addPhoto(true)} /><ActionButton title="写真から追加" onPress={() => void addPhoto(false)} variant="secondary" /></View>{vehicle.imageFiles.map((item) => <SignedImage key={item.id} storeId={store.id} fileId={item.id} />)}{!vehicle.imageFiles.length && <EmptyState title="画像はまだありません" description="カメラまたは写真ライブラリから追加できます。" compact />}</ScrollView></Screen>;
   if (page === 'vehicles') return <Screen title={store?.name || '車両'} onStore={() => setPage('stores')} nav={nav} error={null}><Search placeholder="車名・管理番号で検索" value={search} onChange={setSearch} onSearch={() => void openVehicles()} /><ListState loading={loading} error={error} onRetry={() => void openVehicles()}><FlatList data={vehicles} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} refreshing={loading} onRefresh={() => void openVehicles()} renderItem={({ item }) => <EntityRow title={[item.maker, item.modelName].filter(Boolean).join(' ') || item.managementNo || '名称未設定'} subtitle={item.managementNo || '管理番号未設定'} right={<StatusChip value={item.status} />} onPress={() => void openVehicle(item)} />} ListEmptyComponent={<EmptyState title="車両がありません" description="検索条件を変えるか、Web版で車両を登録してください。" />} /></ListState></Screen>;
   if (page === 'maintenanceDetail' && job) return <Screen title="整備詳細" onBack={() => void openMaintenance()} nav={nav} error={error}><ScrollView contentContainerStyle={styles.detail}><DetailHero title={job.job_no || '整備案件'} status={job.status} /><InfoRow label="種別" value={job.job_type || '-'} /><InfoRow label="納車予定" value={date(job.scheduled_delivery_at)} /><InfoRow label="担当" value={job.assigned_user_name || '-'} /><SectionLabel label="状態を更新" /><View style={styles.statusActions}><ActionButton title="受付" onPress={() => void updateJob('received')} variant="secondary" /><ActionButton title="作業中" onPress={() => void updateJob('working')} variant="secondary" /><ActionButton title="完了" onPress={() => void updateJob('completed')} /></View></ScrollView></Screen>;
@@ -220,7 +246,12 @@ function Login({ email, password, error, loading, onEmail, onPassword, onLogin }
   return <SafeAreaView style={styles.loginScreen}><View style={styles.loginContent}><Image source={require('./assets/garage-link-logo.png')} style={styles.logo} resizeMode="contain" accessibilityLabel="GARAGE LINK" /><Text style={styles.loginTitle}>ログイン</Text><Text style={styles.loginLead}>アカウント情報を入力してください</Text><View style={styles.loginCard}><FieldLabel label="メールアドレス" /><TextInput style={styles.input} placeholder="name@example.com" placeholderTextColor={colors.muted} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" textContentType="username" autoComplete="email" value={email} onChangeText={onEmail} /><FieldLabel label="パスワード" /><TextInput style={styles.input} placeholder="パスワードを入力" placeholderTextColor={colors.muted} secureTextEntry textContentType="password" autoComplete="current-password" value={password} onChangeText={onPassword} /><ActionButton title="ログイン" onPress={onLogin} disabled={!email || !password || loading} />{error && <ErrorNotice message={error} />}</View></View></SafeAreaView>;
 }
 function AdminOtp({ emailCode, sent, error, loading, onCode, onRequest, onVerify }: { emailCode: string; sent: boolean; error: string | null; loading: boolean; onCode: (value: string) => void; onRequest: () => void; onVerify: () => void }) {
-  return <SafeAreaView style={styles.loginScreen}><View style={styles.loginContent}><Image source={require('./assets/garage-link-logo.png')} style={styles.logo} resizeMode="contain" accessibilityLabel="GARAGE LINK" /><Text style={styles.loginTitle}>追加の本人確認</Text><Text style={styles.loginLead}>管理者アカウントの確認コードをメールで受け取り、入力してください。</Text><View style={styles.loginCard}>{!sent ? <ActionButton title="確認コードを送信" onPress={onRequest} disabled={loading} /> : <><FieldLabel label="確認コード" /><TextInput style={styles.input} placeholder="6桁の確認コード" placeholderTextColor={colors.muted} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="one-time-code" maxLength={6} value={emailCode} onChangeText={(value) => onCode(value.replace(/\D/g, ''))} /><ActionButton title="確認して続ける" onPress={onVerify} disabled={loading || emailCode.length !== 6} /><ActionButton title="確認コードを再送" onPress={onRequest} disabled={loading} variant="ghost" /></>}{error && <ErrorNotice message={error} />}</View></View></SafeAreaView>;
+  const handleCodeChange = (value: string) => {
+    const next = value.replace(/\D/g, '').slice(0, 6);
+    onCode(next);
+    if (emailCode.length < 6 && next.length === 6) Keyboard.dismiss();
+  };
+  return <SafeAreaView style={styles.loginScreen}><View style={styles.loginContent}><Image source={require('./assets/garage-link-logo.png')} style={styles.logo} resizeMode="contain" accessibilityLabel="GARAGE LINK" /><Text style={styles.loginTitle}>追加の本人確認</Text><Text style={styles.loginLead}>管理者アカウントの確認コードをメールで受け取り、入力してください。</Text><View style={styles.loginCard}>{!sent ? <ActionButton title="確認コードを送信" onPress={onRequest} disabled={loading} /> : <><FieldLabel label="確認コード" /><TextInput style={styles.input} placeholder="6桁の確認コード" placeholderTextColor={colors.muted} keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="one-time-code" maxLength={6} value={emailCode} onChangeText={handleCodeChange} /><ActionButton title="確認して続ける" onPress={onVerify} disabled={loading || emailCode.length !== 6} /><ActionButton title="確認コードを再送" onPress={onRequest} disabled={loading} variant="ghost" /></>}{error && <ErrorNotice message={error} />}</View></View></SafeAreaView>;
 }
 function Screen({ title, onBack, onStore, onLogout, nav, error, children }: { title: string; onBack?: () => void; onStore?: () => void; onLogout?: () => void; nav: React.ReactNode; error: string | null; children: React.ReactNode }) {
   return <SafeAreaView style={styles.screen} edges={['top', 'left', 'right', 'bottom']}><Header title={title} onBack={onBack || onStore} backTitle={onBack ? '戻る' : '店舗'} onLogout={onLogout} /><View style={styles.content}>{error ? <View style={styles.screenError}><ErrorNotice message={error} /></View> : children}</View>{nav}</SafeAreaView>;
