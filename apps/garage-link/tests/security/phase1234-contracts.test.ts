@@ -65,6 +65,9 @@ test.describe('Phase 4 UI/API: 配信候補', () => {
     expect(src).toContain('event_type');
     expect(src).toContain('CANDIDATE_EVENT_TYPES');
     expect(src).toContain("url.searchParams.get('event_type')");
+    // inspection_reminder_events has both simple and tenant-aware store FKs.
+    // PostgREST embedding must choose the simple store FK explicitly.
+    expect(src).toContain('stores!inspection_reminder_events_store_id_fkey(name)');
   });
 });
 

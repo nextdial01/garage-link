@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     let query = supabase
       .from('inspection_reminder_events')
       .select(
-        'id, store_id, customer_id, vehicle_id, event_type, inspection_expiry_date, reminder_offset_days, status, customer_name, vehicle_name, maker, model_name, registration_no, assigned_user_name, external_reference_id, error_detail, created_at, stores(name)',
+        'id, store_id, customer_id, vehicle_id, event_type, inspection_expiry_date, reminder_offset_days, status, customer_name, vehicle_name, maker, model_name, registration_no, assigned_user_name, external_reference_id, error_detail, created_at, stores!inspection_reminder_events_store_id_fkey(name)',
         { count: 'exact' }
       )
       .eq('store_id', member.store_id)
