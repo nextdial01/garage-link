@@ -1,0 +1,34 @@
+name: KANNAGI Production Guard
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  production-guard-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify Production guard behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          GUARD="apps/garage-link/scripts/verify-production-approval.mjs"
+          test -f "$GUARD"
+          grep -q 'verify-production-approval.mjs' apps/garage-link/vercel.json
+          VERCEL_ENV=preview node "$GUARD"
+          if VERCEL_ENV=production node "$GUARD"; then
+            echo "Production without exact approval unexpectedly passed" >&2
+            exit 1
+          fi
+          SHA_A=1111111111111111111111111111111111111111
+          SHA_B=2222222222222222222222222222222222222222
+          VERCEL_ENV=production KANNAGI_RELEASE_SHA="$SHA_A" VERCEL_GIT_COMMIT_SHA="$SHA_A" node "$GUARD"
+          if VERCEL_ENV=production KANNAGI_RELEASE_SHA="$SHA_A" VERCEL_GIT_COMMIT_SHA="$SHA_B" node "$GUARD"; then
+            echo "Mismatched Production SHA unexpectedly passed" >&2
+            exit 1
+          fi
