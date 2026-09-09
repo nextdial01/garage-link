@@ -25,7 +25,7 @@ export const metadata: Metadata = {
         noarchive: true,
         nosnippet: true,
       }
-    : undefined,
+    : { index: true, follow: true },
   icons: {
     icon: [
       {
@@ -42,6 +42,7 @@ export const metadata: Metadata = {
     title: BRAND.serviceName,
     description: BRAND.description,
     siteName: BRAND.serviceName,
+    locale: "ja_JP",
     type: "website",
     url: "/",
     images: [
