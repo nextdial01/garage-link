@@ -1,5 +1,11 @@
 import Link from 'next/link';
+import type { Metadata } from "next";
 import { LEGAL_SELLER } from '@/lib/legal/constants';
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/help" },
+  openGraph: { url: "/help" },
+};
 
 const faqItems = [
   {

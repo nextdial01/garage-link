@@ -85,6 +85,26 @@ function isPublicPath(pathname: string) {
   return false;
 }
 
+// Let App Router produce its normal 404 for paths this application does not
+// own. Middleware otherwise turns every typo into a successful /login page.
+function isKnownApplicationPath(pathname: string) {
+  if (isPublicPath(pathname) || pathname.startsWith('/api/')) return true;
+  return [
+    '/analytics', '/appointments', '/customers', '/dashboard', '/deals',
+    '/inquiries', '/inventory-counts', '/invoices', '/line', '/line-package',
+    '/maintenance', '/menu', '/onboarding', '/parts', '/quotes', '/settings',
+    '/supabase-test', '/vehicle-management', '/vehicles', '/security',
+  ].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function isProductionVercelRequest(request: NextRequest) {
+  return process.env.VERCEL_ENV === 'production' && request.nextUrl.hostname.endsWith('.vercel.app');
+}
+
+function redirectToCanonicalDomain(request: NextRequest) {
+  return NextResponse.redirect(new URL(request.nextUrl.pathname + request.nextUrl.search, 'https://garage-link.tech'), 308);
+}
+
 function isCancelledRetentionAllowedPath(pathname: string) {
   if (CANCELLED_RETENTION_ALLOWED.includes(pathname)) return true;
   if (pathname.startsWith('/legal/')) return true;
@@ -193,6 +213,13 @@ async function hasTrustedAdminDevice(request: NextRequest, userId: string, sessi
 }
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Vercel production deployment hosts are aliases only. Preview remains
+  // unaffected because it has VERCEL_ENV=preview.
+  if (isProductionVercelRequest(request)) return redirectToCanonicalDomain(request);
+  if (!isKnownApplicationPath(pathname)) return NextResponse.next({ request });
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -221,8 +248,6 @@ export async function middleware(request: NextRequest) {
     error: authError,
   } = await supabase.auth.getUser();
   const { data: claimData } = user ? await supabase.auth.getClaims() : { data: null };
-
-  const { pathname } = request.nextUrl;
 
   if (!user && isRecoverableStaleSessionError(authError)) {
     clearStaleSupabaseAuthCookies(response, request);

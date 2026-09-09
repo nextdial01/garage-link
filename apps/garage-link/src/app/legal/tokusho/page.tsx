@@ -1,10 +1,16 @@
 import { LegalPageShell, LegalSection } from '@/components/legal/LegalPageShell';
+import type { Metadata } from "next";
 import {
   LEGAL_LAST_UPDATED,
   LEGAL_PLANS,
   LEGAL_SELLER,
   LEGAL_TAX_NOTE,
 } from '@/lib/legal/constants';
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/legal/tokusho" },
+  openGraph: { url: "/legal/tokusho" },
+};
 
 function formatYen(value: number) {
   return `${value.toLocaleString('ja-JP')}円`;

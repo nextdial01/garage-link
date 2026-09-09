@@ -1,9 +1,15 @@
 import { LegalPageShell, LegalSection } from '@/components/legal/LegalPageShell';
+import type { Metadata } from "next";
 import {
   LEGAL_LAST_UPDATED,
   LEGAL_SELLER,
   LEGAL_SUBPROCESSORS,
 } from '@/lib/legal/constants';
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/legal/privacy" },
+  openGraph: { url: "/legal/privacy" },
+};
 
 export default function PrivacyPage() {
   return (

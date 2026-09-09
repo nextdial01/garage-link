@@ -1,10 +1,16 @@
 import { LegalPageShell, LegalSection } from '@/components/legal/LegalPageShell';
+import type { Metadata } from "next";
 import {
   LEGAL_LAST_UPDATED,
   LEGAL_PLANS,
   LEGAL_SELLER,
   LEGAL_TAX_NOTE,
 } from '@/lib/legal/constants';
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/legal/terms" },
+  openGraph: { url: "/legal/terms" },
+};
 
 export default function TermsPage() {
   return (
