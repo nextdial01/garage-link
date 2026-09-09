@@ -1,4 +1,5 @@
 {
+  "buildCommand": "node scripts/verify-production-approval.mjs && next build --webpack",
   "crons": [
     {
       "path": "/api/jobs/inspection-reminders",
