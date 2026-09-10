@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { getGarageMobileBearerContext } from '@/lib/mobile/bearerAuth';
 import { logAudit } from '@/lib/audit/logAudit';
+import { withMaintenanceIdentity } from '@/lib/mobile/maintenanceIdentity';
 
 const FIELDS = 'id, customer_id, vehicle_id, job_no, job_type, status, scheduled_in_at, scheduled_delivery_at, estimated_total_amount, assigned_user_name, updated_at';
 const UPDATABLE = new Set(['received', 'estimating', 'waiting', 'working', 'completed']);
@@ -11,7 +12,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ jobI
   const context = await getGarageMobileBearerContext(request); if (!context.ok) return context.response;
   const { jobId } = await params; const { data, error } = await context.service.from('maintenance_jobs').select(FIELDS).eq('id', jobId).eq('store_id', context.member.storeId).is('deleted_at', null).maybeSingle();
   if (error) return Response.json({ ok: false, code: 'maintenance_read_failed', error: '整備案件を取得できませんでした。' }, { status: 500 });
-  return data ? Response.json({ ok: true, job: data }) : Response.json({ ok: false, code: 'not_found', error: '整備案件が見つかりません。' }, { status: 404 });
+  if (!data) return Response.json({ ok: false, code: 'not_found', error: '整備案件が見つかりません。' }, { status: 404 });
+  try {
+    const [job] = await withMaintenanceIdentity(context.service, context.member.storeId, [data]);
+    return Response.json({ ok: true, job });
+  } catch {
+    return Response.json({ ok: false, code: 'maintenance_identity_read_failed', error: '整備案件を取得できませんでした。' }, { status: 500 });
+  }
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ jobId: string }> }) {
@@ -37,5 +44,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ jobI
   const { data: job, error: readError } = await context.service.from('maintenance_jobs').select(FIELDS).eq('id', jobId).eq('store_id', context.member.storeId).is('deleted_at', null).maybeSingle();
   if (readError || !job) return Response.json({ ok: false, code: 'maintenance_readback_failed', error: '更新後の整備案件を取得できませんでした。' }, { status: 500 });
   if (result.outcome === 'updated') await logAudit({ supabase: context.service, storeId: context.member.storeId, userId: context.user.id, userEmail: context.member.email, userRole: context.member.role, userDisplayName: context.member.displayName, action: 'update', targetType: 'maintenance_job', targetId: jobId, targetLabel: typeof job.job_no === 'string' ? job.job_no : jobId, metadata: { source: 'native_mobile', status, delivery_present: deliveryPresent, operation_key_hash_present: true }, ipAddress: context.ipAddress, userAgent: context.userAgent });
-  return Response.json({ ok: true, idempotent: result.outcome === 'replayed', job });
+  try {
+    const [identifiedJob] = await withMaintenanceIdentity(context.service, context.member.storeId, [job]);
+    return Response.json({ ok: true, idempotent: result.outcome === 'replayed', job: identifiedJob });
+  } catch {
+    return Response.json({ ok: false, code: 'maintenance_identity_read_failed', error: '整備案件を取得できませんでした。' }, { status: 500 });
+  }
 }

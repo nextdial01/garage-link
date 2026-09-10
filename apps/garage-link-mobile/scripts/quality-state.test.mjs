@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createRequestCoordinator, userFacingError, parentTab, quoteVehicleId, buttonLayout, mergePage } from '../src/qualityState.ts';
+import { createRequestCoordinator, userFacingError, parentTab, quoteValidationError, quoteVehicleId, buttonLayout, mergePage } from '../src/qualityState.ts';
 const gate=createRequestCoordinator();
 const first=gate.begin('navigation'); const second=gate.begin('navigation');
 assert.equal(gate.current(first),false,'late navigation response cannot win');
@@ -16,6 +16,9 @@ assert.equal(parentTab('vehicleDetail'),'vehicles');assert.equal(parentTab('quot
 assert.equal(quoteVehicleId('',[{id:'one'}]),undefined,'never silently selects first vehicle');
 assert.equal(quoteVehicleId('two',[{id:'one'},{id:'two'}]),'two');
 assert.throws(()=>quoteVehicleId('other',[{id:'one'}]));
+assert.deepEqual(quoteValidationError('', '50000'), { field: 'itemName', message: '販売明細名を入力してください。' });
+assert.deepEqual(quoteValidationError('整備一式', '0'), { field: 'itemPrice', message: '販売価格を1円以上の整数で入力してください。' });
+assert.equal(quoteValidationError('整備一式', '50000'), null);
 assert.equal(buttonLayout.flexGrow,0); assert.equal(buttonLayout.flexShrink,0);assert.ok(buttonLayout.minHeight>=48);
 // A stale mutation completion must not unlock the current scope's mutation.
 const old=gate.begin('mutation');gate.invalidate();const fresh=gate.beginMutation();gate.finishMutation(old);assert.equal(gate.beginMutation(),null);gate.finishMutation(fresh);
