@@ -10,7 +10,7 @@ const { renderToStaticMarkup } = require('react-dom/server');
 const RN = require('react-native-web');
 const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
-const states = [...source.matchAll(/const \[(\w+),\s*\w+\] = useState/g)].map((match) => match[1]);
+const states = [...source.matchAll(/const \[(\w+)(?:,\s*\w+)?\] = useState/g)].map((match) => match[1]);
 const glyphs = require('@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Ionicons.json');
 const font = fs.readFileSync(require.resolve('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf')).toString('base64');
 let seed = {}, index = 0, collecting = false, width = 390;
