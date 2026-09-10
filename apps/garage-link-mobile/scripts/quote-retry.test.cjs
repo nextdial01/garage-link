@@ -5,6 +5,7 @@ const path = require('node:path');
 const Module = require('node:module');
 const ts = require('typescript');
 const React = require('react');
+global.requestAnimationFrame = (callback) => { callback(0); return 0; };
 const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 const names = [...source.matchAll(/const \[(\w+)(?:,\s*\w+)?\] = useState/g)].map(m => m[1]);
@@ -40,7 +41,7 @@ const settle = () => new Promise(resolve => setImmediate(resolve));
   refs.find(ref=>ref.current===null).current=()=>{state.page='customerDetail';}; // previous customer read must not be retried
   screen.props.onRetry(); await settle();
   assert.equal(state.page,'quoteCreate'); assert.equal(calls.length,0);
-  assert.match(state.error,/明細名/); assert.equal(state.quoteTitle,'保持する下書き');
+  assert.equal(state.error,null); assert.equal(state.quoteValidation.field,'itemName'); assert.match(state.quoteValidation.message,/販売明細名/); assert.equal(state.quoteTitle,'保持する下書き');
   state.itemName='合成整備'; state.itemPrice='50000';
   outcome=()=>Promise.reject(new Error('Network request failed'));
   screen=render(); screen.props.onRetry(); await settle();

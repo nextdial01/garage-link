@@ -8,6 +8,7 @@ for(const page of pages)for(const width of [320,390,820])for(const state of ['',
  if(state==='&error=1')assert.ok(html.includes('通信に時間がかかっています。'));
  if(page==='vehicleDetail') { assert.ok(html.includes('DEMO-001'),'read error keeps detail content'); assert.ok(html.includes('aria-selected="true"'),'detail preserves parent tab'); }
  if(page==='quoteCreate') { assert.ok(html.includes('車両を指定しない'));assert.ok(html.includes('aria-checked="true"')); }
+ if(!state.includes('empty') && (page==='today'||page==='maintenance'||page==='maintenanceDetail')) { assert.ok(html.includes('DEMO-001 / デモ自動車 / サンプルワゴン'),'maintenance work is identifiable by vehicle'); assert.ok(html.includes('デモ顧客 株式会社'),'maintenance work carries its customer context'); }
  if(page==='quotePreview') { assert.ok(html.includes('小計'));assert.ok(html.includes('消費税')); }
  count++;
 }

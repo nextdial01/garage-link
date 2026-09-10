@@ -46,6 +46,16 @@ export function quoteVehicleId(selected: string, vehicles: { id: string }[]): st
   return selected;
 }
 
+export type QuoteValidationError = { field: 'itemName' | 'itemPrice'; message: string };
+
+/** Keep validation next to the invalid field; transport errors use the global retry state. */
+export function quoteValidationError(itemName: string, itemPrice: string): QuoteValidationError | null {
+  if (!itemName.trim()) return { field: 'itemName', message: '販売明細名を入力してください。' };
+  const unitPrice = Number(itemPrice);
+  if (!Number.isSafeInteger(unitPrice) || unitPrice <= 0) return { field: 'itemPrice', message: '販売価格を1円以上の整数で入力してください。' };
+  return null;
+}
+
 export const buttonLayout = { flexGrow: 0, flexShrink: 0, minHeight: 48, paddingVertical: 12 } as const;
 
 /** Overlapping pages cannot duplicate a row after an intervening update. */
