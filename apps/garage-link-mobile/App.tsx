@@ -17,7 +17,9 @@ const yen = (value: number | null | undefined) => typeof value === 'number' ? va
 const date = (value: string | null | undefined) => value ? new Date(value).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
 const escapeHtml = (value: string | null | undefined) => (value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character] ?? character);
 const roleLabel = (role: string | null | undefined) => ({ owner: 'オーナー', admin: '管理者', implementer: '担当者', staff: 'スタッフ', viewer: '閲覧のみ' })[role ?? ''] ?? 'スタッフ';
-const statusLabel = (status: string | null | undefined) => ({ received: '受付', working: '作業中', completed: '完了', available: '在庫中', maintenance: '整備中', draft: '下書き', sent: '提示済み', accepted: '承認済み', rejected: '見送り', expired: '期限切れ', cancelled: '取消', scheduled: '予定', pending: '確認待ち', in_progress: '進行中' })[status ?? ''] ?? status ?? '-';
+const statusLabel = (status: string | null | undefined) => ({ received: '受付', estimating: '見積中', waiting: '入庫待ち', delivered: '納車済み', in_stock: '在庫中', working: '作業中', completed: '完了', available: '在庫中', maintenance: '整備中', draft: '下書き', sent: '提示済み', accepted: '承認済み', rejected: '見送り', expired: '期限切れ', cancelled: '取消', scheduled: '予定', pending: '確認待ち', in_progress: '進行中' })[status ?? ''] ?? status ?? '-';
+
+const jobTypeLabel = (value: string | null | undefined) => ({ inspection: '車検・点検' })[value ?? ''] ?? value ?? '-';
 
 const displayError = userFacingError;
 const BusyContext = createContext(false);
@@ -54,7 +56,7 @@ export function GarageMobileApp() {
   const [quoteOffset, setQuoteOffset] = useState<number | null>(null);
   const [vehicleQuery, setVehicleQuery] = useState('');
   const [customerQuery, setCustomerQuery] = useState('');
-  const requests = useRef(createRequestCoordinator()).current;
+  const [requests] = useState(createRequestCoordinator);
   const live = useRef(true);
   const pending = useRef(new Set<ReturnType<typeof requests.begin>>());
   const [mutating, setMutating] = useState(false);
@@ -70,39 +72,6 @@ export function GarageMobileApp() {
   const [idempotencyKey, setIdempotencyKey] = useState(operationKey());
   const [maintenanceIdempotencyKey, setMaintenanceIdempotencyKey] = useState(operationKey());
 
-  const resetForAuth = useEffectEvent(() => resetLocalState());
-  const bootstrapAccount = useEffectEvent(() => { resetLocalState(); void loadStores(); });
-  useEffect(() => {
-    let mounted = true; live.current = true;
-    void supabase.auth.getSession()
-      .then(({ data }) => { if (mounted) setSession(data.session); }).catch(() => { if (mounted) setError('ログイン状態を確認できません。再度ログインしてください。'); })
-      .finally(() => { if (mounted) setAuthResolved(true); });
-    const { data } = supabase.auth.onAuthStateChange((event, next) => {
-      if (!mounted) return;
-      // Only an explicit server-side sign-out may clear the persisted local
-      // session. A temporary refresh or network failure must keep the user in
-      // the app and allow the next foreground refresh or retry to recover.
-      if (event === 'SIGNED_OUT') resetForAuth();
-      setSession((current) => sessionAfterAuthEvent(current, event, next));
-      setAuthResolved(true);
-    });
-    const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
-      if (shouldRefreshForAppState(nextAppState)) {
-        supabase.auth.startAutoRefresh();
-        // getSession reads the persisted session and performs a silent refresh
-        // when necessary. It intentionally does not clear the current session
-        // when a transient refresh attempt cannot reach the network.
-        void supabase.auth.getSession().then(({ data: next }) => {
-          if (mounted && next.session) setSession(next.session);
-        }).catch(() => undefined);
-      } else {
-        supabase.auth.stopAutoRefresh();
-      }
-    });
-    if (shouldRefreshForAppState(AppState.currentState)) supabase.auth.startAutoRefresh();
-    return () => { mounted = false; live.current = false; requests.invalidate(); appStateSubscription.remove(); supabase.auth.stopAutoRefresh(); data.subscription.unsubscribe(); };
-  }, [requests]);
-  useEffect(() => { if (session?.user.id) bootstrapAccount(); }, [session?.user.id]);
 
   async function run<T>(task: (isCurrent: () => boolean) => Promise<T>, mutation = false) {
     if (!mutation && requests.mutationPending()) return undefined;
@@ -259,7 +228,7 @@ export function GarageMobileApp() {
       if (next) { setQuotes((current) => mergePage(current, next.quotes)); setQuoteOffset(next.nextOffset ?? null); }
     }
   }
-  function startQuote() { setQuoteVehicle(''); setQuoteTitle(''); setItemName(''); setItemPrice(''); setIdempotencyKey(operationKey()); setPage('quoteCreate'); }
+  function startQuote() { setError(null); retry.current = null; setQuoteVehicle(''); setQuoteTitle(''); setItemName(''); setItemPrice(''); setIdempotencyKey(operationKey()); setPage('quoteCreate'); }
   async function saveQuote() {
     if (!store || !customer) { setError('見積を作成する顧客を選択してください。'); return; }
     const unitPrice = Number(itemPrice);
@@ -274,6 +243,43 @@ export function GarageMobileApp() {
     const loaded = await run(() => mobileApi.quoteDetail(store.id, next.id));
     if (loaded) { setQuote(loaded); setPage('quotePreview'); }
   }
+  const resetForAuth = useEffectEvent(() => resetLocalState());
+  const bootstrapAccount = useEffectEvent(() => { resetLocalState(); void loadStores(); });
+  useEffect(() => {
+    let mounted = true; live.current = true;
+    void supabase.auth.getSession()
+      .then(({ data }) => { if (mounted) setSession(data.session); }).catch(() => { if (mounted) setError('ログイン状態を確認できません。再度ログインしてください。'); })
+      .finally(() => { if (mounted) setAuthResolved(true); });
+    const { data } = supabase.auth.onAuthStateChange((event, next) => {
+      if (!mounted) return;
+      // Only an explicit server-side sign-out may clear the persisted local
+      // session. A temporary refresh or network failure must keep the user in
+      // the app and allow the next foreground refresh or retry to recover.
+      if (event === 'SIGNED_OUT') resetForAuth();
+      setSession((current) => sessionAfterAuthEvent(current, event, next));
+      setAuthResolved(true);
+    });
+    const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+      if (shouldRefreshForAppState(nextAppState)) {
+        supabase.auth.startAutoRefresh();
+        // getSession reads the persisted session and performs a silent refresh
+        // when necessary. It intentionally does not clear the current session
+        // when a transient refresh attempt cannot reach the network.
+        void supabase.auth.getSession().then(({ data: next }) => {
+          if (mounted && next.session) setSession(next.session);
+        }).catch(() => undefined);
+      } else {
+        supabase.auth.stopAutoRefresh();
+      }
+    });
+    if (shouldRefreshForAppState(AppState.currentState)) supabase.auth.startAutoRefresh();
+    return () => { mounted = false; live.current = false; requests.invalidate(); appStateSubscription.remove(); supabase.auth.stopAutoRefresh(); data.subscription.unsubscribe(); };
+  }, [requests]);
+  // Synchronize an external auth identity: clear previous-account data before fetching the new scope.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { if (session?.user.id) bootstrapAccount(); }, [session?.user.id]);
+
+
   const quoteHtml = useMemo(() => {
     if (!quote) return '';
     const items = quote.items.map((item) => '<p>' + escapeHtml(item.name) + '　' + item.quantity + ' × ' + yen(item.unitPrice) + '　= ' + yen(item.amount) + '</p>').join('');
@@ -310,11 +316,11 @@ export function GarageMobileApp() {
   if (page === 'today') return <Screen {...screenProps} title="今日" onStore={openStorePicker} onLogout={() => void logout()} nav={nav} error={error}><TodayScreen today={today} onJob={(id) => void openJob({ id })} onMaintenance={() => void openMaintenance()} tablet={tablet} /></Screen>;
   if (page === 'vehicleDetail' && vehicle && store) return <Screen {...screenProps} title="車両詳細" onBack={() => void openVehicles()} nav={nav} error={error}><ScrollView contentContainerStyle={tablet ? styles.tabletDetail : styles.detail}><DetailHero title={[vehicle.vehicle.maker, vehicle.vehicle.modelName].filter(Boolean).join(' ') || '車両'} status={vehicle.vehicle.status} /><InfoRow label="管理番号" value={vehicle.vehicle.managementNo || '-'} /><InfoRow label="登録番号" value={vehicle.vehicle.registrationNo || '-'} /><InfoRow label="走行距離" value={vehicle.vehicle.mileageKm == null ? '-' : vehicle.vehicle.mileageKm.toLocaleString('ja-JP') + ' km'} /><InfoRow label="保管場所" value={vehicle.vehicle.locationName || '-'} /><SectionLabel label="状態を更新" /><View style={styles.actions}><ActionButton disabled={store.role === 'viewer'} title="在庫中" onPress={() => void changeVehicleStatus('在庫中')} variant="secondary" /><ActionButton disabled={store.role === 'viewer'} title="整備中" onPress={() => void changeVehicleStatus('整備中')} variant="secondary" /></View><SectionLabel label="写真" /><View style={styles.actions}><ActionButton disabled={store.role === 'viewer'} title="カメラで追加" onPress={() => void addPhoto(true)} /><ActionButton disabled={store.role === 'viewer'} title="写真から追加" onPress={() => void addPhoto(false)} variant="secondary" /></View>{vehicle.imageFiles.map((item) => <SignedImage key={item.id} storeId={store.id} fileId={item.id} />)}{!vehicle.imageFiles.length && <EmptyState title="画像はまだありません" description="カメラまたは写真ライブラリから追加できます。" compact />}</ScrollView></Screen>;
   if (page === 'vehicles') return <Screen {...screenProps} title="車両" onStore={openStorePicker} nav={nav} error={error}><Search placeholder="車名・管理番号で検索" value={vehicleSearch} onChange={setVehicleSearch} onClear={() => { setVehicleSearch(''); void openVehicles(''); }} onSearch={() => void openVehicles()} /><ListState loading={loading && vehicles.length === 0} error={null} onRetry={() => void openVehicles()}><FlatList ListFooterComponent={<PageFooter count={vehicles.length} more={vehicleOffset !== null} loading={loading} onMore={() => void loadMore('vehicles')} />} data={vehicles} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} refreshing={loading} onRefresh={() => void openVehicles()} renderItem={({ item }) => <EntityRow title={[item.maker, item.modelName].filter(Boolean).join(' ') || item.managementNo || '名称未設定'} subtitle={[item.managementNo || '管理番号未設定', item.registrationNo, item.mileageKm == null ? null : item.mileageKm.toLocaleString('ja-JP') + ' km'].filter(Boolean).join(' · ')} right={<StatusChip value={item.status} />} onPress={() => void openVehicle(item)} />} ListEmptyComponent={<EmptyState title={vehicleSearch.trim() ? "条件に一致する車両はありません" : "車両がありません"} description={vehicleSearch.trim() ? "車名・管理番号を確認するか、検索条件を解除してください。" : "Web版で車両を登録すると、この店舗の車両がここに表示されます。"} />} /></ListState></Screen>;
-  if (page === 'maintenanceDetail' && job) return <Screen {...screenProps} title="整備詳細" onBack={() => void openMaintenance()} nav={nav} error={error}><ScrollView contentContainerStyle={styles.detail}><DetailHero title={job.job_no || '整備案件'} status={job.status} /><InfoRow label="種別" value={job.job_type || '-'} /><InfoRow label="納車予定" value={date(job.scheduled_delivery_at)} /><InfoRow label="担当" value={job.assigned_user_name || '-'} /><SectionLabel label="状態を更新" /><View style={styles.statusActions}><ActionButton disabled={store?.role === 'viewer'} title="受付" onPress={() => void updateJob('received')} variant="secondary" /><ActionButton disabled={store?.role === 'viewer'} title="作業中" onPress={() => void updateJob('working')} variant="secondary" /><ActionButton disabled={store?.role === 'viewer'} title="完了" onPress={() => void updateJob('completed')} /></View></ScrollView></Screen>;
-  if (page === 'maintenance') return <Screen {...screenProps} title="整備・車検" onStore={openStorePicker} nav={nav} error={error}><ListState loading={loading && jobs.length === 0} error={null} onRetry={() => void openMaintenance()}><FlatList ListFooterComponent={<PageFooter count={jobs.length} more={maintenanceOffset !== null} loading={loading} onMore={() => void loadMore('maintenance')} />} data={jobs} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} refreshing={loading} onRefresh={() => void openMaintenance()} renderItem={({ item }) => <EntityRow title={item.job_no || '整備案件'} subtitle={(item.job_type || '種別未設定') + ' · 納車予定 ' + date(item.scheduled_delivery_at)} right={<StatusChip value={item.status} />} onPress={() => void openJob(item)} />} ListEmptyComponent={<EmptyState title="整備案件がありません" description="今日の作業予定はここに表示されます。" />} /></ListState></Screen>;
+  if (page === 'maintenanceDetail' && job) return <Screen {...screenProps} title="整備詳細" onBack={() => void openMaintenance()} nav={nav} error={error}><ScrollView contentContainerStyle={styles.detail}><DetailHero title={job.job_no || '整備案件'} status={job.status} /><InfoRow label="種別" value={jobTypeLabel(job.job_type)} /><InfoRow label="納車予定" value={date(job.scheduled_delivery_at)} /><InfoRow label="担当" value={job.assigned_user_name || '-'} /><SectionLabel label="状態を更新" /><View style={styles.statusActions}><ActionButton disabled={store?.role === 'viewer'} title="受付" onPress={() => void updateJob('received')} variant="secondary" /><ActionButton disabled={store?.role === 'viewer'} title="作業中" onPress={() => void updateJob('working')} variant="secondary" /><ActionButton disabled={store?.role === 'viewer'} title="完了" onPress={() => void updateJob('completed')} /></View></ScrollView></Screen>;
+  if (page === 'maintenance') return <Screen {...screenProps} title="整備・車検" onStore={openStorePicker} nav={nav} error={error}><ListState loading={loading && jobs.length === 0} error={null} onRetry={() => void openMaintenance()}><FlatList ListFooterComponent={<PageFooter count={jobs.length} more={maintenanceOffset !== null} loading={loading} onMore={() => void loadMore('maintenance')} />} data={jobs} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} refreshing={loading} onRefresh={() => void openMaintenance()} renderItem={({ item }) => <EntityRow title={item.job_no || '整備案件'} subtitle={(jobTypeLabel(item.job_type) || '種別未設定') + ' · 納車予定 ' + date(item.scheduled_delivery_at)} right={<StatusChip value={item.status} />} onPress={() => void openJob(item)} />} ListEmptyComponent={<EmptyState title="整備案件がありません" description="今日の作業予定はここに表示されます。" />} /></ListState></Screen>;
   if (page === 'customerDetail' && customer) return <Screen {...screenProps} title="顧客詳細" onBack={() => void openCustomers()} nav={nav} error={error}><ScrollView contentContainerStyle={tablet ? styles.tabletDetail : styles.detail}><DetailHero title={customer.customer.name || '顧客'} /><InfoRow label="電話番号" value={customer.customer.phone || customer.customer.mobile_phone || '-'} /><InfoRow label="メール" value={customer.customer.email || '-'} /><InfoRow label="住所" value={customer.customer.address || '-'} /><SectionLabel label="紐づく車両" />{customer.vehicles.length ? customer.vehicles.map((item) => <EntityRow key={item.id} title={[item.maker, item.modelName].filter(Boolean).join(' ') || '車両'} subtitle={item.managementNo || '管理番号未設定'} onPress={() => void openVehicle(item)} />) : <Text style={styles.muted}>登録車両はありません。</Text>}<SectionLabel label="整備案件" />{customer.maintenance.length ? customer.maintenance.map((item) => <EntityRow key={item.id} title={item.job_no || '整備案件'} subtitle={statusLabel(item.status)} onPress={() => void openJob(item)} />) : <Text style={styles.muted}>整備案件はありません。</Text>}<View style={styles.primaryAction}><ActionButton disabled={store?.role === 'viewer'} title="この顧客の見積を作成" onPress={startQuote} /></View></ScrollView></Screen>;
   if (page === 'customers') return <Screen {...screenProps} title="顧客" onStore={openStorePicker} nav={nav} error={error}><Search placeholder="顧客名・電話番号で検索" value={customerSearch} onChange={setCustomerSearch} onClear={() => { setCustomerSearch(''); void openCustomers(''); }} onSearch={() => void openCustomers()} /><ListState loading={loading && customers.length === 0} error={null} onRetry={() => void openCustomers()}><FlatList ListFooterComponent={<PageFooter count={customers.length} more={customerOffset !== null} loading={loading} onMore={() => void loadMore('customers')} />} data={customers} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} refreshing={loading} onRefresh={() => void openCustomers()} renderItem={({ item }) => <EntityRow title={item.name || '名称未設定'} subtitle={item.phone || item.mobile_phone || '電話番号未設定'} onPress={() => void openCustomer(item)} />} ListEmptyComponent={<EmptyState title={customerSearch.trim() ? "条件に一致する顧客はありません" : "顧客がありません"} description={customerSearch.trim() ? "顧客名・電話番号を確認するか、検索条件を解除してください。" : "Web版で顧客を登録すると、この店舗の顧客がここに表示されます。"} />} /></ListState></Screen>;
-  if (page === 'quoteCreate') return <Screen {...screenProps} title="見積を作成" onBack={() => setPage('customerDetail')} nav={nav} error={error}><ScrollView style={styles.flex} contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"><View style={styles.customerSummary}><Text style={styles.summaryLabel}>宛先</Text><Text style={styles.summaryValue}>{customer?.customer.name || '-'}</Text></View><SectionLabel label="対象車両" /><Text style={styles.muted}>この見積に関連付ける車両を選んでください。</Text><VehicleChoice selected={!quoteVehicle} title="車両を指定しない" onPress={() => setQuoteVehicle('')} />{customer?.vehicles.map((item) => <VehicleChoice key={item.id} selected={quoteVehicle === item.id} title={[item.managementNo, item.maker, item.modelName].filter(Boolean).join(' / ') || '車両'} onPress={() => setQuoteVehicle(item.id)} />) }<FieldLabel label="見積タイトル（任意）" /><TextInput style={styles.input} accessibilityLabel="見積タイトル" editable={!mutating} placeholder="例：車検整備のお見積" placeholderTextColor={colors.muted} value={quoteTitle} onChangeText={setQuoteTitle} /><FieldLabel label="販売明細名" /><TextInput style={styles.input} accessibilityLabel="販売明細名" editable={!mutating} placeholder="例：車検整備一式" placeholderTextColor={colors.muted} value={itemName} onChangeText={setItemName} /><FieldLabel label="販売価格（税抜・円）" /><TextInput style={styles.input} accessibilityLabel="販売価格（税抜・円）" editable={!mutating} placeholder="例：50000" placeholderTextColor={colors.muted} keyboardType="numeric" value={itemPrice} onChangeText={setItemPrice} /><ActionButton title="保存してプレビュー" onPress={() => void saveQuote()} /></ScrollView></Screen>;
+  if (page === 'quoteCreate') return <Screen {...screenProps} title="見積を作成" onRetry={() => void saveQuote()} onBack={() => setPage('customerDetail')} nav={nav} error={error}><ScrollView style={styles.flex} contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"><View style={styles.customerSummary}><Text style={styles.summaryLabel}>宛先</Text><Text style={styles.summaryValue}>{customer?.customer.name || '-'}</Text></View><SectionLabel label="対象車両" /><Text style={styles.muted}>この見積に関連付ける車両を選んでください。</Text><VehicleChoice selected={!quoteVehicle} title="車両を指定しない" onPress={() => setQuoteVehicle('')} />{customer?.vehicles.map((item) => <VehicleChoice key={item.id} selected={quoteVehicle === item.id} title={[item.managementNo, item.maker, item.modelName].filter(Boolean).join(' / ') || '車両'} onPress={() => setQuoteVehicle(item.id)} />) }<FieldLabel label="見積タイトル（任意）" /><TextInput style={styles.input} accessibilityLabel="見積タイトル" editable={!mutating} placeholder="例：車検整備のお見積" placeholderTextColor={colors.muted} value={quoteTitle} onChangeText={setQuoteTitle} /><FieldLabel label="販売明細名" /><TextInput style={styles.input} accessibilityLabel="販売明細名" editable={!mutating} placeholder="例：車検整備一式" placeholderTextColor={colors.muted} value={itemName} onChangeText={setItemName} /><FieldLabel label="販売価格（税抜・円）" /><TextInput style={styles.input} accessibilityLabel="販売価格（税抜・円）" editable={!mutating} placeholder="例：50000" placeholderTextColor={colors.muted} keyboardType="numeric" value={itemPrice} onChangeText={setItemPrice} /><ActionButton title="保存してプレビュー" onPress={() => void saveQuote()} /></ScrollView></Screen>;
   if (page === 'quotePreview' && quote) return <Screen {...screenProps} title="お客様向けプレビュー" onBack={() => void openQuotes()} nav={nav} error={error}><ScrollView contentContainerStyle={tablet ? styles.tabletPreview : styles.preview}><Text style={styles.previewEyebrow}>ESTIMATE</Text><Text style={styles.previewTitle}>御見積書</Text><InfoRow label="見積番号" value={quote.quoteNo || '-'} /><InfoRow label="宛先" value={(quote.customerName || '-') + ' ' + (quote.customerHonorific || '様')} /><InfoRow label="車両" value={quote.vehicleLabel || '-'} /><View style={styles.quoteDivider} />{quote.items.map((item) => <View key={item.id || item.name} style={styles.quoteItem}><View style={styles.quoteItemName}><Text style={styles.inlineText}>{item.name}</Text><Text style={styles.muted}>{item.quantity} × {yen(item.unitPrice)}</Text></View><Text style={styles.quoteAmount}>{yen(item.amount)}</Text></View>)}<InfoRow label="小計" value={yen(quote.subtotalAmount)} /><InfoRow label="消費税" value={yen(quote.taxAmount)} /><Text style={styles.total}>合計 {yen(quote.totalAmount)}</Text><InfoRow label="発行日" value={quote.issueDate || '-'} />{quote.expiryDate && <InfoRow label="有効期限" value={quote.expiryDate} />}<View style={styles.stackActions}><ActionButton title="PDFを保存・共有" onPress={() => void exportPdf()} /><ActionButton title="印刷" onPress={() => void printQuote()} variant="ghost" /></View></ScrollView></Screen>;
   return <Screen {...screenProps} title="見積" onStore={openStorePicker} nav={nav} error={error}><ListState loading={loading && quotes.length === 0} error={null} onRetry={() => void openQuotes()}><FlatList ListFooterComponent={<PageFooter count={quotes.length} more={quoteOffset !== null} loading={loading} onMore={() => void loadMore('quotes')} />} data={quotes} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} refreshing={loading} onRefresh={() => void openQuotes()} renderItem={({ item }) => <EntityRow title={item.quoteNo || '見積'} subtitle={item.customerName || '宛先未設定'} right={<Text style={styles.amount}>{yen(item.totalAmount)}</Text>} onPress={() => void openQuote(item)} />} ListEmptyComponent={<EmptyState title="見積がありません" description="顧客詳細画面から新しい見積を作成できます。" />} /></ListState></Screen>;
 }
