@@ -1,4 +1,5 @@
 import 'server-only';
+import { getGarageMobileBearerContext } from '@/lib/mobile/bearerAuth';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import {
@@ -49,6 +50,24 @@ export function userAgent(request: Request) {
 }
 
 export async function getStorageAuthContext(request: Request) {
+  // Only dedicated native resources use Bearer. Existing Web paths remain cookie-authenticated.
+  const pathname = new URL(request.url).pathname;
+  if (pathname === '/api/mobile/storage/upload' || pathname === '/api/mobile/storage/signed-url') {
+    const mobile = await getGarageMobileBearerContext(request);
+    if (!mobile.ok) return mobile;
+    const service = serviceSupabase();
+    if (!service) return { ok: false as const, response: Response.json({ ok: false, code: 'storage_config_missing', error: 'ストレージ設定を確認できません。' }, { status: 500 }) };
+    return {
+      ok: true as const,
+      supabase: mobile.service,
+      service,
+      tenantContext: mobile.tenantContext,
+      user: mobile.user,
+      member: mobile.member,
+      ipAddress: mobile.ipAddress,
+      userAgent: mobile.userAgent,
+    };
+  }
   const supabase = await createClient();
   const { data: userData, error: userError } = await supabase.auth.getUser();
 

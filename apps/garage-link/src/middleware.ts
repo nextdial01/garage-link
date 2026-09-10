@@ -46,6 +46,8 @@ const CANCELLED_RETENTION_ALLOWED = [
 ];
 
 function isPublicPath(pathname: string) {
+  // Native mobile handlers validate the bearer and store/tenant scope themselves.
+  if (pathname.startsWith('/api/mobile/')) return true;
   if (PUBLIC_PATHS.includes(pathname)) return true;
   // Vercel Preview Toolbar injects this revisioned asset into preview pages.
   // Keep the bypass preview-only and exact so arbitrary application routes

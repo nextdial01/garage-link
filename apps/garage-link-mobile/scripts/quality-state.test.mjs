@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { createRequestCoordinator, userFacingError, parentTab, quoteVehicleId, buttonLayout, mergePage } from '../src/qualityState.ts';
+const gate=createRequestCoordinator();
+const first=gate.begin('navigation'); const second=gate.begin('navigation');
+assert.equal(gate.current(first),false,'late navigation response cannot win');
+assert.equal(gate.current(second),true);
+const mutation=gate.beginMutation(); assert.ok(mutation);
+assert.equal(gate.beginMutation(),null,'duplicate mutation rejected before React render');
+gate.finishMutation(mutation);assert.ok(gate.beginMutation());
+gate.invalidate();assert.equal(gate.current(second),false,'store/logout invalidates old response');
+assert.ok(gate.beginMutation(),'new scope can mutate');
+assert.match(userFacingError({status:401,code:'unauthorized'}),/ログイン/);
+assert.match(userFacingError({status:403,code:'forbidden_store'}),/店舗/);
+assert.match(userFacingError({status:0,code:'timeout'}),/時間/);
+assert.equal(parentTab('vehicleDetail'),'vehicles');assert.equal(parentTab('quoteCreate'),'quotes');
+assert.equal(quoteVehicleId('',[{id:'one'}]),undefined,'never silently selects first vehicle');
+assert.equal(quoteVehicleId('two',[{id:'one'},{id:'two'}]),'two');
+assert.throws(()=>quoteVehicleId('other',[{id:'one'}]));
+assert.equal(buttonLayout.flexGrow,0); assert.equal(buttonLayout.flexShrink,0);assert.ok(buttonLayout.minHeight>=48);
+// A stale mutation completion must not unlock the current scope's mutation.
+const old=gate.begin('mutation');gate.invalidate();const fresh=gate.beginMutation();gate.finishMutation(old);assert.equal(gate.beginMutation(),null);gate.finishMutation(fresh);
+assert.deepEqual(mergePage([{id:'one',name:'old'}],[{id:'one',name:'new'},{id:'two',name:'next'}]),[{id:'one',name:'new'},{id:'two',name:'next'}], 'overlapping page updates without duplicate rows');
+const beforeStoreSwitch=gate.begin('navigation'); gate.invalidate(); assert.equal(gate.current(beforeStoreSwitch),false,'more response cannot cross store switch');
+console.log('GARAGE_QUALITY_STATE=PASS');
