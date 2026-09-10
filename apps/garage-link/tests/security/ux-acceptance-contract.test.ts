@@ -20,6 +20,7 @@ test.describe('UX acceptance regression contracts', () => {
     expect(sharedContract).toContain("runtime.nodeEnv === 'production'");
     expect(serverContext).toContain("'ux_acceptance_admin_bootstrap_context'");
     expect(serverContext).toContain("'admin_email_otp_bootstrap_context'");
+    expect(serverContext).toContain('extractAdminEmailOtpBearer');
     expect(serverContext).toContain('const releaseQaRequest = options.requireReleaseQa && isStagingReleaseQaRequest(request);');
     expect(serverContext).toContain('bearer ? supabase.auth.getUser(bearer) : supabase.auth.getUser()');
     expect(serverContext).toContain('bearer ? supabase.auth.getClaims(bearer) : supabase.auth.getClaims()');

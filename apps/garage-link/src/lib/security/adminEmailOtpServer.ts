@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { type NextRequest } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { extractAdminEmailOtpBearer } from '@/lib/security/adminEmailOtpTransport';
 import { hasValidStagingReleaseQaRunBinding, isControlledStagingReleaseQaRuntime } from '@/lib/security/stagingReleaseQaHost';
 
 export function isStagingReleaseQaRequest(request: NextRequest) {
@@ -17,16 +18,21 @@ export function isStagingReleaseQaRequest(request: NextRequest) {
 
 export async function getAuthenticatedAdminContext(
   request: NextRequest,
-  options: { requireReleaseQa?: boolean } = {},
+  options: { allowBearer?: boolean; requireReleaseQa?: boolean } = {},
 ) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
   const service = createAdminClient();
   if (!url || !anonKey || !service) return null;
   const releaseQaRequest = options.requireReleaseQa && isStagingReleaseQaRequest(request);
-  const bearer = releaseQaRequest
-    ? request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]
-    : undefined;
+  // Native clients do not have Supabase's browser cookie jar. These two OTP
+  // endpoints may therefore opt into Bearer transport, while every request is
+  // still independently authenticated and restricted to its own verified
+  // owner/admin/implementer bootstrap context below.
+  const bearer = extractAdminEmailOtpBearer(
+    request.headers.get('authorization'),
+    Boolean(options.allowBearer || releaseQaRequest),
+  );
   const supabase = bearer
     ? createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } })
     : createServerClient(url, anonKey, { cookies: { getAll: () => request.cookies.getAll(), setAll: () => undefined } });
