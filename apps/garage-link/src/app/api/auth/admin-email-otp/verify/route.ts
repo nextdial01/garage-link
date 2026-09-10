@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   if (sink.requested && !sink.authorized) {
     return NextResponse.json({ error: 'Not Found' }, { status: 404 });
   }
-  const context = await getAuthenticatedAdminContext(request, { requireReleaseQa: sink.authorized });
+  const context = await getAuthenticatedAdminContext(request, { allowBearer: true, requireReleaseQa: sink.authorized });
   const secret = getAdminEmailOtpSecret();
   const body = await request.json().catch(() => null) as { code?: unknown } | null;
   const code = typeof body?.code === 'string' ? body.code.replace(/\D/g, '') : '';

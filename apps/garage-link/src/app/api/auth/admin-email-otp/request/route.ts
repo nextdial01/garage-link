@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   if (sink.requested && !sink.authorized) {
     return NextResponse.json({ error: 'Not Found' }, { status: 404 });
   }
-  const context = await getAuthenticatedAdminContext(request, { requireReleaseQa: sink.authorized });
+  const context = await getAuthenticatedAdminContext(request, { allowBearer: true, requireReleaseQa: sink.authorized });
   const secret = getAdminEmailOtpSecret();
   if (!context || !secret) return NextResponse.json({ error: '管理者メール認証を利用できません。' }, { status: 403 });
   const code = randomOtpCode();
