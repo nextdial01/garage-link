@@ -17,7 +17,7 @@ test.describe('staging indexing protection contract', () => {
     expect(source).toContain('follow: false');
     expect(source).toContain('noarchive: true');
     expect(source).toContain('nosnippet: true');
-    expect(source).toContain(': undefined');
+    expect(source).toContain(': { index: true, follow: true }');
   });
 
   test('serves a full crawl deny with no staging sitemap', async () => {
