@@ -67,7 +67,14 @@ function providerErrorClass(error: GarageUiContextProviderError | null) {
  * transport: a server SDK client without a persisted session can otherwise
  * fall back to anon before PostgreSQL evaluates auth.uid().
  */
-async function callGarageRpc(token: string, name: 'get_garage_ui_context_v2' | 'switch_active_garage_store', input: Record<string, string> = {}): Promise<{
+const MOBILE_TRUST_HEADER = 'x-garage-trusted-device-token';
+
+function trustedDeviceToken(request: Request) {
+  const token = request.headers.get(MOBILE_TRUST_HEADER)?.trim() ?? '';
+  return /^[0-9a-f]{64}$/i.test(token) ? token : '';
+}
+
+async function callGarageRpc(token: string, trustedToken: string, name: 'get_garage_ui_context_v2' | 'switch_active_garage_store', input: Record<string, string> = {}): Promise<{
   data: Record<string, unknown> | null;
   error: GarageUiContextProviderError | null;
 }> {
@@ -81,6 +88,7 @@ async function callGarageRpc(token: string, name: 'get_garage_ui_context_v2' | '
     headers: {
       apikey: anonKey,
       authorization: `Bearer ${token}`,
+      ...(trustedToken ? { [MOBILE_TRUST_HEADER]: trustedToken } : {}),
       accept: 'application/json',
       'content-type': 'application/json',
     },
@@ -109,7 +117,8 @@ async function callGarageRpc(token: string, name: 'get_garage_ui_context_v2' | '
 async function authenticatedMember(request: Request) {
   const token = bearerToken(request);
   if (!token) return denied(401, 'unauthorized', 'ログイン情報を取得できませんでした。');
-  const service = createBearerClient(token);
+  const trustedToken = trustedDeviceToken(request);
+  const service = createBearerClient(token, trustedToken ? { [MOBILE_TRUST_HEADER]: trustedToken } : {});
   const auth = createBearerAuthClient();
   if (!service || !auth) return denied(500, 'mobile_config_missing', 'サーバー側の認証設定が不足しています。');
 
@@ -119,7 +128,7 @@ async function authenticatedMember(request: Request) {
   // Reuse the existing Web application's authenticated UI-context contract,
   // which derives auth.uid(), membership, role, and stores on the server.
   // Mobile remains deliberately fail-closed to the resolved tenant.
-  const contextResult = await callGarageRpc(token, 'get_garage_ui_context_v2');
+  const contextResult = await callGarageRpc(token, trustedToken, 'get_garage_ui_context_v2');
   const context = contextResult.data as GarageUiContext | null;
   const contextError = contextResult.error;
   if (contextError || !context || !['active', 'selection_required'].includes(context.state ?? '') || !Array.isArray(context.stores)) {
@@ -154,7 +163,7 @@ async function authenticatedMember(request: Request) {
   });
   if (!activeStores.length) return denied(403, 'forbidden_resolved_store', '所属情報を確認できませんでした。');
 
-  return { ok: true as const, service, user: userData.user, stores: activeStores, memberships, context, token };
+  return { ok: true as const, service, user: userData.user, stores: activeStores, memberships, context, token, trustedToken };
 }
 
 /** Validates the bearer identity and selected store on every mobile request. */
@@ -205,7 +214,7 @@ export async function selectGarageMobileStore(request: Request, tenantId: string
   if (!identity.ok) return identity;
   const store = identity.stores.find((candidate) => candidate.id === storeId && candidate.tenantId === tenantId);
   if (!store) return denied(403, 'forbidden_store', 'この店舗へアクセスする権限がありません。');
-  const result = await callGarageRpc(identity.token, 'switch_active_garage_store', {
+  const result = await callGarageRpc(identity.token, identity.trustedToken, 'switch_active_garage_store', {
     p_tenant_id: tenantId, p_store_id: storeId, p_correlation_id: crypto.randomUUID(),
   });
   if (result.error) {

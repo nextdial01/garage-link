@@ -68,6 +68,15 @@ export function deviceTokenHash(secret: string, token: string) {
   return hmacHex(secret, `garage-link:admin-device:v1:${token}`);
 }
 
+// Mobile device tokens are random 256-bit bearer secrets. Their digest needs
+// to be reproducible by the PostgREST pre-request guard, so unlike the Web
+// cookie token this is an unkeyed SHA-256 digest. The raw token never leaves
+// the device's secure storage except in the dedicated request header.
+export async function mobileDeviceTokenHash(token: string) {
+  const digest = await crypto.subtle.digest('SHA-256', encoder.encode(token));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 export function maskEmail(email: string) {
   const [local = '', domain = ''] = email.split('@');
   if (!domain) return '登録済みメールアドレス';

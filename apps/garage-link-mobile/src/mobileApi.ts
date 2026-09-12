@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getTrustedDeviceToken, saveTrustedDeviceToken } from './trustedDevice';
 
 const baseUrl = process.env.EXPO_PUBLIC_APP_BASE_URL?.replace(/\/$/, '');
 export type Store = { id: string; tenantId: string; name: string; role: 'owner' | 'admin' | 'implementer' | 'staff' | 'viewer' };
@@ -30,13 +31,13 @@ async function request<T>(path: string, init: RequestInit = {}, storeId?: string
   if (!baseUrl || !/^https:\/\//.test(baseUrl) || /localhost|127\.0\.0\.1/.test(baseUrl)) {
     throw new MobileApiError('アプリの接続先設定が正しくありません。', path, 0, 'invalid_base_url');
   }
-  const token = await accessToken();
+  const [token, trustedDeviceToken] = await Promise.all([accessToken(), getTrustedDeviceToken()]);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
   let response: Response;
   let body: { error?: string; code?: string } | null;
   try {
-    response = await fetch(`${baseUrl}${path}`, { ...init, signal: controller.signal, headers: { Authorization: `Bearer ${token}`, ...(storeId ? { 'x-garage-store-id': storeId } : {}), ...(init.headers ?? {}) } });
+    response = await fetch(`${baseUrl}${path}`, { ...init, signal: controller.signal, headers: { Authorization: `Bearer ${token}`, ...(storeId ? { 'x-garage-store-id': storeId } : {}), ...(trustedDeviceToken ? { 'x-garage-trusted-device-token': trustedDeviceToken } : {}), ...(init.headers ?? {}) } });
     body = await response.json().catch(() => null) as { error?: string; code?: string } | null;
     if (controller.signal.aborted) throw new Error('timeout');
   } catch {
@@ -60,8 +61,13 @@ export const mobileApi = {
   quotesPage(storeId: string, offset = 0) { return request<QuotesPage>(`/api/mobile/quotes?offset=${offset}&limit=100`, {}, storeId); },
   async stores() { return (await request<{ stores: Store[] }>('/api/mobile/stores')).stores; },
   async selectStore(store: Store) { return (await request<{ store: Store }>('/api/mobile/stores/active', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tenantId: store.tenantId, storeId: store.id }) })).store; },
-  requestAdminEmailOtp() { return request<{ ok: true; maskedEmail: string; retryAfter: number }>('/api/auth/admin-email-otp/request', { method: 'POST' }); },
-  verifyAdminEmailOtp(code: string) { return request<{ ok: true }>('/api/auth/admin-email-otp/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code }) }); },
+  requestAdminEmailOtp() { return request<{ ok: true; maskedEmail: string; retryAfter: number }>('/api/mobile/admin-email-otp/request', { method: 'POST' }); },
+  async verifyAdminEmailOtp(code: string) {
+    const result = await request<{ ok: true; trustedDeviceToken: string }>('/api/mobile/admin-email-otp/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code }) });
+    if (!/^[0-9a-f]{64}$/i.test(result.trustedDeviceToken)) throw new MobileApiError('端末の信頼状態を保存できませんでした。', '/api/mobile/admin-email-otp/verify', 502, 'invalid_trusted_device');
+    await saveTrustedDeviceToken(result.trustedDeviceToken);
+    return result;
+  },
   async vehicles(storeId: string, q = '') { return (await request<{ vehicles: Vehicle[] }>(`/api/mobile/vehicles${q ? `?q=${encodeURIComponent(q)}` : ''}`, {}, storeId)).vehicles; },
   detail(storeId: string, vehicleId: string) { return request<VehicleDetail>(`/api/mobile/vehicles/${vehicleId}`, {}, storeId); },
   async updateStatus(storeId: string, vehicleId: string, status: string) { return (await request<{ vehicle: Vehicle }>(`/api/mobile/vehicles/${vehicleId}/status`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status }) }, storeId)).vehicle; },

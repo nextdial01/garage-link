@@ -5,11 +5,12 @@ const ts = require('typescript');
 let handler;
 let expire = false;
 const exported = {};
-const context={exports:exported,require:()=>({supabase:{auth:{getSession:async()=>({data:{session:{access_token:'synthetic-token'}}})}}}),process:{env:{EXPO_PUBLIC_APP_BASE_URL:'https://example.invalid'}},AbortController,FormData,Blob,Date,Response,fetch:(...args)=>handler(...args),setTimeout(callback){if(expire)queueMicrotask(callback);return 1;},clearTimeout(){}};
+let trustedDeviceToken = 'a'.repeat(64);
+const context={exports:exported,require:(name)=>name==='./supabase'?{supabase:{auth:{getSession:async()=>({data:{session:{access_token:'synthetic-token'}}})}}}:name==='./trustedDevice'?{getTrustedDeviceToken:async()=>trustedDeviceToken,saveTrustedDeviceToken:async(token)=>{trustedDeviceToken=token;}}:{},process:{env:{EXPO_PUBLIC_APP_BASE_URL:'https://example.invalid'}},AbortController,FormData,Blob,Date,Response,fetch:(...args)=>handler(...args),setTimeout(callback){if(expire)queueMicrotask(callback);return 1;},clearTimeout(){}};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/mobileApi.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,context);
 (async()=>{
  const store={id:'fixture-store',tenantId:'fixture-tenant',name:'Fixture',role:'staff'};
- handler=async(url,options)=>{assert.equal(url,'https://example.invalid/api/mobile/stores/active');assert.equal(options.method,'POST');assert.equal(options.headers.Authorization,'Bearer synthetic-token');assert.deepEqual(JSON.parse(options.body),{tenantId:store.tenantId,storeId:store.id});return Response.json({store});};
+ handler=async(url,options)=>{assert.equal(url,'https://example.invalid/api/mobile/stores/active');assert.equal(options.method,'POST');assert.equal(options.headers.Authorization,'Bearer synthetic-token');assert.equal(options.headers['x-garage-trusted-device-token'],trustedDeviceToken);assert.deepEqual(JSON.parse(options.body),{tenantId:store.tenantId,storeId:store.id});return Response.json({store});};
  assert.deepEqual(await exported.mobileApi.selectStore(store),store);
  handler=async(url,options)=>{assert.equal(options.headers['x-garage-store-id'],store.id);return Response.json({code:'unauthorized',error:'Unauthorized'},{status:401});};
  await assert.rejects(exported.mobileApi.today(store.id),error=>error.status===401&&error.code==='unauthorized');
@@ -22,6 +23,9 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/mobileApi.ts','utf8')
  assert.ok((await exported.mobileApi.signedUrl(store.id,'fixture-file')).signedUrl);
  handler=async(url,options)=>{assert.ok(url.endsWith('/api/mobile/storage/upload'));assert.equal(options.headers['x-garage-store-id'],store.id);assert.equal(options.body.get('purpose'),'vehicle_image');return Response.json({file:{id:'fixture-file'}});};
  assert.equal((await exported.mobileApi.uploadVehicleImage(store.id,'fixture-vehicle',{uri:'file:///synthetic.png',mimeType:'image/png'})).file.id,'fixture-file');
+ handler=async(url,options)=>{assert.ok(url.endsWith('/api/mobile/admin-email-otp/verify'));assert.equal(options.headers['x-garage-trusted-device-token'],trustedDeviceToken);return Response.json({ok:true,trustedDeviceToken:'b'.repeat(64)});};
+ await exported.mobileApi.verifyAdminEmailOtp('123456');
+ assert.equal(trustedDeviceToken,'b'.repeat(64));
  expire=true;handler=async(url,{signal})=>new Promise((_,reject)=>{if(signal.aborted)reject(Error('aborted'));else signal.addEventListener('abort',()=>reject(Error('aborted')));});
  await assert.rejects(exported.mobileApi.today(store.id),error=>error.code==='timeout');
  expire=false;handler=async()=>{throw Error('offline');};

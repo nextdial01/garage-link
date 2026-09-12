@@ -37,6 +37,7 @@
         }
       ],
       "expo-sharing",
+      "expo-secure-store",
       [
         "expo-splash-screen",
         {
