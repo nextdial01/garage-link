@@ -5,6 +5,10 @@ import {
   finishStripeEvent,
   processGarageStripeEvent,
 } from '@/lib/stripe/garageWebhookProcessor';
+import {
+  classifyGarageWebhookEvent,
+  hasGarageSubscriptionMetadata,
+} from '@/lib/stripe/garageWebhookOwnership';
 import { getStripeClient } from '@/lib/stripe/client';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -66,6 +70,26 @@ async function claimStripeEvent(event: Stripe.Event): Promise<EventClaim> {
     : { state: 'in_progress', leaseOwner: null };
 }
 
+function invoiceSubscriptionId(invoice: Stripe.Invoice) {
+  const invoiceRecord = invoice as Stripe.Invoice & {
+    subscription?: string | { id?: string } | null;
+    parent?: { subscription_details?: { subscription?: string | { id?: string } | null } } | null;
+  };
+  const value = invoiceRecord.parent?.subscription_details?.subscription ?? invoiceRecord.subscription;
+  return typeof value === 'string' ? value : value?.id ?? null;
+}
+
+async function belongsToGarage(event: Stripe.Event, stripe: Stripe) {
+  const ownership = classifyGarageWebhookEvent(event);
+  if (ownership === 'garage') return true;
+  if (ownership === 'foreign') return false;
+
+  const subscriptionId = invoiceSubscriptionId(event.data.object as Stripe.Invoice);
+  if (!subscriptionId) return false;
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  return hasGarageSubscriptionMetadata(subscription.metadata);
+}
+
 export async function POST(request: Request) {
   const stripe = getStripeClient();
   if (!stripe) return NextResponse.json({ ok: false, error: 'Stripe が未設定です。' }, { status: 503 });
@@ -80,6 +104,10 @@ export async function POST(request: Request) {
     event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
   } catch {
     return NextResponse.json({ ok: false, error: 'Webhook 署名検証に失敗しました。' }, { status: 400 });
+  }
+
+  if (!(await belongsToGarage(event, stripe))) {
+    return NextResponse.json({ ok: true, received: true, ignored: true });
   }
 
   let claimOwner: string | null = null;
