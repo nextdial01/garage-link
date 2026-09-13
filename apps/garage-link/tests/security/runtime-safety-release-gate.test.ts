@@ -23,7 +23,9 @@ test('release safety env gates LINE, email, Stripe live, and cron execution', ()
   expect(line).toContain('areExternalSendsDisabled()');
   expect(line.indexOf('areExternalSendsDisabled()')).toBeLessThan(line.indexOf("fetch('https://api.line.me"));
   expect(email).toContain('areExternalSendsDisabled()');
-  expect(email.indexOf('areExternalSendsDisabled()')).toBeLessThan(email.indexOf("fetch('https://api.resend.com"));
+  expect(email).toContain("process.env.VERCEL_ENV === 'production'");
+  expect(email).toContain('isAdminSecurityOtpEmailAllowed()');
+  expect(email.indexOf('isAdminSecurityOtpEmailAllowed()')).toBeLessThan(email.indexOf("fetch('https://api.resend.com"));
   expect(stripe).toContain('isAllowedStripeSecretKey');
   expect(cron.match(/isAutomationDisabled\(\)/g)?.length).toBe(2);
   expect(inspectionCron).toContain('isAutomationDisabled()');

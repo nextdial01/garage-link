@@ -1,8 +1,12 @@
 import 'server-only';
 import { areExternalSendsDisabled } from '@/lib/security/runtimeSafety';
 
+export function isAdminSecurityOtpEmailAllowed() {
+  return process.env.VERCEL_ENV === 'production' || !areExternalSendsDisabled();
+}
+
 export async function sendAdminOtpEmail(email: string, code: string) {
-  if (areExternalSendsDisabled()) {
+  if (!isAdminSecurityOtpEmailAllowed()) {
     return { ok: false as const, error: 'external_sends_disabled' };
   }
   const apiKey = process.env.GARAGE_RESEND_API_KEY ?? process.env.RESEND_API_KEY;
