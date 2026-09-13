@@ -1,6 +1,8 @@
 import * as SecureStore from 'expo-secure-store';
 
-const TRUSTED_DEVICE_KEY = 'garage-link:trusted-device-token';
+// expo-secure-store accepts only alphanumeric characters plus `.`, `-`, and
+// `_` in keys. Keep get/save/clear on this single native-safe key.
+const TRUSTED_DEVICE_KEY = 'garage-link.trusted-device-token';
 
 export function getTrustedDeviceToken() {
   return SecureStore.getItemAsync(TRUSTED_DEVICE_KEY).catch(() => null);
