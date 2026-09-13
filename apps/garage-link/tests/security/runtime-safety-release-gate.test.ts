@@ -27,6 +27,8 @@ test('release safety env gates LINE, email, Stripe live, and cron execution', ()
   expect(email).toContain("process.env.VERCEL_ENV === 'production'");
   expect(email).toContain('isAdminSecurityOtpEmailAllowed()');
   expect(email.indexOf('isAdminSecurityOtpEmailAllowed()')).toBeLessThan(email.indexOf("fetch('https://api.resend.com"));
+  expect(email).toContain("return 'resend_sender_configuration_invalid'");
+  expect(email).not.toContain('console.error');
   expect(mobileOtpRequest).toContain("console.error('garage_admin_otp_email_delivery_failed', { reason: sent.error })");
   expect(mobileOtpRequest).not.toContain('console.error(\'garage_admin_otp_email_delivery_failed\', { email:');
   expect(stripe).toContain('isAllowedStripeSecretKey');

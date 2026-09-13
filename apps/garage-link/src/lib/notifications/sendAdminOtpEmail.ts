@@ -5,6 +5,19 @@ export function isAdminSecurityOtpEmailAllowed() {
   return process.env.VERCEL_ENV === 'production' || !areExternalSendsDisabled();
 }
 
+async function resendFailureCategory(response: Response) {
+  if (response.status !== 422) return `resend_${response.status}`;
+
+  const body = await response.json().catch(() => null) as { name?: unknown; message?: unknown } | null;
+  const detail = [body?.name, body?.message]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+    .toLowerCase();
+
+  if (/\bfrom\b|sender|domain/.test(detail)) return 'resend_sender_configuration_invalid';
+  return 'resend_422';
+}
+
 export async function sendAdminOtpEmail(email: string, code: string) {
   if (!isAdminSecurityOtpEmailAllowed()) {
     return { ok: false as const, error: 'external_sends_disabled' };
@@ -24,7 +37,7 @@ export async function sendAdminOtpEmail(email: string, code: string) {
       }),
       cache: 'no-store',
     });
-    if (!response.ok) return { ok: false as const, error: `resend_${response.status}` };
+    if (!response.ok) return { ok: false as const, error: await resendFailureCategory(response) };
     return { ok: true as const };
   } catch {
     return { ok: false as const, error: 'email_network_error' };
