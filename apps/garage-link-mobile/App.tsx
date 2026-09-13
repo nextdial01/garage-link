@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useMemo, useRef, useState, createContext, useContext } from 'react';
-import { ActivityIndicator, AppState, BackHandler, FlatList, Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, AppState, BackHandler, FlatList, Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text as NativeText, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { buttonLayout, createRequestCoordinator, mergePage, parentTab, quoteValidationError, quoteVehicleId, userFacingError } from './src/qualityState';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,6 +23,15 @@ const jobTypeLabel = (value: string | null | undefined) => ({ inspection: 'è»Šæ¤
 
 const displayError = userFacingError;
 const BusyContext = createContext(false);
+const japaneseSystemFont = Platform.select({
+  ios: 'Hiragino Sans',
+  android: 'sans-serif',
+  default: undefined,
+});
+
+function Text({ style, ...props }: React.ComponentProps<typeof NativeText>) {
+  return <NativeText {...props} style={[styles.jpText, style]} />;
+}
 
 export default function App() {
   return <SafeAreaProvider><GarageMobileApp /></SafeAreaProvider>;
@@ -411,6 +420,7 @@ function SignedImage({ storeId, fileId }: { storeId: string; fileId: string }) {
 const colors = { ink: '#112D4E', muted: '#64748B', canvas: '#F4F7FB', surface: '#FFFFFF', line: '#DCE4EF', primary: '#0B74DE', primaryDark: '#0759AB', primarySoft: '#EAF4FF', teal: '#008F8A', tealSoft: '#E1F5F3', error: '#B42318', errorSoft: '#FEF3F2' };
 const shadow = { shadowColor: '#102A43', shadowOpacity: 0.07, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 2 };
 const styles = StyleSheet.create({
+  jpText: { fontFamily: japaneseSystemFont },
   pageFooter: { paddingVertical: 16, gap: 12 },
   storeContext: { paddingHorizontal: 18, paddingBottom: 12, gap: 6, flexDirection: 'row', alignItems: 'center' },
   storeContextText: { flex: 1, fontSize: 12, color: colors.muted },
@@ -431,7 +441,7 @@ const styles = StyleSheet.create({
   intro: { marginTop: 8, marginBottom: 14 }, eyebrow: { color: colors.teal, fontSize: 11, fontWeight: '800', letterSpacing: 1.1, marginBottom: 4 }, lead: { color: colors.muted, fontSize: 14, lineHeight: 21 }, loader: { marginTop: 44 }, header: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 }, headerSpacer: { width: 70 }, headerTitle: { flex: 1, color: colors.ink, fontSize: 17, lineHeight: 23, fontWeight: '700', textAlign: 'center', paddingHorizontal: 6 },
   bottomTabs: { flexDirection: 'row', flexShrink: 0, minHeight: 64, paddingHorizontal: 6, paddingTop: 6, paddingBottom: 4, gap: 4, backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.line }, navButton: { flex: 1, minWidth: 0, minHeight: 50, paddingHorizontal: 2, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: colors.surface }, navButtonActive: { backgroundColor: colors.primarySoft }, navText: { color: colors.muted, fontSize: 11, lineHeight: 15, fontWeight: '700', textAlign: 'center' }, navTextActive: { color: colors.primaryDark, fontSize: 11, lineHeight: 15, fontWeight: '800', textAlign: 'center' },
   list: { paddingBottom: 20 }, row: { minHeight: 74, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.line, borderWidth: 1, borderRadius: 13, paddingHorizontal: 15, paddingVertical: 12, marginBottom: 9, ...shadow }, rowBody: { flex: 1, minWidth: 0 }, rowTitle: { color: colors.ink, fontSize: 16, lineHeight: 22, fontWeight: '700' }, rowSubtitle: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 2 }, rowRight: { alignItems: 'flex-end', justifyContent: 'center', marginLeft: 10, gap: 3 }, chevron: { color: colors.primary, fontSize: 24, lineHeight: 22, fontWeight: '400' },
-  fieldLabel: { color: colors.ink, fontSize: 13, lineHeight: 18, fontWeight: '700', marginBottom: 7 }, input: { minHeight: 50, borderWidth: 1, borderColor: colors.line, backgroundColor: '#FBFCFE', color: colors.ink, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, marginBottom: 17 }, inputError: { borderColor: colors.error, backgroundColor: colors.errorSoft }, search: { flexDirection: 'row', gap: 8, marginBottom: 12 }, searchInput: { flex: 1, minWidth: 0, minHeight: 48, color: colors.ink, paddingHorizontal: 6, fontSize: 15 },
+  fieldLabel: { color: colors.ink, fontSize: 13, lineHeight: 18, fontWeight: '700', marginBottom: 7 }, input: { minHeight: 50, borderWidth: 1, borderColor: colors.line, backgroundColor: '#FBFCFE', color: colors.ink, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, marginBottom: 17, fontFamily: japaneseSystemFont }, inputError: { borderColor: colors.error, backgroundColor: colors.errorSoft }, search: { flexDirection: 'row', gap: 8, marginBottom: 12 }, searchInput: { flex: 1, minWidth: 0, minHeight: 48, color: colors.ink, paddingHorizontal: 6, fontSize: 15, fontFamily: japaneseSystemFont },
   actionButton: { ...buttonLayout, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: colors.primary }, actionButtonCompact: { minHeight: 44, paddingVertical: 8, paddingHorizontal: 11 }, actionButtonSecondary: { backgroundColor: colors.primarySoft, borderWidth: 1, borderColor: '#BCDDFE' }, actionButtonGhost: { backgroundColor: 'transparent', borderWidth: 0 }, actionButtonDisabled: { opacity: 0.45 }, actionButtonText: { textAlign: 'center', flexShrink: 1, color: colors.surface, fontSize: 15, fontWeight: '700' }, actionButtonSecondaryText: { color: colors.primaryDark, fontSize: 14 },
   errorBox: { backgroundColor: colors.errorSoft, borderRadius: 10, borderWidth: 1, borderColor: '#FECDCA', paddingHorizontal: 12, paddingVertical: 10, marginTop: 12, marginBottom: 8 }, error: { color: colors.error, fontSize: 13, lineHeight: 19 }, muted: { color: colors.muted, fontSize: 14, lineHeight: 21 }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: colors.canvas }, state: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 }, restoreLogo: { width: 184, height: 72, marginBottom: 28 }, empty: { alignItems: 'center', paddingHorizontal: 28, paddingTop: 68 }, emptyCompact: { paddingTop: 30, paddingBottom: 14 }, emptyTitle: { color: colors.ink, fontSize: 16, lineHeight: 22, fontWeight: '700', textAlign: 'center' }, emptyText: { color: colors.muted, fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 6 },
   today: { paddingBottom: 22, gap: 12 }, todayTablet: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingBottom: 22 }, card: { backgroundColor: colors.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: colors.line, width: '100%', ...shadow }, section: { color: colors.ink, fontWeight: '700', fontSize: 16, lineHeight: 22, marginTop: 7, marginBottom: 10 }, todayItem: { paddingVertical: 11, borderTopWidth: StyleSheet.hairlineWidth, borderColor: colors.line }, todayItemTitle: { color: colors.ink, fontSize: 15, lineHeight: 21, fontWeight: '700' }, todayItemMeta: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 3 },
