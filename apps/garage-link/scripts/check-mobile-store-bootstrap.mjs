@@ -8,13 +8,14 @@ const TENANT_A = 'bbbbbbbb-0000-4000-8000-000000000001';
 const TENANT_B = 'bbbbbbbb-0000-4000-8000-000000000002';
 const STORE_A = 'cccccccc-0000-4000-8000-000000000001';
 const STORE_B = 'cccccccc-0000-4000-8000-000000000002';
-const fixture = { calls: [], memberships: [], context: null, authError: false, rpcError: null };
+const fixture = { calls: [], memberships: [], context: null, authError: false, rpcError: null, reviewFixture: null };
 globalThis.__garageBootstrapFixture = fixture;
 registerHooks({
   resolve(specifier, context, next) {
     if (specifier === 'server-only') return { url: 'data:text/javascript,export {};', shortCircuit: true };
     if (specifier === '@/lib/supabase/admin') return { url: 'fixture:admin', shortCircuit: true };
     if (specifier === '@/lib/security/garageTenantContext') return { url: 'fixture:tenant', shortCircuit: true };
+    if (specifier === '@/lib/security/adminEmailOtp') return { url: 'fixture:otp', shortCircuit: true };
     if (specifier.startsWith('@/')) return next(new URL(`src/${specifier.slice(2)}.ts`, root).href, context);
     return next(specifier, context);
   },
@@ -22,6 +23,10 @@ registerHooks({
     if (url === 'fixture:admin') return { format: 'module', shortCircuit: true, source: `
       const f = globalThis.__garageBootstrapFixture;
       export function createBearerAuthClient() { return {auth:{getUser:async()=>({data:{user:f.authError?null:{id:'${USER}'}},error:f.authError})}}; }
+      export function createAdminClient() { return {from() {
+        const q = { select(){return q}, eq(){return q}, is(){return q}, maybeSingle:async()=>({data:f.reviewFixture,error:null}), update(){return q}, then(resolve,reject){return Promise.resolve({data:null,error:null}).then(resolve,reject)} };
+        return q;
+      }}; }
       export function createBearerClient(token) { return {from(table) {
         f.calls.push({table,token});
         let rows = [...f.memberships];
@@ -35,6 +40,11 @@ registerHooks({
         globalThis.__garageBootstrapFixture.calls.push({resolved:input});
         return {tenantId:input.expectedTenantId,storeId:input.storeId,actorRole:input.actorRole};
       }
+    ` };
+    if (url === 'fixture:otp') return { format: 'module', shortCircuit: true, source: `
+      export function getAdminEmailOtpSecret() { return 'synthetic-test-secret'; }
+      export async function mobileReviewFixtureProof(secret,user,tenant,store) { return ('review-'+user+'-'+tenant+'-'+store).padEnd(64,'0').slice(0,64); }
+      export async function mobileDeviceTokenHash(value) { return value; }
     ` };
     return next(url, context);
   },
@@ -61,7 +71,7 @@ const request = (storeId) => new Request('https://app.invalid/api/mobile/stores'
   headers: {authorization:'Bearer synthetic-token', ...(storeId ? {'x-garage-store-id':storeId} : {})},
 });
 function reset() {
-  fixture.calls=[]; fixture.authError=false; fixture.rpcError=null; fixture.switchError=null; fixture.skipSwitch=false;
+  fixture.calls=[]; fixture.authError=false; fixture.rpcError=null; fixture.switchError=null; fixture.skipSwitch=false; fixture.reviewFixture=null;
   fixture.memberships=[TENANT_A,TENANT_B].map((tenant_id,i)=>({tenant_id,user_id:USER,role:i?'viewer':'staff',display_name:'Synthetic',status:'active',disabled_at:null,deleted_at:null,joined_at:'2026-01-01',invite_accepted_at:null}));
   fixture.context={state:'selection_required',tenant_id:'',store_id:'',role:'staff',display_name:'Synthetic',stores:[{id:STORE_A,tenant_id:TENANT_A,name:'Synthetic A'},{id:STORE_B,tenant_id:TENANT_B,name:'Synthetic B'}]};
 }
@@ -119,4 +129,25 @@ assert.deepEqual((await api.listGarageMobileStores(request())).stores.map(s=>s.i
 reset(); fixture.context.stores=[];
 assert.equal((await api.listGarageMobileStores(request())).ok,false,'provider excludes inactive/unassigned stores');
 console.log('PASS: explicit selection, Bearer-only CSRF boundary, OTP, scope and readback');
+
+// An exact review-fixture proof may scope a canonical account that retains a
+// legacy active membership. Only the fixture owner/store is visible or
+// selectable; the legacy tenant never reaches an RPC mutation.
+reset();
+fixture.reviewFixture={user_id:USER,tenant_id:TENANT_B,store_id:STORE_B,proof_hash:null};
+fixture.memberships[1]={...fixture.memberships[1],role:'owner'};
+fixture.context={...fixture.context,state:'selection_required',stores:[{id:STORE_A,tenant_id:TENANT_A,name:'Legacy'},{id:STORE_B,tenant_id:TENANT_B,name:'Fixture'}]};
+assert.deepEqual((await api.listGarageMobileStores(request())).stores.map(s=>s.id),[STORE_B],'fixture scope hides legacy tenant');
+assert.equal((await select({tenantId:TENANT_A,storeId:STORE_A})).status,403,'legacy store cannot be selected');
+assert.equal(fixture.calls.some(c=>c.rpc?.endsWith('/switch_active_garage_store') && c.body.p_store_id===STORE_A),false);
+assert.equal((await select({tenantId:TENANT_B,storeId:STORE_B})).status,200,'exact fixture store remains selectable');
+reset();
+fixture.reviewFixture={user_id:USER,tenant_id:TENANT_B,store_id:STORE_B,proof_hash:null};
+fixture.context={...fixture.context,stores:[{id:STORE_B,tenant_id:TENANT_B,name:'Fixture'}]};
+assert.equal((await api.listGarageMobileStores(request())).ok,false,'fixture requires accepted owner membership');
+reset();
+fixture.reviewFixture={user_id:USER,tenant_id:TENANT_B,store_id:STORE_A,proof_hash:null};
+fixture.memberships[1]={...fixture.memberships[1],role:'owner'};
+assert.equal((await api.listGarageMobileStores(request())).ok,false,'fixture tenant/store mismatch fails closed');
+console.log('PASS: exact review-fixture scope hides legacy membership and fails closed');
 delete globalThis.__garageBootstrapFixture;

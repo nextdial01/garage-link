@@ -197,9 +197,21 @@ async function authenticatedMember(request: Request) {
     .is('disabled_at', null).is('deleted_at', null);
   if (membershipError || !Array.isArray(membershipData)) return denied(403, 'forbidden_membership', '所属情報を確認できませんでした。');
   const memberships = membershipData as MembershipRow[];
+  // A review-fixture proof is an explicit, server-derived exception for one
+  // tenant/store only. The underlying account can retain unrelated legacy
+  // memberships, but native APIs must never enumerate or select them.
+  const scopedMemberships = reviewFixture
+    ? memberships.filter((membership) => membership.tenant_id === reviewFixture.tenantId
+      && membership.role === 'owner'
+      && Boolean(membership.invite_accepted_at || membership.joined_at))
+    : memberships;
+  if (reviewFixture && scopedMemberships.length !== 1) {
+    return denied(403, 'forbidden_review_fixture_membership', '所属情報を確認できませんでした。');
+  }
   const activeStores: GarageMobileStore[] = (context.stores as AccessibleStoreRow[]).flatMap((store) => {
     if (!store?.id || !store.tenant_id) return [];
-    const matches = memberships.filter((membership) => membership.tenant_id === store.tenant_id
+    if (reviewFixture && (store.tenant_id !== reviewFixture.tenantId || store.id !== reviewFixture.storeId)) return [];
+    const matches = scopedMemberships.filter((membership) => membership.tenant_id === store.tenant_id
       && Boolean(membership.invite_accepted_at || membership.joined_at));
     const role = matches.length === 1 ? roleFrom(matches[0].role) : null;
     if (!role) return [];
@@ -215,7 +227,7 @@ async function authenticatedMember(request: Request) {
     return denied(403, 'forbidden_review_fixture_scope', '所属情報を確認できませんでした。');
   }
 
-  return { ok: true as const, service, user: userData.user, stores: activeStores, memberships, context, token, mobileHeaders };
+  return { ok: true as const, service, user: userData.user, stores: activeStores, memberships: scopedMemberships, context, token, mobileHeaders };
 }
 
 /** Validates the bearer identity and selected store on every mobile request. */

@@ -37,6 +37,11 @@ test('release safety env gates LINE, email, Stripe live, and cron execution', ()
   expect(mobileBearerAuth).toContain("const MOBILE_REVIEW_PROOF_HEADER = 'x-garage-mobile-review-proof'");
   expect(mobileBearerAuth).toContain('reviewFixtureProofFor(userData.user.id)');
   expect(mobileBearerAuth).toContain("return denied(403, 'forbidden_review_fixture_scope'");
+  expect(mobileBearerAuth).toContain("return denied(403, 'forbidden_review_fixture_membership'");
+  expect(mobileBearerAuth).toContain("membership.role === 'owner'");
+  expect(mobileBearerAuth).toContain('const scopedMemberships = reviewFixture');
+  expect(mobileBearerAuth).toContain('memberships: scopedMemberships');
+  expect(mobileBearerAuth).toContain('store.tenant_id !== reviewFixture.tenantId || store.id !== reviewFixture.storeId');
   expect(mobileBearerAuth).toContain('activeStores.length !== 1');
   expect(mobileBearerAuth).toContain('activeStores[0].tenantId !== reviewFixture.tenantId');
   expect(mobileBearerAuth).toContain('activeStores[0].id !== reviewFixture.storeId');
