@@ -24,6 +24,8 @@ export async function POST(request: NextRequest) {
   }
   const sent = await sendAdminOtpEmail(context.email, code);
   if (!sent.ok) {
+    // `sent.error` is a fixed, secret-free transport category.
+    console.error('garage_admin_otp_email_delivery_failed', { reason: sent.error });
     if (typeof challengeId === 'string') await context.service.from('admin_email_otp_challenges').update({ consumed_at: new Date().toISOString() }).eq('id', challengeId);
     return NextResponse.json({ error: '確認メールを送信できませんでした。管理者に連絡してください。' }, { status: 503 });
   }
