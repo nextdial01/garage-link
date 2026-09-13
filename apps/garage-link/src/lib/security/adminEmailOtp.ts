@@ -68,6 +68,13 @@ export function deviceTokenHash(secret: string, token: string) {
   return hmacHex(secret, `garage-link:admin-device:v1:${token}`);
 }
 
+// This server-only proof is derived from the existing OTP secret but uses a
+// separate domain. It is never returned to a native client: only the mobile
+// API proxy presents it to the database for the one approved review fixture.
+export function mobileReviewFixtureProof(secret: string, userId: string, tenantId: string, storeId: string) {
+  return hmacHex(secret, `garage-link:mobile-review-fixture:v1:${userId}:${tenantId}:${storeId}`);
+}
+
 // Mobile device tokens are random 256-bit bearer secrets. Their digest needs
 // to be reproducible by the PostgREST pre-request guard, so unlike the Web
 // cookie token this is an unkeyed SHA-256 digest. The raw token never leaves
