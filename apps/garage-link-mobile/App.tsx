@@ -25,7 +25,7 @@ const displayError = userFacingError;
 const BusyContext = createContext(false);
 const japaneseSystemFont = Platform.select({
   ios: 'Hiragino Sans',
-  android: 'sans-serif',
+  android: 'NotoSansJP',
   default: undefined,
 });
 
