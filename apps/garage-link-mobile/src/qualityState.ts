@@ -27,7 +27,7 @@ export function userFacingError(reason: unknown): string {
   if (error?.code === 'photo_permission') return '写真へのアクセスが許可されていません。端末の設定から許可して、もう一度お試しください。';
   if (error?.code === 'share_unavailable') return 'この端末では共有機能を利用できません。印刷をお試しください。';
   if (error?.code === 'invalid_base_url') return 'アプリの接続先を確認できません。管理者へお問い合わせください。';
-  if (error?.code === 'timeout' || error?.code === 'network_error' || /network request failed|failed to fetch/i.test(message)) return '通信に時間がかかっています。接続を確認して再試行してください。';
+  if (error?.code === 'timeout' || error?.code === 'network_error' || /timed out|network request failed|failed to fetch/i.test(message)) return '通信に時間がかかっています。接続を確認して再試行してください。';
   if (/invalid login credentials/i.test(message)) return 'メールアドレスまたはパスワードが正しくありません。';
   if (error?.status === 401 || /jwt|not authenticated|unauthorized|ログインが必要/i.test(message)) return 'ログインの有効期限が切れました。ログアウトして、もう一度ログインしてください。';
   if (error?.code?.startsWith('forbidden_store') || error?.code === 'forbidden_resolved_store' || error?.code === 'forbidden_scope') return 'この店舗の所属情報を確認できません。店舗を選び直すか、管理者へお問い合わせください。';

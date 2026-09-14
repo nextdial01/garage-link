@@ -3,7 +3,14 @@
   "build": {
     "development": { "developmentClient": true, "distribution": "internal", "android": { "buildType": "apk" } },
     "preview": { "distribution": "internal", "android": { "buildType": "apk" } },
-    "production": { "autoIncrement": true, "env": { "EXPO_PUBLIC_APP_ENV": "production" } }
+    "production": { "autoIncrement": true, "env": { "EXPO_PUBLIC_APP_ENV": "production" } },
+    "ios-simulator-release-qa": {
+      "extends": "production",
+      "environment": "production",
+      "autoIncrement": false,
+      "distribution": "internal",
+      "ios": { "simulator": true }
+    }
   },
   "submit": {
     "production": {

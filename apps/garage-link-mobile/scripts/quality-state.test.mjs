@@ -12,6 +12,7 @@ assert.ok(gate.beginMutation(),'new scope can mutate');
 assert.match(userFacingError({status:401,code:'unauthorized'}),/ログイン/);
 assert.match(userFacingError({status:403,code:'forbidden_store'}),/店舗/);
 assert.match(userFacingError({status:0,code:'timeout'}),/時間/);
+assert.match(userFacingError({message:'Authentication request timed out'}),/時間/);
 assert.equal(parentTab('vehicleDetail'),'vehicles');assert.equal(parentTab('quoteCreate'),'quotes');
 assert.equal(quoteVehicleId('',[{id:'one'}]),undefined,'never silently selects first vehicle');
 assert.equal(quoteVehicleId('two',[{id:'one'},{id:'two'}]),'two');
