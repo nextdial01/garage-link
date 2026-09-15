@@ -1,6 +1,7 @@
 'use client';
 
 import { Analytics, type BeforeSendEvent } from '@vercel/analytics/next';
+import { FunnelMeasurement } from '@/components/analytics/FunnelMeasurement';
 
 const PUBLIC_PREFIXES = ['/industries/', '/legal/'];
 const PUBLIC_PATHS = new Set([
@@ -20,5 +21,10 @@ function filterPrivateRoutes(event: BeforeSendEvent) {
 }
 
 export function GarageAnalytics() {
-  return <Analytics beforeSend={filterPrivateRoutes} />;
+  return (
+    <>
+      <Analytics beforeSend={filterPrivateRoutes} />
+      <FunnelMeasurement />
+    </>
+  );
 }
