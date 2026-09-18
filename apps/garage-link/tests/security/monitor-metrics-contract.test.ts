@@ -43,5 +43,17 @@ test.describe('internal monitor metrics contract', () => {
     expect(metrics).toContain("sourceStatus: 'partial'");
     expect(metrics).toContain('fullyAttributableInvoices');
     expect(metrics).toContain('refundsByInvoice');
+    expect(metrics).toContain("admin.rpc('garage_monitor_active_tenant_ids')");
+    expect(metrics).not.toContain("admin.from('tenants')");
+  });
+
+  test('tenant monitor bridge is execute-only and keeps direct tenant reads closed', async () => {
+    const migration = await readFile('supabase/migrations/20260918000100_monitor_metrics_read_bridge.sql', 'utf8');
+    expect(migration).toContain('security definer');
+    expect(migration).toContain("set search_path = ''");
+    expect(migration).toContain('from public.tenants');
+    expect(migration).toContain('revoke all on function public.garage_monitor_active_tenant_ids()');
+    expect(migration).toContain('grant execute on function public.garage_monitor_active_tenant_ids()');
+    expect(migration).not.toMatch(/grant\s+select\s+on\s+(?:table\s+)?public\.tenants\s+to\s+service_role/i);
   });
 });
