@@ -19,8 +19,7 @@ type SubscriptionRow = {
 };
 
 type TenantRow = {
-  id: string;
-  status: string | null;
+  tenant_id: string;
 };
 
 type StripeSubscriptionLike = {
@@ -134,7 +133,7 @@ export async function getGarageMonitorMetrics(now = new Date()): Promise<Monitor
 
   try {
     const [tenantResult, subscriptionResult, stripeSubscriptions, paidInvoices, creditNotes] = await Promise.all([
-      admin.from('tenants').select('id,status').eq('status', 'active'),
+      admin.rpc('garage_monitor_active_tenant_ids'),
       admin.from('company_subscriptions').select('tenant_id,stripe_subscription_id'),
       listAll((limit) => stripe.subscriptions.list({ status: 'all', limit })),
       listAll((limit) => stripe.invoices.list({ status: 'paid', limit, created: { gte: monthStartJstSeconds(now) } })),
@@ -211,7 +210,7 @@ export async function getGarageMonitorMetrics(now = new Date()): Promise<Monitor
     }
 
     return {
-      freeRegistrations: ((tenantResult.data ?? []) as TenantRow[]).filter((tenant) => !excludedTenantIds.has(tenant.id)).length,
+      freeRegistrations: ((tenantResult.data ?? []) as TenantRow[]).filter((tenant) => !excludedTenantIds.has(tenant.tenant_id)).length,
       trials: attributableSubscriptions.filter((subscription) => subscription.status === 'trialing').length,
       paidCustomers: attributableSubscriptions.filter((subscription) => subscription.status === 'active').length,
       currentMonthRevenueJpy: revenueFor(paidInvoices),
