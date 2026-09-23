@@ -1,20 +1,50 @@
 {
-  "cli": { "version": ">= 20.4.0", "requireCommit": true, "appVersionSource": "remote" },
+  "cli": {
+    "version": ">= 20.4.0",
+    "requireCommit": true,
+    "appVersionSource": "remote"
+  },
   "build": {
-    "development": { "developmentClient": true, "distribution": "internal", "android": { "buildType": "apk" } },
-    "preview": { "distribution": "internal", "android": { "buildType": "apk" } },
-    "production": { "autoIncrement": true, "env": { "EXPO_PUBLIC_APP_ENV": "production" } },
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production"
+      }
+    },
     "ios-simulator-release-qa": {
       "extends": "production",
       "environment": "production",
       "autoIncrement": false,
       "distribution": "internal",
-      "ios": { "simulator": true }
+      "ios": {
+        "simulator": true
+      }
     }
   },
   "submit": {
     "production": {
-      "ios": { "ascAppId": "6808659770" }
+      "ios": {
+        "ascAppId": "6808659770"
+      },
+      "android": {
+        "applicationId": "com.kannagi.garagelink",
+        "track": "production",
+        "releaseStatus": "completed",
+        "changesNotSentForReview": false
+      }
     }
   }
 }
