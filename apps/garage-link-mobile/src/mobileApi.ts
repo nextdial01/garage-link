@@ -5,6 +5,8 @@ const baseUrl = process.env.EXPO_PUBLIC_APP_BASE_URL?.replace(/\/$/, '');
 export type Store = { id: string; tenantId: string; name: string; role: 'owner' | 'admin' | 'implementer' | 'staff' | 'viewer' };
 export type Vehicle = { id: string; managementNo: string | null; maker: string | null; modelName: string | null; grade: string | null; registrationNo: string | null; mileageKm: number | null; color: string | null; totalPrice: number | null; status: string | null; locationName: string | null; description: string | null };
 export type VehicleDraft = { managementNo?: string; vin: string; maker: string; modelName: string; registrationNo?: string; mileageKm?: number; color?: string; locationName?: string; status?: '在庫中' | '展示中' | '商談中' | '整備中'; description?: string };
+export type VehicleEdit = { managementNo?: string | null; maker?: string | null; modelName?: string | null; grade?: string | null; registrationNo?: string | null; mileageKm?: number | null; color?: string | null; locationName?: string | null; description?: string | null };
+
 
 export type VehicleDetail = { vehicle: Vehicle; imageFiles: { id: string; mime_type: string; created_at: string }[] };
 export type TodayItem = { id: string; job_no?: string | null; job_type?: string | null; appointment_type?: string | null; status?: string | null; scheduled_at?: string | null; scheduled_in_at?: string | null; scheduled_delivery_at?: string | null; assigned_user_name?: string | null; customerName?: string | null; vehicleLabel?: string | null };
@@ -71,6 +73,7 @@ export const mobileApi = {
     return result;
   },
   async createVehicle(storeId: string, draft: VehicleDraft) { return (await request<{ vehicle: Vehicle }>('/api/mobile/vehicles', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) }, storeId)).vehicle; },
+  async updateVehicle(storeId: string, vehicleId: string, patch: VehicleEdit) { return (await request<{ vehicle: Vehicle }>(`/api/mobile/vehicles/${vehicleId}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }, storeId)).vehicle; },
   async vehicles(storeId: string, q = '') { return (await request<{ vehicles: Vehicle[] }>(`/api/mobile/vehicles${q ? `?q=${encodeURIComponent(q)}` : ''}`, {}, storeId)).vehicles; },
   detail(storeId: string, vehicleId: string) { return request<VehicleDetail>(`/api/mobile/vehicles/${vehicleId}`, {}, storeId); },
   async updateStatus(storeId: string, vehicleId: string, status: string) { return (await request<{ vehicle: Vehicle }>(`/api/mobile/vehicles/${vehicleId}/status`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status }) }, storeId)).vehicle; },
