@@ -1,0 +1,74 @@
+name: Refresh GARAGE LINK security dependencies
+
+on:
+  push:
+    branches:
+      - codex/security-deps-20260923
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-security-deps:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v6
+        with:
+          ref: codex/security-deps-20260923
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Move GARAGE LINK to patched Next.js line
+        run: pnpm --filter @apps/garage-link up next@16.3.3 eslint-config-next@16.3.3
+
+      - name: Apply supported audit fixes
+        run: pnpm audit --fix || true
+
+      - name: Reject unrelated generated changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          allowed='^( M|M |MM| A|A |AM| D|D |R |C |\?\?) (apps/garage-link/package.json|pnpm-lock.yaml|package.json|pnpm-workspace.yaml)$'
+          unexpected="$(git status --porcelain | grep -Ev "$allowed" || true)"
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected dependency-refresh changes:" >&2
+            echo "$unexpected" >&2
+            exit 1
+          fi
+
+      - name: Require no high or critical advisories
+        run: pnpm audit --audit-level high
+
+      - name: Verify GARAGE LINK
+        run: pnpm verify:garage-link
+
+      - name: Commit verified dependency refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/garage-link/package.json pnpm-lock.yaml
+          if [ -f package.json ]; then git add package.json; fi
+          git add pnpm-workspace.yaml
+          if git diff --cached --quiet; then
+            echo "No dependency changes required."
+            exit 0
+          fi
+          git commit -m "fix(security): update vulnerable GARAGE LINK dependencies"
+          git push origin HEAD:codex/security-deps-20260923
