@@ -14,7 +14,7 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/mobileApi.ts','utf8')
  assert.deepEqual(await exported.mobileApi.selectStore(store),store);
  handler=async(url,options)=>{assert.equal(options.headers['x-garage-store-id'],store.id);return Response.json({code:'unauthorized',error:'Unauthorized'},{status:401});};
  await assert.rejects(exported.mobileApi.today(store.id),error=>error.status===401&&error.code==='unauthorized');
- handler=async(url,options)=>{assert.equal(options.headers['x-garage-store-id'],store.id);assert.ok(url.includes('offset=100&limit=100'));if(url.includes('/vehicles'))assert.ok(url.endsWith('&q=DEMO%20001'));return Response.json({vehicles:[{id:'next'}],customers:[],jobs:[],quotes:[],nextOffset:null});};
+ handler=async(url,options)=>{assert.equal(options.headers['x-garage-store-id'],store.id);assert.ok(url.includes('offset=100&limit=30'));if(url.includes('/vehicles'))assert.ok(url.endsWith('&q=DEMO%20001'));return Response.json({vehicles:[{id:'next'}],customers:[],jobs:[],quotes:[],nextOffset:null});};
  assert.equal((await exported.mobileApi.vehiclesPage(store.id,'DEMO 001',100)).vehicles[0].id,'next');
  assert.equal((await exported.mobileApi.customersPage(store.id,'',100)).nextOffset,null);
  assert.equal((await exported.mobileApi.maintenancePage(store.id,100)).nextOffset,null);
