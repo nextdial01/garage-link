@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    await assertVehicleLimitAvailable(context.service, context.member.storeId);
+    await assertVehicleLimitAvailable(context.service as unknown as Parameters<typeof assertVehicleLimitAvailable>[0], context.member.storeId);
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
     return Response.json({
