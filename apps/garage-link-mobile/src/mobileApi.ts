@@ -4,10 +4,14 @@ import { getTrustedDeviceToken, saveTrustedDeviceToken } from './trustedDevice';
 const baseUrl = process.env.EXPO_PUBLIC_APP_BASE_URL?.replace(/\/$/, '');
 export type Store = { id: string; tenantId: string; name: string; role: 'owner' | 'admin' | 'implementer' | 'staff' | 'viewer' };
 export type Vehicle = { id: string; managementNo: string | null; maker: string | null; modelName: string | null; grade: string | null; registrationNo: string | null; mileageKm: number | null; color: string | null; totalPrice: number | null; status: string | null; locationName: string | null; description: string | null };
+export type VehicleDraft = { managementNo?: string; vin: string; maker: string; modelName: string; registrationNo?: string; mileageKm?: number; color?: string; locationName?: string; status?: '在庫中' | '展示中' | '商談中' | '整備中'; description?: string };
+export type VehicleEdit = { managementNo?: string | null; maker?: string | null; modelName?: string | null; grade?: string | null; registrationNo?: string | null; mileageKm?: number | null; color?: string | null; locationName?: string | null; description?: string | null };
+
+
 export type VehicleDetail = { vehicle: Vehicle; imageFiles: { id: string; mime_type: string; created_at: string }[] };
 export type TodayItem = { id: string; job_no?: string | null; job_type?: string | null; appointment_type?: string | null; status?: string | null; scheduled_at?: string | null; scheduled_in_at?: string | null; scheduled_delivery_at?: string | null; assigned_user_name?: string | null; customerName?: string | null; vehicleLabel?: string | null };
 export type Today = { appointments: TodayItem[]; deliveries: TodayItem[]; incompleteWork: TodayItem[]; assignedWork: TodayItem[] };
-export type MaintenanceJob = { id: string; job_no: string | null; job_type: string | null; status: string | null; scheduled_in_at: string | null; scheduled_delivery_at: string | null; assigned_user_name: string | null; estimated_total_amount: number | null; customerName?: string | null; vehicleLabel?: string | null };
+export type MaintenanceJob = { id: string; customer_id?: string | null; vehicle_id?: string | null; job_no: string | null; job_type: string | null; status: string | null; scheduled_in_at: string | null; scheduled_delivery_at: string | null; assigned_user_name: string | null; estimated_total_amount: number | null; customerName?: string | null; vehicleLabel?: string | null };
 export type Customer = { id: string; name: string | null; kana: string | null; phone: string | null; mobile_phone: string | null; email: string | null; address: string | null; customer_status: string | null; assigned_user_name: string | null; next_action_date: string | null; updated_at: string | null };
 export type QuoteItem = { id?: string; itemOrder?: number; itemType: string; name: string; description?: string | null; quantity: number; unitPrice: number; taxRate?: number; taxAmount?: number; amount?: number };
 export type Quote = { id: string; quoteNo: string | null; title: string | null; status: string | null; issueDate: string | null; expiryDate: string | null; customerId: string | null; vehicleId: string | null; customerName: string | null; customerPhone: string | null; customerEmail: string | null; customerAddress: string | null; customerHonorific: string | null; vehicleLabel: string | null; subtotalAmount: number | null; taxAmount: number | null; discountAmount: number | null; tradeInAmount: number | null; totalAmount: number | null; customerNote: string | null; updatedAt: string | null; items: QuoteItem[] };
@@ -55,10 +59,10 @@ export type CustomersPage = { customers: Customer[]; nextOffset: number | null }
 export type MaintenancePage = { jobs: MaintenanceJob[]; nextOffset: number | null };
 export type QuotesPage = { quotes: Quote[]; nextOffset: number | null };
 export const mobileApi = {
-  vehiclesPage(storeId: string, q = '', offset = 0) { return request<VehiclesPage>(`/api/mobile/vehicles?offset=${offset}&limit=100${q ? `&q=${encodeURIComponent(q)}` : ''}`, {}, storeId); },
-  customersPage(storeId: string, q = '', offset = 0) { return request<CustomersPage>(`/api/mobile/customers?offset=${offset}&limit=100${q ? `&q=${encodeURIComponent(q)}` : ''}`, {}, storeId); },
-  maintenancePage(storeId: string, offset = 0) { return request<MaintenancePage>(`/api/mobile/maintenance?offset=${offset}&limit=100`, {}, storeId); },
-  quotesPage(storeId: string, offset = 0) { return request<QuotesPage>(`/api/mobile/quotes?offset=${offset}&limit=100`, {}, storeId); },
+  vehiclesPage(storeId: string, q = '', offset = 0) { return request<VehiclesPage>(`/api/mobile/vehicles?offset=${offset}&limit=30${q ? `&q=${encodeURIComponent(q)}` : ''}`, {}, storeId); },
+  customersPage(storeId: string, q = '', offset = 0) { return request<CustomersPage>(`/api/mobile/customers?offset=${offset}&limit=30${q ? `&q=${encodeURIComponent(q)}` : ''}`, {}, storeId); },
+  maintenancePage(storeId: string, offset = 0) { return request<MaintenancePage>(`/api/mobile/maintenance?offset=${offset}&limit=30`, {}, storeId); },
+  quotesPage(storeId: string, offset = 0) { return request<QuotesPage>(`/api/mobile/quotes?offset=${offset}&limit=30`, {}, storeId); },
   async stores() { return (await request<{ stores: Store[] }>('/api/mobile/stores')).stores; },
   async selectStore(store: Store) { return (await request<{ store: Store }>('/api/mobile/stores/active', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tenantId: store.tenantId, storeId: store.id }) })).store; },
   requestAdminEmailOtp() { return request<{ ok: true; maskedEmail: string; retryAfter: number }>('/api/mobile/admin-email-otp/request', { method: 'POST' }); },
@@ -68,6 +72,8 @@ export const mobileApi = {
     await saveTrustedDeviceToken(result.trustedDeviceToken);
     return result;
   },
+  async createVehicle(storeId: string, draft: VehicleDraft) { return (await request<{ vehicle: Vehicle }>('/api/mobile/vehicles', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) }, storeId)).vehicle; },
+  async updateVehicle(storeId: string, vehicleId: string, patch: VehicleEdit) { return (await request<{ vehicle: Vehicle }>(`/api/mobile/vehicles/${vehicleId}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }, storeId)).vehicle; },
   async vehicles(storeId: string, q = '') { return (await request<{ vehicles: Vehicle[] }>(`/api/mobile/vehicles${q ? `?q=${encodeURIComponent(q)}` : ''}`, {}, storeId)).vehicles; },
   detail(storeId: string, vehicleId: string) { return request<VehicleDetail>(`/api/mobile/vehicles/${vehicleId}`, {}, storeId); },
   async updateStatus(storeId: string, vehicleId: string, status: string) { return (await request<{ vehicle: Vehicle }>(`/api/mobile/vehicles/${vehicleId}/status`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status }) }, storeId)).vehicle; },

@@ -7,11 +7,11 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Session } from '@supabase/supabase-js';
-import { MobileApiError, mobileApi, type Customer, type CustomerDetail, type MaintenanceJob, type Quote, type QuoteDraft, type Store, type Today, type Vehicle, type VehicleDetail } from './src/mobileApi';
+import { MobileApiError, mobileApi, type Customer, type CustomerDetail, type MaintenanceJob, type Quote, type QuoteDraft, type Store, type Today, type Vehicle, type VehicleDetail, type VehicleDraft } from './src/mobileApi';
 import { localSignOutScope, sessionAfterAuthEvent, shouldRefreshForAppState } from './src/authLifecycle';
 import { mobileConfigurationError, supabase } from './src/supabase';
 
-type Page = 'stores' | 'today' | 'vehicles' | 'vehicleDetail' | 'maintenance' | 'maintenanceDetail' | 'customers' | 'customerDetail' | 'quotes' | 'quoteCreate' | 'quotePreview';
+type Page = 'stores' | 'today' | 'vehicles' | 'vehicleCreate' | 'vehicleDetail' | 'maintenance' | 'maintenanceDetail' | 'customers' | 'customerDetail' | 'quotes' | 'quoteCreate' | 'quotePreview';
 const operationKey = () => 'native-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
 const yen = (value: number | null | undefined) => typeof value === 'number' ? value.toLocaleString('ja-JP') + '円' : '-';
 const date = (value: string | null | undefined) => value ? new Date(value).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
@@ -57,6 +57,29 @@ export function GarageMobileApp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [vehicleSearch, setVehicleSearch] = useState('');
+  const [vehicleDraft, setVehicleDraft] = useState({
+    managementNo: '',
+    vin: '',
+    maker: '',
+    modelName: '',
+    registrationNo: '',
+    mileageKm: '',
+    color: '',
+    locationName: '',
+    description: '',
+  });
+  const [vehicleEditing, setVehicleEditing] = useState(false);
+  const [vehicleEditDraft, setVehicleEditDraft] = useState({
+    managementNo: '',
+    maker: '',
+    modelName: '',
+    grade: '',
+    registrationNo: '',
+    mileageKm: '',
+    color: '',
+    locationName: '',
+    description: '',
+  });
   const [customerSearch, setCustomerSearch] = useState('');
   const [quoteVehicle, setQuoteVehicle] = useState('');
   const [vehicleOffset, setVehicleOffset] = useState<number | null>(null);
@@ -133,7 +156,7 @@ export function GarageMobileApp() {
   function resetLocalState() {
     setVehicleOffset(null); setCustomerOffset(null); setMaintenanceOffset(null); setQuoteOffset(null); setVehicleQuery(''); setCustomerQuery('');
     requests.invalidate(); pending.current.clear(); retry.current = null; setMutating(false);
-    setStore(null); setStores([]); setPage('stores'); setVehicles([]); setVehicle(null); setToday(null); setJobs([]); setJob(null); setCustomers([]); setCustomer(null); setQuotes([]); setQuote(null); setVehicleSearch(''); setCustomerSearch(''); setQuoteVehicle(''); setError(null); setLoading(false); setAdminOtpRequired(false); setAdminOtpSent(false); setAdminOtpCode(''); setQuoteTitle(''); setItemName(''); setItemPrice(''); setQuoteValidation(null);
+    setStore(null); setStores([]); setPage('stores'); setVehicles([]); setVehicle(null); setToday(null); setJobs([]); setJob(null); setCustomers([]); setCustomer(null); setQuotes([]); setQuote(null); setVehicleSearch(''); setVehicleDraft({ managementNo: '', vin: '', maker: '', modelName: '', registrationNo: '', mileageKm: '', color: '', locationName: '', description: '' }); setVehicleEditing(false); setVehicleEditDraft({ managementNo: '', maker: '', modelName: '', grade: '', registrationNo: '', mileageKm: '', color: '', locationName: '', description: '' }); setCustomerSearch(''); setQuoteVehicle(''); setError(null); setLoading(false); setAdminOtpRequired(false); setAdminOtpSent(false); setAdminOtpCode(''); setQuoteTitle(''); setItemName(''); setItemPrice(''); setQuoteValidation(null);
   }
   function openStorePicker() {
     if (requests.mutationPending()) return;
@@ -154,21 +177,120 @@ export function GarageMobileApp() {
   }
   async function openToday(target = store) {
     if (!target) return;
+    setPage('today');
     retry.current = () => void openToday(target);
     const next = await run(() => mobileApi.today(target.id));
-    if (next) { setToday(next); setPage('today'); }
+    if (next) setToday(next);
   }
   async function openVehicles(query = vehicleSearch) {
     if (!store) return;
+    setPage('vehicles');
     retry.current = () => void openVehicles(query);
     const next = await run(() => mobileApi.vehiclesPage(store.id, query.trim()));
-    if (next) { setVehicles(next.vehicles); setVehicleOffset(next.nextOffset ?? null); setVehicleQuery(query.trim()); setPage('vehicles'); }
+    if (next) { setVehicles(next.vehicles); setVehicleOffset(next.nextOffset ?? null); setVehicleQuery(query.trim()); }
   }
-  async function openVehicle(next: Vehicle) {
+  function startVehicleCreate() {
+    setError(null);
+    retry.current = null;
+    setVehicleDraft({ managementNo: '', vin: '', maker: '', modelName: '', registrationNo: '', mileageKm: '', color: '', locationName: '', description: '' });
+    setPage('vehicleCreate');
+  }
+  async function saveVehicle() {
+    if (!store) return;
+    const mileageText = vehicleDraft.mileageKm.trim();
+    const mileageKm = mileageText ? Number(mileageText) : undefined;
+    if (!vehicleDraft.vin.trim() || !vehicleDraft.maker.trim() || !vehicleDraft.modelName.trim()) {
+      setError('車台番号・メーカー・車名を入力してください。');
+      return;
+    }
+    if (mileageKm !== undefined && (!Number.isSafeInteger(mileageKm) || mileageKm < 0)) {
+      setError('走行距離は0以上の整数で入力してください。');
+      return;
+    }
+    const draft: VehicleDraft = {
+      managementNo: vehicleDraft.managementNo.trim() || undefined,
+      vin: vehicleDraft.vin.trim(),
+      maker: vehicleDraft.maker.trim(),
+      modelName: vehicleDraft.modelName.trim(),
+      registrationNo: vehicleDraft.registrationNo.trim() || undefined,
+      mileageKm,
+      color: vehicleDraft.color.trim() || undefined,
+      locationName: vehicleDraft.locationName.trim() || undefined,
+      description: vehicleDraft.description.trim() || undefined,
+      status: '在庫中',
+    };
+    retry.current = () => void saveVehicle();
+    const saved = await run(() => mobileApi.createVehicle(store.id, draft), true);
+    if (saved) {
+      setVehicles((current) => [saved, ...current.filter((item) => item.id !== saved.id)]);
+      setPage('vehicles');
+    }
+  }
+  async function openVehicle(next: Pick<Vehicle, 'id'>) {
     if (!store) return;
     retry.current = () => void openVehicle(next);
     const loaded = await run(() => mobileApi.detail(store.id, next.id));
-    if (loaded) { setVehicle(loaded); setPage('vehicleDetail'); }
+    if (loaded) {
+      setVehicle(loaded);
+      setVehicleEditing(false);
+      setVehicleEditDraft({
+        managementNo: loaded.vehicle.managementNo || '',
+        maker: loaded.vehicle.maker || '',
+        modelName: loaded.vehicle.modelName || '',
+        grade: loaded.vehicle.grade || '',
+        registrationNo: loaded.vehicle.registrationNo || '',
+        mileageKm: loaded.vehicle.mileageKm == null ? '' : String(loaded.vehicle.mileageKm),
+        color: loaded.vehicle.color || '',
+        locationName: loaded.vehicle.locationName || '',
+        description: loaded.vehicle.description || '',
+      });
+      setPage('vehicleDetail');
+    }
+  }
+  function startVehicleEdit() {
+    if (!vehicle) return;
+    setError(null);
+    setVehicleEditDraft({
+      managementNo: vehicle.vehicle.managementNo || '',
+      maker: vehicle.vehicle.maker || '',
+      modelName: vehicle.vehicle.modelName || '',
+      grade: vehicle.vehicle.grade || '',
+      registrationNo: vehicle.vehicle.registrationNo || '',
+      mileageKm: vehicle.vehicle.mileageKm == null ? '' : String(vehicle.vehicle.mileageKm),
+      color: vehicle.vehicle.color || '',
+      locationName: vehicle.vehicle.locationName || '',
+      description: vehicle.vehicle.description || '',
+    });
+    setVehicleEditing(true);
+  }
+  async function saveVehicleEdit() {
+    if (!store || !vehicle) return;
+    const mileageText = vehicleEditDraft.mileageKm.trim();
+    const mileageKm = mileageText ? Number(mileageText) : null;
+    if (!vehicleEditDraft.maker.trim() || !vehicleEditDraft.modelName.trim()) {
+      setError('メーカーと車名は空欄にできません。');
+      return;
+    }
+    if (mileageText && (!Number.isSafeInteger(mileageKm) || Number(mileageKm) < 0)) {
+      setError('走行距離は0以上の整数で入力してください。');
+      return;
+    }
+    const updated = await run(() => mobileApi.updateVehicle(store.id, vehicle.vehicle.id, {
+      managementNo: vehicleEditDraft.managementNo.trim() || null,
+      maker: vehicleEditDraft.maker.trim(),
+      modelName: vehicleEditDraft.modelName.trim(),
+      grade: vehicleEditDraft.grade.trim() || null,
+      registrationNo: vehicleEditDraft.registrationNo.trim() || null,
+      mileageKm,
+      color: vehicleEditDraft.color.trim() || null,
+      locationName: vehicleEditDraft.locationName.trim() || null,
+      description: vehicleEditDraft.description.trim() || null,
+    }), true);
+    if (updated) {
+      setVehicle({ ...vehicle, vehicle: updated });
+      setVehicles((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setVehicleEditing(false);
+    }
   }
   async function changeVehicleStatus(status: string) {
     if (!store || !vehicle) return;
@@ -190,9 +312,10 @@ export function GarageMobileApp() {
   }
   async function openMaintenance() {
     if (!store) return;
+    setPage('maintenance');
     retry.current = () => void openMaintenance();
     const next = await run(() => mobileApi.maintenancePage(store.id));
-    if (next) { setJobs(next.jobs); setMaintenanceOffset(next.nextOffset ?? null); setPage('maintenance'); }
+    if (next) { setJobs(next.jobs); setMaintenanceOffset(next.nextOffset ?? null); }
   }
   async function openJob(next: Pick<MaintenanceJob, 'id'>) {
     if (!store) return;
@@ -205,11 +328,23 @@ export function GarageMobileApp() {
     const next = await run(() => mobileApi.updateMaintenance(store.id, job.id, status, maintenanceIdempotencyKey), true);
     if (next) { setJob(next); setMaintenanceIdempotencyKey(operationKey()); }
   }
+  async function startQuoteFromJob() {
+    if (!store || !job?.customer_id) {
+      setError('この整備案件には顧客が紐づいていません。');
+      return;
+    }
+    const loaded = await run(() => mobileApi.customerDetail(store.id, job.customer_id!));
+    if (!loaded) return;
+    setCustomer(loaded);
+    const selectedVehicleId = job.vehicle_id && loaded.vehicles.some((item) => item.id === job.vehicle_id) ? job.vehicle_id : '';
+    startQuote(selectedVehicleId);
+  }
   async function openCustomers(query = customerSearch) {
     if (!store) return;
+    setPage('customers');
     retry.current = () => void openCustomers(query);
     const next = await run(() => mobileApi.customersPage(store.id, query.trim()));
-    if (next) { setCustomers(next.customers); setCustomerOffset(next.nextOffset ?? null); setCustomerQuery(query.trim()); setPage('customers'); }
+    if (next) { setCustomers(next.customers); setCustomerOffset(next.nextOffset ?? null); setCustomerQuery(query.trim()); }
   }
   async function openCustomer(next: Customer) {
     if (!store) return;
@@ -219,9 +354,10 @@ export function GarageMobileApp() {
   }
   async function openQuotes() {
     if (!store) return;
+    setPage('quotes');
     retry.current = () => void openQuotes();
     const next = await run(() => mobileApi.quotesPage(store.id));
-    if (next) { setQuotes(next.quotes); setQuoteOffset(next.nextOffset ?? null); setPage('quotes'); }
+    if (next) { setQuotes(next.quotes); setQuoteOffset(next.nextOffset ?? null); }
   }
   async function loadMore(kind: 'vehicles' | 'customers' | 'maintenance' | 'quotes') {
     if (!store || loading) return;
@@ -240,7 +376,7 @@ export function GarageMobileApp() {
       if (next) { setQuotes((current) => mergePage(current, next.quotes)); setQuoteOffset(next.nextOffset ?? null); }
     }
   }
-  function startQuote() { setError(null); retry.current = null; setQuoteVehicle(''); setQuoteTitle(''); setItemName(''); setItemPrice(''); setQuoteValidation(null); setIdempotencyKey(operationKey()); setPage('quoteCreate'); }
+  function startQuote(selectedVehicleId = '') { setError(null); retry.current = null; setQuoteVehicle(selectedVehicleId); setQuoteTitle(''); setItemName(''); setItemPrice(''); setQuoteValidation(null); setIdempotencyKey(operationKey()); setPage('quoteCreate'); }
   async function saveQuote() {
     if (!store || !customer) { setError('見積を作成する顧客を選択してください。'); return; }
     const validation = quoteValidationError(itemName, itemPrice);
@@ -333,14 +469,15 @@ export function GarageMobileApp() {
   if (adminOtpRequired) return <AdminOtp onLogout={() => void logout()} emailCode={adminOtpCode} sent={adminOtpSent} error={error} loading={loading} onCode={setAdminOtpCode} onRequest={() => void requestAdminOtp()} onVerify={() => void verifyAdminOtp()} />;
   if (page === 'stores') return <SafeAreaView style={styles.screen}><Header title="店舗を選択" onLogout={() => void logout()} /><View style={styles.storeContent}><View style={styles.intro}><Text style={styles.eyebrow}>STORE</Text><Text style={styles.lead}>利用する店舗を選択してください。</Text></View><ListState loading={loading} error={error} onRetry={() => void loadStores()}><FlatList data={stores} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} renderItem={({ item }) => <EntityRow title={item.name} subtitle={roleLabel(item.role)} onPress={() => void selectStore(item)} />} ListEmptyComponent={<EmptyState title="利用可能な店舗がありません" description="管理者へアクセス権をご確認ください。" />} /></ListState></View></SafeAreaView>;
   if (page === 'today') return <Screen {...screenProps} title="今日" onStore={openStorePicker} onLogout={() => void logout()} nav={nav} error={error}><TodayScreen today={today} onJob={(id) => void openJob({ id })} onMaintenance={() => void openMaintenance()} tablet={tablet} /></Screen>;
-  if (page === 'vehicleDetail' && vehicle && store) return <Screen {...screenProps} title="車両詳細" onBack={() => void openVehicles()} nav={nav} error={error}><ScrollView contentContainerStyle={tablet ? styles.tabletDetail : styles.detail}><DetailHero title={[vehicle.vehicle.maker, vehicle.vehicle.modelName].filter(Boolean).join(' ') || '車両'} status={vehicle.vehicle.status} /><InfoRow label="管理番号" value={vehicle.vehicle.managementNo || '-'} /><InfoRow label="登録番号" value={vehicle.vehicle.registrationNo || '-'} /><InfoRow label="走行距離" value={vehicle.vehicle.mileageKm == null ? '-' : vehicle.vehicle.mileageKm.toLocaleString('ja-JP') + ' km'} /><InfoRow label="保管場所" value={vehicle.vehicle.locationName || '-'} /><SectionLabel label="状態を更新" /><View style={styles.actions}><ActionButton disabled={store.role === 'viewer'} title="在庫中" onPress={() => void changeVehicleStatus('在庫中')} variant="secondary" /><ActionButton disabled={store.role === 'viewer'} title="整備中" onPress={() => void changeVehicleStatus('整備中')} variant="secondary" /></View><SectionLabel label="写真" /><View style={styles.actions}><ActionButton disabled={store.role === 'viewer'} title="カメラで追加" onPress={() => void addPhoto(true)} /><ActionButton disabled={store.role === 'viewer'} title="写真から追加" onPress={() => void addPhoto(false)} variant="secondary" /></View>{vehicle.imageFiles.map((item) => <SignedImage key={item.id} storeId={store.id} fileId={item.id} />)}{!vehicle.imageFiles.length && <EmptyState title="画像はまだありません" description="カメラまたは写真ライブラリから追加できます。" compact />}</ScrollView></Screen>;
-  if (page === 'vehicles') return <Screen {...screenProps} title="車両" onStore={openStorePicker} nav={nav} error={error}><Search placeholder="車名・管理番号で検索" value={vehicleSearch} onChange={setVehicleSearch} onClear={() => { setVehicleSearch(''); void openVehicles(''); }} onSearch={() => void openVehicles()} /><ListState loading={loading && vehicles.length === 0} error={null} onRetry={() => void openVehicles()}><FlatList ListFooterComponent={<PageFooter count={vehicles.length} more={vehicleOffset !== null} loading={loading} onMore={() => void loadMore('vehicles')} />} data={vehicles} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} refreshing={loading} onRefresh={() => void openVehicles()} renderItem={({ item }) => <EntityRow title={[item.maker, item.modelName].filter(Boolean).join(' ') || item.managementNo || '名称未設定'} subtitle={[item.managementNo || '管理番号未設定', item.registrationNo, item.mileageKm == null ? null : item.mileageKm.toLocaleString('ja-JP') + ' km'].filter(Boolean).join(' · ')} right={<StatusChip value={item.status} />} onPress={() => void openVehicle(item)} />} ListEmptyComponent={<EmptyState title={vehicleSearch.trim() ? "条件に一致する車両はありません" : "車両がありません"} description={vehicleSearch.trim() ? "車名・管理番号を確認するか、検索条件を解除してください。" : "Web版で車両を登録すると、この店舗の車両がここに表示されます。"} />} /></ListState></Screen>;
-  if (page === 'maintenanceDetail' && job) return <Screen {...screenProps} title="整備詳細" onBack={() => void openMaintenance()} nav={nav} error={error}><ScrollView contentContainerStyle={styles.detail}><DetailHero title={job.vehicleLabel || job.job_no || '整備案件'} status={job.status} />{job.customerName && <InfoRow label="顧客" value={job.customerName} />}<InfoRow label="案件番号" value={job.job_no || '-'} /><InfoRow label="種別" value={jobTypeLabel(job.job_type)} /><InfoRow label="納車予定" value={date(job.scheduled_delivery_at)} /><InfoRow label="担当" value={job.assigned_user_name || '-'} /><SectionLabel label="状態を更新" /><View style={styles.statusActions}><ActionButton disabled={store?.role === 'viewer'} title="受付" onPress={() => void updateJob('received')} variant="secondary" /><ActionButton disabled={store?.role === 'viewer'} title="作業中" onPress={() => void updateJob('working')} variant="secondary" /><ActionButton disabled={store?.role === 'viewer'} title="完了" onPress={() => void updateJob('completed')} /></View></ScrollView></Screen>;
+  if (page === 'vehicleDetail' && vehicle && store) return <Screen {...screenProps} title="車両詳細" onBack={() => setPage('vehicles')} nav={nav} error={error}><ScrollView contentContainerStyle={tablet ? styles.tabletDetail : styles.detail}><DetailHero title={[vehicle.vehicle.maker, vehicle.vehicle.modelName].filter(Boolean).join(' ') || '車両'} status={vehicle.vehicle.status} />{vehicleEditing ? <><FieldLabel label="メーカー" /><TextInput style={styles.input} value={vehicleEditDraft.maker} onChangeText={(value) => setVehicleEditDraft((current) => ({ ...current, maker: value }))} /><FieldLabel label="車名" /><TextInput style={styles.input} value={vehicleEditDraft.modelName} onChangeText={(value) => setVehicleEditDraft((current) => ({ ...current, modelName: value }))} /><FieldLabel label="グレード" /><TextInput style={styles.input} value={vehicleEditDraft.grade} onChangeText={(value) => setVehicleEditDraft((current) => ({ ...current, grade: value }))} /><FieldLabel label="管理番号" /><TextInput style={styles.input} value={vehicleEditDraft.managementNo} onChangeText={(value) => setVehicleEditDraft((current) => ({ ...current, managementNo: value }))} /><FieldLabel label="登録番号" /><TextInput style={styles.input} value={vehicleEditDraft.registrationNo} onChangeText={(value) => setVehicleEditDraft((current) => ({ ...current, registrationNo: value }))} /><FieldLabel label="走行距離（km）" /><TextInput style={styles.input} keyboardType="numeric" value={vehicleEditDraft.mileageKm} onChangeText={(value) => setVehicleEditDraft((current) => ({ ...current, mileageKm: value.replace(/\D/g, '') }))} /><FieldLabel label="色" /><TextInput style={styles.input} value={vehicleEditDraft.color} onChangeText={(value) => setVehicleEditDraft((current) => ({ ...current, color: value }))} /><FieldLabel label="保管場所" /><TextInput style={styles.input} value={vehicleEditDraft.locationName} onChangeText={(value) => setVehicleEditDraft((current) => ({ ...current, locationName: value }))} /><FieldLabel label="メモ" /><TextInput style={[styles.input, { minHeight: 90 }]} multiline value={vehicleEditDraft.description} onChangeText={(value) => setVehicleEditDraft((current) => ({ ...current, description: value }))} /><View style={styles.actions}><ActionButton title="変更を保存" onPress={() => void saveVehicleEdit()} disabled={mutating} /><ActionButton title="キャンセル" onPress={() => setVehicleEditing(false)} variant="ghost" disabled={mutating} /></View></> : <><InfoRow label="管理番号" value={vehicle.vehicle.managementNo || '-'} /><InfoRow label="登録番号" value={vehicle.vehicle.registrationNo || '-'} /><InfoRow label="走行距離" value={vehicle.vehicle.mileageKm == null ? '-' : vehicle.vehicle.mileageKm.toLocaleString('ja-JP') + ' km'} /><InfoRow label="色" value={vehicle.vehicle.color || '-'} /><InfoRow label="保管場所" value={vehicle.vehicle.locationName || '-'} /><View style={styles.primaryAction}><ActionButton disabled={store.role === 'viewer'} title="車両情報を編集" onPress={startVehicleEdit} variant="secondary" /></View><SectionLabel label="状態を更新" /><View style={styles.actions}><ActionButton disabled={store.role === 'viewer'} title="在庫中" onPress={() => void changeVehicleStatus('在庫中')} variant="secondary" /><ActionButton disabled={store.role === 'viewer'} title="展示中" onPress={() => void changeVehicleStatus('展示中')} variant="secondary" /><ActionButton disabled={store.role === 'viewer'} title="商談中" onPress={() => void changeVehicleStatus('商談中')} variant="secondary" /><ActionButton disabled={store.role === 'viewer'} title="整備中" onPress={() => void changeVehicleStatus('整備中')} variant="secondary" /></View><SectionLabel label="写真" /><View style={styles.actions}><ActionButton disabled={store.role === 'viewer'} title="カメラで追加" onPress={() => void addPhoto(true)} /><ActionButton disabled={store.role === 'viewer'} title="写真から追加" onPress={() => void addPhoto(false)} variant="secondary" /></View>{vehicle.imageFiles.map((item) => <SignedImage key={item.id} storeId={store.id} fileId={item.id} />)}{!vehicle.imageFiles.length && <EmptyState title="画像はまだありません" description="カメラまたは写真ライブラリから追加できます。" compact />}</>}</ScrollView></Screen>;
+  if (page === 'vehicleCreate') return <Screen {...screenProps} title="車両を追加" onBack={() => setPage('vehicles')} nav={nav} error={error}><ScrollView style={styles.flex} contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled"><FieldLabel label="車台番号（必須）" /><TextInput style={styles.input} value={vehicleDraft.vin} onChangeText={(value) => setVehicleDraft((current) => ({ ...current, vin: value }))} placeholder="例：NCP160-1234567" placeholderTextColor={colors.muted} /><FieldLabel label="メーカー（必須）" /><TextInput style={styles.input} value={vehicleDraft.maker} onChangeText={(value) => setVehicleDraft((current) => ({ ...current, maker: value }))} placeholder="例：トヨタ" placeholderTextColor={colors.muted} /><FieldLabel label="車名（必須）" /><TextInput style={styles.input} value={vehicleDraft.modelName} onChangeText={(value) => setVehicleDraft((current) => ({ ...current, modelName: value }))} placeholder="例：プロボックス" placeholderTextColor={colors.muted} /><FieldLabel label="管理番号" /><TextInput style={styles.input} value={vehicleDraft.managementNo} onChangeText={(value) => setVehicleDraft((current) => ({ ...current, managementNo: value }))} placeholder="例：GL-0001" placeholderTextColor={colors.muted} /><FieldLabel label="登録番号" /><TextInput style={styles.input} value={vehicleDraft.registrationNo} onChangeText={(value) => setVehicleDraft((current) => ({ ...current, registrationNo: value }))} placeholder="例：大阪 300 あ 12-34" placeholderTextColor={colors.muted} /><FieldLabel label="走行距離（km）" /><TextInput style={styles.input} value={vehicleDraft.mileageKm} onChangeText={(value) => setVehicleDraft((current) => ({ ...current, mileageKm: value.replace(/\D/g, '') }))} keyboardType="numeric" placeholder="例：42000" placeholderTextColor={colors.muted} /><FieldLabel label="色" /><TextInput style={styles.input} value={vehicleDraft.color} onChangeText={(value) => setVehicleDraft((current) => ({ ...current, color: value }))} placeholder="例：ホワイト" placeholderTextColor={colors.muted} /><FieldLabel label="保管場所" /><TextInput style={styles.input} value={vehicleDraft.locationName} onChangeText={(value) => setVehicleDraft((current) => ({ ...current, locationName: value }))} placeholder="例：第1展示場" placeholderTextColor={colors.muted} /><FieldLabel label="メモ" /><TextInput style={[styles.input, { minHeight: 90 }]} multiline value={vehicleDraft.description} onChangeText={(value) => setVehicleDraft((current) => ({ ...current, description: value }))} placeholder="車両のメモ" placeholderTextColor={colors.muted} /><ActionButton title="車両を登録" onPress={() => void saveVehicle()} disabled={store?.role === 'viewer' || mutating} /></ScrollView></Screen>;
+  if (page === 'vehicles') return <Screen {...screenProps} title="車両" onStore={openStorePicker} nav={nav} error={error}><View style={styles.primaryAction}><ActionButton title="車両を追加" onPress={startVehicleCreate} disabled={store?.role === 'viewer'} /></View><Search placeholder="車名・管理番号で検索" value={vehicleSearch} onChange={setVehicleSearch} onClear={() => { setVehicleSearch(''); void openVehicles(''); }} onSearch={() => void openVehicles()} /><ListState loading={loading && vehicles.length === 0} error={null} onRetry={() => void openVehicles()}><FlatList ListFooterComponent={<PageFooter count={vehicles.length} more={vehicleOffset !== null} loading={loading} onMore={() => void loadMore('vehicles')} />} data={vehicles} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} refreshing={loading} onRefresh={() => void openVehicles()} renderItem={({ item }) => <EntityRow title={[item.maker, item.modelName].filter(Boolean).join(' ') || item.managementNo || '名称未設定'} subtitle={[item.managementNo || '管理番号未設定', item.registrationNo, item.mileageKm == null ? null : item.mileageKm.toLocaleString('ja-JP') + ' km'].filter(Boolean).join(' · ')} right={<StatusChip value={item.status} />} onPress={() => void openVehicle(item)} />} ListEmptyComponent={<EmptyState title={vehicleSearch.trim() ? "条件に一致する車両はありません" : "車両がありません"} description={vehicleSearch.trim() ? "車名・管理番号を確認するか、検索条件を解除してください。" : "Web版で車両を登録すると、この店舗の車両がここに表示されます。"} />} /></ListState></Screen>;
+  if (page === 'maintenanceDetail' && job) return <Screen {...screenProps} title="整備詳細" onBack={() => setPage('maintenance')} nav={nav} error={error}><ScrollView contentContainerStyle={styles.detail}><DetailHero title={job.vehicleLabel || job.job_no || '整備案件'} status={job.status} />{job.customerName && <InfoRow label="顧客" value={job.customerName} />}<InfoRow label="案件番号" value={job.job_no || '-'} /><InfoRow label="種別" value={jobTypeLabel(job.job_type)} /><InfoRow label="納車予定" value={date(job.scheduled_delivery_at)} /><InfoRow label="担当" value={job.assigned_user_name || '-'} /><SectionLabel label="状態を更新" /><View style={styles.statusActions}><ActionButton disabled={store?.role === 'viewer'} title="受付" onPress={() => void updateJob('received')} variant="secondary" /><ActionButton disabled={store?.role === 'viewer'} title="見積中" onPress={() => void updateJob('estimating')} variant="secondary" /><ActionButton disabled={store?.role === 'viewer'} title="入庫待ち" onPress={() => void updateJob('waiting')} variant="secondary" /><ActionButton disabled={store?.role === 'viewer'} title="作業中" onPress={() => void updateJob('working')} variant="secondary" /><ActionButton disabled={store?.role === 'viewer'} title="完了" onPress={() => void updateJob('completed')} /><ActionButton disabled={!job.customer_id || store?.role === 'viewer'} title="この整備の見積を作成" onPress={() => void startQuoteFromJob()} /><ActionButton disabled={!job.vehicle_id} title="車両写真を追加" onPress={() => job.vehicle_id && void openVehicle({ id: job.vehicle_id })} variant="secondary" /></View></ScrollView></Screen>;
   if (page === 'maintenance') return <Screen {...screenProps} title="整備・車検" onStore={openStorePicker} nav={nav} error={error}><ListState loading={loading && jobs.length === 0} error={null} onRetry={() => void openMaintenance()}><FlatList ListFooterComponent={<PageFooter count={jobs.length} more={maintenanceOffset !== null} loading={loading} onMore={() => void loadMore('maintenance')} />} data={jobs} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} refreshing={loading} onRefresh={() => void openMaintenance()} renderItem={({ item }) => <EntityRow title={item.vehicleLabel || item.job_no || '整備案件'} subtitle={[item.customerName, item.job_no ? `案件 ${item.job_no}` : null, jobTypeLabel(item.job_type), '納車予定 ' + date(item.scheduled_delivery_at)].filter(Boolean).join(' · ')} right={<StatusChip value={item.status} />} onPress={() => void openJob(item)} />} ListEmptyComponent={<EmptyState title="整備案件がありません" description="今日の作業予定はここに表示されます。" />} /></ListState></Screen>;
-  if (page === 'customerDetail' && customer) return <Screen {...screenProps} title="顧客詳細" onBack={() => void openCustomers()} nav={nav} error={error}><ScrollView contentContainerStyle={tablet ? styles.tabletDetail : styles.detail}><DetailHero title={customer.customer.name || '顧客'} /><InfoRow label="電話番号" value={customer.customer.phone || customer.customer.mobile_phone || '-'} /><InfoRow label="メール" value={customer.customer.email || '-'} /><InfoRow label="住所" value={customer.customer.address || '-'} /><SectionLabel label="紐づく車両" />{customer.vehicles.length ? customer.vehicles.map((item) => <EntityRow key={item.id} title={[item.maker, item.modelName].filter(Boolean).join(' ') || '車両'} subtitle={item.managementNo || '管理番号未設定'} onPress={() => void openVehicle(item)} />) : <Text style={styles.muted}>登録車両はありません。</Text>}<SectionLabel label="整備案件" />{customer.maintenance.length ? customer.maintenance.map((item) => <EntityRow key={item.id} title={item.job_no || '整備案件'} subtitle={statusLabel(item.status)} onPress={() => void openJob(item)} />) : <Text style={styles.muted}>整備案件はありません。</Text>}<View style={styles.primaryAction}><ActionButton disabled={store?.role === 'viewer'} title="この顧客の見積を作成" onPress={startQuote} /></View></ScrollView></Screen>;
+  if (page === 'customerDetail' && customer) return <Screen {...screenProps} title="顧客詳細" onBack={() => setPage('customers')} nav={nav} error={error}><ScrollView contentContainerStyle={tablet ? styles.tabletDetail : styles.detail}><DetailHero title={customer.customer.name || '顧客'} /><InfoRow label="電話番号" value={customer.customer.phone || customer.customer.mobile_phone || '-'} /><InfoRow label="メール" value={customer.customer.email || '-'} /><InfoRow label="住所" value={customer.customer.address || '-'} /><SectionLabel label="紐づく車両" />{customer.vehicles.length ? customer.vehicles.map((item) => <EntityRow key={item.id} title={[item.maker, item.modelName].filter(Boolean).join(' ') || '車両'} subtitle={item.managementNo || '管理番号未設定'} onPress={() => void openVehicle(item)} />) : <Text style={styles.muted}>登録車両はありません。</Text>}<SectionLabel label="整備案件" />{customer.maintenance.length ? customer.maintenance.map((item) => <EntityRow key={item.id} title={item.job_no || '整備案件'} subtitle={statusLabel(item.status)} onPress={() => void openJob(item)} />) : <Text style={styles.muted}>整備案件はありません。</Text>}<View style={styles.primaryAction}><ActionButton disabled={store?.role === 'viewer'} title="この顧客の見積を作成" onPress={() => startQuote()} /></View></ScrollView></Screen>;
   if (page === 'customers') return <Screen {...screenProps} title="顧客" onStore={openStorePicker} nav={nav} error={error}><Search placeholder="顧客名・電話番号で検索" value={customerSearch} onChange={setCustomerSearch} onClear={() => { setCustomerSearch(''); void openCustomers(''); }} onSearch={() => void openCustomers()} /><ListState loading={loading && customers.length === 0} error={null} onRetry={() => void openCustomers()}><FlatList ListFooterComponent={<PageFooter count={customers.length} more={customerOffset !== null} loading={loading} onMore={() => void loadMore('customers')} />} data={customers} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} refreshing={loading} onRefresh={() => void openCustomers()} renderItem={({ item }) => <EntityRow title={item.name || '名称未設定'} subtitle={item.phone || item.mobile_phone || '電話番号未設定'} onPress={() => void openCustomer(item)} />} ListEmptyComponent={<EmptyState title={customerSearch.trim() ? "条件に一致する顧客はありません" : "顧客がありません"} description={customerSearch.trim() ? "顧客名・電話番号を確認するか、検索条件を解除してください。" : "Web版で顧客を登録すると、この店舗の顧客がここに表示されます。"} />} /></ListState></Screen>;
   if (page === 'quoteCreate') return <Screen {...screenProps} title="見積を作成" onRetry={() => void saveQuote()} onBack={() => setPage('customerDetail')} nav={nav} error={error}><ScrollView style={styles.flex} contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"><View style={styles.customerSummary}><Text style={styles.summaryLabel}>宛先</Text><Text style={styles.summaryValue}>{customer?.customer.name || '-'}</Text></View><SectionLabel label="対象車両" /><Text style={styles.muted}>この見積に関連付ける車両を選んでください。</Text><VehicleChoice selected={!quoteVehicle} title="車両を指定しない" onPress={() => setQuoteVehicle('')} />{customer?.vehicles.map((item) => <VehicleChoice key={item.id} selected={quoteVehicle === item.id} title={[item.managementNo, item.maker, item.modelName].filter(Boolean).join(' / ') || '車両'} onPress={() => setQuoteVehicle(item.id)} />) }<FieldLabel label="見積タイトル（任意）" /><TextInput style={styles.input} accessibilityLabel="見積タイトル" editable={!mutating} placeholder="例：車検整備のお見積" placeholderTextColor={colors.muted} value={quoteTitle} onChangeText={setQuoteTitle} /><FieldLabel label="販売明細名" /><TextInput ref={itemNameRef} style={[styles.input, quoteValidation?.field === 'itemName' && styles.inputError]} accessibilityLabel="販売明細名" editable={!mutating} placeholder="例：車検整備一式" placeholderTextColor={colors.muted} value={itemName} onChangeText={(value) => { setItemName(value); if (quoteValidation?.field === 'itemName') setQuoteValidation(null); }} />{quoteValidation?.field === 'itemName' && <ErrorNotice message={quoteValidation.message} />}<FieldLabel label="販売価格（税抜・円）" /><TextInput ref={itemPriceRef} style={[styles.input, quoteValidation?.field === 'itemPrice' && styles.inputError]} accessibilityLabel="販売価格（税抜・円）" editable={!mutating} placeholder="例：50000" placeholderTextColor={colors.muted} keyboardType="numeric" value={itemPrice} onChangeText={(value) => { setItemPrice(value); if (quoteValidation?.field === 'itemPrice') setQuoteValidation(null); }} />{quoteValidation?.field === 'itemPrice' && <ErrorNotice message={quoteValidation.message} />}<ActionButton title="保存してプレビュー" onPress={() => void saveQuote()} /></ScrollView></Screen>;
-  if (page === 'quotePreview' && quote) return <Screen {...screenProps} title="お客様向けプレビュー" onBack={() => void openQuotes()} nav={nav} error={error}><ScrollView contentContainerStyle={tablet ? styles.tabletPreview : styles.preview}><Text style={styles.previewEyebrow}>ESTIMATE</Text><Text style={styles.previewTitle}>御見積書</Text><InfoRow label="見積番号" value={quote.quoteNo || '-'} /><InfoRow label="宛先" value={(quote.customerName || '-') + ' ' + (quote.customerHonorific || '様')} /><InfoRow label="車両" value={quote.vehicleLabel || '-'} /><View style={styles.quoteDivider} />{quote.items.map((item) => <View key={item.id || item.name} style={styles.quoteItem}><View style={styles.quoteItemName}><Text style={styles.inlineText}>{item.name}</Text><Text style={styles.muted}>{item.quantity} × {yen(item.unitPrice)}</Text></View><Text style={styles.quoteAmount}>{yen(item.amount)}</Text></View>)}<InfoRow label="小計" value={yen(quote.subtotalAmount)} /><InfoRow label="消費税" value={yen(quote.taxAmount)} /><Text style={styles.total}>合計 {yen(quote.totalAmount)}</Text><InfoRow label="発行日" value={quote.issueDate || '-'} />{quote.expiryDate && <InfoRow label="有効期限" value={quote.expiryDate} />}<View style={styles.stackActions}><ActionButton title="PDFを保存・共有" onPress={() => void exportPdf()} /><ActionButton title="印刷" onPress={() => void printQuote()} variant="ghost" /></View></ScrollView></Screen>;
+  if (page === 'quotePreview' && quote) return <Screen {...screenProps} title="お客様向けプレビュー" onBack={() => setPage('quotes')} nav={nav} error={error}><ScrollView contentContainerStyle={tablet ? styles.tabletPreview : styles.preview}><Text style={styles.previewEyebrow}>ESTIMATE</Text><Text style={styles.previewTitle}>御見積書</Text><InfoRow label="見積番号" value={quote.quoteNo || '-'} /><InfoRow label="宛先" value={(quote.customerName || '-') + ' ' + (quote.customerHonorific || '様')} /><InfoRow label="車両" value={quote.vehicleLabel || '-'} /><View style={styles.quoteDivider} />{quote.items.map((item) => <View key={item.id || item.name} style={styles.quoteItem}><View style={styles.quoteItemName}><Text style={styles.inlineText}>{item.name}</Text><Text style={styles.muted}>{item.quantity} × {yen(item.unitPrice)}</Text></View><Text style={styles.quoteAmount}>{yen(item.amount)}</Text></View>)}<InfoRow label="小計" value={yen(quote.subtotalAmount)} /><InfoRow label="消費税" value={yen(quote.taxAmount)} /><Text style={styles.total}>合計 {yen(quote.totalAmount)}</Text><InfoRow label="発行日" value={quote.issueDate || '-'} />{quote.expiryDate && <InfoRow label="有効期限" value={quote.expiryDate} />}<View style={styles.stackActions}><ActionButton title="PDFを保存・共有" onPress={() => void exportPdf()} /><ActionButton title="印刷" onPress={() => void printQuote()} variant="ghost" /></View></ScrollView></Screen>;
   return <Screen {...screenProps} title="見積" onStore={openStorePicker} nav={nav} error={error}><ListState loading={loading && quotes.length === 0} error={null} onRetry={() => void openQuotes()}><FlatList ListFooterComponent={<PageFooter count={quotes.length} more={quoteOffset !== null} loading={loading} onMore={() => void loadMore('quotes')} />} data={quotes} keyExtractor={(item) => item.id} contentContainerStyle={styles.list} refreshing={loading} onRefresh={() => void openQuotes()} renderItem={({ item }) => <EntityRow title={item.quoteNo || '見積'} subtitle={item.customerName || '宛先未設定'} right={<Text style={styles.amount}>{yen(item.totalAmount)}</Text>} onPress={() => void openQuote(item)} />} ListEmptyComponent={<EmptyState title="見積がありません" description="顧客詳細画面から新しい見積を作成できます。" />} /></ListState></Screen>;
 }
 
