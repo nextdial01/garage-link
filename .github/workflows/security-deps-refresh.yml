@@ -39,6 +39,9 @@ jobs:
       - name: Apply supported audit fixes
         run: pnpm audit --fix || true
 
+      - name: Apply generated safe overrides
+        run: pnpm install
+
       - name: Reject unrelated generated changes
         shell: bash
         run: |
