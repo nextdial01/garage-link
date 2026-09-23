@@ -61,7 +61,7 @@ if (!app.includes("require('./assets/garage-link-logo.png')")) failures.push('fu
 if (!app.includes('const [authResolved, setAuthResolved] = useState(false);') || !app.includes('if (!authResolved) return <SessionRestoring />;') || !app.includes('setAuthResolved(true);')) failures.push('session-restore:login-can-render-before-resolution');
 if ((app.match(/<ListState /g) ?? []).length < 5) failures.push('list-state:missing-error-empty-gate');
 if ((app.match(/error=\{null\}/g) ?? []).length < 4) failures.push('list-state:screen-can-double-render-error');
-for (const page of ['stores', 'today', 'vehicles', 'vehicleDetail', 'maintenance', 'maintenanceDetail', 'customers', 'customerDetail', 'quoteCreate', 'quotePreview']) if (!app.includes(`page === '${page}'`)) failures.push(`screen:missing:${page}`);
+for (const page of ['stores', 'today', 'vehicles', 'vehicleCreate', 'vehicleDetail', 'maintenance', 'maintenanceDetail', 'customers', 'customerDetail', 'quoteCreate', 'quotePreview']) if (!app.includes(`page === '${page}'`)) failures.push(`screen:missing:${page}`);
 for (const state of ['ActivityIndicator', 'EmptyState', 'ErrorNotice', 'SafeAreaView', 'TextInput']) if (!app.includes(state)) failures.push(`render-state:missing:${state}`);
 if (!app.includes('SafeAreaProvider')) failures.push('safe-area:provider-missing');
 if (!app.includes('bottomTabs') || !app.includes('accessibilityRole="tablist"')) failures.push('navigation:fixed-bottom-tabs-missing');
@@ -75,6 +75,12 @@ const dtoAllowlists = serverFiles[12]
   .filter((line) => line.startsWith('export const MOBILE_') && line.includes('_FIELDS'))
   .join('\n');
 if (/purchase_price|cost_price|profit|margin/i.test(dtoAllowlists)) failures.push('dto:financial-field-leakage');
+if (!client.includes("limit=30")) failures.push('performance:first-page-limit-not-reduced');
+if (!client.includes('async createVehicle') || !serverFiles[2].includes('export async function POST') || !serverFiles[2].includes('assertVehicleLimitAvailable')) failures.push('vehicle-create:mobile-contract-missing');
+if (!app.includes('setPage(\'vehicles\');\n    retry.current = () => void openVehicles') || !app.includes('setPage(\'maintenance\');\n    retry.current = () => void openMaintenance') || !app.includes('setPage(\'customers\');\n    retry.current = () => void openCustomers') || !app.includes('setPage(\'quotes\');\n    retry.current = () => void openQuotes')) failures.push('performance:tabs-wait-for-network');
+if (app.includes('onBack={() => void openVehicles()}') || app.includes('onBack={() => void openMaintenance()}') || app.includes('onBack={() => void openCustomers()}') || app.includes('onBack={() => void openQuotes()}')) failures.push('performance:back-navigation-refetches');
+for (const workflow of ['車両を追加', '車両写真を追加', 'この整備の見積を作成', 'PDFを保存・共有', '展示中', '商談中', '見積中', '入庫待ち']) if (!app.includes(workflow)) failures.push(`workflow:missing:${workflow}`);
+
 
 const baseUrl = process.env.EXPO_PUBLIC_APP_BASE_URL?.replace(/\/$/, '');
 const token = process.env.GARAGE_MOBILE_QA_BEARER_TOKEN;
