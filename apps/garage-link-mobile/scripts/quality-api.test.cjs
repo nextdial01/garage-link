@@ -12,6 +12,8 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/mobileApi.ts','utf8')
  const store={id:'fixture-store',tenantId:'fixture-tenant',name:'Fixture',role:'staff'};
  handler=async(url,options)=>{assert.equal(url,'https://example.invalid/api/mobile/stores/active');assert.equal(options.method,'POST');assert.equal(options.headers.Authorization,'Bearer synthetic-token');assert.equal(options.headers['x-garage-trusted-device-token'],trustedDeviceToken);assert.deepEqual(JSON.parse(options.body),{tenantId:store.tenantId,storeId:store.id});return Response.json({store});};
  assert.deepEqual(await exported.mobileApi.selectStore(store),store);
+ handler=async(url,options)=>{assert.equal(url,'https://example.invalid/api/mobile/vehicles');assert.equal(options.method,'POST');assert.equal(options.headers['x-garage-store-id'],store.id);const body=JSON.parse(options.body);assert.equal(body.vin,'VIN-1');assert.equal(body.maker,'Demo');assert.equal(body.modelName,'Car');return Response.json({vehicle:{id:'vehicle-new',maker:'Demo',modelName:'Car'}});};
+ assert.equal((await exported.mobileApi.createVehicle(store.id,{vin:'VIN-1',maker:'Demo',modelName:'Car'})).id,'vehicle-new');
  handler=async(url,options)=>{assert.equal(options.headers['x-garage-store-id'],store.id);return Response.json({code:'unauthorized',error:'Unauthorized'},{status:401});};
  await assert.rejects(exported.mobileApi.today(store.id),error=>error.status===401&&error.code==='unauthorized');
  handler=async(url,options)=>{assert.equal(options.headers['x-garage-store-id'],store.id);assert.ok(url.includes('offset=100&limit=30'));if(url.includes('/vehicles'))assert.ok(url.endsWith('&q=DEMO%20001'));return Response.json({vehicles:[{id:'next'}],customers:[],jobs:[],quotes:[],nextOffset:null});};
