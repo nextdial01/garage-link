@@ -1,5 +1,6 @@
 import { getGarageMobileBearerContext } from '@/lib/mobile/bearerAuth';
 import { MOBILE_VEHICLE_FIELDS, mobileVehicle } from '@/lib/mobile/dto';
+import { logAudit } from '@/lib/audit/logAudit';
 
 export async function GET(request: Request, { params }: { params: Promise<{ vehicleId: string }> }) {
   const context = await getGarageMobileBearerContext(request);
@@ -13,4 +14,74 @@ export async function GET(request: Request, { params }: { params: Promise<{ vehi
   if (!vehicle) return Response.json({ ok: false, code: 'not_found', error: '車両が見つかりません。' }, { status: 404 });
   if (filesError) return Response.json({ ok: false, code: 'vehicle_files_failed', error: '車両画像を取得できませんでした。' }, { status: 500 });
   return Response.json({ ok: true, vehicle: mobileVehicle(vehicle as Record<string, unknown>), imageFiles: files ?? [] });
+}
+
+
+const editableText = (value: unknown, max: number) =>
+  value === null ? null : typeof value === 'string' ? value.trim().slice(0, max) || null : undefined;
+const editableMileage = (value: unknown) =>
+  value === null ? null : typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 2_000_000 ? value : undefined;
+
+export async function PUT(request: Request, { params }: { params: Promise<{ vehicleId: string }> }) {
+  const context = await getGarageMobileBearerContext(request);
+  if (!context.ok) return context.response;
+  if (context.member.role === 'viewer') {
+    return Response.json({ ok: false, code: 'forbidden_role', error: '閲覧権限では車両情報を変更できません。' }, { status: 403 });
+  }
+  const body = await request.json().catch(() => null) as Record<string, unknown> | null;
+  if (!body) return Response.json({ ok: false, code: 'invalid_request', error: '更新内容を確認してください。' }, { status: 400 });
+
+  const mapping = [
+    ['managementNo', 'management_no', 120],
+    ['maker', 'maker', 120],
+    ['modelName', 'model_name', 160],
+    ['grade', 'grade', 160],
+    ['registrationNo', 'registration_no', 120],
+    ['color', 'color', 100],
+    ['locationName', 'location_name', 120],
+    ['description', 'description', 2_000],
+  ] as const;
+  const update: Record<string, string | number | null> = {};
+  for (const [inputKey, column, max] of mapping) {
+    if (!Object.prototype.hasOwnProperty.call(body, inputKey)) continue;
+    const value = editableText(body[inputKey], max);
+    if (value === undefined) return Response.json({ ok: false, code: 'invalid_vehicle_update', error: '車両情報を確認してください。' }, { status: 400 });
+    update[column] = value;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'mileageKm')) {
+    const mileage = editableMileage(body.mileageKm);
+    if (mileage === undefined) return Response.json({ ok: false, code: 'invalid_vehicle_update', error: '走行距離を確認してください。' }, { status: 400 });
+    update.mileage_km = mileage;
+  }
+  if (!Object.keys(update).length) {
+    return Response.json({ ok: false, code: 'empty_update', error: '変更する項目がありません。' }, { status: 400 });
+  }
+
+  const { vehicleId } = await params;
+  const { data, error } = await context.service
+    .from('vehicles')
+    .update(update)
+    .eq('id', vehicleId)
+    .eq('store_id', context.member.storeId)
+    .select(MOBILE_VEHICLE_FIELDS)
+    .maybeSingle();
+  if (error) return Response.json({ ok: false, code: 'vehicle_update_failed', error: '車両情報を更新できませんでした。' }, { status: 500 });
+  if (!data) return Response.json({ ok: false, code: 'not_found', error: '車両が見つかりません。' }, { status: 404 });
+
+  await logAudit({
+    supabase: context.service,
+    storeId: context.member.storeId,
+    userId: context.user.id,
+    userEmail: context.member.email,
+    userRole: context.member.role,
+    userDisplayName: context.member.displayName,
+    action: 'update',
+    targetType: 'vehicle',
+    targetId: vehicleId,
+    targetLabel: 'Vehicle fields',
+    metadata: { source: 'native_mobile', fields: Object.keys(update) },
+    ipAddress: context.ipAddress,
+    userAgent: context.userAgent,
+  });
+  return Response.json({ ok: true, vehicle: mobileVehicle(data as Record<string, unknown>) });
 }
