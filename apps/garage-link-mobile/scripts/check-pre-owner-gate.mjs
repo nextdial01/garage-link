@@ -77,6 +77,7 @@ const dtoAllowlists = serverFiles[12]
 if (/purchase_price|cost_price|profit|margin/i.test(dtoAllowlists)) failures.push('dto:financial-field-leakage');
 if (!client.includes("limit=30")) failures.push('performance:first-page-limit-not-reduced');
 if (!client.includes('async createVehicle') || !serverFiles[2].includes('export async function POST') || !serverFiles[2].includes('assertVehicleLimitAvailable')) failures.push('vehicle-create:mobile-contract-missing');
+if (!client.includes('async updateVehicle') || !serverFiles[3].includes('export async function PUT') || !app.includes('車両情報を編集') || !app.includes('変更を保存')) failures.push('vehicle-edit:mobile-contract-missing');
 if (!app.includes('setPage(\'vehicles\');\n    retry.current = () => void openVehicles') || !app.includes('setPage(\'maintenance\');\n    retry.current = () => void openMaintenance') || !app.includes('setPage(\'customers\');\n    retry.current = () => void openCustomers') || !app.includes('setPage(\'quotes\');\n    retry.current = () => void openQuotes')) failures.push('performance:tabs-wait-for-network');
 if (app.includes('onBack={() => void openVehicles()}') || app.includes('onBack={() => void openMaintenance()}') || app.includes('onBack={() => void openCustomers()}') || app.includes('onBack={() => void openQuotes()}')) failures.push('performance:back-navigation-refetches');
 for (const workflow of ['車両を追加', '車両写真を追加', 'この整備の見積を作成', 'PDFを保存・共有', '展示中', '商談中', '見積中', '入庫待ち']) if (!app.includes(workflow)) failures.push(`workflow:missing:${workflow}`);
