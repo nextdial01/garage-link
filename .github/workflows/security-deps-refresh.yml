@@ -40,7 +40,7 @@ jobs:
         run: pnpm audit --fix || true
 
       - name: Apply generated safe overrides
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Reject unrelated generated changes
         shell: bash
