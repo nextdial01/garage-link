@@ -41,6 +41,13 @@ export async function PUT(request: Request, { params }: { params: Promise<{ vehi
     ['locationName', 'location_name', 120],
     ['description', 'description', 2_000],
   ] as const;
+  if (Object.prototype.hasOwnProperty.call(body, 'maker') && !editableText(body.maker, 120)) {
+    return Response.json({ ok: false, code: 'invalid_vehicle_update', error: 'メーカーは空欄にできません。' }, { status: 400 });
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'modelName') && !editableText(body.modelName, 160)) {
+    return Response.json({ ok: false, code: 'invalid_vehicle_update', error: '車名は空欄にできません。' }, { status: 400 });
+  }
+
   const update: Record<string, string | number | null> = {};
   for (const [inputKey, column, max] of mapping) {
     if (!Object.prototype.hasOwnProperty.call(body, inputKey)) continue;
