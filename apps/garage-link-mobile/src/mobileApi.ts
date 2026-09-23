@@ -55,10 +55,10 @@ export type CustomersPage = { customers: Customer[]; nextOffset: number | null }
 export type MaintenancePage = { jobs: MaintenanceJob[]; nextOffset: number | null };
 export type QuotesPage = { quotes: Quote[]; nextOffset: number | null };
 export const mobileApi = {
-  vehiclesPage(storeId: string, q = '', offset = 0) { return request<VehiclesPage>(`/api/mobile/vehicles?offset=${offset}&limit=100${q ? `&q=${encodeURIComponent(q)}` : ''}`, {}, storeId); },
-  customersPage(storeId: string, q = '', offset = 0) { return request<CustomersPage>(`/api/mobile/customers?offset=${offset}&limit=100${q ? `&q=${encodeURIComponent(q)}` : ''}`, {}, storeId); },
-  maintenancePage(storeId: string, offset = 0) { return request<MaintenancePage>(`/api/mobile/maintenance?offset=${offset}&limit=100`, {}, storeId); },
-  quotesPage(storeId: string, offset = 0) { return request<QuotesPage>(`/api/mobile/quotes?offset=${offset}&limit=100`, {}, storeId); },
+  vehiclesPage(storeId: string, q = '', offset = 0) { return request<VehiclesPage>(`/api/mobile/vehicles?offset=${offset}&limit=30${q ? `&q=${encodeURIComponent(q)}` : ''}`, {}, storeId); },
+  customersPage(storeId: string, q = '', offset = 0) { return request<CustomersPage>(`/api/mobile/customers?offset=${offset}&limit=30${q ? `&q=${encodeURIComponent(q)}` : ''}`, {}, storeId); },
+  maintenancePage(storeId: string, offset = 0) { return request<MaintenancePage>(`/api/mobile/maintenance?offset=${offset}&limit=30`, {}, storeId); },
+  quotesPage(storeId: string, offset = 0) { return request<QuotesPage>(`/api/mobile/quotes?offset=${offset}&limit=30`, {}, storeId); },
   async stores() { return (await request<{ stores: Store[] }>('/api/mobile/stores')).stores; },
   async selectStore(store: Store) { return (await request<{ store: Store }>('/api/mobile/stores/active', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tenantId: store.tenantId, storeId: store.id }) })).store; },
   requestAdminEmailOtp() { return request<{ ok: true; maskedEmail: string; retryAfter: number }>('/api/mobile/admin-email-otp/request', { method: 'POST' }); },
