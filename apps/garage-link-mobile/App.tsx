@@ -10,6 +10,7 @@ import type { Session } from '@supabase/supabase-js';
 import { MobileApiError, mobileApi, type Customer, type CustomerDetail, type MaintenanceJob, type Quote, type QuoteDraft, type Store, type Today, type Vehicle, type VehicleDetail, type VehicleDraft } from './src/mobileApi';
 import { localSignOutScope, sessionAfterAuthEvent, shouldRefreshForAppState } from './src/authLifecycle';
 import { mobileConfigurationError, supabase } from './src/supabase';
+import GarageMobileV2Prototype from './src/GarageMobileV2Prototype';
 
 type Page = 'stores' | 'today' | 'vehicles' | 'vehicleCreate' | 'vehicleDetail' | 'maintenance' | 'maintenanceDetail' | 'customers' | 'customerDetail' | 'quotes' | 'quoteCreate' | 'quotePreview';
 const operationKey = () => 'native-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
@@ -34,7 +35,8 @@ function Text({ style, ...props }: React.ComponentProps<typeof NativeText>) {
 }
 
 export default function App() {
-  return <SafeAreaProvider><GarageMobileApp /></SafeAreaProvider>;
+  const prototypeEnabled = process.env.EXPO_PUBLIC_GARAGE_MOBILE_V2_UI === '1';
+  return <SafeAreaProvider>{prototypeEnabled ? <GarageMobileV2Prototype /> : <GarageMobileApp />}</SafeAreaProvider>;
 }
 
 export function GarageMobileApp() {
