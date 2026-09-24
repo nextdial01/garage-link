@@ -9,8 +9,10 @@ import {
 import { validateUploadFile, type UploadPurpose } from '@/lib/storage/validateFile';
 import { enforceSecurityRateLimit } from '@/lib/security/rateLimit';
 import { apiError, logServerError } from '@/lib/observability/logServerError';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-const allowedRelatedTypes = new Set(['vehicle']);
+const allowedRelatedTypes = new Set(['vehicle', 'maintenance_job','trade_in_vehicle']);
+const photoCategories = new Set(['仕入時', '入庫時', '整備前', '整備中', '整備後', '傷・不具合', '納車時']);
 
 type UploadedFileRow = {
   id: string;
@@ -72,6 +74,7 @@ export async function POST(request: Request) {
     const purposeValue = formValue(formData, 'purpose') as UploadPurpose | null;
     const relatedType = formValue(formData, 'related_type');
     const relatedId = formValue(formData, 'related_id');
+    const photoCategory = formValue(formData, 'photo_category');
 
     if (!(file instanceof File)) {
       return Response.json({ ok: false, error: 'ファイルを選択してください。' }, { status: 400 });
@@ -103,6 +106,16 @@ export async function POST(request: Request) {
         { ok: false, error: '関連リソース指定が正しくありません。' },
         { status: 400 }
       );
+    }
+
+    if (photoCategory && (!photoCategories.has(photoCategory) || purpose !== 'vehicle_image' || !safeRelatedType || !safeRelatedId)) {
+      return Response.json({ ok: false, code: 'invalid_photo_category', error: '写真の区分を確認してください。' }, { status: 400 });
+    }
+    if (safeRelatedType && safeRelatedId) {
+      const table = safeRelatedType === 'vehicle' ? 'vehicles' : safeRelatedType === 'maintenance_job' ? 'maintenance_jobs' : 'trade_in_vehicles';
+      const relatedClient = context.supabase as unknown as SupabaseClient;
+      const { data: related, error: relatedError } = await relatedClient.from(table).select('id').eq('id', safeRelatedId).eq('store_id', context.member.storeId).maybeSingle();
+      if (relatedError || !related) return Response.json({ ok: false, code: 'forbidden_related_resource', error: '写真の関連先を確認できません。' }, { status: 403 });
     }
 
     const validation = validateUploadFile({ file, purpose });
@@ -192,6 +205,7 @@ export async function POST(request: Request) {
         purpose,
         related_type: safeRelatedType,
         related_id: safeRelatedId,
+        photo_category: photoCategory,
         uploaded_by: context.user.id,
       })
       .select('id, bucket, path, purpose, file_type, mime_type, size_bytes')

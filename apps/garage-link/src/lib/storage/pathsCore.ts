@@ -7,7 +7,7 @@ export const publicAssetsBucket = 'garage-public-assets';
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const allowedRelatedTypes = new Set(['vehicle']);
+const allowedRelatedTypes = new Set(['vehicle','maintenance_job','trade_in_vehicle']);
 
 export function isSafePathSegment(value: string) {
   if (!value || value.length > 128) return false;
@@ -44,7 +44,7 @@ function folderForPurpose(purpose: UploadPurpose, relatedType?: string | null, r
       allowedRelatedTypes.has(relatedType) &&
       isValidUuid(relatedId)
     ) {
-      return `vehicles/${relatedId}`;
+      return relatedType === 'maintenance_job' ? `maintenance/${relatedId}` : relatedType === 'trade_in_vehicle' ? `trade-ins/${relatedId}` : `vehicles/${relatedId}`;
     }
     return 'vehicles/unassigned';
   }

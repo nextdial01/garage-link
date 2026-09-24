@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { getGarageMobileBearerContext } from '@/lib/mobile/bearerAuth';
 import { logAudit } from '@/lib/audit/logAudit';
 import { withMaintenanceIdentity } from '@/lib/mobile/maintenanceIdentity';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const FIELDS = 'id, customer_id, vehicle_id, job_no, job_type, status, scheduled_in_at, scheduled_delivery_at, estimated_total_amount, assigned_user_name, updated_at';
 const UPDATABLE = new Set(['received', 'estimating', 'waiting', 'working', 'completed']);
@@ -32,7 +33,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ jobI
   if (!UPDATABLE.has(status) || !KEY_RE.test(idempotencyKey) || (deliveryPresent && delivery === undefined)) return Response.json({ ok: false, code: 'invalid_request', error: '更新内容または操作IDが正しくありません。' }, { status: 400 });
   const { jobId } = await params;
   const fingerprint = createHash('sha256').update(JSON.stringify({ status, scheduledDeliveryAt: deliveryPresent ? delivery : '__omitted__' })).digest('hex');
-  const { data, error } = await context.service.rpc('garage_mobile_update_maintenance', {
+  const admin = createAdminClient();
+  if (!admin) return Response.json({ ok: false, code: 'mobile_config_missing', error: 'サーバー側の認証設定が不足しています。' }, { status: 500 });
+  const { data, error } = await admin.rpc('garage_mobile_update_maintenance', {
     p_store_id: context.member.storeId, p_job_id: jobId, p_actor_user_id: context.user.id, p_actor_role: context.member.role,
     p_idempotency_key: idempotencyKey, p_request_fingerprint: fingerprint, p_status: status, p_delivery_present: deliveryPresent, p_delivery_at: delivery ?? null,
   });
