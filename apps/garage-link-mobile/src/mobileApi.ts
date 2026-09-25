@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { getTrustedDeviceToken, saveTrustedDeviceToken } from './trustedDevice';
+import { getTrustedDeviceToken, saveTrustedDeviceToken, TrustedDeviceStorageError } from './trustedDevice';
 
 const baseUrl = process.env.EXPO_PUBLIC_APP_BASE_URL?.replace(/\/$/, '');
 export type Store = { id: string; tenantId: string; name: string; role: 'owner' | 'admin' | 'implementer' | 'staff' | 'viewer' };
@@ -14,9 +14,12 @@ export type Today = { appointments: TodayItem[]; deliveries: TodayItem[]; incomp
 export type MaintenanceJob = { id: string; customer_id?: string | null; vehicle_id?: string | null; job_no: string | null; job_type: string | null; status: string | null; scheduled_in_at: string | null; scheduled_delivery_at: string | null; assigned_user_name: string | null; estimated_total_amount: number | null; customerName?: string | null; vehicleLabel?: string | null };
 export type Customer = { id: string; name: string | null; kana: string | null; phone: string | null; mobile_phone: string | null; email: string | null; address: string | null; customer_status: string | null; assigned_user_name: string | null; next_action_date: string | null; updated_at: string | null };
 export type QuoteItem = { id?: string; itemOrder?: number; itemType: string; name: string; description?: string | null; quantity: number; unitPrice: number; taxRate?: number; taxAmount?: number; amount?: number };
-export type Quote = { id: string; quoteNo: string | null; title: string | null; status: string | null; issueDate: string | null; expiryDate: string | null; customerId: string | null; vehicleId: string | null; customerName: string | null; customerPhone: string | null; customerEmail: string | null; customerAddress: string | null; customerHonorific: string | null; vehicleLabel: string | null; subtotalAmount: number | null; taxAmount: number | null; discountAmount: number | null; tradeInAmount: number | null; totalAmount: number | null; customerNote: string | null; updatedAt: string | null; items: QuoteItem[] };
+export type Quote = { id: string; quoteNo: string | null; title: string | null; status: string | null; issueDate: string | null; expiryDate: string | null; customerId: string | null; vehicleId: string | null; dealId?: string | null; maintenanceJobId?: string | null; customerName: string | null; customerPhone: string | null; customerEmail: string | null; customerAddress: string | null; customerHonorific: string | null; vehicleLabel: string | null; subtotalAmount: number | null; taxAmount: number | null; discountAmount: number | null; tradeInAmount: number | null; totalAmount: number | null; customerNote: string | null; updatedAt: string | null; items: QuoteItem[] };
 export type CustomerDetail = { customer: Customer; vehicles: Vehicle[]; maintenance: MaintenanceJob[]; deals: { id: string; deal_no: string | null; title: string | null; status: string | null; vehicle_id: string | null; next_action_at: string | null }[]; quotes: Quote[] };
-export type QuoteDraft = { title?: string; customerId?: string; vehicleId?: string; dealId?: string; issueDate?: string; expiryDate?: string; customerHonorific?: string; customerNote?: string; items: Pick<QuoteItem, 'itemType' | 'name' | 'description' | 'quantity' | 'unitPrice' | 'taxRate'>[] };
+export type QuoteDraft = { title?: string; customerId?: string; vehicleId?: string; dealId?: string; maintenanceJobId?: string; issueDate?: string; expiryDate?: string; customerHonorific?: string; customerNote?: string; items: Pick<QuoteItem, 'itemType' | 'name' | 'description' | 'quantity' | 'unitPrice' | 'taxRate'>[] };
+export type V2Resource = 'customers' | 'deals' | 'appointments' | 'maintenance' | 'tradeIns';
+export type V2Record = Record<string, unknown> & { id: string };
+export type PurchaseDraft = { id: string; vin: string; maker: string; modelName: string; managementNo?: string; supplierName: string; supplierType: string; purchaseDate: string; purchasePrice: number; listingPrice?: number; marketValue?: number; direct_cost_special?: number; direct_cost_accessories?: number; direct_cost_agency?: number; direct_cost_legal?: number; direct_cost_other?: number; direct_cost_repair?: number };
 
 export class MobileApiError extends Error {
   constructor(
@@ -30,12 +33,27 @@ export class MobileApiError extends Error {
   }
 }
 
+function trustedDeviceErrorMessage(code: string) {
+  if (code === 'trusted_device_read_failed') return '端末の本人確認情報を読み込めませんでした。再試行してください。';
+  if (code === 'trusted_device_clear_failed') return '端末の本人確認情報を削除できませんでした。ログアウトを完了していません。';
+  return '端末の本人確認を保存できませんでした。新しい確認コードを送信してやり直してください。';
+}
+
 async function accessToken() { const { data } = await supabase.auth.getSession(); if (!data.session?.access_token) throw new Error('ログインが必要です。'); return data.session.access_token; }
-async function request<T>(path: string, init: RequestInit = {}, storeId?: string): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}, storeId?: string, allowTrustedDeviceReadFailure = false): Promise<T> {
   if (!baseUrl || !/^https:\/\//.test(baseUrl) || /localhost|127\.0\.0\.1/.test(baseUrl)) {
     throw new MobileApiError('アプリの接続先設定が正しくありません。', path, 0, 'invalid_base_url');
   }
-  const [token, trustedDeviceToken] = await Promise.all([accessToken(), getTrustedDeviceToken()]);
+  let trustedDeviceReadFailure: string | null = null;
+  const trustedDeviceTokenPromise = getTrustedDeviceToken().catch((error: unknown) => {
+    const code = error instanceof TrustedDeviceStorageError ? error.code : 'trusted_device_read_failed';
+    if (allowTrustedDeviceReadFailure) {
+      trustedDeviceReadFailure = code;
+      return null;
+    }
+    throw new MobileApiError(trustedDeviceErrorMessage(code), path, 0, code);
+  });
+  const [token, trustedDeviceToken] = await Promise.all([accessToken(), trustedDeviceTokenPromise]);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
   let response: Response;
@@ -49,7 +67,12 @@ async function request<T>(path: string, init: RequestInit = {}, storeId?: string
   } finally {
     clearTimeout(timeout);
   }
-  if (!response.ok) throw new MobileApiError(body?.error || '通信に失敗しました。', path, response.status, body?.code ?? null);
+  if (!response.ok) {
+    const trustCode = body?.error === 'admin_security_required'
+      ? trustedDeviceReadFailure ?? (trustedDeviceToken ? 'trusted_device_rejected' : 'trusted_device_header_missing')
+      : null;
+    throw new MobileApiError(body?.error || '通信に失敗しました。', path, response.status, body?.code ?? trustCode);
+  }
 
   if (!body || typeof body !== 'object') throw new MobileApiError('応答を確認できませんでした。', path, 502, 'invalid_response');
   return body as T;
@@ -65,12 +88,19 @@ export const mobileApi = {
   quotesPage(storeId: string, offset = 0) { return request<QuotesPage>(`/api/mobile/quotes?offset=${offset}&limit=30`, {}, storeId); },
   async stores() { return (await request<{ stores: Store[] }>('/api/mobile/stores')).stores; },
   async selectStore(store: Store) { return (await request<{ store: Store }>('/api/mobile/stores/active', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ tenantId: store.tenantId, storeId: store.id }) })).store; },
-  requestAdminEmailOtp() { return request<{ ok: true; maskedEmail: string; retryAfter: number }>('/api/mobile/admin-email-otp/request', { method: 'POST' }); },
+  requestAdminEmailOtp() { return request<{ ok: true; maskedEmail: string; retryAfter: number }>('/api/mobile/admin-email-otp/request', { method: 'POST' }, undefined, true); },
   async verifyAdminEmailOtp(code: string) {
-    const result = await request<{ ok: true; trustedDeviceToken: string }>('/api/mobile/admin-email-otp/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code }) });
-    if (!/^[0-9a-f]{64}$/i.test(result.trustedDeviceToken)) throw new MobileApiError('端末の信頼状態を保存できませんでした。', '/api/mobile/admin-email-otp/verify', 502, 'invalid_trusted_device');
-    await saveTrustedDeviceToken(result.trustedDeviceToken);
-    return result;
+    const endpoint = '/api/mobile/admin-email-otp/verify';
+    const result = await request<{ ok: true; trustedDeviceToken: string }>(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code }) }, undefined, true);
+    if (!/^[0-9a-f]{64}$/i.test(result.trustedDeviceToken)) throw new MobileApiError(trustedDeviceErrorMessage('trusted_device_token_invalid'), endpoint, 502, 'trusted_device_token_invalid');
+    try {
+      await saveTrustedDeviceToken(result.trustedDeviceToken);
+    } catch (error) {
+      const code = error instanceof TrustedDeviceStorageError ? error.code : 'trusted_device_save_failed';
+      throw new MobileApiError(trustedDeviceErrorMessage(code), endpoint, 0, code);
+    }
+    // The bearer must not escape the persistence boundary to UI callers.
+    return { ok: true as const };
   },
   async createVehicle(storeId: string, draft: VehicleDraft) { return (await request<{ vehicle: Vehicle }>('/api/mobile/vehicles', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) }, storeId)).vehicle; },
   async updateVehicle(storeId: string, vehicleId: string, patch: VehicleEdit) { return (await request<{ vehicle: Vehicle }>(`/api/mobile/vehicles/${vehicleId}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }, storeId)).vehicle; },
@@ -84,8 +114,26 @@ export const mobileApi = {
   async customers(storeId: string, q = '') { return (await request<{ customers: Customer[] }>(`/api/mobile/customers${q ? `?q=${encodeURIComponent(q)}` : ''}`, {}, storeId)).customers; },
   customerDetail(storeId: string, customerId: string) { return request<CustomerDetail>(`/api/mobile/customers/${customerId}`, {}, storeId); },
   async quotes(storeId: string) { return (await request<{ quotes: Quote[] }>('/api/mobile/quotes', {}, storeId)).quotes; },
+  quotesFor(storeId: string, query: Record<string,string>) { return request<{ quotes: Quote[] }>(`/api/mobile/quotes?${new URLSearchParams(query)}`, {}, storeId); },
   async quoteDetail(storeId: string, quoteId: string) { return (await request<{ quote: Quote }>(`/api/mobile/quotes/${quoteId}`, {}, storeId)).quote; },
   async createQuote(storeId: string, idempotencyKey: string, draft: QuoteDraft) { return (await request<{ quote: Quote }>('/api/mobile/quotes', { method: 'POST', headers: { 'content-type': 'application/json', 'x-idempotency-key': idempotencyKey }, body: JSON.stringify(draft) }, storeId)).quote; },
   async uploadVehicleImage(storeId: string, vehicleId: string, asset: { uri: string; fileName?: string | null; mimeType?: string | null }) { const form = new FormData(); form.append('purpose', 'vehicle_image'); form.append('related_type', 'vehicle'); form.append('related_id', vehicleId); form.append('file', { uri: asset.uri, name: asset.fileName || `vehicle-${Date.now()}.jpg`, type: asset.mimeType || 'image/jpeg' } as unknown as Blob); return request<{ file: { id: string } }>('/api/mobile/storage/upload', { method: 'POST', body: form }, storeId); },
   signedUrl(storeId: string, fileId: string) { return request<{ signedUrl: string }>('/api/mobile/storage/signed-url', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fileId }) }, storeId); },
+  v2List(storeId: string, resource: V2Resource, query: Record<string, string> = {}) { const params = new URLSearchParams(query); return request<{ rows: V2Record[]; nextOffset: number | null }>(`/api/mobile/v2/${resource}?${params}`, {}, storeId); },
+  v2Detail(storeId: string, resource: V2Resource, id: string) { return request<{ row: V2Record }>(`/api/mobile/v2/${resource}/${id}`, {}, storeId); },
+  v2Create(storeId: string, resource: V2Resource, draft: V2Record) { return request<{ row: V2Record; replayed: boolean }>(`/api/mobile/v2/${resource}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) }, storeId); },
+  v2Update(storeId: string, resource: V2Resource, id: string, patch: Record<string, unknown>) { return request<{ row: V2Record }>(`/api/mobile/v2/${resource}/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }, storeId); },
+  v2Inventory(storeId: string, offset = 0, q = '') { return request<{ vehicles: (Record<string, unknown> & { id: string })[]; metrics: Record<string, number> | null; nextOffset: number | null }>(`/api/mobile/v2/inventory?offset=${offset}${q ? `&q=${encodeURIComponent(q)}` : ''}`, {}, storeId); },
+  v2Purchase(storeId: string, draft: PurchaseDraft) { return request<{ vehicle: Record<string, unknown> & { id: string }; replayed: boolean }>('/api/mobile/v2/purchases', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(draft) }, storeId); },
+  v2PurchaseUpdate(storeId: string, id: string, patch: Record<string, unknown>) { return request<{ vehicle: Record<string, unknown> & { id: string } }>(`/api/mobile/v2/purchases/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }, storeId); },
+  v2Invoices(storeId: string, query: Record<string, string> = {}) { return request<{ invoices: V2Record[] }>(`/api/mobile/v2/invoices?${new URLSearchParams(query)}`, {}, storeId); },
+  v2InvoiceDetail(storeId: string, id: string) { return request<{ invoice: V2Record; items: Record<string, unknown>[] }>(`/api/mobile/v2/invoices/${id}`, {}, storeId); },
+  v2InvoiceFromQuote(storeId: string, id: string, quoteId: string, dueDate?: string) { return request<{ invoice: V2Record; replayed: boolean }>('/api/mobile/v2/invoices', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, quoteId, dueDate }) }, storeId); },
+  v2IssueInvoice(storeId: string, id: string, idempotencyKey: string) { return request<{ ok: boolean; code: string }>(`/api/mobile/v2/invoices/${id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idempotencyKey }) }, storeId); },
+  v2Sale(storeId: string, dealId: string, salePrice: number, idempotencyKey: string) { return request<{ ok: boolean; code: string }>(`/api/mobile/v2/sales/${dealId}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ salePrice, idempotencyKey }) }, storeId); },
+  v2Delivery(storeId: string, dealId: string, idempotencyKey: string) { return request<{ ok: boolean; code: string }>(`/api/mobile/v2/sales/${dealId}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idempotencyKey }) }, storeId); },
+  v2CancelSale(storeId: string, dealId: string, reason: string, idempotencyKey: string) { return request<{ ok: boolean; code: string }>(`/api/mobile/v2/sales/${dealId}`, { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reason, idempotencyKey }) }, storeId); },
+  v2Payment(storeId: string, invoiceId: string, amount: number, paymentMethod: string, idempotencyKey: string) { return request<{ invoice: V2Record }>(`/api/mobile/v2/payments/${invoiceId}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ amount, paymentMethod, idempotencyKey }) }, storeId); },
+  uploadCategorizedPhoto(storeId: string, relatedType: 'vehicle' | 'maintenance_job' | 'trade_in_vehicle', relatedId: string, photoCategory: string, asset: { uri: string; fileName?: string | null; mimeType?: string | null }) { const form = new FormData(); form.append('purpose', 'vehicle_image'); form.append('related_type', relatedType); form.append('related_id', relatedId); form.append('photo_category', photoCategory); form.append('file', { uri: asset.uri, name: asset.fileName || `garage-${Date.now()}.jpg`, type: asset.mimeType || 'image/jpeg' } as unknown as Blob); return request<{ file: { id: string } }>('/api/mobile/storage/upload', { method: 'POST', body: form }, storeId); },
+  v2Photos(storeId: string, relatedType: 'vehicle' | 'maintenance_job' | 'trade_in_vehicle', relatedId: string) { return request<{ photos: { id: string; photo_category: string | null; created_at: string }[] }>(`/api/mobile/v2/photos?relatedType=${relatedType}&relatedId=${relatedId}`, {}, storeId); },
 };

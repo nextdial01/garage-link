@@ -332,7 +332,7 @@ export default function QuotePreviewPage() {
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-950 print:bg-white print:p-0">
-      <style jsx global>{`
+      <style>{`
         @media print {
           .no-print {
             display: none !important;

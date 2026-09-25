@@ -3,7 +3,7 @@ import 'server-only';
 /** Keep mobile contracts allowlist-only; never spread database rows into a response. */
 export const MOBILE_VEHICLE_FIELDS = 'id, management_no, vehicle_type, maker, model_name, grade, registration_no, first_registration_month, model_year, displacement_cc, mileage_km, color, inspection_expiry_date, base_price, total_price, status, location_name, description, updated_at';
 export const MOBILE_CUSTOMER_FIELDS = 'id, name, kana, phone, mobile_phone, email, address, customer_status, assigned_user_name, next_action_date, updated_at';
-export const MOBILE_QUOTE_FIELDS = 'id, quote_no, title, status, issue_status, issue_date, expiry_date, customer_id, vehicle_id, customer_name, customer_phone, customer_email, customer_address, customer_honorific, vehicle_label, vehicle_maker, vehicle_model_name, vehicle_year, vehicle_mileage_km, vehicle_vin, vehicle_inspection_expiry_date, subtotal_amount, tax_amount, discount_amount, trade_in_amount, total_amount, customer_note, updated_at';
+export const MOBILE_QUOTE_FIELDS = 'id, quote_no, title, status, issue_status, issue_date, expiry_date, customer_id, vehicle_id, deal_id, maintenance_job_id, customer_name, customer_phone, customer_email, customer_address, customer_honorific, vehicle_label, vehicle_maker, vehicle_model_name, vehicle_year, vehicle_mileage_km, vehicle_vin, vehicle_inspection_expiry_date, subtotal_amount, tax_amount, discount_amount, trade_in_amount, total_amount, customer_note, updated_at';
 export const MOBILE_QUOTE_ITEM_FIELDS = 'id, quote_id, item_order, item_type, name, description, quantity, unit_price, tax_rate, tax_amount, amount';
 
 export function mobileVehicle(row: Record<string, unknown>) {
@@ -13,7 +13,7 @@ export function mobileVehicle(row: Record<string, unknown>) {
 export function mobileQuote(row: Record<string, unknown>, items: Array<Record<string, unknown>> = []) {
   return {
     id: row.id, quoteNo: row.quote_no, title: row.title, status: row.status, issueStatus: row.issue_status,
-    issueDate: row.issue_date, expiryDate: row.expiry_date, customerId: row.customer_id, vehicleId: row.vehicle_id,
+    issueDate: row.issue_date, expiryDate: row.expiry_date, customerId: row.customer_id, vehicleId: row.vehicle_id, dealId: row.deal_id, maintenanceJobId: row.maintenance_job_id,
     customerName: row.customer_name, customerPhone: row.customer_phone, customerEmail: row.customer_email,
     customerAddress: row.customer_address, customerHonorific: row.customer_honorific, vehicleLabel: row.vehicle_label,
     vehicleMaker: row.vehicle_maker, vehicleModelName: row.vehicle_model_name, vehicleYear: row.vehicle_year,
