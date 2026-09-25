@@ -1,6 +1,6 @@
 # GARAGE LINK 全体改修 実行台帳
 
-状態: 調査中・未完了
+状態: 実装・自動検証済み、最終実操作と受入未達の記録中（未完了）
 
 - Owner依頼: 2026-09-26、38節の全体改修。全画面の主操作・保存・再表示が合格条件。
 - 正本: registry garage-link canonical_realpath のGit common dirから作成した専用worktree。
@@ -87,3 +87,44 @@ Codex追加: 現時点は実装なし。
 ### 2026-09-26 04:47 JST — repeatable verification gaps
 - Final review found that the new overhaul SQL contracts were only in the dedicated audit runner, not package test:db:fresh. Added isolated fresh/upgrade lanes to the existing standard runner; baseline coverage and owned-container cleanup preserved. Standard command rerun underway, candidate06.
 - Standard Web tests/e2e suite had not been executed in this run despite custom real Playwright operation evidence. Auth auditor is running safe local cases and will update obsolete DOB/maker expectations without weakening assertions. External Stripe lifecycle remains prohibited/BLOCKED.
+
+### 2026-09-26 04:49 JST — first-login hydration cause reproduced
+- Standard E2E initial32:25PASS,5FAIL,2SKIP. Several failures were obsolete selectors, but delayed JS experiment proved real product behavior: SSR login fields accepted text while React state stayed empty after hydration, leaving submit disabled. LP menu also accepted a pre-handler click without opening.
+- Auth auditor is adding a shared hydration readiness guard and regression tests; final candidate/build/auth sweep will be renewed. No claim that an added test delay fixes the product. Official Turnstile test-widget network validation is being investigated on a separate local runtime; human challenge remains distinct.
+- Native iOS customer/vehicle/deal12 plus appointment3 routes have persisted/reopened successfully. Remaining native operations continue.
+
+### 2026-09-26 05:10 JST — native upload and CAPTCHA regressions
+- Official Turnstile always-pass test widget plus separate CAPTCHA-enabled GoTrue: initial/relogin passed, client route return exposed missing widget. Auth component now renders an already-loaded widget and cleans up its own instance; independent recheck passed. Missing token401 verified. Human challenge and invalid-token rejection are not claimed from always-pass test keys. Existing-runtime-env clone was rejected by automatic review and not executed; isolated local project alternative completed and stopped.
+- Native photo URI descriptor failed in installed Expo57 converter before reaching API. Added bytes-compatible File helper preserving original filename/MIME. Initial dynamic import variant passed automated suites but raised native HMRClient setup error; candidate07 superseded. Static platform-specific helper fixes both, native upload now succeeds; reopen and remaining native screens ongoing.
+- Candidate08 fixed-source build/full suites started; DB contracts unchanged from verified06. Standard E2E wait now verifies save response before navigation instead of assuming completion under5s.
+
+## 最終写真・帳票検証の再開記録
+
+- 候補08: Native静的File importと元ファイル名/MIME保持。Native下取り・車両写真再表示PASS、RNWeb3種写真upload→戻る→再表示PASS。
+- RNWeb写真の最初の再実行は店舗切替の5秒assert待機不足で写真操作前に停止。40秒待機へ検証側を補正し同操作を再実行。
+- 帳票実操作は入金後1秒でreloadする検証が失敗。保存値0を確認し、HTTP応答を待たず中断した可能性を検証中。製品PASSにはまだ読み替えず、200応答とDB500円一致を待つ検証に補正。
+- 固定ビルドでメール確認用NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN不足を検出。同じ候補08sourceでローカルpublic設定を補い再build中。既存dev確認成功だけで固定ビルドPASSとはしません。
+
+- 入金の切り分け: 固定08ローカルbuild63001で同じ請求書を開き、500円を登録→API200→DBpaid_amount500→reload→コピー導線再表示PASS、監視issues0。検証の早すぎるreloadを除くと正常。フル帳票journeyでも同じ成功応答待機へ統一して再実行します。
+
+- メール確認origin診断の訂正: 公開設定不足だけではなく、releaseのHTTPSドメインallowlistとdevelopmentの3001/62321限定が正しく作動していた。63002設定補完で迂回できず、安全制約を維持。auth mail6routeは同一候補sourceの許可済みdev3001で最終実操作し、release63001/63002の業務操作と環境を分けて記録する。
+
+## 固定コード候補08のWeb最終照合
+
+担当104画面58PASS/46BLOCKEDと、親の20業務・帳票画面PASSを統合。Web124画面=78PASS/46BLOCKED。移行案内42、未実装設定2、外部副作用2をPASSへ変換しない。親の入金・部品保存は成功応答と正規一覧遷移を待ち、再表示で保存値一致。Web監視のNext prefetch/明示reload中断はヘッダーと同画面の値一致から分類し、元の観測履歴を維持。
+
+同一候補code936ファイルdrift0。独立17ファイルreviewで新P1/P2なし、既存E2E入力検査の弱化なし。PR候補245ファイルの既知secret照合0、JWT型値0。最終native結果と追加証跡統合後に再スキャンする。
+
+## Native詳細の税区分不足を検出し候補10へ
+
+Nativeの見積詳細で1364円という税抜内訳が無区分で表示される実不具合を検出。見積/請求detailへ数量・snapshot単価区分、net行区分、保存済み小計・値引・消費税・下取り・支払済額の内訳を追加する。amountへtax_amountを足して税込行額を再計算しない（tax_amountは全体値引後の配賦値である）。DB保存値・合計・API・認証・Web・migrationは変更しない。
+
+MIXED_RISK分類: 会計の意味・履歴・統合はCodex。独立した純粋ラベル2関数と既存回帰試験のLOCAL_SAFE childを正式Qwen runnerへ先行委譲。exact clean child/原本HEAD一致/2path存在・realpath検査を通したがprovider_circuit_openでモデル実行前停止。追加probe/retry/model切替をせず正式handoff。Codexがラベルhelperと表示を補完した。
+
+既存quote_items.quantity/unit_priceはNULL許容のため、新追加の数量/単価表示はNULLを『未設定』とし、0円に意味を変えない。候補10の初回freeze後にこの防御を追加したため途中freezeを不採用とし、最新を再固定。最終候補は08ではなく10。Web/DB/lock不変の継承照合、Mobile全自動試験とRNWeb36実操作を再実行する。
+
+- 候補10 final: Mobile15suite/型/lint/SSR144 PASS、独立review新P1/P2なし。936code digest f8b7ae5df5acf15b80216101a059c963da38f842ae58566f0554d6f6be0f1b55、Web/DB/API/auth/lock一致。
+- fresh owner contextでRNWeb36全画面を再実操作しPASS。写真3/PDF2/API契約10もPASS。console/pageerror/failedrequest/HTTP監視の最終観測errors0。製品patch3file前後hash差分0。税額の検証側455円固定期待は行丸めと違ったため保存小計4546/税454/合計5000とUIの一致へ補正し、計算仕様を変更していない。
+
+## 最終実操作の統合
+Native33業務＋3auth/store/today=36route主操作・再開PASS。候補10のquote/invoiceは明示Reload後に税区分と保存額を照合し、元quote4500/元invoice5000不変、copy5500/paid500/unpaid5000一致。写真3種decoded再開PASS。Native PDFはquote実印刷前previewとinvoice UI生成cache PDFのrender照合、OS請求preview成功とはしない。全console/HTTP監視の未確認を維持。Web124=78PASS46BLOCKED、fresh RNWeb36=36PASS。全受入はBLOCKEDのまま、Draft PR36へ最終コード/証跡を反映する。

@@ -4,21 +4,21 @@
       "test": "/quotes/new",
       "status": "PASS",
       "operation": "2 decimal rows/save/list/detail/reload",
-      "id": "f38bd8bc-0985-4700-8baf-b14223b8bffb",
+      "id": "4afcb853-4055-4d37-81dd-d9b99d49932a",
       "total": 3000
     },
     {
       "test": "/quotes/[id]/edit",
       "status": "PASS",
       "operation": "title edit/save/reopen",
-      "id": "f38bd8bc-0985-4700-8baf-b14223b8bffb"
+      "id": "4afcb853-4055-4d37-81dd-d9b99d49932a"
     },
     {
       "test": "QUOTE_COPY",
       "status": "PASS",
       "operation": "unsaved copy/edit/save/source unchanged",
-      "source": "f38bd8bc-0985-4700-8baf-b14223b8bffb",
-      "copy": "d66329fc-230e-4068-b0b4-9bcd9ebfb641"
+      "source": "4afcb853-4055-4d37-81dd-d9b99d49932a",
+      "copy": "efe5ede9-421b-4c0b-b306-79e5fd8b4ef1"
     },
     {
       "test": "/quotes/[id]/preview",
@@ -39,7 +39,7 @@
       "test": "/invoices/new",
       "status": "PASS",
       "operation": "quote import/save/detail/reload",
-      "id": "46a32dd9-9c20-47d6-ba1a-11e9aa2096bc"
+      "id": "91eb53a4-ac6f-4196-ad31-76de809fa56a"
     },
     {
       "test": "/invoices/[id]/preview",

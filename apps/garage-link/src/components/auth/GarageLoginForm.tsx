@@ -1,14 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import { useHydrated } from '@/lib/browser/useHydrated';
 import Script from 'next/script';
 import { useSearchParams } from 'next/navigation';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import BrandLogo from '@/components/BrandLogo';
 import { loginErrorMessage } from '@/lib/auth/login-error-contract';
 import { releaseQaRunId } from '@/lib/auth/releaseQaCallback';
 
 export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
+  const isHydrated = useHydrated();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get('next');
   const qaRunId = releaseQaRunId(searchParams.get('qa_run'));
@@ -18,21 +20,38 @@ export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaContainer = useRef<HTMLDivElement>(null);
   const captchaEnabled = process.env.NEXT_PUBLIC_ENABLE_BOT_PROTECTION === 'true';
   const captchaSiteKey = process.env.NEXT_PUBLIC_BOT_PROTECTION_SITE_KEY ?? '1x00000000000000000000AA';
 
   useEffect(() => {
     if (!captchaEnabled) return;
-    const browser = window as typeof window & { turnstile?: { render: (target: string, options: Record<string, unknown>) => void; reset: () => void }; onGarageTurnstileLoad?: () => void };
-    browser.onGarageTurnstileLoad = () => {
-      browser.turnstile?.render('#garage-login-turnstile', {
+    const browser = window as typeof window & {
+      turnstile?: {
+        render: (target: HTMLElement, options: Record<string, unknown>) => string;
+        remove: (widgetId: string) => void;
+      };
+      onGarageTurnstileLoad?: () => void;
+    };
+    let active = true;
+    let widgetId: string | undefined;
+    const renderWidget = () => {
+      if (!active || !browser.turnstile || !captchaContainer.current || widgetId !== undefined) return;
+      widgetId = browser.turnstile.render(captchaContainer.current, {
         sitekey: captchaSiteKey,
-        callback: (token: string) => setCaptchaToken(token),
-        'expired-callback': () => setCaptchaToken(null),
-        'error-callback': () => setCaptchaToken(null),
+        callback: (token: string) => { if (active) setCaptchaToken(token); },
+        'expired-callback': () => { if (active) setCaptchaToken(null); },
+        'error-callback': () => { if (active) setCaptchaToken(null); },
       });
     };
-    return () => { delete browser.onGarageTurnstileLoad; };
+    browser.onGarageTurnstileLoad = renderWidget;
+    // Next reuses the loaded Script when client navigation mounts this form again.
+    renderWidget();
+    return () => {
+      active = false;
+      if (widgetId !== undefined) browser.turnstile?.remove(widgetId);
+      if (browser.onGarageTurnstileLoad === renderWidget) delete browser.onGarageTurnstileLoad;
+    };
   }, [captchaEnabled, captchaSiteKey]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -103,6 +122,7 @@ export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
           <input
             id="email"
             name="email"
+            disabled={!isHydrated || isLoading}
             type="email"
             autoComplete="email"
             inputMode="email"
@@ -126,6 +146,7 @@ export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
           <input
             id="password"
             name="password"
+            disabled={!isHydrated || isLoading}
             type="password"
             autoComplete="current-password"
             value={password}
@@ -144,14 +165,14 @@ export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
 
         {captchaEnabled && (
           <div className="flex justify-center">
-            <div id="garage-login-turnstile" />
-            <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onGarageTurnstileLoad" strategy="lazyOnload" />
+            <div id="garage-login-turnstile" ref={captchaContainer} />
+            <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onGarageTurnstileLoad" strategy="lazyOnload" />
           </div>
         )}
 
         <button
           type="submit"
-          disabled={isLoading || !email.trim() || !password}
+          disabled={!isHydrated || isLoading || !email.trim() || !password}
           className="w-full rounded-xl bg-gradient-to-r from-blue-600 via-sky-500 to-emerald-500 px-5 py-3 text-sm font-bold text-white shadow-[0_10px_24px_rgba(14,165,233,0.20)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300"
         >
           {isLoading ? 'ログイン中...' : 'ログイン'}

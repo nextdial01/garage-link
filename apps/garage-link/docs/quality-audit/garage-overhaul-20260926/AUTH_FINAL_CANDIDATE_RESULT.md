@@ -20,3 +20,13 @@
 全画面回帰PASSとは判定しない。親の7画面と帳票13画面統合、BLOCKED維持が必要。
 
 最終監視補完: `WEB_MONITOR_CLASSIFICATION.md`参照。admin plan→billing往復ではconsole Failed to fetchと同時にAuth/billing ERR_ABORTEDを観測し非重大navigation cancellationに分類しました。全console0とは主張しません。担当104の実操作結果58PASS/46BLOCKED、帳票13の実見出し・権限も統合済みです。
+
+## 最終 source candidate08 再検査（2026-09-26 JST）
+
+通常authは固定build local63001で新contextを作り、audit/owner/admin/implementer/staff/viewerの初回1POST・OTP不到達・再読込・権限表示を確認。auditではlogout→再login、fresh contextのsession復帰、誤password401→正常password成功まで確認しました。runtime/candidate08-route-results/auth-browser-results.json。
+
+パスワード再設定・新規登録メール確認・onboardingは、製品の安全契約が認めるdevelopment+localSupabase62321+origin3001で新context実操作PASS。releaseのHTTP63001/63002が確認メールoriginを拒否する安全契約を変更しません。1124 source filesは固定候補と一致（candidate08-dev-source-readback.json）。このPASSをproduction mailの実証とは表現しません。runtime/candidate08-route-results/{auth-reset-final-results,auth-signup-results,onboarding-results}.json。
+
+新たに検出・補修した製品原因はhydration前操作とTurnstile再mount lifecycle。前者は標準E2Eで低速JSを実際に再現して1回目成功を確認、後者は別localの公式Turnstile testwidget+実GoTrue captcha enabledで初回/relogin/LP往復すべて200（turnstile-login-results.json）。always-pass testsecretではinvalid token拒否を確認できず、その負例をPASSにはしません。
+
+標準E2Eは32PASS/課金2SKIP、security390PASS、typecheck/lintPASS。全担当Web104は58PASS/46BLOCKED。最新集計はAUTH_ROUTE_OPERATIONS.csvであり、BLOCKEDがあるため全体完了ではありません。

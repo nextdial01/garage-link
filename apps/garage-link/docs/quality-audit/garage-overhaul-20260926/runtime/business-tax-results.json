@@ -1,0 +1,15 @@
+[
+  {
+    "test": "tax_mode_excluded_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "tax_mode_included_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "browser_errors",
+    "status": "PASS",
+    "errors": []
+  }
+]

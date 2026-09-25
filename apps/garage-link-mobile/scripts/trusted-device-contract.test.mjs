@@ -52,6 +52,7 @@ function createRuntime() {
   const supabase = { auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-access-token' } } }) } };
   const mobileApi = loadCommonJs(mobileApiSource, {
     './supabase': { supabase },
+    './photoUpload': loadCommonJs(readFileSync(new URL('../src/photoUpload.ts', import.meta.url), 'utf8'), { 'react-native': { Platform: { OS: 'ios' } } }),
     'react-native': { Platform: { OS: 'ios' } },
     './apiOrigin': loadCommonJs(readFileSync(new URL('../src/apiOrigin.ts', import.meta.url), 'utf8'), {}, {URL, __DEV__: false}),
     './trustedDevice': trustedDevice,

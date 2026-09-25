@@ -7,8 +7,10 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/apiOrigin.ts','utf8')
 let handler;
 let expire = false;
 const exported = {};
+const photoUpload = {};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/photoUpload.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports:photoUpload,require:()=>({Platform:{OS:'web'}})});
 let trustedDeviceToken = 'a'.repeat(64);
-const context={exports:exported,require:(name)=>name==='./apiOrigin'?apiOrigin:name==='./supabase'?{supabase:{auth:{getSession:async()=>({data:{session:{access_token:'synthetic-token'}}})}}}:name==='./trustedDevice'?{getTrustedDeviceToken:async()=>trustedDeviceToken,saveTrustedDeviceToken:async(token)=>{trustedDeviceToken=token;}}:{},process:{env:{EXPO_PUBLIC_APP_BASE_URL:'https://example.invalid'}},AbortController,FormData,Blob,Date,Response,fetch:(...args)=>handler(...args),setTimeout(callback){if(expire)queueMicrotask(callback);return 1;},clearTimeout(){}};
+const context={exports:exported,require:(name)=>name==='./photoUpload'?photoUpload:name==='./apiOrigin'?apiOrigin:name==='./supabase'?{supabase:{auth:{getSession:async()=>({data:{session:{access_token:'synthetic-token'}}})}}}:name==='./trustedDevice'?{getTrustedDeviceToken:async()=>trustedDeviceToken,saveTrustedDeviceToken:async(token)=>{trustedDeviceToken=token;}}:{},process:{env:{EXPO_PUBLIC_APP_BASE_URL:'https://example.invalid'}},AbortController,FormData,Blob,Date,Response,fetch:(...args)=>handler(...args),setTimeout(callback){if(expire)queueMicrotask(callback);return 1;},clearTimeout(){}};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/mobileApi.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,context);
 (async()=>{
  const store={id:'fixture-store',tenantId:'fixture-tenant',name:'Fixture',role:'staff'};
@@ -28,7 +30,7 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/mobileApi.ts','utf8')
  handler=async(url,options)=>{assert.ok(url.endsWith('/api/mobile/storage/signed-url'));assert.equal(options.headers['x-garage-store-id'],store.id);return Response.json({signedUrl:'https://example.invalid/synthetic.png'});};
  assert.ok((await exported.mobileApi.signedUrl(store.id,'fixture-file')).signedUrl);
  handler=async(url,options)=>{assert.ok(url.endsWith('/api/mobile/storage/upload'));assert.equal(options.headers['x-garage-store-id'],store.id);assert.equal(options.body.get('purpose'),'vehicle_image');return Response.json({file:{id:'fixture-file'}});};
- assert.equal((await exported.mobileApi.uploadVehicleImage(store.id,'fixture-vehicle',{uri:'file:///synthetic.png',mimeType:'image/png'})).file.id,'fixture-file');
+ assert.equal((await exported.mobileApi.uploadVehicleImage(store.id,'fixture-vehicle',{uri:'blob:synthetic',file:new File(['synthetic'],'synthetic.png',{type:'image/png'})})).file.id,'fixture-file');
  assert.equal(exported.mobileApi.verifyAdminEmailOtp,undefined);
  expire=true;handler=async(url,{signal})=>new Promise((_,reject)=>{if(signal.aborted)reject(Error('aborted'));else signal.addEventListener('abort',()=>reject(Error('aborted')));});
  await assert.rejects(exported.mobileApi.today(store.id),error=>error.code==='timeout');

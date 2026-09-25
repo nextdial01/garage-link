@@ -9,7 +9,7 @@
       "test": "EXCLUDED_PART_PRICE_AND_TOTAL",
       "status": "PASS",
       "operation": "stored1100→input1000 qty1.5 save1650",
-      "id": "178abdaa-2bca-464f-a8fc-1a5ac5bb271d"
+      "id": "f538df57-b72f-4c16-a0f6-301b49d15ca5"
     },
     {
       "test": "HISTORICAL_MODE_AFTER_STORE_CHANGE",

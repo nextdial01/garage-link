@@ -1,17 +1,17 @@
 [
   {
-    "test": "owner_one_attempt_login",
+    "test": "audit_one_attempt_login",
     "status": "PASS",
     "submits": 1,
     "otp": 0,
     "errors": []
   },
   {
-    "test": "owner_session_reload",
+    "test": "audit_session_reload",
     "status": "PASS"
   },
   {
-    "test": "owner_members_access",
+    "test": "audit_members_access",
     "status": "PASS",
     "deniedNotice": 0
   },
@@ -27,6 +27,22 @@
     "test": "wrong_password_then_correct",
     "status": "PASS",
     "wrongStatus": 401
+  },
+  {
+    "test": "owner_one_attempt_login",
+    "status": "PASS",
+    "submits": 1,
+    "otp": 0,
+    "errors": []
+  },
+  {
+    "test": "owner_session_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "owner_members_access",
+    "status": "PASS",
+    "deniedNotice": 0
   },
   {
     "test": "admin_one_attempt_login",

@@ -1,7 +1,7 @@
 {
   "base_sha": "8893ebb8ce131b22aed0e87ee8ad3f5596410048",
-  "frozen_candidate": "candidate06",
-  "status": "BLOCKED_FULL_ACCEPTANCE_STANDARD_E2E_AND_NATIVE_RECHECK_IN_PROGRESS",
+  "frozen_candidate": "candidate10",
+  "status": "BLOCKED_FULL_ACCEPTANCE",
   "checks": [
     {
       "id": 1,
@@ -160,7 +160,7 @@
       "requirement": "税込表示設定",
       "status": "PASS",
       "evidence": [
-        "runtime/business-results.json"
+        "runtime/business-tax-results.json"
       ]
     },
     {
@@ -168,7 +168,7 @@
       "requirement": "税抜表示設定",
       "status": "PASS",
       "evidence": [
-        "runtime/business-results.json"
+        "runtime/business-tax-results.json"
       ]
     },
     {
@@ -390,7 +390,6 @@
     "live_payment",
     "irreversible_delete"
   ],
-  "candidate_snapshot_sha256": "f0aeecadeae801e1eb6180a9f8c5b4c1d68cb198c4d42e0200458bbca38e31ab",
   "additional_regression": {
     "legacy_null_birth_archive_restore": "PASS",
     "evidence": [
@@ -398,5 +397,51 @@
       "runtime/candidate05-final-acceptance.json"
     ]
   },
-  "app_runtime_base_candidate04_content_sha256": "8d88faf93fbcb85941980f0034510f5e0e96905516148a336bbf0ef2c12c0798"
+  "app_runtime_base_candidate04_content_sha256": "8d88faf93fbcb85941980f0034510f5e0e96905516148a336bbf0ef2c12c0798",
+  "code_manifest_sha256": "f8b7ae5df5acf15b80216101a059c963da38f842ae58566f0554d6f6be0f1b55",
+  "verification_note": "最終候補10 code936固定。Mobile15suite/型/lint/SSR144 PASS、fresh RNWeb36全実操作PASS。Web/DB/API/auth/lockは候補08と完全一致、Web124=78PASS/46BLOCKED。Native33業務＋3auth/store/todayの36routeを補完検証し別csvへ記録。",
+  "inherited_candidate08_snapshot_sha256": "3da45e17d23538052b43cd43cc3afaf8beb14fa8a2669760e13ff525b8b58cf5",
+  "automated": {
+    "web_build_lint_type": "PASS_INHERITED_IDENTICAL_SOURCE",
+    "security_passed": 390,
+    "qa_passed": 99,
+    "mobile_test_files_passed": 15,
+    "mobile_ssr_cases_passed": 144,
+    "e2e_passed": 32,
+    "e2e_skipped": 2,
+    "database": "PASS_IDENTICAL_265_FILES",
+    "external_stripe_test_registry": "NOT_EXECUTED"
+  },
+  "web_summary": {
+    "count": 124,
+    "tested": 124,
+    "pass": 78,
+    "fail": 0,
+    "blocked": 46,
+    "blocked_counts": {
+      "feature_moved": 42,
+      "not_implemented": 2,
+      "external_side_effect": 2
+    }
+  },
+  "mobile_summary": {
+    "platform": "React Native Web, final frozen candidate10",
+    "count": 36,
+    "tested": 36,
+    "pass": 36,
+    "fail": 0,
+    "blocked": 0,
+    "evidence": "runtime/final-rnweb-candidate.json"
+  },
+  "native_supplement": {
+    "count": 36,
+    "pass": 36,
+    "fail": 0,
+    "blocked": 0,
+    "platform": "iOS Simulator / Expo Go",
+    "global_console_http_monitor": "NOT_CAPTURED",
+    "invoice_os_preview": "NOT_VERIFIED; UI-generated PDF rendered and compared separately",
+    "inventory": "NATIVE_PAGE_INVENTORY_FINAL.csv"
+  },
+  "remaining_acceptance": "REMAINING_ACCEPTANCE.md"
 }

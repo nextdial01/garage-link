@@ -10,3 +10,8 @@
 通常メールOTP画面を撤去し、到達可能なアプリ画面は36。CAPTCHAはlogin内の条件付きUIであり独立routeではありません。MOBILE_PAGE_INVENTORY_FINAL.csvに全36の主操作、保存、再表示を記録しました。
 
 全36の操作プラットフォームはReact Native Web（390px、実ローカルAPI・DB、写真実storage保存）です。SSRやモック表示を操作PASSへ数えません。見積/請求PDFの追加プレビュー2件も開閉・元金額一致を確認しました。iOS Simulatorのnative版はログアウト→1回ログイン→店舗→今日、終了再起動→認証復帰、5タブ移動を実施しました。native全36画面、物理カメラ、Android実機、人間の実CAPTCHAは未確認であり、この36 PASSをそれらの代用にはしません。
+
+## 最終候補10
+候補10のfresh RNWeb36画面を全件再操作してPASS。最新csvはこの結果だけを使用します。iOS Simulator nativeも33業務＋認証/店舗/今日3の正規36routeを追加確認し、NATIVE_PAGE_INVENTORY_FINAL.csvへ分離しました。最後の税ラベル補修後に見積/請求detailを明示Reloadで再開し、元の保存金額と一致を確認しています。Native業務には補修前に完了した不変画面の操作も含まれるため、候補10全画面fresh受入の正本はRNWeb再走行です。
+
+Native見積は実印刷前プレビュー、請求はUIで生成/共有シート表示後に端末cacheの実生成PDFを読み取りrenderし金額を照合しました。請求OSプレビュー表示が成功したとは扱いません。実印刷・外部共有はしていません。Native全console/全HTTP監視、物理カメラ、Android実機、実人間CAPTCHAは未確認のまま区別します。

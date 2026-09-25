@@ -1,0 +1,38 @@
+{
+  "base": "bee0d53cd6af08c873826af1f50e3e1ee01f31cc",
+  "reviewed_files": [
+    "apps/garage-link-mobile/package.json",
+    "apps/garage-link-mobile/pnpm-lock.yaml",
+    "apps/garage-link-mobile/scripts/photo-upload.test.cjs",
+    "apps/garage-link-mobile/scripts/quality-api.test.cjs",
+    "apps/garage-link-mobile/scripts/trusted-device-contract.test.mjs",
+    "apps/garage-link-mobile/src/mobileApi.ts",
+    "apps/garage-link-mobile/src/photoUpload.native.ts",
+    "apps/garage-link-mobile/src/photoUpload.ts",
+    "apps/garage-link/src/components/auth/GarageLoginForm.tsx",
+    "apps/garage-link/src/components/landing/MobileNavigation.tsx",
+    "apps/garage-link/src/lib/browser/useHydrated.ts",
+    "apps/garage-link/tests/e2e/customers.spec.ts",
+    "apps/garage-link/tests/e2e/hydration-readiness.spec.ts",
+    "apps/garage-link/tests/e2e/landing-real-operations.test.ts",
+    "apps/garage-link/tests/e2e/vehicles.spec.ts",
+    "apps/garage-link/tests/security/login-turnstile-lifecycle.test.ts",
+    "pnpm-lock.yaml"
+  ],
+  "untracked_included": [
+    "apps/garage-link-mobile/scripts/photo-upload.test.cjs",
+    "apps/garage-link-mobile/src/photoUpload.native.ts",
+    "apps/garage-link-mobile/src/photoUpload.ts",
+    "apps/garage-link/src/lib/browser/useHydrated.ts",
+    "apps/garage-link/tests/e2e/hydration-readiness.spec.ts",
+    "apps/garage-link/tests/security/login-turnstile-lifecycle.test.ts"
+  ],
+  "generated_files_to_exclude": [
+    "apps/garage-link/AGENTS.md",
+    "apps/garage-link/CLAUDE.md"
+  ],
+  "secret_pattern_findings": [],
+  "missing_from_candidate_manifest": [],
+  "candidate_drift": [],
+  "actionable_P1_P2": []
+}

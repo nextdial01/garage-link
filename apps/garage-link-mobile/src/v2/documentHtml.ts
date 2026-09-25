@@ -1,6 +1,17 @@
 import type { Quote } from '../mobileApi';
 const escape = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char] ?? char));
 const yen = (value: unknown) => `${Number(value ?? 0).toLocaleString('ja-JP')}円`;
+/** Persisted line amounts are net; exempt and out-of-scope lines keep their own labels. */
+export function documentLineAmountLabel(mode: unknown, category: unknown) {
+ if (category === 'exempt') return '非課税';
+ if (category === 'out_of_scope') return '税対象外';
+ return mode === 'included' || mode === 'excluded' ? '税抜' : '保存時';
+}
+export function documentUnitPriceLabel(mode: unknown, category: unknown) {
+ if (category === 'exempt') return '非課税';
+ if (category === 'out_of_scope') return '税対象外';
+ return mode === 'included' ? '税込' : mode === 'excluded' ? '税抜' : '保存時';
+}
 /** Read persisted snapshots only: printing must not reinterpret historical prices. */
 export function documentHtml(kind: 'quote' | 'invoice', header: Record<string,unknown>, items: readonly Record<string,unknown>[]) {
  const mode = header.tax_display_mode === 'excluded' ? '税抜' : header.tax_display_mode === 'included' ? '税込' : '旧帳票の保存値';

@@ -12,11 +12,13 @@
 
 ## 検証の境界
 
-現在のDB検証候補はcandidate06です。DB新規／既存更新を含む6suiteを再実行しPASS。DB runner以外のアプリ・依存関係・試験699ファイルの同一性を照合し、candidate04のbuild、Web lint／型、security388件、QA99件、およびMobile全14 test filesと144 SSRケースのPASSを引き継ぎました。SSR表示は全画面実操作の代用にしていません。
+最終コード候補はcandidate10（936code manifest SHA256 `f8b7ae5df5acf15b80216101a059c963da38f842ae58566f0554d6f6be0f1b55`）です。候補08からMobile表示と試験の3ファイルだけを変更し、Mobile全検証を再実行しました。Web・DB・API・auth・依存関係は候補08と完全一致し、以下の対応するPASSを継承しています。build、Web lint／型、security390件、QA99件、Mobile15 test files・144 SSRケース・写真multipart4試験がPASS。DB関連265ファイルが候補06と完全一致することを照合し、標準DB新規／既存更新8契約と既存6suiteのPASSを継承しました。SSR表示は全画面実操作の代用にしていません。
+
+固定ビルドのローカルメール確認停止を調査し、同一source1124ファイル・同一SHAのcandidate09ビルドで公開origin設定を補っても停止することを確認しました。原因はrelease版が本来のHTTPSドメインだけを許可する既存安全制約で、ローカルMailpitはdevelopment＋62321＋3001に限定されています。この制約を緩めず、メール確認・再設定は同一sourceの許可済み3001環境で実操作し、その他は固定releaseビルドで確認します。コード936ファイルの同一性も確認しています。標準E2Eは32PASS／2SKIP（外部課金）、FAIL0。
 
 実操作はローカルSupabase・Mailpit・合成データのみ。Webはpage.tsxを再集計した124画面、Mobileは通常OTPを除いた36画面を棚卸し。画面一覧は各CSV、個別40項目はACCEPTANCE.jsonを参照してください。Webの移行案内・未実装設定・外部送信の制約はBLOCKEDのまま残し、PASSへ読み替えません。
 
-Mobileの全画面操作はReact Native Web＋実ローカルAPIです。iOS Simulatorでは認証・セッション復帰を別検証し、native業務画面の追加結果も分けて記録します。物理カメラ、Android実機、実人間CAPTCHAは未確認です。
+Mobileの全画面操作はReact Native Web＋実ローカルAPIです。iOS Simulatorでは33業務＋3認証/店舗/今日の36routeも追加確認し、NATIVE_PAGE_INVENTORY_FINAL.csvへ分けて記録しました。物理カメラ、Android実機、実人間CAPTCHAは未確認です。
 
 ## ローカルLLMとCodexの補修
 
@@ -30,8 +32,27 @@ Mobileの全画面操作はReact Native Web＋実ローカルAPIです。iOS Sim
 
 ## リリース前の未確認
 
-全画面回帰のBLOCKED、native全画面の未確認箇所、実人間CAPTCHA、実機カメラを解消または正本の受入範囲として明示する必要があります。外部送信・実決済は行っていません。GitHub Actionsを起動しないためコミットに `[skip ci]` を付け、PRはdraftで提出します。
+全画面回帰のBLOCKEDを解消するか、正本の受入範囲を明示する必要があります。実人間CAPTCHA・物理カメラ・Android実機は追加の未確認範囲として区別し、今回の証拠を拡張して主張しません。外部送信・実決済は行っていません。GitHub Actionsを起動しないためコミットに `[skip ci]` を付け、PRはdraftで提出します。
 
 ## 標準コマンドへの組込み
 
-`pnpm --filter @apps/garage-link run test:db:fresh` に今回の8契約を組み込み、新規・既存更新の両経路でPASS。専用の外部試験スクリプトだけに依存しません。標準Web E2Eの旧仕様前提の見直しと、iOS nativeの追加実操作を継続中です。
+`pnpm --filter @apps/garage-link run test:db:fresh` に今回の8契約を組み込み、新規・既存更新の両経路でPASS。専用の外部試験スクリプトだけに依存しません。標準Web E2Eの旧仕様前提を修正し、従来の電話・メール・車両価格検査も維持しました。低速JSの初回入力とCAPTCHA画面再訪の回帰を追加しPASS。iOS nativeの追加実操作も36routeを記録しました。
+
+
+## 実操作で検出した追加補修
+
+初回React起動前の入力取りこぼしを防ぎ、CAPTCHAスクリプト再利用時にも画面再訪でwidgetを再作成します。公式テストwidgetと独立したローカルGoTrueで初回・再ログイン・LP往復を確認しました。実人間challengeの証拠とは分けています。
+
+Expo57のfetchが旧URI形式multipartを拒否する写真不具合を、実installed converterとiOS操作で再現しました。Native専用File readerでbytes・元ファイル名・MIMEを保持するよう補修。最初のdynamic import案はnativeで失敗したため候補07を不採用とし、静的importへ変更した候補08で車両・下取り写真の送信と再表示が通りました。RNWeb写真3種とNative写真3種とも再確認済みです。
+
+
+## 監視結果の扱い
+
+Webの先読みGET中断は、秘密を含まないprefetch/RSCフラグと、その後の主操作・保存・再読込結果を照合して分類しました。生の監視FAIL履歴は残し、全中断を単に無視していません。部品・整備の明示reloadで中断した同じ画面のRSCも値一致を再確認しています。分類結果はbusiness-browser-error-review.jsonに記録しました。Nativeの追加UI検証は全console／全HTTPの網羅的採取ではなく、RNWebの通信監視とは別の観測範囲です。
+
+
+## 最終候補10の表示補修
+
+Native見積詳細の無区分net金額を検出し、見積・請求詳細の明細へ税抜／非課税／税対象外／保存時のラベル、snapshot方式の数量・単価、保存済み税・値引・下取り・支払額を明示しました。金額の再計算や保存処理変更はありません。旧NULL数量・単価は未設定として表示します。独立helperのQwen再委譲はprovider_circuit_openで実行前停止し、正式handoff後Codexが補完。候補10のMobile全15試験・型・lintと独立reviewがPASSです。
+
+最終Webは124画面中78PASS/46BLOCKED、最終fresh RNWebは36/36PASS。Native補完も36routeの主操作・再開PASSです。Native請求PDFはUIで生成した実ファイルをrenderして照合し、OSプレビュー成功とは区別しています。受入未達はREMAINING_ACCEPTANCE.mdを参照してください。

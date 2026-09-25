@@ -1,0 +1,41 @@
+{
+  "official_test_widget": true,
+  "human_challenge_verified": false,
+  "checks": [
+    {
+      "name": "initial",
+      "url": "/help",
+      "posts": [
+        {
+          "status": 200,
+          "body": null
+        }
+      ],
+      "alert": [
+        ""
+      ]
+    },
+    {
+      "name": "logout-relogin",
+      "url": "/dashboard",
+      "posts": [
+        {
+          "status": 200,
+          "body": null
+        }
+      ],
+      "alert": []
+    },
+    {
+      "name": "lp-client-transition",
+      "url": "/login",
+      "posts": [],
+      "alert": [
+        "ボット対策の確認を完了してください。",
+        "在庫も、商談も、整備も。\n今日の仕事を一画面に。"
+      ]
+    }
+  ],
+  "errors": [],
+  "lpLinkCount": 2
+}

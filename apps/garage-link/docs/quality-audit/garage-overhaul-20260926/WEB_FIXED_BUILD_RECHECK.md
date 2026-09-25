@@ -1,0 +1,24 @@
+# 固定ビルドによる最終Web再操作
+
+対象: candidate08、source HEAD bee0d53cd6af08c873826af1f50e3e1ee01f31cc（未コミット候補差分込み）、snapshot SHA256 3da45e17d23538052b43cd43cc3afaf8beb14fa8a2669760e13ff525b8b58cf5。local next start 63001。Production変更なし。各scriptのoriginだけruntime loaderで置換、DB/fixtureは専用local Supabase。
+
+担当104routeの再操作を実行。古いPASSを優先して最新FAILを隠す旧集計を使わず、candidate08-route-results内の今回実行結果のみを集計。AUTH_ROUTE_OPERATIONS.csvとAUTH_ROUTE_LATEST_EVIDENCE.jsonが途中経過の正本です。
+
+最終結果58PASS、46BLOCKED、FAIL0、未検査0（主操作が実施不能なBLOCKEDは完了扱いにしません）。46の内訳は移行済み42、未実装案内2、外部副作用2。LINE旧画面はlayoutが子画面を描画しないため、案内→設定→戻る→dashboard→案内再開を確認しても業務操作PASSにしません。
+
+認証メールの残件はビルド時NEXT_PUBLIC_AUTH_CONFIRM_ORIGINが未設定であるためfail closed。起動時設定ではclient bundleへ反映されません。通常login/logout/再読込/freshcontext/誤password→正常/全roleは63001でPASS。確認用public originを追加した同一sourceの別buildでsignup/reset/onboardingを追加再操作します。dev3001では同sourceのメール確認/reset操作はPASSでしたが、この記録へ流用していません。
+
+試験途中の不一致と補修:
+- dev3001は複数browserとcold compileで9秒goto制限に達したため、固定buildへ移行。自分の孤立browserだけ停止。失敗のdev台帳はcandidate07-route-executions.jsonへ保持。
+- 旧navigation scriptのsignupリンクselector5件は現行CTAと不一致。public-recheckによる実CTA往復/再開結果で置換。
+- 商談詳細から戻らず一覧検索を試みた旧script、車両の戻るlinkが2件あるstrict selectorは、既存専用deals-list-final/vehicle-editの実操作によって再検査。
+- 会計設定保存はPOST成功応答と成功表示を待って再開/再読込/元値復元を検査。固定1秒待ちの不一致を無条件PASSにせず、再操作で確認。
+- companyのfetch中断はNext prefetch:true、GET、net::ERR_ABORTEDを個別確認。保存応答/再読込は正常。契約確認はUIの「現在のプラン」表示前に戻っていたためauth fetchを中断しconsoleへ出ていました。読込完了後の同操作再検査はconsole errors0。
+
+最新採用結果ではconsole errors0、HTTP>=400とnon-abort failed fetch0。先読み/意図的navigationのERR_ABORTEDは生ログを保持し重大エラーとは分離します。全件fetch0という主張はしません。
+
+証跡: runtime/candidate08-route-executions.json、runtime/candidate08-route-results/、runtime/candidate08-auth-contract.json。追加の設定/契約再検査はsettings-recheck-results.json、plan-recheck-results.jsonを同結果dirへ保存済み。秘密・trace/HAR/storageStateの保存なし。
+
+追記: 設定補完candidate09もsource1124ファイル一致。releaseの確認originはHTTPSのGARAGE LINKドメインだけ、localMailpit例外はdevelopment+62321+3001に限定されるため、HTTP63002でも正しく拒否されました。制約は変更せず、同じ固定候補source（candidate08-dev-source-readback.jsonで1124ファイル差分0）の許可済み3001にてメール実操作を再実行します。環境差を隠してrelease mail PASSとは記載しません。追加buildで解消するとした初期判断は不十分でした。
+
+最終追記: 3001でresetメール→確認→新password→ログイン、signupメール確認→店舗作成→logout→1回login、onboarding全ステップ保存→dashboard→再開を全て再実操作PASS。AUTH_ROUTE_OPERATIONS.csv 104件は58PASS/46BLOCKED、metadata欠損0。通常認証は63001のrelease build、メール6routeは同じ固定sourceをlocalMailpit許可条件で実行した3001です。FULL_ROUTE_REGRESSIONは46BLOCKEDが残るためPASSではありません。

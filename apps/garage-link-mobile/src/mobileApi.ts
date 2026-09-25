@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { appendPhotoAsset, type PhotoAsset } from './photoUpload';
 import { validMobileApiOrigin } from './apiOrigin';
 import { supabase } from './supabase';
 
@@ -91,7 +91,7 @@ export const mobileApi = {
   async quoteDetail(storeId: string, quoteId: string) { return (await request<{ quote: Quote }>(`/api/mobile/quotes/${quoteId}`, {}, storeId)).quote; },
   async copyInvoice(storeId:string, body:QuoteDraft & {sourceInvoiceId:string}) { return (await request<{invoice:V2Record}>('/api/mobile/v2/invoices',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)},storeId)).invoice; },
   async createQuote(storeId: string, idempotencyKey: string, draft: QuoteDraft) { return (await request<{ quote: Quote }>('/api/mobile/quotes', { method: 'POST', headers: { 'content-type': 'application/json', 'x-idempotency-key': idempotencyKey }, body: JSON.stringify(draft) }, storeId)).quote; },
-  async uploadVehicleImage(storeId: string, vehicleId: string, asset: { uri: string; fileName?: string | null; mimeType?: string | null }) { const form = new FormData(); form.append('purpose', 'vehicle_image'); form.append('related_type', 'vehicle'); form.append('related_id', vehicleId); form.append('file', { uri: asset.uri, name: asset.fileName || `vehicle-${Date.now()}.jpg`, type: asset.mimeType || 'image/jpeg' } as unknown as Blob); return request<{ file: { id: string } }>('/api/mobile/storage/upload', { method: 'POST', body: form }, storeId); },
+  async uploadVehicleImage(storeId: string, vehicleId: string, asset: PhotoAsset) { const form = new FormData(); form.append('purpose', 'vehicle_image'); form.append('related_type', 'vehicle'); form.append('related_id', vehicleId); await appendPhotoAsset(form, asset); return request<{ file: { id: string } }>('/api/mobile/storage/upload', { method: 'POST', body: form }, storeId); },
   signedUrl(storeId: string, fileId: string) { return request<{ signedUrl: string }>('/api/mobile/storage/signed-url', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ fileId }) }, storeId); },
   v2List(storeId: string, resource: V2Resource, query: Record<string, string> = {}) { const params = new URLSearchParams(query); return request<{ rows: V2Record[]; nextOffset: number | null }>(`/api/mobile/v2/${resource}?${params}`, {}, storeId); },
   v2Detail(storeId: string, resource: V2Resource, id: string) { return request<{ row: V2Record }>(`/api/mobile/v2/${resource}/${id}`, {}, storeId); },
@@ -109,14 +109,10 @@ export const mobileApi = {
   v2Delivery(storeId: string, dealId: string, idempotencyKey: string) { return request<{ ok: boolean; code: string }>(`/api/mobile/v2/sales/${dealId}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idempotencyKey }) }, storeId); },
   v2CancelSale(storeId: string, dealId: string, reason: string, idempotencyKey: string) { return request<{ ok: boolean; code: string }>(`/api/mobile/v2/sales/${dealId}`, { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reason, idempotencyKey }) }, storeId); },
   v2Payment(storeId: string, invoiceId: string, amount: number, paymentMethod: string, idempotencyKey: string) { return request<{ invoice: V2Record }>(`/api/mobile/v2/payments/${invoiceId}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ amount, paymentMethod, idempotencyKey }) }, storeId); },
-  async uploadCategorizedPhoto(storeId: string, relatedType: 'vehicle' | 'maintenance_job' | 'trade_in_vehicle', relatedId: string, photoCategory: string, asset: { uri: string; fileName?: string | null; mimeType?: string | null; file?: File }) {
+  async uploadCategorizedPhoto(storeId: string, relatedType: 'vehicle' | 'maintenance_job' | 'trade_in_vehicle', relatedId: string, photoCategory: string, asset: PhotoAsset) {
     const form = new FormData();
     form.append('purpose', 'vehicle_image'); form.append('related_type', relatedType); form.append('related_id', relatedId); form.append('photo_category', photoCategory);
-    const name = asset.fileName || `garage-${Date.now()}.jpg`;
-    if (Platform.OS === 'web') {
-      const blob = asset.file || await (await fetch(asset.uri)).blob();
-      form.append('file',blob,name);
-    } else form.append('file', { uri: asset.uri, name, type: asset.mimeType || 'image/jpeg' } as unknown as Blob);
+    await appendPhotoAsset(form, asset);
     return request<{ file: { id: string } }>('/api/mobile/storage/upload', { method: 'POST', body: form }, storeId);
   },
   v2Photos(storeId: string, relatedType: 'vehicle' | 'maintenance_job' | 'trade_in_vehicle', relatedId: string) { return request<{ photos: { id: string; photo_category: string | null; created_at: string }[] }>(`/api/mobile/v2/photos?relatedType=${relatedType}&relatedId=${relatedId}`, {}, storeId); },

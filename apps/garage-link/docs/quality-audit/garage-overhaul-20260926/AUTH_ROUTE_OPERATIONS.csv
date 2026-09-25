@@ -24,9 +24,9 @@ ROUTE,SCREEN_NAME,TYPE,REQUIRED_ROLE,OPERATIONS,SAVE_RESULT,RELOAD_RESULT,STATUS
 /industries/motorcycle,販売車両と修理入庫。二つの流れを、一つの店舗へ。,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/industries/motorcycle/page.tsx
 /industries/used-car,仕入れた日から、納車後の案内まで。,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/industries/used-car/page.tsx
 /inquiries,問い合わせ,list,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/inquiries/page.tsx
-/inventory-counts/[id],棚卸し詳細,detail_edit,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,名称編集→保存→一覧→詳細→再読込一致,PASS,PASS,PASS,apps/garage-link/src/app/inventory-counts/[id]/page.tsx
-/inventory-counts/new,棚卸し登録,create,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,最終runで新店舗に新規入力→保存→一覧反映→詳細リンク→再読込一致,PASS,PASS,PASS,apps/garage-link/src/app/inventory-counts/new/page.tsx
-/inventory-counts,棚卸し,list,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,一覧→詳細→戻る→再度詳細,PASS,PASS,PASS,apps/garage-link/src/app/inventory-counts/page.tsx
+/inventory-counts/[id],棚卸し詳細,detail_edit,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,名称編集→保存→一覧→再詳細→値確認,PASS,PASS,PASS,apps/garage-link/src/app/inventory-counts/[id]/page.tsx
+/inventory-counts/new,棚卸し登録,create,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,入力→保存→一覧→詳細→再読込,PASS,PASS,PASS,apps/garage-link/src/app/inventory-counts/new/page.tsx
+/inventory-counts,棚卸し,list,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,新規一覧反映→詳細→戻る→再操作,PASS,PASS,PASS,apps/garage-link/src/app/inventory-counts/page.tsx
 /legal/privacy,プライバシーポリシー,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/legal/privacy/page.tsx
 /legal/terms,利用規約,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/legal/terms/page.tsx
 /legal/tokusho,特定商取引法に基づく表記,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/legal/tokusho/page.tsx
@@ -95,7 +95,7 @@ ROUTE,SCREEN_NAME,TYPE,REQUIRED_ROLE,OPERATIONS,SAVE_RESULT,RELOAD_RESULT,STATUS
 /settings/security,セキュリティ設定,settings_placeholder,認証済みの有効な同店舗member（middleware/RLS）,主要関連リンク→戻る→再開・再読込,対象外（非更新案内）,未確認,BLOCKED_NOT_IMPLEMENTED,apps/garage-link/src/app/settings/security/page.tsx
 /settings/security-check,セキュリティチェック,settings,owner/admin（有効な同店舗membership）,主要関連リンク→戻る→再開・再読込,対象外（非更新案内）,PASS,PASS,apps/garage-link/src/app/settings/security-check/page.tsx
 /settings/store,店舗設定,settings,owner/admin（有効な同店舗membership）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/settings/store/page.tsx
-/settings/stores,店舗管理・切替,settings,owner/admin（有効な同店舗membership）,店舗追加→初回設定保存→一覧確認→戻る→再開（store-create-results.json）＋同じ保存店舗を新contextで再読込し永続化とconsole0確認（store-monitor-final-results.json）,PASS,PASS,PASS,apps/garage-link/src/app/settings/stores/page.tsx
+/settings/stores,店舗管理・切替,settings,owner/admin（有効な同店舗membership）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/settings/stores/page.tsx
 /settings/trash,ゴミ箱 / アーカイブ,settings,owner/admin（有効な同店舗membership）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/settings/trash/page.tsx
 /signup,アカウント作成 / 店舗情報の登録,auth,公開（ログイン不要）,新規入力→localMailpit確認→店舗登録→logout→1回login→onboarding,PASS,PASS,PASS,apps/garage-link/src/app/signup/page.tsx
 /supabase-test,Supabase接続確認,list,認証済みの有効な同店舗member（middleware/RLS）,主要関連リンク→戻る→再開・再読込,対象外（非更新案内）,PASS,PASS,apps/garage-link/src/app/supabase-test/page.tsx
