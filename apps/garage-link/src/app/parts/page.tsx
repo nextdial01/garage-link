@@ -4,6 +4,9 @@
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import MasterFilter from '@/components/business/MasterFilter';
+import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
+import { priceLabel, storedPriceToDisplay } from '@/lib/business/money';
 import AppShell from '@/components/AppShell';
 import { getGarageUiContext } from '@/lib/store/garageUiContext';
 import { createClient } from '@/lib/supabase/client';
@@ -46,6 +49,8 @@ function formatPrice(value: number | null) {
 }
 
 export default function PartsPage() {
+  const business = useBusinessSettings();
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [parts, setParts] = useState<RepairPartRow[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -96,7 +101,7 @@ export default function PartsPage() {
   }, [parts]);
 
   const filteredParts = useMemo(() => {
-    let result = parts;
+    let result = categoryFilter ? parts.filter((part) => part.category === categoryFilter) : parts;
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       result = result.filter(
@@ -111,7 +116,7 @@ export default function PartsPage() {
       result = result.filter((p) => p.status === statusFilter);
     }
     return result;
-  }, [parts, searchQuery, statusFilter]);
+  }, [parts, searchQuery, statusFilter, categoryFilter]);
 
   return (
     <AppShell
@@ -147,6 +152,7 @@ export default function PartsPage() {
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
+            <MasterFilter kind="part_category" value={categoryFilter} onChange={setCategoryFilter} existing={parts.map((part) => part.category)} />
             <input
               type="text"
               placeholder="部品名・部品番号・カテゴリで検索"
@@ -191,7 +197,7 @@ export default function PartsPage() {
                   <th className="px-5 py-4">部品番号</th>
                   <th className="px-5 py-4 text-right">在庫数</th>
                   <th className="px-5 py-4 text-right">発注点</th>
-                  <th className="px-5 py-4 text-right">単価</th>
+                  <th className="px-5 py-4 text-right">{priceLabel('単価', business.mode)}</th>
                   <th className="px-5 py-4">ステータス</th>
                   <th className="px-5 py-4">仕入先</th>
                   <th className="px-5 py-4">保管場所</th>
@@ -230,7 +236,7 @@ export default function PartsPage() {
                           ? part.reorder_point.toLocaleString('ja-JP')
                           : '-'}
                       </td>
-                      <td className="px-5 py-4 text-right">{formatPrice(part.unit_price)}</td>
+                      <td className="px-5 py-4 text-right">{formatPrice(part.unit_price === null ? null : storedPriceToDisplay(part.unit_price, business.mode))}</td>
                       <td className="px-5 py-4">
                         <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${getStatusClass(part.status)}`}>
                           {part.status}

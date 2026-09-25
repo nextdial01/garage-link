@@ -3,6 +3,11 @@
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
+import { saveDocument } from '@/lib/business/saveDocument';
+import MasterSelect from '@/components/business/MasterSelect';
+import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
+import { priceLabel, storedPriceToDisplay, type TaxDisplayMode } from '@/lib/business/money';
+import { safeDocumentCalculation, importDocument, documentLine, nonTaxFeeKeys, type DocumentHeader, type StoredDocumentLine } from '@/lib/business/documents';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -55,16 +60,6 @@ type QuoteOption = {
   total_amount: number | null;
 };
 
-type QuoteItemRow = {
-  id: string;
-  item_type: string | null;
-  name: string | null;
-  quantity: number | null;
-  unit_price: number | null;
-  tax_rate: number | null;
-  tax_amount: number | null;
-  amount: number | null;
-};
 
 type QuoteHeaderRow = {
   customer_id: string | null;
@@ -84,6 +79,8 @@ type QuoteHeaderRow = {
 };
 
 type InvoiceInsert = {
+  tax_display_mode: TaxDisplayMode;
+  discount_input_amount: number;
   store_id: string;
   deal_id: string | null;
   quote_id: string | null;
@@ -120,22 +117,6 @@ type InvoiceInsert = {
   internal_memo: string | null;
 };
 
-type InvoiceIdRow = { id: string };
-
-type InvoiceItemInsert = {
-  store_id: string;
-  invoice_id: string;
-  item_order: number;
-  item_type: string;
-  name: string;
-  quantity: number;
-  unit_price: number;
-  tax_rate: number;
-  tax_amount: number;
-  amount: number;
-  part_id?: string | null;
-  cost_price?: number | null;
-};
 
 type AmountKey =
   | 'vehicle_base_price'
@@ -194,13 +175,9 @@ function createDocumentNo(prefix: string) {
   const now = new Date();
   const date = now.toISOString().slice(0, 10).replaceAll('-', '');
   const time = now.toTimeString().slice(0, 8).replaceAll(':', '');
-  return `${prefix}-${date}-${time}`;
+  return `${prefix}-${date}-${time}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 }
 
-function toNumber(value: string) {
-  const v = Number(value);
-  return value.trim() === '' || Number.isNaN(v) ? 0 : v;
-}
 
 function toNullableText(value: string) {
   return value.trim() === '' ? null : value.trim();
@@ -232,6 +209,9 @@ function FieldLabel({ htmlFor, children, required }: { htmlFor: string; children
 
 export default function NewInvoicePage() {
   const router = useRouter();
+  const businessSettings = useBusinessSettings();
+  const [documentMode, setDocumentMode] = useState<TaxDisplayMode | null>(null);
+  const mode = documentMode ?? businessSettings.mode;
   const [storeId, setStoreId] = useState('');
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
@@ -327,6 +307,9 @@ export default function NewInvoicePage() {
         setDeals(dealResult.data ?? []);
         setQuotes(quoteResult.data ?? []);
 
+        const copyId=new URLSearchParams(window.location.search).get('copyFrom');
+        if(copyId) { await importSource(copyId,'invoices',member.store_id); return; }
+
         if (initialQuoteId) {
           setQuoteId(initialQuoteId);
           await importQuoteItems(initialQuoteId, member.store_id);
@@ -365,13 +348,13 @@ export default function NewInvoicePage() {
           const [{ data: jobRow, error: jobError }, { data: jobParts, error: jobPartsError }] = await Promise.all([
             supabase
               .from('maintenance_jobs')
-              .select('id, customer_id, vehicle_id, job_no, request_detail, work_memo, customer_message, labor_amount, parts_amount')
+              .select('id, customer_id, vehicle_id, job_no, request_detail, work_memo, customer_message, labor_amount, parts_amount, work_details, work_details_version, tax_display_mode, discount_input_amount, discount_amount, inspection_amount, legal_fee_amount, additional_amount')
               .eq('id', initialJobId)
               .eq('store_id', member.store_id)
               .single(),
             supabase
               .from('maintenance_job_parts')
-              .select('id, part_id, part_no, name, quantity, unit_price, cost_price, tax_rate, work_memo')
+              .select('id, part_id, part_no, name, quantity, unit_price, cost_price, tax_rate, discount_amount, work_memo')
               .eq('job_id', initialJobId)
               .eq('store_id', member.store_id)
               .order('created_at', { ascending: true }),
@@ -385,6 +368,14 @@ export default function NewInvoicePage() {
             work_memo: string | null; customer_message: string | null;
             labor_amount: number | null;
             parts_amount: number | null;
+            work_details?: Array<{description:string;quantity:number;unit_price:number;tax_rate:number;tax_category?:'taxable'|'exempt'|'out_of_scope';unit?:string;note?:string}>;
+            work_details_version?: number;
+            tax_display_mode?: TaxDisplayMode | null;
+            discount_input_amount?: number | null;
+            discount_amount?: number | null;
+            inspection_amount?: number | null;
+            legal_fee_amount?: number | null;
+            additional_amount?: number | null;
           };
           if (jr.customer_id) setCustomerId(jr.customer_id);
           if (jr.vehicle_id) setVehicleId(jr.vehicle_id);
@@ -413,7 +404,7 @@ export default function NewInvoicePage() {
 
           const partRows = (jobParts ?? []) as Array<{
             id: string; part_id: string | null; part_no: string | null; name: string;
-            quantity: number; unit_price: number; cost_price: number | null; tax_rate: number;
+            quantity: number; unit_price: number; cost_price: number | null; tax_rate: number; discount_amount: number | null; work_memo: string | null;
           }>;
           const newItems: PartLineItem[] = partRows.map((p) => ({
             localId: `${Date.now()}-${p.id}`,
@@ -423,11 +414,13 @@ export default function NewInvoicePage() {
             quantity: String(p.quantity),
             unit_price: String(p.unit_price),
             cost_price: p.cost_price !== null ? String(p.cost_price) : '',
-            tax_rate: String(p.tax_rate ?? 0.1),
+            tax_rate: String(p.tax_rate ?? 0.1), line_discount_input_amount: String(p.discount_amount ?? 0), note: p.work_memo ?? '',
           }));
           const manualParts = manualPartsDocumentLine(jr.parts_amount, partRows.length);
           if (manualParts) newItems.push(manualParts);
-          if (jr.labor_amount && jr.labor_amount > 0) {
+          if (jr.work_details_version === 1) {
+            for (const [index, row] of (jr.work_details ?? []).entries()) newItems.push(documentLine({ ...row, name: row.description, item_type: 'labor' }, index));
+          } else if (jr.labor_amount && jr.labor_amount > 0) {
             newItems.push({
               localId: `${Date.now()}-labor`,
               part_id: null,
@@ -439,7 +432,14 @@ export default function NewInvoicePage() {
               tax_rate: '0.1',
             });
           }
-          if (newItems.length > 0) setPartLineItems(newItems);
+          for (const fee of [
+            {name:'車検・点検費用',value:jr.inspection_amount,tax_category:'taxable' as const},
+            {name:'法定費用',value:jr.legal_fee_amount,tax_category:'out_of_scope' as const},
+            {name:'追加費用',value:jr.additional_amount,tax_category:'taxable' as const},
+          ]) if(fee.value) newItems.push(documentLine({name:fee.name,quantity:1,unit_price:fee.value,tax_category:fee.tax_category,tax_rate:fee.tax_category==='taxable'?0.1:0,item_type:'fee'},newItems.length));
+          setDocumentMode(jr.tax_display_mode ?? 'included');
+          setAmounts(current=>({...current,discount:String(jr.discount_input_amount ?? jr.discount_amount ?? 0)}));
+          setPartLineItems(newItems);
         }
       } catch (error) {
         setErrorMessage(toUserErrorMessage(error, '選択肢の取得に失敗しました。'));
@@ -482,73 +482,47 @@ export default function NewInvoicePage() {
       setVehicleMileageKm(v.mileage_km !== null ? String(v.mileage_km) : '');
       setVehicleVin(v.vin ?? '');
       if (v.base_price !== null) {
-        setAmounts((prev) => ({ ...prev, vehicle_base_price: String(v.base_price) }));
+        setAmounts((prev) => ({ ...prev, vehicle_base_price: String(storedPriceToDisplay(v.base_price ?? 0, mode)) }));
       }
     }
   }
 
+  async function importSource(sourceId: string, table: 'quotes' | 'invoices', effectiveStoreId: string) {
+    const supabase=createClient();
+    const [header, items]=await Promise.all([
+      supabase.from<DocumentHeader>(table).select('*').eq('id',sourceId).eq('store_id',effectiveStoreId).single(),
+      supabase.from<StoredDocumentLine>(table==='quotes'?'quote_items':'invoice_items').select('*').eq(table==='quotes'?'quote_id':'invoice_id',sourceId).eq('store_id',effectiveStoreId).order('item_order',{ascending:true}),
+    ]);
+    if(header.error || !header.data || items.error) throw new Error(header.error?.message || items.error?.message || 'コピー元を取得できませんでした。');
+    const source=header.data, imported=importDocument(source,items.data ?? []);
+    setDocumentMode(imported.mode);setPartLineItems(imported.lines);setAmounts({...emptyAmounts,discount:imported.discount,trade_in:imported.tradeIn});
+    setCustomerId(String(source.customer_id ?? ''));
+    setCustomerName(String(source.customer_name ?? ''));
+    setCustomerPhone(String(source.customer_phone ?? ''));
+    setCustomerEmail(String(source.customer_email ?? ''));
+    setCustomerAddress(String(source.customer_address ?? ''));
+    setCustomerHonorific(String(source.customer_honorific ?? ''));
+    setVehicleId(String(source.vehicle_id ?? ''));
+    setVehicleLabel(String(source.vehicle_label ?? ''));
+    setVehicleMaker(String(source.vehicle_maker ?? ''));
+    setVehicleModelName(String(source.vehicle_model_name ?? ''));
+    setVehicleYear(String(source.vehicle_year ?? ''));
+    setVehicleMileageKm(String(source.vehicle_mileage_km ?? ''));
+    setVehicleVin(String(source.vehicle_vin ?? ''));
+    setDealId(String(source.deal_id ?? ''));
+    setMaintenanceJobId(String(source.maintenance_job_id ?? ''));
+    setTitle(String(source.title ?? ''));
+    setAssignedUser(String(source.assigned_user_name ?? ''));
+    setMemo(String(source.customer_note ?? ''));
+    setInternalMemo(String(source.internal_memo ?? ''));
+  }
   async function importQuoteItems(selectedQuoteId: string, overrideStoreId?: string) {
-    const effectiveStoreId = overrideStoreId ?? storeId;
+    const effectiveStoreId=overrideStoreId ?? storeId;
     if (!selectedQuoteId || !effectiveStoreId) return;
-    try {
-      const supabase = createClient();
-      const { data: items } = await supabase
-        .from<QuoteItemRow>('quote_items')
-        .select('id, item_type, name, quantity, unit_price, tax_rate, tax_amount, amount')
-        .eq('quote_id', selectedQuoteId)
-        .eq('store_id', effectiveStoreId)
-        .order('item_order', { ascending: true });
-
-      if (!items || items.length === 0) return;
-
-      const newAmounts = { ...emptyAmounts };
-      const newParts: PartLineItem[] = [];
-
-      for (const item of items) {
-        const matchKey = amountItems.find((a) => a.name === item.name);
-        if (matchKey && item.amount !== null) {
-          const absAmount = Math.abs(item.amount);
-          newAmounts[matchKey.key] = String(absAmount);
-        } else if (item.item_type === 'part' && item.name) {
-          newParts.push({
-            localId: `import-${item.id}`,
-            part_id: null,
-            part_no: '',
-            name: item.name,
-            quantity: String(item.quantity ?? 1),
-            unit_price: String(item.unit_price ?? 0),
-            cost_price: '',
-            tax_rate: String(item.tax_rate ?? 0.1),
-          });
-        }
-      }
-
-      setAmounts(newAmounts);
-      setPartLineItems(newParts);
-    } catch {
-      // silently ignore import errors
-    }
+    try { await importSource(selectedQuoteId,'quotes',effectiveStoreId); } catch(error) { setErrorMessage(toUserErrorMessage(error,'見積の読込に失敗しました。')); }
   }
 
-  const partsSubtotal = useMemo(() => {
-    return partLineItems.reduce((sum, item) => {
-      const qty = parseInt(item.quantity, 10) || 1;
-      const price = parseFloat(item.unit_price) || 0;
-      return sum + qty * price;
-    }, 0);
-  }, [partLineItems]);
-
-  const summary = useMemo(() => {
-    const fixedSubtotal = amountItems
-      .filter((item) => !item.negative)
-      .reduce((total, item) => total + toNumber(amounts[item.key]), 0);
-    const subtotalAmount = fixedSubtotal + partsSubtotal;
-    const discountAmount = toNumber(amounts.discount);
-    const tradeInAmount = toNumber(amounts.trade_in);
-    const taxAmount = 0;
-    const totalAmount = subtotalAmount + taxAmount - discountAmount - tradeInAmount;
-    return { subtotalAmount, taxAmount, discountAmount, tradeInAmount, totalAmount };
-  }, [amounts, partsSubtotal]);
+  const summary = useMemo(() => safeDocumentCalculation(amountItems, amounts, partLineItems, mode), [amounts, partLineItems, mode]);
 
   function addPartFromPicker(picked: PickedPart) {
     setShowPartPicker(false);
@@ -560,7 +534,7 @@ export default function NewInvoicePage() {
         part_no: picked.part_no ?? '',
         name: picked.name,
         quantity: '1',
-        unit_price: String(picked.unit_price ?? ''),
+        unit_price: String(storedPriceToDisplay(picked.unit_price ?? 0, mode)),
         cost_price: String(picked.cost_price ?? ''),
         tax_rate: '0.1',
       },
@@ -583,6 +557,8 @@ export default function NewInvoicePage() {
       if (!storeId) throw new Error('所属店舗が見つかりません。');
       if (!customerName.trim()) throw new Error('顧客名は必須です。顧客を選択するか、顧客名を入力してください。');
 
+      if (summary.error) throw new Error(summary.error);
+      if (businessSettings.loading || businessSettings.error || errorMessage) throw new Error(errorMessage || businessSettings.error || '設定の読み込みをお待ちください。');
       const supabase = createClient();
       await assertDocumentLimitAvailable(supabase, storeId);
 
@@ -614,6 +590,8 @@ export default function NewInvoicePage() {
         vehicle_year: toNullableNumber(vehicleYear),
         vehicle_mileage_km: toNullableNumber(vehicleMileageKm),
         vehicle_vin: toNullableText(vehicleVin),
+        tax_display_mode: mode,
+        discount_input_amount: summary.discount_input_amount,
         subtotal_amount: summary.subtotalAmount,
         tax_amount: summary.taxAmount,
         discount_amount: summary.discountAmount,
@@ -625,67 +603,7 @@ export default function NewInvoicePage() {
         internal_memo: toNullableText(internalMemo),
       };
 
-      const { data: invoice, error: invoiceError } = await supabase
-        .from<InvoiceIdRow>('invoices')
-        .insert(invoicePayload)
-        .select('id')
-        .single();
-
-      if (invoiceError || !invoice?.id) throw new Error(invoiceError?.message ?? '請求書の保存に失敗しました。');
-
-      const itemPayloads: InvoiceItemInsert[] = amountItems
-        .map((item, index) => {
-          const amount = toNumber(amounts[item.key]);
-          const signedAmount = item.negative ? amount * -1 : amount;
-          return {
-            store_id: storeId,
-            invoice_id: invoice.id,
-            item_order: index + 1,
-            item_type: item.itemType,
-            name: item.name,
-            quantity: 1,
-            unit_price: signedAmount,
-            tax_rate: 0.1,
-            tax_amount: 0,
-            amount: signedAmount,
-          };
-        })
-        .filter((item) => item.amount !== 0);
-
-      if (itemPayloads.length > 0) {
-        const { error: itemError } = await supabase
-          .from<InvoiceItemInsert>('invoice_items')
-          .insert(itemPayloads);
-        if (itemError) throw new Error(itemError.message);
-      }
-
-      const partItemPayloads: InvoiceItemInsert[] = partLineItems
-        .filter((item) => item.name.trim())
-        .map((item, index) => {
-          const qty = parseInt(item.quantity, 10) || 1;
-          const price = parseFloat(item.unit_price) || 0;
-          return {
-            store_id: storeId,
-            invoice_id: invoice.id,
-            item_order: itemPayloads.length + index + 1,
-            item_type: 'part',
-            name: item.name.trim(),
-            quantity: qty,
-            unit_price: price,
-            tax_rate: parseFloat(item.tax_rate) || 0.1,
-            tax_amount: 0,
-            amount: qty * price,
-            part_id: item.part_id ?? null,
-            cost_price: item.cost_price.trim() ? Math.round(parseFloat(item.cost_price)) : null,
-          };
-        });
-
-      if (partItemPayloads.length > 0) {
-        const { error: partItemError } = await supabase
-          .from<InvoiceItemInsert>('invoice_items')
-          .insert(partItemPayloads);
-        if (partItemError) throw new Error(partItemError.message);
-      }
+      await saveDocument('invoice',storeId,invoicePayload,summary.persisted);
 
       sessionStorage.setItem('flash_invoices', '請求書を保存しました。');
       router.push('/invoices');
@@ -714,6 +632,7 @@ export default function NewInvoicePage() {
         </Link>
       }
     >
+      <p className="mb-4 text-sm">金額入力：{mode === 'included' ? '税込' : '税抜'}（保存後は帳票に保持されます）{summary.error && <span role="alert" className="ml-3 text-red-600">{summary.error}</span>}</p>
       <form onSubmit={handleSubmit} className="mx-auto max-w-7xl space-y-8">
         {errorMessage && (
           <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
@@ -857,7 +776,7 @@ export default function NewInvoicePage() {
             </div>
             <div>
               <FieldLabel htmlFor="vehicle_maker">メーカー</FieldLabel>
-              <input id="vehicle_maker" type="text" value={vehicleMaker} onChange={(e) => setVehicleMaker(e.target.value)} className={inputClass} />
+              <MasterSelect id="vehicle_maker" kind="vehicle_maker" value={vehicleMaker} onChange={setVehicleMaker} className={inputClass} />
             </div>
             <div>
               <FieldLabel htmlFor="vehicle_model_name">車種名</FieldLabel>
@@ -890,9 +809,10 @@ export default function NewInvoicePage() {
           <div className="grid gap-5 px-5 py-6 sm:px-6 md:grid-cols-2 xl:grid-cols-3">
             {amountItems.map((item) => (
               <div key={item.key}>
-                <FieldLabel htmlFor={item.key}>{item.name}</FieldLabel>
+                <FieldLabel htmlFor={item.key}>{item.negative ? item.name : priceLabel(item.name, mode, nonTaxFeeKeys.has(item.key) ? 'out_of_scope' : 'taxable')}</FieldLabel>
                 <input
                   id={item.key}
+                  min="0" step={item.negative ? "1" : "0.0001"}
                   type="number"
                   value={amounts[item.key]}
                   onChange={(e) => setAmounts((prev) => ({ ...prev, [item.key]: e.target.value }))}
@@ -917,7 +837,7 @@ export default function NewInvoicePage() {
               + 部品を追加
             </button>
           </div>
-          <PartLineItemsEditor items={partLineItems} onChange={setPartLineItems} />
+          <PartLineItemsEditor mode={mode} items={partLineItems} onChange={setPartLineItems} />
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">

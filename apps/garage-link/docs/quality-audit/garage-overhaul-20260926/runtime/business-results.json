@@ -1,0 +1,42 @@
+[
+  {
+    "test": "master_create_reopen",
+    "status": "PASS"
+  },
+  {
+    "test": "master_edit_disable_order_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "part_category_create_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "tax_mode_excluded_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "tax_mode_included_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "/parts/new_inspection",
+    "status": "NOT_TESTED",
+    "controls": 22
+  },
+  {
+    "test": "/customers/new_inspection",
+    "status": "NOT_TESTED",
+    "controls": 60
+  },
+  {
+    "test": "/maintenance/new_inspection",
+    "status": "NOT_TESTED",
+    "controls": 61
+  },
+  {
+    "test": "browser_errors",
+    "status": "PASS",
+    "errors": []
+  }
+]

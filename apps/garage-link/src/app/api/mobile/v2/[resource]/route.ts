@@ -1,7 +1,7 @@
 import { getGarageMobileBearerContext } from '@/lib/mobile/bearerAuth';
 import { V2_RESOURCES, v2Patch, v2Resource, uuid } from '@/lib/mobile/v2Resources';
 import { mobileReadHeaders, mobileReadPage, mobileReadResult } from '@/lib/mobile/pagination';
-import { maintenanceEstimate } from '@/lib/mobile/maintenanceCost';
+import { maintenanceBusinessPatch, validateMobileCustomer } from '@/lib/mobile/businessPatch';
 
 type HandlerContext = { params: Promise<{ resource: string }> };
 const fail = (status: number, code: string) => Response.json({ ok: false, code, error: '内容を確認して再試行してください。' }, { status });
@@ -47,15 +47,16 @@ export async function POST(request: Request, { params }: HandlerContext) {
   const config = V2_RESOURCES[resource];
   const patch = v2Patch(resource, body);
   if (!patch) return fail(400, 'invalid_fields');
+  if (resource === 'customers') { try { validateMobileCustomer(patch); } catch { return fail(400, 'birth_date_required'); } }
   if (resource === 'customers' && (!patch.name || !(patch.phone || patch.mobile_phone))) return fail(400, 'customer_name_phone_required');
   if (resource === 'deals' && (!patch.customer_id || !patch.title)) return fail(400, 'deal_customer_title_required');
   if (resource === 'appointments' && (!patch.customer_id || !patch.scheduled_at)) return fail(400, 'appointment_customer_time_required');
   if (resource === 'maintenance' && (!patch.customer_id || !patch.vehicle_id || !patch.request_detail)) return fail(400, 'maintenance_core_required');
   if (resource === 'tradeIns' && !patch.deal_id) return fail(400, 'trade_in_deal_required');
   if (resource === 'maintenance') {
-    const estimate = maintenanceEstimate(patch as Record<string, number | null>);
-    if (estimate === null) return fail(400, 'invalid_maintenance_total');
-    patch.estimated_total_amount = estimate;
+    const { data: store } = await context.service.from('stores').select('tax_display_mode').eq('id', context.member.storeId).single();
+    if (!store) return fail(500, 'store_settings_unavailable');
+    try { Object.assign(patch, maintenanceBusinessPatch(patch, store.tax_display_mode)); } catch { return fail(400, 'invalid_maintenance_total'); }
   }
 
   for (const [column, table] of config.related) {
@@ -78,6 +79,8 @@ export async function POST(request: Request, { params }: HandlerContext) {
     return same ? Response.json({ ok: true, row: existing.data, replayed: true }) : fail(409, 'idempotency_conflict');
   }
   const generated: Record<string, unknown> = {};
+  if (resource === 'deals') generated.status = '新規';
+  if (resource === 'appointments') { generated.status = '予約済み'; generated.appointment_type = '来店予約'; }
   if (resource === 'maintenance') generated.job_no = `M-${crypto.randomUUID().slice(0, 12).toUpperCase()}`;
   const { data, error } = await context.service.from(String(config.table)).insert({ id, store_id: context.member.storeId, ...generated, ...patch }).select(String(config.fields)).maybeSingle();
   if (error || !data) {

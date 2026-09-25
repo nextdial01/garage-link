@@ -2,14 +2,13 @@
 
 import Link from 'next/link';
 import Script from 'next/script';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { FormEvent, useEffect, useState } from 'react';
 import BrandLogo from '@/components/BrandLogo';
 import { loginErrorMessage } from '@/lib/auth/login-error-contract';
 import { releaseQaRunId } from '@/lib/auth/releaseQaCallback';
 
 export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get('next');
   const qaRunId = releaseQaRunId(searchParams.get('qa_run'));
@@ -72,9 +71,9 @@ export function GarageLoginForm({ embedded = false }: { embedded?: boolean }) {
       return;
     }
 
-    const redirectPath = nextPath?.startsWith('/') && !nextPath.startsWith('//') ? nextPath : '/dashboard';
-    router.replace(redirectPath);
-    router.refresh();
+    const redirectPath = nextPath?.startsWith('/') && !nextPath.startsWith('//') && !/[\\\x00-\x1f]/.test(nextPath) && !['/login', '/signup', '/security/email-otp', '/security/mfa'].includes(nextPath.split(/[?#]/)[0]) ? nextPath : '/dashboard';
+    // A fresh document consumes the new server cookie without stale client auth or router caches.
+    window.location.replace(redirectPath);
   }
 
   const card = (

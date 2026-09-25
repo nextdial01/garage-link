@@ -1,5 +1,8 @@
 'use client';
 
+import { storedPriceToDisplay } from '@/lib/business/money';
+import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
+
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
@@ -14,6 +17,8 @@ type VehicleRow = {
   id: string;
   management_no: string | null;
   maker: string | null;
+  inspection_expiry_date: string | null;
+  liability_insurance_expiry_date: string | null;
   model_name: string | null;
   model_year: number | null;
   mileage_km: number | null;
@@ -86,6 +91,8 @@ function vehicleTitle(vehicle: VehicleRow) {
 }
 
 export default function VehiclesPage() {
+  const { mode: priceMode } = useBusinessSettings();
+  const priceLabel = priceMode === 'excluded' ? '税抜' : '税込';
   const [vehicles, setVehicles] = useState<VehicleRow[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -110,7 +117,7 @@ export default function VehiclesPage() {
         const { data, error } = await supabase
           .from<VehicleRow>('vehicles')
           .select(
-            'id, management_no, maker, model_name, model_year, mileage_km, total_price, base_price, status, location_name, deleted_at, is_archived, purchase_price, purchase_date, listing_price, market_value, market_source, market_checked_at, created_at'
+            'id, management_no, inspection_expiry_date, liability_insurance_expiry_date, maker, model_name, model_year, mileage_km, total_price, base_price, status, location_name, deleted_at, is_archived, purchase_price, purchase_date, listing_price, market_value, market_source, market_checked_at, created_at'
           )
           .eq('store_id', context.storeId)
           .order('created_at', { ascending: false });
@@ -314,7 +321,7 @@ export default function VehiclesPage() {
           ) : (
             <div className="divide-y divide-slate-100">
               {filteredVehicles.map((vehicle) => {
-                const price = vehicle.total_price ?? vehicle.base_price;
+                const price = vehicle.total_price ?? (vehicle.base_price == null ? null : storedPriceToDisplay(vehicle.base_price, priceMode));
                 const profit = expectedProfit(vehicle);
                 const days = daysInStock(vehicle);
                 const status = vehicle.status ?? '未設定';
@@ -341,7 +348,7 @@ export default function VehiclesPage() {
 
                     <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-4">
                       <div>
-                        <p className="text-xs font-bold text-slate-600">販売価格</p>
+                        <p className="text-xs font-bold text-slate-600">{vehicle.total_price != null ? '支払総額（税・法定費用含む）' : `車両価格（${priceLabel}）`}</p>
                         <p className="mt-1 font-bold text-slate-900">{formatPrice(price)}</p>
                       </div>
                       <div>
@@ -353,6 +360,8 @@ export default function VehiclesPage() {
                         <p className={`mt-1 font-bold ${(days ?? 0) > longStayThreshold ? 'text-amber-700' : 'text-slate-900'}`}>{days !== null ? `${days}日` : '-'}</p>
                       </div>
                       <div>
+                        <p className="text-xs font-bold text-slate-600">車検 / 自賠責保険満了日</p>
+                        <p className="text-xs">{vehicle.inspection_expiry_date ?? '-'} / {vehicle.liability_insurance_expiry_date ?? '-'}</p>
                         <p className="text-xs font-bold text-slate-600">走行距離</p>
                         <p className="mt-1 font-bold text-slate-900">{formatMileage(vehicle.mileage_km)}</p>
                       </div>
@@ -374,8 +383,8 @@ export default function VehiclesPage() {
             <div className="space-y-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-bold text-slate-600">販売価格</p>
-                  <p className="mt-1 text-sm font-black text-slate-950">{formatPrice(selectedVehicle.total_price ?? selectedVehicle.base_price)}</p>
+                  <p className="text-xs font-bold text-slate-600">{selectedVehicle.total_price != null ? '支払総額（税・法定費用含む）' : `車両価格（${priceLabel}）`}</p>
+                  <p className="mt-1 text-sm font-black text-slate-950">{formatPrice(selectedVehicle.total_price ?? (selectedVehicle.base_price == null ? null : storedPriceToDisplay(selectedVehicle.base_price, priceMode)))}</p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-xs font-bold text-slate-600">見込み粗利</p>
@@ -390,11 +399,11 @@ export default function VehiclesPage() {
 
               <dl className="space-y-3 text-sm">
                 <div className="flex items-center justify-between gap-4">
-                  <dt className="text-slate-500">仕入価格</dt>
-                  <dd className="font-bold text-slate-900">{formatPrice(selectedVehicle.purchase_price)}</dd>
+                  <dt className="text-slate-500">仕入価格（{priceLabel}）</dt>
+                  <dd className="font-bold text-slate-900">{formatPrice(selectedVehicle.purchase_price == null ? null : storedPriceToDisplay(selectedVehicle.purchase_price, priceMode))}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <dt className="text-slate-500">希望売価</dt>
+                  <dt className="text-slate-500">希望売価（税区分未確認）</dt>
                   <dd className="font-bold text-slate-900">{formatPrice(selectedVehicle.listing_price)}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-4">
@@ -402,7 +411,7 @@ export default function VehiclesPage() {
                   <dd className="font-bold text-slate-900">{daysInStock(selectedVehicle) !== null ? `${daysInStock(selectedVehicle)}日` : '-'}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <dt className="text-slate-500">相場確認</dt>
+                  <dt className="text-slate-500">相場確認（税区分未確認）</dt>
                   <dd className="font-bold text-slate-900">
                     {selectedVehicle.market_value != null && selectedVehicle.market_source && selectedVehicle.market_checked_at
                       ? `${formatPrice(selectedVehicle.market_value)} / ${selectedVehicle.market_source}`

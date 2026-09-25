@@ -1,0 +1,71 @@
+{
+  "results": [
+    {
+      "test": "/quotes/new",
+      "status": "PASS",
+      "operation": "2 decimal rows/save/list/detail/reload",
+      "id": "f38bd8bc-0985-4700-8baf-b14223b8bffb",
+      "total": 3000
+    },
+    {
+      "test": "/quotes/[id]/edit",
+      "status": "PASS",
+      "operation": "title edit/save/reopen",
+      "id": "f38bd8bc-0985-4700-8baf-b14223b8bffb"
+    },
+    {
+      "test": "QUOTE_COPY",
+      "status": "PASS",
+      "operation": "unsaved copy/edit/save/source unchanged",
+      "source": "f38bd8bc-0985-4700-8baf-b14223b8bffb",
+      "copy": "d66329fc-230e-4068-b0b4-9bcd9ebfb641"
+    },
+    {
+      "test": "/quotes/[id]/preview",
+      "status": "PASS",
+      "operation": "decimal quantities and persisted total/reopen"
+    },
+    {
+      "test": "/quotes",
+      "status": "PASS",
+      "operation": "list/detail/back/detail"
+    },
+    {
+      "test": "/quotes/[id]",
+      "status": "PASS",
+      "operation": "edit/copy/preview/back/reopen"
+    },
+    {
+      "test": "/invoices/new",
+      "status": "PASS",
+      "operation": "quote import/save/detail/reload",
+      "id": "46a32dd9-9c20-47d6-ba1a-11e9aa2096bc"
+    },
+    {
+      "test": "/invoices/[id]/preview",
+      "status": "PASS",
+      "operation": "line quantity/unit price/total match/reopen"
+    },
+    {
+      "test": "INVOICE_COPY",
+      "status": "PASS",
+      "operation": "paid source copy/no autosave/edit/save/paid0/source unchanged"
+    },
+    {
+      "test": "/invoices/[id]",
+      "status": "PASS",
+      "operation": "issue/synthetic cash payment/reload/copy"
+    },
+    {
+      "test": "/invoices",
+      "status": "PASS",
+      "operation": "list/detail/back/detail"
+    },
+    {
+      "test": "DOCUMENT_RESPONSIVE",
+      "status": "PASS",
+      "operation": "390px form copy editor horizontal scroll"
+    }
+  ],
+  "issues": []
+}

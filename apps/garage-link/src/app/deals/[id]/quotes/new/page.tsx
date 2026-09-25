@@ -3,6 +3,11 @@
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
+import { saveDocument } from '@/lib/business/saveDocument';
+import PartLineItemsEditor, { type PartLineItem } from '@/components/parts/PartLineItemsEditor';
+import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
+import { priceLabel, storedPriceToDisplay, type TaxDisplayMode } from '@/lib/business/money';
+import { safeDocumentCalculation, nonTaxFeeKeys } from '@/lib/business/documents';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -56,9 +61,6 @@ type VehicleRow = {
   status: string | null;
 };
 
-type QuoteIdRow = {
-  id: string;
-};
 
 type StoreMemberRow = {
   role: string | null;
@@ -67,6 +69,8 @@ type StoreMemberRow = {
 };
 
 type QuoteInsert = {
+  tax_display_mode: TaxDisplayMode;
+  discount_input_amount: number;
   store_id: string;
   deal_id: string;
   customer_id: string | null;
@@ -109,31 +113,7 @@ type QuoteInsert = {
   cancel_reason: string | null;
 };
 
-type QuoteItemInsert = {
-  store_id: string;
-  quote_id: string;
-  item_order: number;
-  item_type: string;
-  name: string;
-  quantity: number;
-  unit_price: number;
-  tax_rate: number;
-  tax_amount: number;
-  amount: number;
-  part_id?: string | null;
-  cost_price?: number | null;
-};
 
-type PartLineItem = {
-  localId: string;
-  part_id: string | null;
-  part_no: string;
-  name: string;
-  quantity: string;
-  unit_price: string;
-  cost_price: string;
-  tax_rate: string;
-};
 
 type AmountKey =
   | 'vehicle_base_price'
@@ -204,7 +184,7 @@ function createDocumentNo(prefix: string) {
     .toTimeString()
     .slice(0, 8)
     .replaceAll(':', '');
-  return `${prefix}-${date}-${time}`;
+  return `${prefix}-${date}-${time}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 }
 
 function formatPrice(value: number) {
@@ -232,6 +212,8 @@ export default function DealQuoteNewPage() {
   const params = useParams<{ id: string }>();
   const dealId = params.id;
   const router = useRouter();
+  const businessSettings=useBusinessSettings();
+  const mode=businessSettings.mode;
   const [deal, setDeal] = useState<DealRow | null>(null);
   const [customer, setCustomer] = useState<CustomerRow | null>(null);
   const [vehicle, setVehicle] = useState<VehicleRow | null>(null);
@@ -315,7 +297,7 @@ export default function DealQuoteNewPage() {
         if (vehicleResult.data?.base_price !== null && vehicleResult.data?.base_price !== undefined) {
           setAmounts((current) => ({
             ...current,
-            vehicle_base_price: String(vehicleResult.data?.base_price ?? ''),
+            vehicle_base_price: String(storedPriceToDisplay(vehicleResult.data?.base_price ?? 0, mode)),
           }));
         }
       } catch (error) {
@@ -325,34 +307,11 @@ export default function DealQuoteNewPage() {
       }
     }
 
-    void loadDeal();
-  }, [dealId]);
+    if (!businessSettings.loading) void loadDeal();
+  }, [dealId, businessSettings.loading, mode]);
 
-  const partsSubtotal = useMemo(
-    () =>
-      partLineItems.reduce(
-        (sum, item) => sum + (parseInt(item.quantity, 10) || 1) * (parseFloat(item.unit_price) || 0),
-        0,
-      ),
-    [partLineItems],
-  );
-
-  const summary = useMemo(() => {
-    const fixedSubtotal = amountItems
-      .filter((item) => !item.negative)
-      .reduce((total, item) => total + toNumber(amounts[item.key]), 0);
-    const subtotalAmount = fixedSubtotal + partsSubtotal;
-    const discountAmount = toNumber(amounts.discount);
-    const tradeInAmount = toNumber(amounts.trade_in) + toNumber(tradeIn.tradeInAmount);
-    const taxAmount = 0;
-    return {
-      subtotalAmount,
-      discountAmount,
-      tradeInAmount,
-      taxAmount,
-      totalAmount: subtotalAmount + taxAmount - discountAmount - tradeInAmount,
-    };
-  }, [amounts, tradeIn.tradeInAmount, partsSubtotal]);
+  const partsSubtotal=partLineItems.reduce((sum,item)=>sum+Number(item.quantity || 0)*Number(item.unit_price || 0),0);
+  const summary=useMemo(()=>safeDocumentCalculation(amountItems,{...amounts,trade_in:String(toNumber(amounts.trade_in)+toNumber(tradeIn.tradeInAmount))},partLineItems,mode),[amounts,tradeIn.tradeInAmount,partLineItems,mode]);
 
   function addPartFromPicker(picked: PickedPart) {
     setShowPartPicker(false);
@@ -364,7 +323,7 @@ export default function DealQuoteNewPage() {
         part_no: picked.part_no ?? '',
         name: picked.name,
         quantity: '1',
-        unit_price: picked.unit_price !== null ? String(picked.unit_price) : '',
+        unit_price: picked.unit_price !== null ? String(storedPriceToDisplay(picked.unit_price, mode)) : '',
         cost_price: picked.cost_price !== null ? String(picked.cost_price) : '',
         tax_rate: '0.1',
       },
@@ -379,15 +338,6 @@ export default function DealQuoteNewPage() {
     ]);
   }
 
-  function updatePartItem(localId: string, field: keyof PartLineItem, value: string) {
-    setPartLineItems((prev) =>
-      prev.map((item) => (item.localId === localId ? { ...item, [field]: value } : item)),
-    );
-  }
-
-  function removePartItem(localId: string) {
-    setPartLineItems((prev) => prev.filter((item) => item.localId !== localId));
-  }
 
   function selectReplacementVehicle(nextVehicle: VehicleCandidate) {
     setVehicle({
@@ -416,6 +366,8 @@ export default function DealQuoteNewPage() {
       }
 
       const supabase = createClient();
+      if(summary.error) throw new Error(summary.error);
+      if(businessSettings.loading || businessSettings.error) throw new Error(businessSettings.error || '設定の読み込みをお待ちください。');
       await assertDocumentLimitAvailable(supabase, deal.store_id);
       const { data: userData } = await supabase.auth.getUser();
       const { data: member } = userData.user?.id
@@ -455,6 +407,8 @@ export default function DealQuoteNewPage() {
         vehicle_mileage_km: vehicle?.mileage_km ?? null,
         vehicle_vin: vehicle?.vin ?? null,
         vehicle_inspection_expiry_date: vehicle?.inspection_expiry_date ?? null,
+        tax_display_mode: mode,
+        discount_input_amount: summary.discount_input_amount,
         subtotal_amount: summary.subtotalAmount,
         tax_amount: summary.taxAmount,
         discount_amount: summary.discountAmount,
@@ -482,73 +436,7 @@ export default function DealQuoteNewPage() {
         cancel_reason: null,
       };
 
-      const { data: quote, error: quoteError } = await supabase
-        .from<QuoteIdRow>('quotes')
-        .insert(quotePayload)
-        .select('id')
-        .single();
-
-      if (quoteError || !quote?.id) {
-        throw new Error(quoteError?.message ?? '見積書の保存に失敗しました。');
-      }
-
-      const itemPayloads: QuoteItemInsert[] = amountItems
-        .map((item, index) => {
-          const amount = toNumber(amounts[item.key]);
-          const signedAmount = item.negative ? amount * -1 : amount;
-          return {
-            store_id: deal.store_id,
-            quote_id: quote.id,
-            item_order: index + 1,
-            item_type: item.itemType,
-            name: item.name,
-            quantity: 1,
-            unit_price: signedAmount,
-            tax_rate: 0.1,
-            tax_amount: 0,
-            amount: signedAmount,
-          };
-        })
-        .filter((item) => item.amount !== 0);
-
-      if (itemPayloads.length > 0) {
-        const { error: itemError } = await supabase
-          .from<QuoteItemInsert>('quote_items')
-          .insert(itemPayloads);
-
-        if (itemError) {
-          throw new Error(itemError.message);
-        }
-      }
-
-      const partItemPayloads: QuoteItemInsert[] = partLineItems
-        .filter((item) => item.name.trim())
-        .map((item, index) => {
-          const qty = parseInt(item.quantity, 10) || 1;
-          const price = parseFloat(item.unit_price) || 0;
-          const amount = qty * price;
-          return {
-            store_id: deal.store_id,
-            quote_id: quote.id,
-            item_order: itemPayloads.length + index + 1,
-            item_type: 'part',
-            name: item.name.trim(),
-            quantity: qty,
-            unit_price: price,
-            tax_rate: parseFloat(item.tax_rate) || 0.1,
-            tax_amount: 0,
-            amount,
-            part_id: item.part_id ?? null,
-            cost_price: item.cost_price.trim() ? Math.round(parseFloat(item.cost_price)) : null,
-          };
-        });
-
-      if (partItemPayloads.length > 0) {
-        const { error: partItemError } = await supabase
-          .from<QuoteItemInsert>('quote_items')
-          .insert(partItemPayloads);
-        if (partItemError) throw new Error(partItemError.message);
-      }
+      const quote=await saveDocument('quote',deal.store_id,quotePayload,summary.persisted);
 
       if (issueStatus === 'issued') {
         await logAudit({
@@ -598,7 +486,8 @@ export default function DealQuoteNewPage() {
         </Link>
       }
     >
-      <form onSubmit={handleSubmit} className="mx-auto max-w-7xl space-y-8">
+      <p className="mb-4 text-sm">金額入力：{mode === 'included' ? '税込' : '税抜'}{summary.error && <span role="alert">{summary.error}</span>}</p>
+          <form onSubmit={handleSubmit} className="mx-auto max-w-7xl space-y-8">
         <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
           PDFプレビューでは会社情報・ロゴ・角印が反映されます。
         </p>
@@ -732,9 +621,10 @@ export default function DealQuoteNewPage() {
               <div className="grid gap-5 px-5 py-6 sm:px-6 md:grid-cols-2 xl:grid-cols-3">
                 {amountItems.map((item) => (
                   <div key={item.key}>
-                    <FieldLabel htmlFor={item.key}>{item.name}</FieldLabel>
+                    <FieldLabel htmlFor={item.key}>{item.negative ? item.name : priceLabel(item.name,mode,nonTaxFeeKeys.has(item.key)?'out_of_scope':'taxable')}</FieldLabel>
                     <input
                       id={item.key}
+                      min="0" step={item.negative ? "1" : "0.0001"}
                       type="number"
                       value={amounts[item.key]}
                       onChange={(event) =>
@@ -777,78 +667,7 @@ export default function DealQuoteNewPage() {
                   </button>
                 </div>
               </div>
-              {partLineItems.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-slate-400">
-                  部品・作業明細はまだ追加されていません
-                </p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[700px] text-sm">
-                    <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
-                      <tr>
-                        <th className="px-4 py-3 text-left">部品名</th>
-                        <th className="px-4 py-3 text-right">数量</th>
-                        <th className="px-4 py-3 text-right">単価</th>
-                        <th className="px-4 py-3 text-right">小計</th>
-                        <th className="px-4 py-3"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {partLineItems.map((item) => {
-                        const qty = parseInt(item.quantity, 10) || 1;
-                        const price = parseFloat(item.unit_price) || 0;
-                        return (
-                          <tr key={item.localId}>
-                            <td className="px-4 py-2">
-                              <input
-                                type="text"
-                                value={item.name}
-                                onChange={(e) => updatePartItem(item.localId, 'name', e.target.value)}
-                                placeholder="部品名"
-                                className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                              />
-                              {item.part_no && (
-                                <p className="mt-0.5 text-xs text-slate-400">{item.part_no}</p>
-                              )}
-                            </td>
-                            <td className="px-4 py-2">
-                              <input
-                                type="number"
-                                min="1"
-                                value={item.quantity}
-                                onChange={(e) => updatePartItem(item.localId, 'quantity', e.target.value)}
-                                className="w-20 rounded-lg border border-slate-300 px-3 py-1.5 text-right text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                              />
-                            </td>
-                            <td className="px-4 py-2">
-                              <input
-                                type="number"
-                                min="0"
-                                value={item.unit_price}
-                                onChange={(e) => updatePartItem(item.localId, 'unit_price', e.target.value)}
-                                placeholder="0"
-                                className="w-28 rounded-lg border border-slate-300 px-3 py-1.5 text-right text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-                              />
-                            </td>
-                            <td className="px-4 py-2 text-right font-bold">
-                              {formatPrice(qty * price)}
-                            </td>
-                            <td className="px-4 py-2">
-                              <button
-                                type="button"
-                                onClick={() => removePartItem(item.localId)}
-                                className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600 transition hover:bg-red-100"
-                              >
-                                削除
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <PartLineItemsEditor mode={mode} items={partLineItems} onChange={setPartLineItems} />
             </section>
 
             {showPartPicker && deal && (

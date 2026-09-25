@@ -1,17 +1,11 @@
 'use client';
+import { priceLabel, type TaxDisplayMode } from '@/lib/business/money';
 
-export type PartLineItem = {
-  localId: string;
-  part_id: string | null;
-  part_no: string;
-  name: string;
-  quantity: string;
-  unit_price: string;
-  cost_price: string;
-  tax_rate: string;
-};
+import type { PartLineItem } from '../../lib/business/documents';
+export type { PartLineItem } from '../../lib/business/documents';
 
 type Props = {
+  mode?: TaxDisplayMode;
   items: PartLineItem[];
   onChange: (items: PartLineItem[]) => void;
 };
@@ -19,7 +13,12 @@ type Props = {
 const cellInput =
   'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100';
 
-export default function PartLineItemsEditor({ items, onChange }: Props) {
+function parseQty(raw: string): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+export default function PartLineItemsEditor({ items, onChange, mode = 'included' }: Props) {
   function update(localId: string, field: keyof PartLineItem, value: string) {
     onChange(items.map((item) => (item.localId === localId ? { ...item, [field]: value } : item)));
   }
@@ -33,34 +32,34 @@ export default function PartLineItemsEditor({ items, onChange }: Props) {
   }
 
   const subtotal = items.reduce((sum, item) => {
-    const qty = parseInt(item.quantity, 10) || 1;
+    const qty = parseQty(item.quantity);
     const price = parseFloat(item.unit_price) || 0;
-    return sum + qty * price;
+    return sum + Math.round(qty * price) - Number(item.line_discount_input_amount || 0);
   }, 0);
 
   return (
     <div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] table-fixed text-sm">
+        <table className="w-full min-w-[960px] table-fixed text-sm">
           <colgroup>
             <col />
             <col style={{ width: '80px' }} />
             <col style={{ width: '140px' }} />
             <col style={{ width: '110px' }} />
-            <col style={{ width: '64px' }} />
+            <col style={{ width: '150px' }} /><col style={{ width: '140px' }} /><col style={{ width: '64px' }} />
           </colgroup>
           <thead className="bg-slate-50 text-xs font-bold text-slate-500">
             <tr>
-              <th className="px-4 py-3 text-left">部品名</th>
+              <th className="px-4 py-3 text-left">部品・作業内容</th>
               <th className="px-4 py-3 text-right">数量</th>
-              <th className="px-4 py-3 text-right">単価（円）</th>
+              <th className="px-4 py-3 text-right">{priceLabel('単価', mode)}</th>
               <th className="px-4 py-3 text-right">小計</th>
-              <th className="px-4 py-3"></th>
+              <th className="px-4 py-3">税区分</th><th className="px-4 py-3">単位・備考</th><th className="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {items.map((item) => {
-              const qty = parseInt(item.quantity, 10) || 1;
+              const qty = parseQty(item.quantity);
               const price = parseFloat(item.unit_price) || 0;
               return (
                 <tr key={item.localId}>
@@ -78,20 +77,25 @@ export default function PartLineItemsEditor({ items, onChange }: Props) {
                       type="number"
                       value={item.quantity}
                       onChange={(e) => update(item.localId, 'quantity', e.target.value)}
+                      min="0"
+                      step="0.001"
                       className={`${cellInput} text-right`}
                     />
                   </td>
                   <td className="px-4 py-3">
                     <input
                       type="number"
-                      value={item.unit_price}
+                      min="0" step="0.0001" value={item.unit_price}
                       onChange={(e) => update(item.localId, 'unit_price', e.target.value)}
                       className={`${cellInput} text-right`}
                     />
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-slate-950">
-                    {(qty * price).toLocaleString('ja-JP')}円
+                    <label className="block text-xs font-normal">行値引<input aria-label="行値引" type="number" min="0" step="1" value={item.line_discount_input_amount ?? '0'} onChange={e=>update(item.localId,'line_discount_input_amount',e.target.value)} className={cellInput}/></label>
+                    {(Math.round(qty * price) - Number(item.line_discount_input_amount || 0)).toLocaleString('ja-JP')}円
                   </td>
+                  <td className="px-4 py-3"><select aria-label="税区分" value={item.tax_category === 'exempt' || item.tax_category === 'out_of_scope' ? item.tax_category : item.tax_rate} onChange={e => { const value=e.target.value; onChange(items.map(row=>row.localId===item.localId?{...row,tax_category:value==='exempt'||value==='out_of_scope'?value:'taxable',tax_rate:value==='exempt'||value==='out_of_scope'?'0':value}:row)); }} className={cellInput}><option value="0.1">課税 10%</option><option value="0.08">課税 8%</option><option value="0">課税 0%</option><option value="exempt">非課税</option><option value="out_of_scope">税対象外</option></select></td>
+                  <td className="px-4 py-3"><input aria-label="単位" placeholder="単位" value={item.unit ?? ''} onChange={e=>update(item.localId,'unit',e.target.value)} className={cellInput}/><input aria-label="明細備考" placeholder="備考" value={item.note ?? ''} onChange={e=>update(item.localId,'note',e.target.value)} className={cellInput}/></td>
                   <td className="px-4 py-3">
                     <button
                       type="button"

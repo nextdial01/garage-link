@@ -8,8 +8,8 @@ export async function GET(request: Request, { params }: HandlerContext) {
   const { id } = await params;
   if (!uuid(id)) return Response.json({ ok: false, code: 'not_found' }, { status: 404 });
   const [header, lines] = await Promise.all([
-    context.service.from('invoices').select('id,invoice_no,quote_id,deal_id,maintenance_job_id,customer_id,vehicle_id,status,issue_status,issue_date,payment_due_date,customer_name,customer_address,vehicle_label,total_amount,paid_amount,unpaid_amount,customer_note').eq('id', id).eq('store_id', context.member.storeId).maybeSingle(),
-    context.service.from('invoice_items').select('id,item_order,item_type,name,description,quantity,unit_price,tax_rate,tax_amount,amount').eq('invoice_id', id).eq('store_id', context.member.storeId).order('item_order'),
+    context.service.from('invoices').select('tax_display_mode,discount_input_amount,subtotal_amount,tax_amount,discount_amount,trade_in_amount,title,internal_memo,id,invoice_no,quote_id,deal_id,maintenance_job_id,customer_id,vehicle_id,status,issue_status,issue_date,payment_due_date,customer_name,customer_address,vehicle_label,total_amount,paid_amount,unpaid_amount,customer_note').eq('id', id).eq('store_id', context.member.storeId).maybeSingle(),
+    context.service.from('invoice_items').select('line_discount_input_amount,id,item_order,item_type,name,description,quantity,unit_price,tax_rate,tax_amount,amount,tax_category,unit,note,part_id,cost_price').eq('invoice_id', id).eq('store_id', context.member.storeId).order('item_order'),
   ]);
   if (header.error || lines.error) return Response.json({ ok: false, code: 'invoice_read_failed' }, { status: 500 });
   return header.data ? Response.json({ ok: true, invoice: header.data, items: lines.data ?? [] }) : Response.json({ ok: false, code: 'not_found' }, { status: 404 });

@@ -6,6 +6,16 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
+import MasterSelect from '@/components/business/MasterSelect';
+import WorkDetailsEditor from '@/components/business/WorkDetailsEditor';
+import MaintenanceSummary from '@/components/business/MaintenanceSummary';
+import CustomerFields from '@/components/business/CustomerFields';
+import VehicleFields, { emptyVehicle } from '@/components/business/VehicleFields';
+import { emptyCustomer, validateCustomer } from '@/lib/business/customer';
+import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
+import { emptyWorkDetail, normalizedWorkDetails, maintenanceTotals, type WorkDetail } from '@/lib/business/workDetails';
+import { calculateLine, priceLabel } from '@/lib/business/money';
+
 import { createClient } from '@/lib/supabase/client';
 import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 import { MAINTENANCE_JOB_TYPES } from '@/lib/maintenance/formValues';
@@ -43,7 +53,7 @@ const initialForm = {
   status: 'received',
   priority: 'normal',
   reception_date: '',
-  reception_route: 'LINE',
+  reception_route: '',
   assigned_user_name: '',
   request_detail: '',
   symptoms: '',
@@ -98,6 +108,12 @@ function displayValue(value: string | number | boolean | null | undefined) {
 
 export default function NewMaintenancePage() {
   const router = useRouter();
+  const settings = useBusinessSettings();
+  const [workRows, setWorkRows] = useState<WorkDetail[]>([emptyWorkDetail()]);
+  const [inlineCustomer, setInlineCustomer] = useState(false);
+  const [inlineVehicle, setInlineVehicle] = useState(false);
+  const [customerDraft, setCustomerDraft] = useState(emptyCustomer);
+  const [vehicleDraft, setVehicleDraft] = useState(emptyVehicle);
   const [storeId, setStoreId] = useState('');
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [vehicles, setVehicles] = useState<VehicleRow[]>([]);
@@ -155,14 +171,18 @@ export default function NewMaintenancePage() {
       setIsSaving(true);
       if (!storeId) throw new Error('所属店舗を取得できていません。');
       if (!form.job_no.trim()) throw new Error('受付番号を入力してください。');
-      if (!form.customer_id) throw new Error('顧客を選択してください。');
-      if (!form.vehicle_id) throw new Error('対象車両を選択してください。');
+      if (!inlineCustomer && !form.customer_id) throw new Error('顧客を選択してください。');
+      if (!inlineVehicle && !form.vehicle_id) throw new Error('対象車両を選択してください。');
 
+      if (settings.loading || settings.error) throw new Error('店舗設定を読み込んでから保存してください。');
+      if (inlineCustomer) validateCustomer(customerDraft);
+      if (inlineVehicle && (!vehicleDraft.vin.trim() || !vehicleDraft.maker || !vehicleDraft.model_name.trim())) throw new Error('新しい車両の車台番号・メーカー・車名を入力してください。');
+      const rows = normalizedWorkDetails(workRows);
+      const totals = maintenanceTotals(rows, settings.mode, toNumber(form.parts_amount), toNumber(form.inspection_amount), toNumber(form.legal_fee_amount), toNumber(form.additional_amount), toNumber(form.discount_amount));
       const supabase = createClient();
-      const { error } = await supabase.from('maintenance_jobs').insert({
-        store_id: storeId,
-        customer_id: form.customer_id || null,
-        vehicle_id: form.vehicle_id || null,
+      const { error } = await supabase.rpc('save_maintenance_with_links', { p_store_id: storeId, p_customer: inlineCustomer ? customerDraft : null, p_vehicle: inlineVehicle ? Object.fromEntries(Object.entries(vehicleDraft).map(([key, value]) => [key, value || null])) : null, p_job: {
+        customer_id: inlineCustomer ? null : form.customer_id || null,
+        vehicle_id: inlineVehicle ? null : form.vehicle_id || null,
         job_no: form.job_no,
         job_type: form.job_type,
         status: form.status,
@@ -172,7 +192,11 @@ export default function NewMaintenancePage() {
         assigned_user_name: form.assigned_user_name || null,
         request_detail: form.request_detail || null,
         symptoms: form.symptoms || null,
-        work_items: form.work_items.split(',').map((item) => item.trim()).filter(Boolean),
+        work_items: rows.map((row) => row.description),
+        work_details: rows.map((row) => ({ ...row, ...calculateLine(row, settings.mode) })),
+        work_details_version: 1,
+        tax_display_mode: settings.mode,
+        discount_input_amount: totals.discount_input_amount,
         planned_parts: form.planned_parts || null,
         work_instruction: form.work_instruction || null,
         scheduled_in_at: toDateTime(form.scheduled_in_date, form.scheduled_in_time),
@@ -183,14 +207,14 @@ export default function NewMaintenancePage() {
         actual_finish_date: form.actual_finish_date || null,
         actual_delivery_date: form.actual_delivery_date || null,
         loaner_status: form.loaner_status,
-        labor_amount: toNumber(form.labor_amount),
+        labor_amount: rows.reduce((sum, row) => sum + calculateLine(row, settings.mode).input_amount, 0),
         parts_amount: toNumber(form.parts_amount),
         inspection_amount: toNumber(form.inspection_amount),
         legal_fee_amount: toNumber(form.legal_fee_amount),
         additional_amount: toNumber(form.additional_amount),
         discount_amount: toNumber(form.discount_amount),
-        estimated_total_amount: toNumber(form.estimated_total_amount),
-        billing_amount: toNumber(form.billing_amount),
+        estimated_total_amount: totals.total_amount,
+        billing_amount: totals.total_amount,
         payment_method: form.payment_method,
         estimate_confirm_status: form.estimate_confirm_status,
         line_notification_enabled: form.line_notification_enabled === 'true',
@@ -204,7 +228,7 @@ export default function NewMaintenancePage() {
         work_memo: form.work_memo || null,
         caution_note: form.caution_note || null,
         customer_message: form.customer_message || null,
-      });
+      } });
 
       if (error) throw new Error(error.message);
       sessionStorage.setItem('flash_maintenance', '整備案件を登録しました。');
@@ -232,7 +256,7 @@ export default function NewMaintenancePage() {
             <label><span className="text-sm font-bold text-slate-700">受付番号</span><input className={`${inputClass} mt-2`} value={form.job_no} onChange={(e) => updateField('job_no', e.target.value)} placeholder="例：M-2026-000001" /></label>
             <label><span className="text-sm font-bold text-slate-700">受付種別</span><select className={`${inputClass} mt-2`} value={form.job_type} onChange={(e) => updateField('job_type', e.target.value)}>{MAINTENANCE_JOB_TYPES.map((v)=><option key={v}>{v}</option>)}</select></label>
             <label><span className="text-sm font-bold text-slate-700">受付日</span><input type="date" className={`${inputClass} mt-2`} value={form.reception_date} onChange={(e) => updateField('reception_date', e.target.value)} /></label>
-            <label><span className="text-sm font-bold text-slate-700">受付経路</span><select className={`${inputClass} mt-2`} value={form.reception_route} onChange={(e) => updateField('reception_route', e.target.value)}>{['LINE','電話','来店','メール','Webフォーム','紹介','その他'].map((v)=><option key={v}>{v}</option>)}</select></label>
+            <label><span className="text-sm font-bold text-slate-700">受付経路</span><MasterSelect kind="reception_route" className={`${inputClass} mt-2`} value={form.reception_route} onChange={(value) => updateField('reception_route', value)} /></label>
             <label><span className="text-sm font-bold text-slate-700">ステータス</span><select className={`${inputClass} mt-2`} value={form.status} onChange={(e) => updateField('status', e.target.value)}>{[['received','受付'],['estimating','見積中'],['waiting','入庫待ち'],['working','作業中'],['completed','完了'],['delivered','納車済み'],['cancelled','キャンセル']].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
             <label><span className="text-sm font-bold text-slate-700">優先度</span><select className={`${inputClass} mt-2`} value={form.priority} onChange={(e) => updateField('priority', e.target.value)}><option value="normal">通常</option><option value="high">高</option><option value="urgent">緊急</option></select></label>
             <label><span className="text-sm font-bold text-slate-700">担当者</span><input className={`${inputClass} mt-2`} value={form.assigned_user_name} onChange={(e) => updateField('assigned_user_name', e.target.value)} /></label>
@@ -242,7 +266,8 @@ export default function NewMaintenancePage() {
         <section className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <h3 className="text-lg font-bold text-slate-950">顧客情報</h3>
-            <label className="mt-5 block"><span className="text-sm font-bold text-slate-700">顧客選択</span><select className={`${inputClass} mt-2`} value={form.customer_id} onChange={(e) => updateField('customer_id', e.target.value)}><option value="">未選択</option>{customers.map((c)=><option key={c.id} value={c.id}>{c.name ?? '名称未設定'}</option>)}</select></label>
+            <div className="mt-4 space-y-3"><label className="flex gap-2"><input type="checkbox" checked={inlineCustomer} onChange={(event) => setInlineCustomer(event.target.checked)} />新しい顧客を登録する</label>{inlineCustomer && <CustomerFields value={customerDraft} onChange={setCustomerDraft} />}</div>
+            <label className="mt-5 block"><span className="text-sm font-bold text-slate-700">顧客選択</span><select className={`${inputClass} mt-2`} disabled={inlineCustomer} value={form.customer_id} onChange={(e) => updateField('customer_id', e.target.value)}><option value="">未選択</option>{customers.map((c)=><option key={c.id} value={c.id}>{c.name ?? '名称未設定'}</option>)}</select></label>
             <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-slate-700">
               <p className="font-bold">{displayValue(selectedCustomer?.name)}</p>
               <p className="mt-2">TEL: {displayValue(selectedCustomer?.phone)} / 携帯: {displayValue(selectedCustomer?.mobile_phone)}</p>
@@ -252,7 +277,8 @@ export default function NewMaintenancePage() {
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <h3 className="text-lg font-bold text-slate-950">車両情報</h3>
-            <label className="mt-5 block"><span className="text-sm font-bold text-slate-700">車両選択</span><select className={`${inputClass} mt-2`} value={form.vehicle_id} onChange={(e) => updateField('vehicle_id', e.target.value)}><option value="">未選択</option>{vehicles.map((v)=><option key={v.id} value={v.id}>{[v.management_no, v.maker, v.model_name].filter(Boolean).join(' / ') || '車両名未設定'}</option>)}</select></label>
+            <div className="mt-4 space-y-3"><label className="flex gap-2"><input type="checkbox" checked={inlineVehicle} onChange={(event) => setInlineVehicle(event.target.checked)} />新しい車両を登録する</label>{inlineVehicle && <VehicleFields value={vehicleDraft} onChange={setVehicleDraft} />}</div>
+            <label className="mt-5 block"><span className="text-sm font-bold text-slate-700">車両選択</span><select className={`${inputClass} mt-2`} disabled={inlineVehicle} value={form.vehicle_id} onChange={(e) => updateField('vehicle_id', e.target.value)}><option value="">未選択</option>{vehicles.map((v)=><option key={v.id} value={v.id}>{[v.management_no, v.maker, v.model_name].filter(Boolean).join(' / ') || '車両名未設定'}</option>)}</select></label>
             <div className="mt-4 rounded-xl bg-blue-50 p-4 text-sm text-slate-700">
               <p className="font-bold">{[selectedVehicle?.maker, selectedVehicle?.model_name].filter(Boolean).join(' ') || '-'}</p>
               <p className="mt-2">管理番号: {displayValue(selectedVehicle?.management_no)} / 登録番号: {displayValue(selectedVehicle?.registration_no)}</p>
@@ -267,7 +293,7 @@ export default function NewMaintenancePage() {
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <label className="md:col-span-2"><span className="text-sm font-bold text-slate-700">依頼内容</span><textarea className={`${inputClass} mt-2 min-h-28`} value={form.request_detail} onChange={(e) => updateField('request_detail', e.target.value)} /></label>
             <label><span className="text-sm font-bold text-slate-700">症状・不具合</span><textarea className={`${inputClass} mt-2 min-h-28`} value={form.symptoms} onChange={(e) => updateField('symptoms', e.target.value)} /></label>
-            <label><span className="text-sm font-bold text-slate-700">作業項目</span><input className={`${inputClass} mt-2`} value={form.work_items} onChange={(e) => updateField('work_items', e.target.value)} placeholder="例：車検, オイル交換" /></label>
+            <div className="col-span-full min-w-0"><WorkDetailsEditor value={workRows} onChange={setWorkRows} mode={settings.mode} /><MaintenanceSummary rows={workRows} mode={settings.mode} parts={toNumber(form.parts_amount)} inspection={toNumber(form.inspection_amount)} legal={toNumber(form.legal_fee_amount)} extra={toNumber(form.additional_amount)} discount={toNumber(form.discount_amount)} /></div>
             <label><span className="text-sm font-bold text-slate-700">使用予定部品</span><textarea className={`${inputClass} mt-2 min-h-28`} value={form.planned_parts} onChange={(e) => updateField('planned_parts', e.target.value)} /></label>
             <label><span className="text-sm font-bold text-slate-700">作業指示</span><textarea className={`${inputClass} mt-2 min-h-28`} value={form.work_instruction} onChange={(e) => updateField('work_instruction', e.target.value)} /></label>
           </div>
@@ -277,9 +303,9 @@ export default function NewMaintenancePage() {
           <h3 className="text-lg font-bold text-slate-950">スケジュール・費用・通知</h3>
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {[
-              ['scheduled_in_date','入庫予定日','date'],['scheduled_in_time','入庫予定時間','time'],['scheduled_start_date','作業開始予定日','date'],['scheduled_finish_date','作業完了予定日','date'],['scheduled_delivery_date','納車予定日','date'],['scheduled_delivery_time','納車予定時間','time'],['actual_in_date','実入庫日','date'],['actual_finish_date','実作業完了日','date'],['actual_delivery_date','実納車日','date'],['labor_amount','工賃','number'],['parts_amount','部品代','number'],['inspection_amount','車検費用','number'],['legal_fee_amount','法定費用','number'],['additional_amount','追加費用','number'],['discount_amount','値引き','number'],['estimated_total_amount','見積合計','number'],['billing_amount','請求予定額','number'],['remind_before_days','入庫前リマインド日数','number'],['next_inspection_date','次回点検予定日','date'],
+              ['scheduled_in_date','入庫予定日','date'],['scheduled_in_time','入庫予定時間','time'],['scheduled_start_date','作業開始予定日','date'],['scheduled_finish_date','作業完了予定日','date'],['scheduled_delivery_date','納車予定日','date'],['scheduled_delivery_time','納車予定時間','time'],['actual_in_date','実入庫日','date'],['actual_finish_date','実作業完了日','date'],['actual_delivery_date','実納車日','date'],['parts_amount','部品代','number'],['inspection_amount','車検費用','number'],['legal_fee_amount','法定費用','number'],['additional_amount','追加費用','number'],['discount_amount','値引き','number'],['remind_before_days','入庫前リマインド日数','number'],['next_inspection_date','次回点検予定日','date'],
             ].map(([name,label,type]) => (
-              <label key={name}><span className="text-sm font-bold text-slate-700">{label}</span><input type={type} className={`${inputClass} mt-2 ${type === 'number' ? 'text-right' : ''}`} value={form[name as keyof typeof initialForm]} onChange={(e) => updateField(name as keyof typeof initialForm, e.target.value)} /></label>
+              <label key={name}><span className="text-sm font-bold text-slate-700">{name.endsWith('_amount') ? priceLabel(label, settings.mode, name === 'legal_fee_amount' ? 'out_of_scope' : 'taxable') : label}</span><input type={type} className={`${inputClass} mt-2 ${type === 'number' ? 'text-right' : ''}`} value={form[name as keyof typeof initialForm]} onChange={(e) => updateField(name as keyof typeof initialForm, e.target.value)} /></label>
             ))}
             <label><span className="text-sm font-bold text-slate-700">代車</span><select className={`${inputClass} mt-2`} value={form.loaner_status} onChange={(e) => updateField('loaner_status', e.target.value)}>{['不要','必要','貸出済み','返却済み'].map((v)=><option key={v}>{v}</option>)}</select></label>
             <label><span className="text-sm font-bold text-slate-700">支払方法</span><select className={`${inputClass} mt-2`} value={form.payment_method} onChange={(e) => updateField('payment_method', e.target.value)}>{['現金','銀行振込','クレジットカード','Stripe決済','未定'].map((v)=><option key={v}>{v}</option>)}</select></label>

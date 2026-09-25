@@ -1,0 +1,125 @@
+ROUTE,SCREEN_NAME,TYPE,REQUIRED_ROLE,OPERATIONS,SAVE_RESULT,RELOAD_RESULT,STATUS,SOURCE
+/,1台の入庫から、次の連絡まで。仕事が途切れない。,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/page.tsx
+/admin/plan-requests,プラン申込履歴,list,owner/admin（有効な同店舗membership）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/admin/plan-requests/page.tsx
+/analytics,分析,list,認証済みの有効な同店舗member（middleware/RLS）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/analytics/page.tsx
+/appointments,来店・試乗予約,list,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,予約登録→状態更新→別画面→再開→状態一致,PASS,PASS,PASS,apps/garage-link/src/app/appointments/page.tsx
+/auth/callback,認証を確認しています...,auth,公開入口＋有効なメール確認/再設定tokenまたはsession,signup/resetの実確認後callback→所定画面→セッション付き復帰,PASS,PASS,PASS,apps/garage-link/src/app/auth/callback/page.tsx
+/auth/confirm,メールアドレスを確認する / パスワード再設定を続ける,auth,公開入口＋有効なメール確認/再設定tokenまたはsession,local確認メールのリンク→確認ボタンPOST→callback→登録/回復先一致,PASS,PASS,PASS,apps/garage-link/src/app/auth/confirm/page.tsx
+/auth/reset-password,新しいパスワードを設定,auth,有効な再設定session,local再設定メール→確認→新password保存→logout/login→dashboard,PASS,PASS,PASS,apps/garage-link/src/app/auth/reset-password/page.tsx
+/customer-follow-up/delivery-candidates,L-LINK配信候補一覧,list,認証済みの有効な同店舗member（middleware/RLS）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/customer-follow-up/delivery-candidates/page.tsx
+/customer-follow-up/inspection-reminders,車検案内対象履歴,list,同店舗memberで閲覧、skipはowner/admin,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/customer-follow-up/inspection-reminders/page.tsx
+/customers,顧客,list,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/customers/page.tsx
+/customers/[id],顧客詳細,detail_edit,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/customers/[id]/page.tsx
+/customers/new,顧客登録,create,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/customers/new/page.tsx
+/dashboard,ホーム,navigation_dashboard,認証済みの有効な同店舗member（middleware/RLS）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/dashboard/page.tsx
+/dashboard/today-actions,今日やること一覧,list,認証済みの有効な同店舗member（middleware/RLS）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/dashboard/today-actions/page.tsx
+/deals,商談,list,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/deals/page.tsx
+/deals/[id],商談詳細,detail_edit,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,タイトル編集→保存→一覧へ戻る→再度詳細→値確認,PASS,PASS,PASS,apps/garage-link/src/app/deals/[id]/page.tsx
+/deals/[id]/invoices/new,請求書作成,create,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,editable fixed fee/header/decimal row/save/preview,PASS,PASS,PASS,apps/garage-link/src/app/deals/[id]/invoices/new/page.tsx
+/deals/[id]/invoices/preview,請求書,detail_edit,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,quantity/unit/saved total/reopen,PASS,PASS,PASS,apps/garage-link/src/app/deals/[id]/invoices/preview/page.tsx
+/deals/[id]/line/new,LINEの配信はL-LINKで行います,migration_notice,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,移行案内→L-LINK設定→戻る→dashboard→再開・reload。layoutが旧child画面を抑止、主業務未実施,未確認,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/deals/[id]/line/new/page.tsx
+/deals/[id]/quotes/new,見積書作成,create,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,decimal row/save/deal/readback/preview,PASS,PASS,PASS,apps/garage-link/src/app/deals/[id]/quotes/new/page.tsx
+/deals/[id]/quotes/preview,見積書,detail_edit,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,saved quantities/unit/total/reopen,PASS,PASS,PASS,apps/garage-link/src/app/deals/[id]/quotes/preview/page.tsx
+/deals/new,商談登録,create,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,入力→保存→一覧→詳細→再読込確認,PASS,PASS,PASS,apps/garage-link/src/app/deals/new/page.tsx
+/faq,対象業種と無料範囲。権限と連携条件を、導入前に確認。,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/faq/page.tsx
+/features,1台の入庫から、次の連絡まで。仕事が途切れない。,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/features/page.tsx
+/forgot-password,パスワード再設定,auth,公開（ログイン不要）,合成メール入力→local Mailpitメール到着→リンク開く→reset→新passwordでlogin,PASS,PASS,PASS,apps/garage-link/src/app/forgot-password/page.tsx
+/help,はじめての方向けヘルプ,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/help/page.tsx
+/industries/maintenance,受付、作業、納車。一日の予定を、案件で追う。,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/industries/maintenance/page.tsx
+/industries/motorcycle,販売車両と修理入庫。二つの流れを、一つの店舗へ。,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/industries/motorcycle/page.tsx
+/industries/used-car,仕入れた日から、納車後の案内まで。,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/industries/used-car/page.tsx
+/inquiries,問い合わせ,list,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/inquiries/page.tsx
+/inventory-counts,棚卸し,list,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,一覧→詳細→戻る→再度詳細,PASS,PASS,PASS,apps/garage-link/src/app/inventory-counts/page.tsx
+/inventory-counts/[id],棚卸し詳細,detail_edit,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,名称編集→保存→一覧→詳細→再読込一致,PASS,PASS,PASS,apps/garage-link/src/app/inventory-counts/[id]/page.tsx
+/inventory-counts/new,棚卸し登録,create,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,最終runで新店舗に新規入力→保存→一覧反映→詳細リンク→再読込一致,PASS,PASS,PASS,apps/garage-link/src/app/inventory-counts/new/page.tsx
+/invoices,請求書,list,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,list/detail/back/detail,PASS,PASS,PASS,apps/garage-link/src/app/invoices/page.tsx
+/invoices/[id],請求書 DOC-I-1790362490444,detail_edit,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,issue/synthetic cash payment/reload/copy,PASS,PASS,PASS,apps/garage-link/src/app/invoices/[id]/page.tsx
+/invoices/[id]/preview,請求書,detail_edit,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,line quantity/unit price/total match/reopen,PASS,PASS,PASS,apps/garage-link/src/app/invoices/[id]/preview/page.tsx
+/invoices/new,請求書作成,create,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,quote import/save/detail/reload,PASS,PASS,PASS,apps/garage-link/src/app/invoices/new/page.tsx
+/legal/privacy,プライバシーポリシー,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/legal/privacy/page.tsx
+/legal/terms,利用規約,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/legal/terms/page.tsx
+/legal/tokusho,特定商取引法に基づく表記,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/legal/tokusho/page.tsx
+/line,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/page.tsx
+/line-package,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/page.tsx
+/line-package/billing,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/billing/page.tsx
+/line-package/dashboard,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/dashboard/page.tsx
+/line-package/delivery-logs,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/delivery-logs/page.tsx
+/line-package/forms,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/forms/page.tsx
+/line-package/friends,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/friends/page.tsx
+/line-package/inquiries,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/inquiries/page.tsx
+/line-package/messages,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/messages/page.tsx
+/line-package/messages/new,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/messages/new/page.tsx
+/line-package/rich-menus,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/rich-menus/page.tsx
+/line-package/scenarios,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/scenarios/page.tsx
+/line-package/settings,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/settings/page.tsx
+/line-package/steps,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/steps/page.tsx
+/line-package/users,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line-package/users/page.tsx
+/line/analytics,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/analytics/page.tsx
+/line/auto-replies,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/auto-replies/page.tsx
+/line/auto-replies/[id],LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/auto-replies/[id]/page.tsx
+/line/campaigns,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/campaigns/page.tsx
+/line/campaigns/[id],LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/campaigns/[id]/page.tsx
+/line/delivery-settings,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/delivery-settings/page.tsx
+/line/drafts,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/drafts/page.tsx
+/line/forms,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/forms/page.tsx
+/line/forms/[id],LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/forms/[id]/page.tsx
+/line/friends,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/friends/page.tsx
+/line/friends/[id],LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/friends/[id]/page.tsx
+/line/message-logs,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/message-logs/page.tsx
+/line/reservations,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/reservations/page.tsx
+/line/rich-menus,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/rich-menus/page.tsx
+/line/rich-menus/[id],LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/rich-menus/[id]/page.tsx
+/line/routes,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/routes/page.tsx
+/line/routes/[id],LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/routes/[id]/page.tsx
+/line/settings,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/settings/page.tsx
+/line/steps,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/steps/page.tsx
+/line/steps/[id],LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/steps/[id]/page.tsx
+/line/tags,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/tags/page.tsx
+/line/tags/[id],LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/tags/[id]/page.tsx
+/line/templates,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/templates/page.tsx
+/line/templates/[id],LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/templates/[id]/page.tsx
+/line/webhook-events,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/webhook-events/page.tsx
+/line/webhook-settings,LINEの配信はL-LINKで行います,migration_notice,認証済みの有効な同店舗member（middleware/RLS）,現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画,対象外（非更新操作）,未確認,BLOCKED_FEATURE_MOVED,apps/garage-link/src/app/line/webhook-settings/page.tsx
+/login,ログイン,auth,公開（ログイン不要）,全5権限でログアウト状態→email/password→1submit→dashboard、誤password後正常password成功,PASS,PASS,PASS,apps/garage-link/src/app/login/page.tsx
+/logout,ログアウト（ログインへ遷移）,auth,認証済みの有効な同店舗member（middleware/RLS）,ログイン状態→logout→login→再login→dashboard,PASS,PASS,PASS,apps/garage-link/src/app/logout/page.tsx
+/maintenance,整備・車検一覧,list,認証済み店舗メンバー（保存は既存RLS権限、実操作owner）,右パネル状態編集→保存→再読込→復元→詳細→戻る→再確認,PASS,PASS,PASS,apps/garage-link/src/app/maintenance/page.tsx
+/maintenance/[id],整備・車検詳細,detail_edit,認証済み店舗メンバー（保存は既存RLS権限、実操作owner）,行編集・コピー・削除→保存→再表示→数量金額とカンマ保持,PASS,PASS,PASS,apps/garage-link/src/app/maintenance/[id]/page.tsx
+/maintenance/new,整備・車検受付,create,認証済み店舗メンバー（保存は既存RLS権限、実操作owner）,顧客車両をその場登録→DOB/メーカー/両満了日→作業3行→保存→再表示,PASS,PASS,PASS,apps/garage-link/src/app/maintenance/new/page.tsx
+/membership/accept,GARAGE LINK メンバー招待,auth,招待対象の認証済み本人＋有効な招待token,合成招待fixture→本人login→招待accept→dashboard→同招待再開の冪等確認,PASS,PASS,PASS,apps/garage-link/src/app/membership/accept/page.tsx
+/menu,メニュー,navigation_dashboard,認証済みの有効な同店舗member（middleware/RLS）,主要関連リンク→戻る→再開・再読込,対象外（非更新案内）,PASS,PASS,apps/garage-link/src/app/menu/page.tsx
+/onboarding,はじめての設定,onboarding,認証済み所属店舗（初回設定）,初回会社/店舗入力→4step保存→dashboard→会社設定値一致→onboarding再開はdashboard→reload,PASS,PASS,PASS,apps/garage-link/src/app/onboarding/page.tsx
+/parts,部品一覧,list,認証済み店舗メンバー（保存は既存RLS権限、実操作owner）,検索→カテゴリー絞込→詳細→戻る→再検索,PASS,PASS,PASS,apps/garage-link/src/app/parts/page.tsx
+/parts/[id],部品詳細・編集,detail_edit,認証済み店舗メンバー（保存は既存RLS権限、実操作owner）,数量・価格編集→保存→再読込→一致,PASS,PASS,PASS,apps/garage-link/src/app/parts/[id]/page.tsx
+/parts/new,部品登録,create,認証済み店舗メンバー（保存は既存RLS権限、実操作owner）,カテゴリー選択→小数在庫入力→保存→詳細→一覧→再表示,PASS,PASS,PASS,apps/garage-link/src/app/parts/new/page.tsx
+/pricing,月額0円から。店舗規模に合わせて4プラン。,public_information,公開（ログイン不要）,本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致,対象外（非更新操作）,PASS,PASS,apps/garage-link/src/app/pricing/page.tsx
+/quotes,見積書,list,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,list/detail/back/detail,PASS,PASS,PASS,apps/garage-link/src/app/quotes/page.tsx
+/quotes/[id],見積書 DOC-Q-1790362490444,detail_edit,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,edit/copy/preview/back/reopen,PASS,PASS,PASS,apps/garage-link/src/app/quotes/[id]/page.tsx
+/quotes/[id]/edit,見積書編集,detail_edit,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,title edit/save/reopen,PASS,PASS,PASS,apps/garage-link/src/app/quotes/[id]/edit/page.tsx
+/quotes/[id]/preview,見積書,detail_edit,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,decimal quantities and persisted total/reopen,PASS,PASS,PASS,apps/garage-link/src/app/quotes/[id]/preview/page.tsx
+/quotes/new,見積書作成,create,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,2 decimal rows/save/list/detail/reload,PASS,PASS,PASS,apps/garage-link/src/app/quotes/new/page.tsx
+/security/email-otp,ホーム,list,認証済みの有効な同店舗member（middleware/RLS）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/security/email-otp/page.tsx
+/security/mfa,ホーム,list,認証済みの有効な同店舗member（middleware/RLS）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/security/mfa/page.tsx
+/settings,車両管理設定,settings,認証済みの有効な同店舗member（middleware/RLS）,主要関連リンク→戻る→再開・再読込,対象外（非更新案内）,PASS,PASS,apps/garage-link/src/app/settings/page.tsx
+/settings/accounting-export,会計ソフト連携（CSV出力）,settings,owner/admin/implementer（同店舗）,安全な設定値変更→保存→戻る→再開→再読込一致→元値復元→再読込,PASS,PASS,PASS,apps/garage-link/src/app/settings/accounting-export/page.tsx
+/settings/audit-logs,監査ログ,settings,owner/admin（有効な同店舗membership）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/settings/audit-logs/page.tsx
+/settings/billing,プラン・契約,settings,owner/admin（有効な同店舗membership）,希望プラン・備考・利用規約確認入力→送信直前で停止→戻る→再開。Stripe申込未送信,未確認,未確認,BLOCKED_EXTERNAL_SIDE_EFFECT,apps/garage-link/src/app/settings/billing/page.tsx
+/settings/company,会社情報・帳票設定,settings,owner/admin（有効な同店舗membership）,安全な設定値変更→保存→戻る→再開→再読込一致→元値復元→再読込,PASS,PASS,PASS,apps/garage-link/src/app/settings/company/page.tsx
+/settings/customer-follow-up/inspection-reminders,車検案内設定,settings,owner/admin（有効な同店舗membership）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/settings/customer-follow-up/inspection-reminders/page.tsx
+/settings/documents,帳票設定,settings_placeholder,認証済みの有効な同店舗member（middleware/RLS）,主要関連リンク→戻る→再開・再読込,対象外（非更新案内）,未確認,BLOCKED_NOT_IMPLEMENTED,apps/garage-link/src/app/settings/documents/page.tsx
+/settings/env-check,環境変数チェック,settings,owner/admin（有効な同店舗membership）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/settings/env-check/page.tsx
+/settings/import-export,設定エクスポート / インポート,settings,owner/admin/implementer（同店舗）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/settings/import-export/page.tsx
+/settings/l-link,L-Link連携,settings,認証済みの有効な同店舗member（middleware/RLS）,別SaaS連携案内確認→設定戻る→再開。外部L-LINK接続変更未実施,未確認,未確認,BLOCKED_EXTERNAL_SIDE_EFFECT,apps/garage-link/src/app/settings/l-link/page.tsx
+/settings/launch-checklist,本番前チェックリスト,settings,owner/admin（有効な同店舗membership）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/settings/launch-checklist/page.tsx
+/settings/masters,マスター管理,settings,owner/admin,追加→編集→無効化→並び順→再読込→有効化、税込/税抜切替保存,PASS,PASS,PASS,apps/garage-link/src/app/settings/masters/page.tsx
+/settings/members,メンバー・権限設定,settings,owner/admin（有効な同店舗membership）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/settings/members/page.tsx
+/settings/security,セキュリティ設定,settings_placeholder,認証済みの有効な同店舗member（middleware/RLS）,主要関連リンク→戻る→再開・再読込,対象外（非更新案内）,未確認,BLOCKED_NOT_IMPLEMENTED,apps/garage-link/src/app/settings/security/page.tsx
+/settings/security-check,セキュリティチェック,settings,owner/admin（有効な同店舗membership）,主要関連リンク→戻る→再開・再読込,対象外（非更新案内）,PASS,PASS,apps/garage-link/src/app/settings/security-check/page.tsx
+/settings/store,店舗設定,settings,owner/admin（有効な同店舗membership）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/settings/store/page.tsx
+/settings/stores,店舗管理・切替,settings,owner/admin（有効な同店舗membership）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/settings/stores/page.tsx
+/settings/trash,ゴミ箱 / アーカイブ,settings,owner/admin（有効な同店舗membership）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/settings/trash/page.tsx
+/signup,アカウント作成 / 店舗情報の登録,auth,公開（ログイン不要）,新規入力→localMailpit確認→店舗登録→logout→1回login→onboarding,PASS,PASS,PASS,apps/garage-link/src/app/signup/page.tsx
+/supabase-test,Supabase接続確認,list,認証済みの有効な同店舗member（middleware/RLS）,主要関連リンク→戻る→再開・再読込,対象外（非更新案内）,PASS,PASS,apps/garage-link/src/app/supabase-test/page.tsx
+/vehicle-management,車両管理,navigation_dashboard,認証済みの有効な同店舗member（middleware/RLS）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/vehicle-management/page.tsx
+/vehicles,車両,list,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/vehicles/page.tsx
+/vehicles/[id],車両詳細,detail_edit,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/vehicles/[id]/page.tsx
+/vehicles/new,車両登録,create,同店舗memberで閲覧、保存はowner/admin/staff（G1-B/RPC）,主操作→関連画面→戻る→再開・再確認,PASS,PASS,PASS,apps/garage-link/src/app/vehicles/new/page.tsx

@@ -1,0 +1,42 @@
+[
+  {
+    "test": "part_decimal_category_create_edit_reload",
+    "status": "PASS",
+    "path": "/parts/8d841f9f-e3e2-4d02-b859-e7d29cc3a815"
+  },
+  {
+    "test": "postal_actual_lookup_hyphen_manual_edit",
+    "status": "PASS"
+  },
+  {
+    "test": "inline_customer_vehicle_work_three_rows_reload",
+    "status": "PASS",
+    "path": "/maintenance/f5a6aedb-b6d7-4904-a760-b34a977b2dbe"
+  },
+  {
+    "test": "work_edit_delete_reopen",
+    "status": "PASS"
+  },
+  {
+    "test": "responsive_page_overflow",
+    "status": "PASS"
+  },
+  {
+    "test": "errors",
+    "status": "FAIL",
+    "errors": [
+      {
+        "failed": "/rest/v1/rpc/get_garage_dashboard_payload_v2",
+        "reason": "net::ERR_ABORTED"
+      },
+      {
+        "failed": "/rest/v1/rpc/get_garage_dashboard_payload_v2",
+        "reason": "net::ERR_ABORTED"
+      },
+      {
+        "failed": "/parts",
+        "reason": "net::ERR_ABORTED"
+      }
+    ]
+  }
+]

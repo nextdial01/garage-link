@@ -81,19 +81,10 @@ function providerErrorClass(error: GarageUiContextProviderError | null) {
  * transport: a server SDK client without a persisted session can otherwise
  * fall back to anon before PostgreSQL evaluates auth.uid().
  */
-const MOBILE_TRUST_HEADER = 'x-garage-trusted-device-token';
 const MOBILE_REVIEW_PROOF_HEADER = 'x-garage-mobile-review-proof';
 
-function trustedDeviceToken(request: Request) {
-  const token = request.headers.get(MOBILE_TRUST_HEADER)?.trim() ?? '';
-  return /^[0-9a-f]{64}$/i.test(token) ? token : '';
-}
-
-function mobileTrustHeaders(trustedToken: string, reviewProof: string | null) {
-  return {
-    ...(trustedToken ? { [MOBILE_TRUST_HEADER]: trustedToken } : {}),
-    ...(reviewProof ? { [MOBILE_REVIEW_PROOF_HEADER]: reviewProof } : {}),
-  };
+function mobileTrustHeaders(reviewProof: string | null): Record<string, string> {
+  return reviewProof ? { [MOBILE_REVIEW_PROOF_HEADER]: reviewProof } : {};
 }
 
 async function reviewFixtureProofFor(userId: string): Promise<MobileReviewFixtureProof | null> {
@@ -163,14 +154,13 @@ async function callGarageRpc(token: string, mobileHeaders: Record<string, string
 async function authenticatedMember(request: Request) {
   const token = bearerToken(request);
   if (!token) return denied(401, 'unauthorized', 'ログイン情報を取得できませんでした。');
-  const trustedToken = trustedDeviceToken(request);
   const auth = createBearerAuthClient();
   if (!auth) return denied(500, 'mobile_config_missing', 'サーバー側の認証設定が不足しています。');
 
   const { data: userData, error: userError } = await auth.auth.getUser(token);
   if (userError || !userData.user?.id) return denied(401, 'unauthorized', 'ログイン情報を取得できませんでした。');
   const reviewFixture = await reviewFixtureProofFor(userData.user.id);
-  const mobileHeaders = mobileTrustHeaders(trustedToken, reviewFixture?.proof ?? null);
+  const mobileHeaders = mobileTrustHeaders(reviewFixture?.proof ?? null);
   const service = createBearerClient(token, mobileHeaders);
   if (!service) return denied(500, 'mobile_config_missing', 'サーバー側の認証設定が不足しています。');
 
@@ -182,9 +172,6 @@ async function authenticatedMember(request: Request) {
   const contextError = contextResult.error;
   if (contextError || !context || !['active', 'selection_required'].includes(context.state ?? '') || !Array.isArray(context.stores)) {
     console.warn('[garage-mobile-auth]', { stage: 'ui_context', providerCode: contextError?.code ?? null, providerClass: providerErrorClass(contextError) });
-    if (providerErrorClass(contextError) === 'admin_security_required') {
-      return denied(403, 'admin_security_required', 'このアカウントには追加の本人確認が必要です。');
-    }
     return denied(403, 'forbidden_store_context', '所属情報を確認できませんでした。');
   }
 

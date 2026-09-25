@@ -1,0 +1,26 @@
+{
+  "results": [
+    {
+      "test": "STORE_EXCLUDED_SETTING",
+      "status": "PASS",
+      "operation": "select/save/reload"
+    },
+    {
+      "test": "EXCLUDED_PART_PRICE_AND_TOTAL",
+      "status": "PASS",
+      "operation": "stored1100→input1000 qty1.5 save1650",
+      "id": "178abdaa-2bca-464f-a8fc-1a5ac5bb271d"
+    },
+    {
+      "test": "HISTORICAL_MODE_AFTER_STORE_CHANGE",
+      "status": "PASS",
+      "operation": "setting included/snapshot-copy excluded/no source change/preview reload"
+    },
+    {
+      "test": "INCLUDED_PRICE_UNCHANGED",
+      "status": "PASS",
+      "operation": "new mode included picker1100 stored1100"
+    }
+  ],
+  "issues": []
+}

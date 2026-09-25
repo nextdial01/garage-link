@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import PostalAddressLookup from '@/components/business/PostalAddressLookup';
+import { validateCustomer } from '@/lib/business/customer';
 import SoftDeleteButton from '@/components/SoftDeleteButton';
 import { createClient } from '@/lib/supabase/client';
 import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
@@ -151,6 +153,7 @@ export default function CustomerDetailPage() {
 
   async function handleSave() {
     try {
+      validateCustomer(form);
       setIsSaving(true); setErrorMessage(''); setSuccessMessage('');
       if (!storeId) throw new Error('所属店舗が見つかりません。');
       const supabase = createClient();
@@ -178,9 +181,9 @@ export default function CustomerDetailPage() {
           {successMessage && <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{successMessage}</p>}
           <Section title="顧客基本情報"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Field label="顧客種別"><select className={inputClass} value={form.customer_type} onChange={(e) => updateField('customer_type', e.target.value)}><option>個人</option><option>法人</option></select></Field>
-            {(['name','kana','phone','mobile_phone','email','postal_code','address'] as const).map((name) => <Field key={name} label={basicLabels[name]}><input type={name === 'email' ? 'email' : 'text'} className={inputClass} value={form[name]} onChange={(e) => updateField(name, e.target.value)} /></Field>)}
+            {(['name','kana','phone','mobile_phone','email','postal_code','address'] as const).map((name) => <Field key={name} label={basicLabels[name]}><input type={name === 'email' ? 'email' : 'text'} className={inputClass} value={form[name]} onChange={(e) => updateField(name, e.target.value)} />{name === 'postal_code' && <PostalAddressLookup postalCode={form.postal_code} address={form.address} onAddress={(address) => updateField('address', address)} />}</Field>)}
             <Field label="性別"><select className={inputClass} value={form.gender} onChange={(e) => updateField('gender', e.target.value)}><option value="">未選択</option><option>男性</option><option>女性</option><option>回答しない</option></select></Field>
-            <Field label="生年月日"><input type="date" className={inputClass} value={form.birth_date} onChange={(e) => updateField('birth_date', e.target.value)} /></Field>
+            <Field label="生年月日（必須）"><input required type="date" className={inputClass} value={form.birth_date} onChange={(e) => updateField('birth_date', e.target.value)} /></Field>
           </div></Section>
           <Section title="LINE情報"><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Field label="LINE userId"><input className={inputClass} value={form.line_user_id} onChange={(e) => updateField('line_user_id', e.target.value)} /></Field>

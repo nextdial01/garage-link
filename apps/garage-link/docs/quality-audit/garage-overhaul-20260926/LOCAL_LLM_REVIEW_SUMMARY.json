@@ -1,0 +1,80 @@
+{
+  "model": "ollama_chat/kannagi-qwen3.8-27b-64k",
+  "runs": [
+    {
+      "run_id": "garage-overhaul-part-forms-20260926-20260926-022035-14714529",
+      "status": "delegated_failure",
+      "reason_code": "scope_violation",
+      "runner_seconds": 378.025135,
+      "aider_started": true,
+      "started_at": "2026-09-25T17:20:35+00:00",
+      "finished_at": "2026-09-25T17:26:53+00:00",
+      "changed_files": [],
+      "outcome": null,
+      "review_record": "delegation-runs/garage-overhaul-part-forms-20260926-20260926-022035-14714529/review.json",
+      "review_decision": "handoff"
+    },
+    {
+      "run_id": "garage-overhaul-vehicle-new-20260926-20260926-023144-eca245dd",
+      "status": "infrastructure_failure",
+      "reason_code": "model_probe_failed",
+      "runner_seconds": 0.199251,
+      "aider_started": false,
+      "started_at": "2026-09-25T17:31:44+00:00",
+      "finished_at": "2026-09-25T17:31:44+00:00",
+      "changed_files": [],
+      "outcome": null,
+      "review_record": "delegation-runs/garage-overhaul-vehicle-new-20260926-20260926-023144-eca245dd/review.json",
+      "review_decision": "handoff"
+    },
+    {
+      "run_id": "garage-overhaul-business-discovery-20260926-20260926-015907-b5d2ca4d",
+      "status": "infrastructure_failure",
+      "reason_code": "model_probe_failed",
+      "runner_seconds": 0.200751,
+      "aider_started": false,
+      "started_at": "2026-09-25T16:59:07+00:00",
+      "finished_at": "2026-09-25T16:59:07+00:00",
+      "changed_files": [],
+      "outcome": null,
+      "review_record": "delegation-runs/garage-overhaul-business-discovery-20260926-20260926-015907-b5d2ca4d/review.json",
+      "review_decision": "handoff"
+    },
+    {
+      "run_id": "garage-overhaul-part-editor-decimal-20260926-20260926-021147-7b394312",
+      "status": "delegated_success",
+      "reason_code": null,
+      "runner_seconds": 55.551529,
+      "aider_started": true,
+      "started_at": "2026-09-25T17:11:47+00:00",
+      "finished_at": "2026-09-25T17:12:42+00:00",
+      "changed_files": [
+        "apps/garage-link/src/components/parts/PartLineItemsEditor.tsx"
+      ],
+      "outcome": "edit_success",
+      "review_record": "delegation-runs/garage-overhaul-part-editor-decimal-20260926-20260926-021147-7b394312/review.json",
+      "review_decision": "adopted_after_codex_fix"
+    },
+    {
+      "run_id": "garage-overhaul-business-discovery-recovered-20260926-20260926-020109-1588b9c6",
+      "status": "runner_failure",
+      "reason_code": "process_timeout",
+      "runner_seconds": 600.055573,
+      "aider_started": true,
+      "started_at": "2026-09-25T17:01:09+00:00",
+      "finished_at": "2026-09-25T17:11:09+00:00",
+      "changed_files": [],
+      "outcome": null,
+      "review_record": "delegation-runs/garage-overhaul-business-discovery-recovered-20260926-20260926-020109-1588b9c6/review.json",
+      "review_decision": "handoff"
+    }
+  ],
+  "adopted_files_after_codex_fix": 1,
+  "standalone_completed_tasks": 0,
+  "implementation_share": "1 source file partly adopted; no claim of percentage because final cross-cutting edits overlap",
+  "codex_additions": "strict numeric validation plus integration after timeout/scope/probe failures; all auth/RLS/DB/money security boundary work; full review/testing/browser verification",
+  "codex_additional_seconds": null,
+  "timing_limitation": "Parallel Codex active work was not separately clocked; runner_seconds recorded exactly; total elapsed from ledger start to final acceptance recorded at close.",
+  "next_local_scope": "Clean 1–3 tracked-file UI changes with validated worker-relative paths and exact tests; improve read-only bounded brief timeout before retry in future case",
+  "runner_total_seconds": 1034.032239
+}

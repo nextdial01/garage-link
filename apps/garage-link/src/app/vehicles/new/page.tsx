@@ -1,5 +1,10 @@
 'use client';
 
+import { displayPriceToStored } from '@/lib/business/money';
+import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
+
+import MasterSelect from '@/components/business/MasterSelect';
+
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
@@ -42,6 +47,7 @@ type VehicleFormState = {
   mileage_km: string;
   color: string;
   inspection_expiry_date: string;
+  liability_insurance_expiry_date: string;
   purchase_price: string;
   direct_cost_special: string;
   direct_cost_accessories: string;
@@ -70,6 +76,7 @@ type VehicleInsert = {
   mileage_km: number | null;
   color: string | null;
   inspection_expiry_date: string | null;
+  liability_insurance_expiry_date: string | null;
   purchase_price: number | null;
   direct_cost_special: number | null;
   direct_cost_accessories: number | null;
@@ -100,6 +107,7 @@ const initialFormState: VehicleFormState = {
   mileage_km: '',
   color: '',
   inspection_expiry_date: '',
+  liability_insurance_expiry_date: '',
   purchase_price: '',
   direct_cost_special: '',
   direct_cost_accessories: '',
@@ -129,7 +137,8 @@ const vehicleSections: FormSection[] = [
       { label: '類別', type: 'text', placeholder: '例：0001' },
       { label: '走行距離', type: 'number', name: 'mileage_km', placeholder: '例：42000' },
       { label: '仕入時走行距離', type: 'number', placeholder: '例：41500' },
-      { label: '車検', type: 'date', name: 'inspection_expiry_date' },
+      { label: '車検満了日', type: 'date', name: 'inspection_expiry_date' },
+      { label: '自賠責保険満了日', type: 'date', name: 'liability_insurance_expiry_date' },
       { label: '色', type: 'text', name: 'color', placeholder: '例：ホワイト' },
       { label: '系統色', type: 'select', options: ['白系', '黒系', '銀系', '灰系', '赤系', '青系', '緑系', 'その他'] },
       { label: '車両No', type: 'text', name: 'management_no', placeholder: '例：GL-0001' },
@@ -180,7 +189,7 @@ const vehicleSections: FormSection[] = [
       { label: 'リ預相当額', type: 'number', placeholder: '例：9800' },
       { label: '車両価格', type: 'number', name: 'base_price', placeholder: '例：1680000', required: true },
       { label: '掲載価格', type: 'number', placeholder: '例：1780000' },
-      { label: '販売総額', type: 'number', name: 'total_price', placeholder: '例：1890000' },
+      { label: '支払総額（税・法定費用含む）', type: 'number', name: 'total_price', placeholder: '例：1890000' },
       { label: '卸価格', type: 'number', placeholder: '例：1500000' },
       { label: '展示場所', type: 'select', name: 'location_name', options: ['第1展示場', '第2展示場', '整備工場', 'ヤード', '倉庫'] },
       { label: '店舗移動日', type: 'date' },
@@ -234,6 +243,7 @@ function FieldControl({
   value?: string;
   onChange?: (value: string) => void;
 }) {
+  if (field.name === 'maker') return <MasterSelect id={id} kind="vehicle_maker" value={value ?? ''} onChange={(next) => onChange?.(next)} required className={inputClass} />;
   const controlledProps =
     onChange !== undefined
       ? {
@@ -313,6 +323,7 @@ function FieldControl({
     <input
       id={id}
       type={field.type}
+      step={field.name && ['purchase_price','base_price','direct_cost_special','direct_cost_accessories','direct_cost_agency'].includes(field.name) ? '0.0001' : undefined}
       placeholder={field.placeholder}
       className={inputClass}
       {...controlledProps}
@@ -321,7 +332,10 @@ function FieldControl({
 }
 
 export default function NewVehiclePage() {
+  const { mode: priceMode, loading: priceLoading, error: priceError } = useBusinessSettings();
+  const priceLabel = priceMode === 'excluded' ? '税抜' : '税込';
   const router = useRouter();
+  const storedPrice = (value: string) => value.trim() === '' ? null : displayPriceToStored(value, priceMode);
   const [formState, setFormState] = useState<VehicleFormState>(initialFormState);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -362,6 +376,7 @@ export default function NewVehiclePage() {
       return;
     }
 
+    if (priceLoading || priceError) { setSaveError(priceError || '金額表示設定を読み込み中です。'); return; }
     setIsSaving(true);
 
     try {
@@ -383,12 +398,13 @@ export default function NewVehiclePage() {
         mileage_km: toNullableNumber(formState.mileage_km),
         color: toNullableText(formState.color),
         inspection_expiry_date: toNullableText(formState.inspection_expiry_date),
-        purchase_price: toNullableNumber(formState.purchase_price),
-        direct_cost_special: toNullableNumber(formState.direct_cost_special),
-        direct_cost_accessories: toNullableNumber(formState.direct_cost_accessories),
-        direct_cost_agency: toNullableNumber(formState.direct_cost_agency),
+        liability_insurance_expiry_date: toNullableText(formState.liability_insurance_expiry_date),
+        purchase_price: storedPrice(formState.purchase_price),
+        direct_cost_special: storedPrice(formState.direct_cost_special),
+        direct_cost_accessories: storedPrice(formState.direct_cost_accessories),
+        direct_cost_agency: storedPrice(formState.direct_cost_agency),
         direct_cost_legal: toNullableNumber(formState.direct_cost_legal),
-        base_price: toNullableNumber(formState.base_price),
+        base_price: storedPrice(formState.base_price),
         total_price: toNullableNumber(formState.total_price),
         status: formState.status || '在庫中',
         location_name: toNullableText(formState.location_name),
@@ -451,7 +467,7 @@ export default function NewVehiclePage() {
                       htmlFor={field.type === 'radio' ? undefined : id}
                       className="mb-2 block text-sm font-bold text-slate-700"
                     >
-                      {field.label}
+                      {field.label}{field.name && ['purchase_price','base_price','direct_cost_special','direct_cost_accessories','direct_cost_agency'].includes(field.name) ? `（${priceLabel}）` : ''}
                       {field.required && (
                         <span className="ml-2 text-xs font-bold text-red-600">
                           必須

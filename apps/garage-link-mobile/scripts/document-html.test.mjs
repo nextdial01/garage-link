@@ -1,0 +1,6 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {documentHtml} from '../src/v2/documentHtml.ts';
+test('native print renders saved amounts, original fractional quantity/price, line discount and escaped content',()=>{const header={tax_display_mode:'excluded',subtotal_amount:1200,discount_amount:50,tax_amount:92,trade_in_amount:10,total_amount:1232,paid_amount:500,unpaid_amount:732,customer_name:'<script>bad</script>'};const html=documentHtml('invoice',header,[{name:'部品',quantity:1.5,unit:'本',unit_price:1000,line_discount_input_amount:300,tax_rate:.08,amount:1200}]);assert(html.includes('1.5 本'));assert(html.includes('単価（税抜）'));assert(html.includes('300円'));assert(html.includes('消費税: 92円'));assert(html.includes('合計: 1,232円'));assert(html.includes('未払額: 732円'));assert(!html.includes('<script>'));assert(html.includes('&lt;script&gt;'));assert.equal(header.total_amount,1232);});
+
+test('legacy snapshot without mode prints saved-value labels without claiming tax basis',()=>{const html=documentHtml('quote',{subtotal_amount:1500,total_amount:1500},[{name:'旧行',quantity:1.5,unit_price:1000,amount:1500}]);assert(html.includes('行金額（保存時）'));assert(html.includes('小計（保存時）'));assert(html.includes('値引き（保存時）'));assert(!html.includes('税抜'));assert(html.includes('合計: 1,500円'));});

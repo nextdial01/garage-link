@@ -1,0 +1,21 @@
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','50000000-0000-0000-0000-000000000001',true);
+do $$ declare v jsonb; v_quote uuid; v_invoice uuid;
+ h jsonb:='{"quote_no":"LINE-DISCOUNT","tax_display_mode":"included","subtotal_amount":1273,"tax_amount":123,"discount_amount":46,"discount_input_amount":50,"trade_in_amount":0,"total_amount":1350}';
+ items jsonb:='[{"name":"discounted part","quantity":1.5,"unit_price":1000,"line_discount_input_amount":100,"amount":1273,"tax_amount":123,"tax_rate":0.1,"item_type":"part"}]';
+begin
+ if not exists(select 1 from public.quote_items where quote_id='95000000-0000-0000-0000-000000000001' and line_discount_input_amount=0 and amount=100) then raise exception 'legacy zero discount lost'; end if;
+ v:=public.save_document('51100000-0000-0000-0000-000000000001','quote',h,items);v_quote:=(v->>'id')::uuid;
+ if not exists(select 1 from public.quote_items where quote_id=v_quote and quantity=1.5 and unit_price=1000 and line_discount_input_amount=100) then raise exception 'line discount not retained'; end if;
+ v:=public.save_document('51100000-0000-0000-0000-000000000001','invoice',(h-'quote_no')||'{"invoice_no":"LINE-DISCOUNT-I"}',items);v_invoice:=(v->>'id')::uuid;
+ if not exists(select 1 from public.invoice_items where invoice_id=v_invoice and quantity=1.5 and unit_price=1000 and line_discount_input_amount=100) then raise exception 'invoice line discount lost'; end if;
+ if not exists(select 1 from public.invoices where id=v_invoice and total_amount=1350 and paid_amount=0 and unpaid_amount=1350) then raise exception 'discount deducted twice'; end if;
+ begin perform public.save_document('51100000-0000-0000-0000-000000000001','quote','{"quote_no":"EXCESS-DISCOUNT"}',jsonb_set(items,'{0,line_discount_input_amount}','2000')); raise exception 'excess row discount accepted'; exception when invalid_parameter_value then null; end;
+ v_invoice:=gen_random_uuid();
+ v:=public.garage_mobile_invoice_from_quote('51100000-0000-0000-0000-000000000001',v_quote,v_invoice,null);
+ if (v->>'ok')::boolean is distinct from true or not exists(select 1 from public.invoice_items where invoice_id=v_invoice and line_discount_input_amount=100 and quantity=1.5 and unit_price=1000) then raise exception 'mobile conversion lost discount %',v; end if;
+end $$;
+rollback;
+select 'OVERHAUL_LINE_DISCOUNT_PASS' result;

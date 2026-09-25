@@ -9,11 +9,12 @@ const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 const RN = require('react-native-web');
 const root = path.resolve(__dirname, '..');
+const fixtureModules = new Map();
 const source = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 const states = [...source.matchAll(/const \[(\w+)(?:,\s*\w+)?\] = useState/g)].map((match) => match[1]);
 const glyphs = require('@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Ionicons.json');
 const font = fs.readFileSync(require.resolve('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf')).toString('base64');
-let seed = {}, index = 0, collecting = false, width = 390;
+let seed = {}, index = 0, collecting = false, width = 390, v2Index = 0;
 const fakeReact = { ...React, useState(value) { if (!collecting) return React.useState(value); const name = states[index++]; return [Object.hasOwn(seed, name) ? seed[name] : (typeof value === 'function' ? value() : value), () => {}]; }, useRef(value) { return collecting ? {current:value} : React.useRef(value); }, useEffect(fn, deps) { if (!collecting) React.useEffect(fn, deps); }, useEffectEvent(fn) { return fn; }, useMemo(fn, deps) { return collecting ? fn() : React.useMemo(fn, deps); } };
 const filename = path.join(root, 'App.quality-preview.cjs');
 const compiled = new Module(filename, module);compiled.filename=filename;compiled.paths=Module._nodeModulePaths(root);
@@ -26,7 +27,27 @@ compiled.require=(id)=>{
   if(id==='./src/supabase')return {mobileConfigurationError:null,supabase:{}};
   if(id.startsWith('expo-'))return {};
   if(id.endsWith('.png'))return {uri:'data:image/png;base64,'+fs.readFileSync(path.resolve(root,id)).toString('base64')};
-  if(id.startsWith('./src/'))return require(path.resolve(root,id+'.ts'));
+  if (id.startsWith('./src/') || id.startsWith('./../garage-link/src/lib/business/')) {
+    const base = path.resolve(root, id);
+    const localFile = [base, base + '.web.ts', base + '.web.tsx', base + '.ts', base + '.tsx'].find(file => fs.existsSync(file) && fs.statSync(file).isFile());
+    if (!localFile) throw new Error(`Missing local fixture module: ${id}`);
+    if (fixtureModules.has(localFile)) return fixtureModules.get(localFile).exports;
+    const child = new Module(localFile, module); child.filename = localFile; child.paths = Module._nodeModulePaths(path.dirname(localFile));
+    fixtureModules.set(localFile, child);
+    const isV2Root = localFile.endsWith('/v2/GarageMobileV2.tsx');
+    const localSource = fs.readFileSync(localFile, 'utf8');
+    const v2Names = [...localSource.matchAll(/const \[(\w+)(?:,\s*\w+)?\] = useState/g)].map(match => match[1]);
+    child.require = specifier => {
+      if (isV2Root && specifier === 'react') return { ...React, useState(initial) {
+        const name = v2Names[v2Index++];
+        const values = {today:seed.today,error:seed.error || '',busy:seed.loading,businessReady:!seed.businessPending};
+        return [Object.hasOwn(values,name) ? values[name] : (typeof initial === 'function' ? initial() : initial), () => {}];
+      },useEffect(){},useEffectEvent:fn=>fn,useRef:value=>({current:value})};
+      return compiled.require(specifier.startsWith('.') ? './' + path.relative(root, path.resolve(path.dirname(localFile), specifier)) : specifier);
+    };
+    child._compile(ts.transpileModule(fs.readFileSync(localFile, 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText, localFile);
+    return child.exports;
+  }
   return require(id);
 };
 compiled._compile(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText,filename);
@@ -38,11 +59,11 @@ const quote={id:'fixture-quote',quoteNo:'Q-DEMO-001',title:'定期点検のお�
 const pages=['login','stores','today','vehicles','vehicleDetail','maintenance','maintenanceDetail','customers','customerDetail','quotes','quoteCreate','quotePreview'];
 function render(url){
  width=Math.min(1024,Math.max(320,Number(url.searchParams.get('width'))||390));const page=url.searchParams.get('screen')||'today';
- seed={session:page==='login'?null:{user:{id:'fixture-user'}},authResolved:true,stores:[store],store,page:page==='login'?'stores':page,vehicles:[vehicle],vehicle:{vehicle,imageFiles:[]},today:{appointments:[],deliveries:[job],incompleteWork:[job],assignedWork:[job]},jobs:[job],job,customers:[customer],customer:{customer,vehicles:[vehicle],maintenance:[job],deals:[],quotes:[quote]},quotes:[quote],quote,email:'',password:'',vehicleSearch:url.searchParams.get('search')||'',customerSearch:url.searchParams.get('search')||'',error:url.searchParams.has('error')?'通信に時間がかかっています。接続を確認して再試行してください。':null,loading:url.searchParams.has('loading')};
+ seed={session:page==='login'?null:{user:{id:'fixture-user'}},authResolved:true,businessPending:url.searchParams.has('businessPending'),stores:[store],store,page:page==='login'?'stores':page,vehicles:[vehicle],vehicle:{vehicle,imageFiles:[]},today:{appointments:[],deliveries:[job],incompleteWork:[job],assignedWork:[job]},jobs:[job],job,customers:[customer],customer:{customer,vehicles:[vehicle],maintenance:[job],deals:[],quotes:[quote]},quotes:[quote],quote,email:'',password:'',vehicleSearch:url.searchParams.get('search')||'',customerSearch:url.searchParams.get('search')||'',error:url.searchParams.has('error')?'通信に時間がかかっています。接続を確認して再試行してください。':null,loading:url.searchParams.has('loading')};
  for(const name of ['vehicleOffset','customerOffset','maintenanceOffset','quoteOffset'])seed[name]=url.searchParams.has('more')?100:null;
  if(url.searchParams.has('empty'))Object.assign(seed,{stores:[],vehicles:[],jobs:[],customers:[],quotes:[],today:{appointments:[],deliveries:[],incompleteWork:[],assignedWork:[]}});
  collecting=true;index=0;const tree=compiled.exports.GarageMobileApp();collecting=false;
- const html=renderToStaticMarkup(tree);const sheet=RN.StyleSheet.getSheet();
+ v2Index=0;const html=renderToStaticMarkup(tree);const sheet=RN.StyleSheet.getSheet();
  const links=pages.map(p=>`<a href="/?screen=${p}&width=${width}">${p}</a>`).join(' ');
  return `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GARAGE internal synthetic UI</title><style>${sheet.textContent}\n@font-face{font-family:Ionicons;src:url(data:font/ttf;base64,${font})}body{margin:0;background:#e9eef4;font-family:system-ui}aside{padding:10px;font-size:12px;line-height:2}a{padding:4px;color:#124a79}.phone{width:${width}px;height:844px;display:flex;flex-direction:column;margin:0 auto;background:white;overflow:hidden;border:1px solid #abb6c0}.phone>div{min-height:0}</style><aside>内部合成データ・RN Web SSR・実機版ではありません。操作は画面リンクのみ。<br>${links}<br><a href="/?screen=${page}&width=${width}&error=1">error</a> <a href="/?screen=${page}&width=${width}&empty=1">empty</a> <a href="/?screen=${page}&width=${width}&loading=1">loading</a> <a href="/?screen=${page}&width=320">320</a> <a href="/?screen=${page}&width=820">820</a></aside><main class="phone">${html}</main>`;
 }

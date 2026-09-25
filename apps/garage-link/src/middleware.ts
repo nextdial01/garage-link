@@ -1,5 +1,4 @@
 import { createServerClient } from '@supabase/ssr';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 import {
   isBillingRecoveryAllowedPath,
@@ -8,7 +7,6 @@ import {
 } from '@/lib/billing/contractAccess';
 import { resolvePostAuthPath } from '@/lib/auth/post-auth-redirect';
 import { getSupabaseAuthCookieNames, isRecoverableStaleSessionError } from '@/lib/auth/stale-session-recovery';
-import { ADMIN_EMAIL_OTP_COOKIE, deviceTokenHash, getAdminEmailOtpSecret, hasEffectiveAdminRole, readTrustedDeviceCookieValue } from '@/lib/security/adminEmailOtp';
 
 const PUBLIC_PATHS = [
   '/',
@@ -21,6 +19,7 @@ const PUBLIC_PATHS = [
   '/auth/reset-password',
   '/membership/accept',
   '/api/auth/password-login',
+  '/api/auth/mobile-captcha',
   '/api/auth/confirm',
   '/api/health',
   '/help',
@@ -79,10 +78,7 @@ function isPublicPath(pathname: string) {
   // route-level contract rather than being rejected by middleware before the
   // synthetic owner's token can be verified. Production still returns 404.
   if (pathname === '/api/qa/callback-evidence' || pathname === '/api/qa/fixture-discovery') return true;
-  // These routes authenticate again inside the handler. Keeping the exact
-  // endpoints reachable lets a Staging-only synthetic Bearer session satisfy
-  // the same administrator OTP pre-request gate; Production Bearer access is
-  // still rejected by the route's staging runtime contract.
+  // Retired endpoints return a side-effect-free 410, including for stale clients.
   if (pathname === '/api/auth/admin-email-otp/request' || pathname === '/api/auth/admin-email-otp/verify') return true;
   return false;
 }
@@ -170,50 +166,6 @@ function attachReleaseQaAuthBoundary(
   return response;
 }
 
-async function requiresAdminSecurity(
-  userId: string,
-  sessionId: string
-) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-  if (!url || !key) return true;
-  const service = createServiceClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { data, error } = await service.rpc('admin_email_otp_bootstrap_context', {
-    p_user_id: userId,
-    // The helper uses this argument as a non-null bootstrap contract. A real
-    // administrator without a JWT session_id is still blocked below because
-    // hasTrustedAdminDevice is never called with this sentinel.
-    p_session_id: sessionId || '00000000-0000-0000-0000-000000000000',
-  });
-  if (error) return true;
-  const context = data && typeof data === 'object' && !Array.isArray(data)
-    ? data as { role?: string }
-    : null;
-  if (!context) return false;
-  return hasEffectiveAdminRole([{ role: context.role ?? '' }], []);
-}
-
-async function hasTrustedAdminDevice(request: NextRequest, userId: string, sessionId: string) {
-  const secret = getAdminEmailOtpSecret();
-  const cookie = await readTrustedDeviceCookieValue(secret, request.cookies.get(ADMIN_EMAIL_OTP_COOKIE)?.value, userId, sessionId);
-  if (!cookie) return false;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-  if (!url || !key) return false;
-  const service = createServiceClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-  const hash = await deviceTokenHash(secret, cookie.token);
-  const { data, error } = await service
-    .from('admin_trusted_sessions')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('session_id', sessionId)
-    .eq('device_token_hash', hash)
-    .is('revoked_at', null)
-    .gt('expires_at', new Date().toISOString())
-    .maybeSingle();
-  return !error && Boolean(data);
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -236,7 +188,9 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
           });
+          const priorCookies = response.cookies.getAll();
           response = NextResponse.next({ request });
+          priorCookies.forEach((cookie) => response.cookies.set(cookie));
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
@@ -249,7 +203,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
-  const { data: claimData } = user ? await supabase.auth.getClaims() : { data: null };
 
   if (!user && isRecoverableStaleSessionError(authError)) {
     clearStaleSupabaseAuthCookies(response, request);
@@ -275,28 +228,21 @@ export async function middleware(request: NextRequest) {
     );
   }
 
-  if (user) {
-    const isAuthEntry = pathname === '/login' || pathname === '/signup';
-    const shouldCheckAdminSecurity = isAuthEntry || (!isPublicPath(pathname) && !isSecurityGate(pathname));
-
-    if (shouldCheckAdminSecurity) {
-      const sessionId = typeof claimData?.claims?.session_id === 'string' ? claimData.claims.session_id : '';
-      const adminSecurityRequired = await requiresAdminSecurity(user.id, sessionId);
-      if (adminSecurityRequired) {
-        const returnPath = isAuthEntry ? '/dashboard' : `${pathname}${request.nextUrl.search}`;
-        if (!sessionId || !await hasTrustedAdminDevice(request, user.id, sessionId)) {
-          const verificationUrl = new URL('/security/email-otp', request.url);
-          verificationUrl.searchParams.set('from', returnPath);
-          return redirectWithSessionCookies(verificationUrl, response);
-        }
-      }
+  // Public recovery/callback routes remain usable while store context is unavailable.
+  if (user && (!isPublicPath(pathname) || pathname === '/login' || pathname === '/signup')) {
+    let postAuthPath: string;
+    try {
+      postAuthPath = isSecurityGate(pathname) ? '/dashboard' : await resolvePostAuthPath(supabase, user.id, {
+        nextPath: request.nextUrl.searchParams.get('next'),
+      });
+    } catch {
+      const unavailable = pathname.startsWith('/api/')
+        ? NextResponse.json({ error: 'store_context_unavailable' }, { status: 503 })
+        : new NextResponse('店舗情報を確認できませんでした。時間をおいてページを再読み込みしてください。', {
+            status: 503, headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' },
+          });
+      return responseWithSessionCookies(unavailable, response);
     }
-
-    const postAuthPath = isSecurityGate(pathname)
-      ? '/dashboard'
-      : await resolvePostAuthPath(supabase, user.id, {
-          nextPath: request.nextUrl.searchParams.get('next'),
-        });
 
     if (pathname === '/login' || pathname === '/signup') {
       if (postAuthPath.split('?')[0] === pathname) {
@@ -307,14 +253,14 @@ export async function middleware(request: NextRequest) {
       redirectUrl.search = postAuthPath.includes('?')
         ? postAuthPath.slice(postAuthPath.indexOf('?'))
         : '';
-      return NextResponse.redirect(redirectUrl);
+      return redirectWithSessionCookies(redirectUrl, response);
     }
 
     if (pathname === '/onboarding' && postAuthPath.startsWith('/dashboard')) {
       const dashboardUrl = request.nextUrl.clone();
       dashboardUrl.pathname = '/dashboard';
       dashboardUrl.search = '';
-      return NextResponse.redirect(dashboardUrl);
+      return redirectWithSessionCookies(dashboardUrl, response);
     }
 
     if (
@@ -324,22 +270,17 @@ export async function middleware(request: NextRequest) {
       (postAuthPath.startsWith('/onboarding') || postAuthPath.startsWith('/signup'))
     ) {
       if (pathname.startsWith('/api/')) {
-        return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+        return responseWithSessionCookies(NextResponse.json({ error: 'forbidden' }, { status: 403 }), response);
       }
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = postAuthPath.split('?')[0] ?? postAuthPath;
       redirectUrl.search = postAuthPath.includes('?')
         ? postAuthPath.slice(postAuthPath.indexOf('?'))
         : '';
-      return NextResponse.redirect(redirectUrl);
+      return redirectWithSessionCookies(redirectUrl, response);
     }
 
     if (!isPublicPath(pathname) && !isSecurityGate(pathname)) {
-      // security gate は常に billing 制限より優先する。ここを除外しないと、
-      // admin security 必須 かつ billing 制限中のアカウントが
-      // /security/email-otp <-> /settings/billing を無限に往復し、
-      // clone() が前段の from を引き継ぐたびに from が二重エンコードされ続けて
-      // 指数的に肥大化するリダイレクトループになる。
       const { data: contractAccess } = await supabase.rpc('get_member_contract_access', {});
       const accessState = resolveEffectiveContractAccess(
         parseContractAccess(contractAccess),
@@ -348,7 +289,7 @@ export async function middleware(request: NextRequest) {
       if (accessState === 'cancelled_retention' && !isCancelledRetentionAllowedPath(pathname)) {
         const billingUrl = new URL('/settings/billing', request.url);
         billingUrl.searchParams.set('contract', 'cancelled');
-        return NextResponse.redirect(billingUrl);
+        return redirectWithSessionCookies(billingUrl, response);
       }
 
       if (
@@ -356,11 +297,11 @@ export async function middleware(request: NextRequest) {
         && !isBillingRecoveryAllowedPath(pathname)
       ) {
         if (pathname.startsWith('/api/')) {
-          return NextResponse.json({ error: 'billing_access_restricted' }, { status: 402 });
+          return responseWithSessionCookies(NextResponse.json({ error: 'billing_access_restricted' }, { status: 402 }), response);
         }
         const billingUrl = new URL('/settings/billing', request.url);
         billingUrl.searchParams.set('contract', accessState);
-        return NextResponse.redirect(billingUrl);
+        return redirectWithSessionCookies(billingUrl, response);
       }
     }
   }

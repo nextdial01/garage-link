@@ -1,10 +1,11 @@
 import 'server-only';
+import { normalizedWorkDetails, type WorkDetail } from '@/lib/business/workDetails';
 
 export const V2_RESOURCES = {
   customers: {
     table: 'customers',
-    fields: 'id, name, kana, phone, mobile_phone, email, address, customer_type, desired_maker, desired_model, budget_min, budget_max, desired_purchase_timing, trade_in_status, customer_status, assigned_user_name, next_action_date, memo, updated_at',
-    editable: ['name', 'kana', 'phone', 'mobile_phone', 'email', 'address', 'customer_type', 'desired_maker', 'desired_model', 'budget_min', 'budget_max', 'desired_purchase_timing', 'trade_in_status', 'customer_status', 'assigned_user_name', 'next_action_date', 'memo'],
+    fields: 'id, birth_date, postal_code, name, kana, phone, mobile_phone, email, address, customer_type, desired_maker, desired_model, budget_min, budget_max, desired_purchase_timing, trade_in_status, customer_status, assigned_user_name, next_action_date, memo, updated_at',
+    editable: ['birth_date', 'postal_code', 'name', 'kana', 'phone', 'mobile_phone', 'email', 'address', 'customer_type', 'desired_maker', 'desired_model', 'budget_min', 'budget_max', 'desired_purchase_timing', 'trade_in_status', 'customer_status', 'assigned_user_name', 'next_action_date', 'memo'],
     related: [],
     search: ['name', 'phone', 'mobile_phone'],
   },
@@ -24,8 +25,8 @@ export const V2_RESOURCES = {
   },
   maintenance: {
     table: 'maintenance_jobs',
-    fields: 'id, customer_id, vehicle_id, job_no, job_type, status, priority, assigned_user_name, request_detail, symptoms, work_items, planned_parts, work_instruction, scheduled_in_at, scheduled_start_date, scheduled_finish_date, scheduled_delivery_at, actual_in_date, actual_finish_date, actual_delivery_date, loaner_status, labor_amount, parts_amount, inspection_amount, legal_fee_amount, additional_amount, discount_amount, estimated_total_amount, billing_amount, payment_method, estimate_confirm_status, work_memo, customer_message, updated_at',
-    editable: ['customer_id', 'vehicle_id', 'job_type', 'priority', 'assigned_user_name', 'request_detail', 'symptoms', 'work_items', 'planned_parts', 'work_instruction', 'scheduled_in_at', 'scheduled_start_date', 'scheduled_finish_date', 'scheduled_delivery_at', 'actual_in_date', 'actual_finish_date', 'actual_delivery_date', 'loaner_status', 'labor_amount', 'parts_amount', 'inspection_amount', 'legal_fee_amount', 'additional_amount', 'discount_amount', 'payment_method', 'estimate_confirm_status', 'work_memo', 'customer_message'],
+    fields: 'id, customer_id, vehicle_id, job_no, job_type, status, priority, assigned_user_name, request_detail, symptoms, work_details, work_details_version, tax_display_mode, discount_input_amount, work_items, planned_parts, work_instruction, scheduled_in_at, scheduled_start_date, scheduled_finish_date, scheduled_delivery_at, actual_in_date, actual_finish_date, actual_delivery_date, loaner_status, labor_amount, parts_amount, inspection_amount, legal_fee_amount, additional_amount, discount_amount, estimated_total_amount, billing_amount, payment_method, estimate_confirm_status, work_memo, customer_message, updated_at',
+    editable: ['customer_id', 'vehicle_id', 'job_type', 'priority', 'assigned_user_name', 'request_detail', 'symptoms', 'work_details', 'tax_display_mode', 'work_items', 'planned_parts', 'work_instruction', 'scheduled_in_at', 'scheduled_start_date', 'scheduled_finish_date', 'scheduled_delivery_at', 'actual_in_date', 'actual_finish_date', 'actual_delivery_date', 'loaner_status', 'labor_amount', 'parts_amount', 'inspection_amount', 'legal_fee_amount', 'additional_amount', 'discount_amount', 'payment_method', 'estimate_confirm_status', 'work_memo', 'customer_message'],
     related: [['customer_id', 'customers'], ['vehicle_id', 'vehicles']],
     search: ['job_no', 'request_detail'],
   },
@@ -44,7 +45,7 @@ export const uuid = (value: unknown): value is string => typeof value === 'strin
 const moneyFields = new Set(['budget_min','budget_max','budget','labor_amount','parts_amount','inspection_amount','legal_fee_amount','additional_amount','discount_amount','appraisal_amount','loan_balance','trade_in_amount']);
 const integerFields = new Set(['model_year','mileage_km']);
 const relatedFields = new Set(['customer_id','vehicle_id','deal_id']);
-const dates = new Set(['next_action_date','next_action_at','scheduled_at','scheduled_in_at','scheduled_delivery_at','scheduled_start_date','scheduled_finish_date','actual_in_date','actual_finish_date','actual_delivery_date','inspection_expiry_date']);
+const dates = new Set(['birth_date','next_action_date','next_action_at','scheduled_at','scheduled_in_at','scheduled_delivery_at','scheduled_start_date','scheduled_finish_date','actual_in_date','actual_finish_date','actual_delivery_date','inspection_expiry_date']);
 const options: Record<string, readonly string[]> = {
   customer_type: ['individual','corporate'],
   appointment_type: ['来店予約','試乗予約','商談予約','整備予約'],
@@ -52,10 +53,15 @@ const options: Record<string, readonly string[]> = {
 
 export function v2Patch(resource: V2Resource, input: Record<string, unknown>) {
   const allowed = new Set<string>(V2_RESOURCES[resource].editable);
-  const patch: Record<string, string | number | string[] | null> = {};
+  const patch: Record<string, string | number | string[] | WorkDetail[] | null> = {};
   for (const [key, value] of Object.entries(input)) {
     if (key === 'id' || key === 'idempotencyKey') continue;
     if (!allowed.has(key)) return null;
+    if (key === 'work_details') {
+      if (!Array.isArray(value) || value.length > 100 || !value.every((row) => row && typeof row === 'object' && typeof row.description === 'string' && row.description.length <= 500 && ['taxable','exempt','out_of_scope'].includes(row.tax_category) && ['category','unit','note'].every((field) => typeof row[field] === 'string' && row[field].length <= 1000))) return null;
+      try { patch[key] = normalizedWorkDetails(value); } catch { return null; } continue;
+    }
+    if (key === 'tax_display_mode') { if (value !== 'included' && value !== 'excluded') return null; patch[key] = value; continue; }
     if (value === null) { patch[key] = null; continue; }
     if (relatedFields.has(key)) { if (!uuid(value)) return null; patch[key] = value; continue; }
     if (moneyFields.has(key) || integerFields.has(key)) {

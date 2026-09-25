@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 const MIGRATION = 'supabase/migrations/20260728000200_auth_billing_release_blocker_batch.sql';
 
 test.describe('AUTH-004 / BILL-003 / CRON-001 release contracts', () => {
-  test('OTP bootstrap is canonical, service-only, preview-only and revocable', async () => {
+  test('legacy bootstrap remains restricted while routine OTP endpoints are retired', async () => {
     const [sql, context, requestRoute, middleware] = await Promise.all([
       readFile(MIGRATION, 'utf8'),
       readFile('src/lib/security/adminEmailOtpServer.ts', 'utf8'),
@@ -28,11 +28,10 @@ test.describe('AUTH-004 / BILL-003 / CRON-001 release contracts', () => {
 
     expect(context).toContain("'admin_email_otp_bootstrap_context'");
     expect(context).toContain("'release_qa_admin_bootstrap_context'");
-    expect(requestRoute).toContain('requireReleaseQa: sink.authorized');
+    expect(requestRoute).toContain('ROUTINE_EMAIL_OTP_RETIRED');
     expect(context).not.toContain("supabase.rpc('current_user_tenant_ids'");
-    expect(requestRoute).toContain('getPreviewOtpSinkContext');
-    expect(requestRoute).toContain('previewOtp');
-    expect(middleware).toContain("service.rpc('admin_email_otp_bootstrap_context'");
+    expect(requestRoute).not.toContain('sendTransactionalEmail');
+    expect(middleware).not.toContain("service.rpc('admin_email_otp_bootstrap_context'");
     expect(middleware).not.toContain(".from('memberships')");
     expect(middleware).not.toContain("supabase.rpc('current_user_tenant_ids'");
   });

@@ -1,3 +1,4 @@
+import { vehicleDate } from '@/lib/business/vehicleFields';
 import { getGarageMobileBearerContext } from '@/lib/mobile/bearerAuth';
 import { MOBILE_VEHICLE_FIELDS, mobileVehicle } from '@/lib/mobile/dto';
 import { logAudit } from '@/lib/audit/logAudit';
@@ -60,11 +61,24 @@ export async function PUT(request: Request, { params }: { params: Promise<{ vehi
     if (mileage === undefined) return Response.json({ ok: false, code: 'invalid_vehicle_update', error: '走行距離を確認してください。' }, { status: 400 });
     update.mileage_km = mileage;
   }
+  for (const [key, column] of [['inspectionExpiryDate','inspection_expiry_date'],['liabilityInsuranceExpiryDate','liability_insurance_expiry_date']] as const) {
+    if (!(key in body)) continue;
+    const value = vehicleDate(body[key]);
+    if (value === undefined) return Response.json({ ok: false, error: '満了日はYYYY-MM-DD形式で入力してください。' }, { status: 400 });
+    update[column] = value;
+  }
   if (!Object.keys(update).length) {
     return Response.json({ ok: false, code: 'empty_update', error: '変更する項目がありません。' }, { status: 400 });
   }
 
   const { vehicleId } = await params;
+  if ('maker' in update) {
+    const { data: before } = await context.service.from('vehicles').select('maker').eq('id', vehicleId).eq('store_id', context.member.storeId).maybeSingle();
+    if (before?.maker !== update.maker) {
+      const { data: entry, error: masterError } = await context.service.from('store_master_entries').select('id').eq('store_id', context.member.storeId).eq('kind', 'vehicle_maker').eq('label', String(update.maker)).eq('is_active', true).maybeSingle();
+      if (masterError || !entry) return Response.json({ ok: false, error: '有効なメーカーを選択してください。' }, { status: masterError ? 500 : 400 });
+    }
+  }
   const { data, error } = await context.service
     .from('vehicles')
     .update(update)

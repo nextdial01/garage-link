@@ -1,0 +1,28 @@
+{
+  "from": "03",
+  "to": "04",
+  "changed": [
+    "apps/garage-link/src/app/deals/[id]/invoices/new/page.tsx",
+    "apps/garage-link/src/lib/business/vehicleInvoice.ts",
+    "apps/garage-link/tests/qa/vehicle-invoice-tax.test.mjs"
+  ],
+  "groups": {
+    "mobile": {
+      "identical": true,
+      "file_count": 60,
+      "sha256": "f6de2b88eaf8288fda8ff03bf84b6995ac414f0603a272f4ee75cca797b3537f"
+    },
+    "db": {
+      "identical": true,
+      "file_count": 258,
+      "sha256": "14f30055cc4da6b71c56cf5f7a4f9854758da97d3ed270a81176b6b07b1cd6dd"
+    },
+    "shared_business": {
+      "identical": false,
+      "file_count": 9,
+      "sha256": "c73889d19251d3852c9e534b854f220a7f5a433520bb5761de4b48e6b551a2bc"
+    }
+  },
+  "shared_business_note": "Only vehicleInvoice.ts added; every preexisting business module is identical. Mobile imports no vehicleInvoice.ts (static import search).",
+  "code_content_sha256": "8d88faf93fbcb85941980f0034510f5e0e96905516148a336bbf0ef2c12c0798"
+}

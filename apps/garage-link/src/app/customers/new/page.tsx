@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
+import PostalAddressLookup from '@/components/business/PostalAddressLookup';
+import { validateCustomer } from '@/lib/business/customer';
 import { createClient } from '@/lib/supabase/client';
 import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 
@@ -26,6 +28,7 @@ type Field = {
   options?: string[];
   note?: string;
   wide?: boolean;
+  required?: boolean;
 };
 
 type FieldGroup = {
@@ -146,8 +149,7 @@ const basicGroups: FieldGroup[] = [
       { label: '顧客/会社名カナ', type: 'text', name: 'kana', placeholder: '例：ヤマダタロウ' },
       { label: '顧客/会社名', type: 'text', name: 'name', placeholder: '例：山田 太郎' },
       { label: '窓口/代表者', type: 'text', placeholder: '例：山田 太郎' },
-      { label: '年齢', type: 'number' },
-      { label: '生年月日', type: 'date', name: 'birth_date' },
+      { label: '生年月日（必須）', type: 'date', name: 'birth_date', required: true },
     ],
   },
   {
@@ -331,6 +333,7 @@ function FieldControl({
     <input
       id={id}
       type={field.type}
+      required={field.required}
       placeholder={field.placeholder}
       className={inputClass}
       {...controlledProps}
@@ -446,16 +449,8 @@ function BasicInfoSection({
                 />
               ))}
 
-              {group.title === '氏名・管理情報' && (
-                <label className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600"
-                  />
-                  生年月日不明：不明
-                </label>
-              )}
 
+              {group.title === '連絡先' && <PostalAddressLookup postalCode={formState.postal_code} address={formState.address} onAddress={(address) => updateField('address', address)} />}
               {group.title === '連絡先' && (
                 <label className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-700">
                   <input
@@ -592,6 +587,7 @@ export default function NewCustomerPage() {
     setIsSaving(true);
 
     try {
+      validateCustomer(formState);
       const supabase = createClient();
       const storeId = await getCurrentStoreId();
       const payload: CustomerInsert = {

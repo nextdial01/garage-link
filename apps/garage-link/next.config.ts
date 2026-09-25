@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const isStagingDeployment = process.env.GARAGE_DEPLOYMENT_ENV === "staging";
 
 const nextConfig: NextConfig = {
+  logging: process.env.NODE_ENV === "development" ? { incomingRequests: false } : undefined,
+  allowedDevOrigins: ["127.0.0.1"],
   transpilePackages: [
     "@garage-link/auth",
     "@garage-link/billing",
@@ -20,7 +22,7 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "aftercare-link.jp",
-        pathname: "/brand/aftercare-link-logo.png",
+        pathname: "/brand/aftercare-link/aftercare-link-logo.png",
       },
       {
         protocol: "https",

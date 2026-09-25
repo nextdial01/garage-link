@@ -26,10 +26,10 @@ export type PostAuthRedirectOptions = {
 const IGNORED_NEXT_PATHS = new Set(['/login', '/signup', '/forgot-password', '/']);
 
 function normalizeNextPath(nextPath?: string | null): string | null {
-  if (!nextPath || !nextPath.startsWith('/') || nextPath.startsWith('//')) {
+  if (!nextPath || !nextPath.startsWith('/') || nextPath.startsWith('//') || /[\\\x00-\x1f]/.test(nextPath)) {
     return null;
   }
-  if (IGNORED_NEXT_PATHS.has(nextPath)) {
+  if (IGNORED_NEXT_PATHS.has(nextPath.split(/[?#]/)[0])) {
     return null;
   }
   return nextPath;
@@ -56,7 +56,10 @@ export async function resolvePostAuthPath(
     ? rawContext as { state?: string; store_id?: string }
     : null;
 
-  if (scopeError || !context || context.state === 'no_access') {
+  if (scopeError || !context || !['active', 'selection_required', 'no_access'].includes(context.state ?? '')) {
+    throw new Error('store_context_unavailable');
+  }
+  if (context.state === 'no_access') {
     return '/signup?resume=1';
   }
 
@@ -64,7 +67,9 @@ export async function resolvePostAuthPath(
     return nextPath ?? '/dashboard';
   }
 
-  const { onboardingCompleted } = await fetchStoreOnboardingStatus(supabase, context.store_id);
+  const { onboardingCompleted, errorMessage } = await fetchStoreOnboardingStatus(supabase, context.store_id);
+
+  if (errorMessage) throw new Error('store_context_unavailable');
 
   if (!onboardingCompleted) {
     return '/onboarding';

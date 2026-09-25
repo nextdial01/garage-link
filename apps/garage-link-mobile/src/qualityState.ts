@@ -24,6 +24,17 @@ export function createRequestCoordinator() {
 export function userFacingError(reason: unknown): string {
   const error = reason as { status?: number; code?: string; message?: string } | null;
   const message = error?.message ?? '';
+  const loginMessages: Record<string, string> = {
+    INVALID_CREDENTIALS: 'メールアドレスまたはパスワードが正しくありません。',
+    LOGIN_LOCKED: 'ログイン試行回数の上限に達しています。30分後に再試行してください。',
+    BOT_PROTECTION_REQUIRED: 'ボット対策の確認をやり直してください。',
+    BOT_PROTECTION_FAILED: 'ボット対策を確認できませんでした。ブラウザでログインしてください。',
+    LOGIN_SECURITY_CHECK_FAILED: 'ログインの確認処理を利用できません。時間をおいて再試行してください。',
+    LOGIN_SESSION_INVALID: 'ログイン情報を確認できませんでした。もう一度ログインしてください。',
+    LOGIN_SESSION_SAVE_FAILED: 'ログイン状態を保存できませんでした。もう一度お試しください。',
+  };
+  if (error?.code && Object.prototype.hasOwnProperty.call(loginMessages, error.code)) return loginMessages[error.code];
+
   if (error?.code === 'photo_permission') return '写真へのアクセスが許可されていません。端末の設定から許可して、もう一度お試しください。';
   if (error?.code === 'share_unavailable') return 'この端末では共有機能を利用できません。印刷をお試しください。';
   if (error?.code === 'invalid_base_url') return 'アプリの接続先を確認できません。管理者へお問い合わせください。';

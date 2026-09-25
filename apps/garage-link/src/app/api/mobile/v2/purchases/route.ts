@@ -1,3 +1,4 @@
+import { vehicleDate } from '@/lib/business/vehicleFields';
 import { getGarageMobileBearerContext } from '@/lib/mobile/bearerAuth';
 import { assertVehicleLimitAvailable, VEHICLE_LIMIT_MESSAGE } from '@/lib/billing/garageSubscription';
 import { COST_KEYS, PURCHASE_FIELDS, SUPPLIER_TYPES, cleanDate, cleanText, money } from '@/lib/mobile/purchase';
@@ -27,6 +28,11 @@ export async function POST(request: Request) {
     purchase_supplier_name: supplier, purchase_supplier_type: supplierType,
     purchase_date: purchaseDate, purchase_price: purchasePrice,
   };
+  for (const [key,column] of [['inspectionExpiryDate','inspection_expiry_date'],['liabilityInsuranceExpiryDate','liability_insurance_expiry_date']] as const) {
+    const date = vehicleDate(body[key]); if (date === undefined) return fail(400,'invalid_date'); payload[column] = date;
+  }
+  const { data: makerEntry } = await context.service.from('store_master_entries').select('id').eq('store_id',context.member.storeId).eq('kind','vehicle_maker').eq('label',maker).eq('is_active',true).maybeSingle();
+  if (!makerEntry) return fail(400,'invalid_vehicle_maker');
   for (const key of COST_KEYS) {
     if (!(key in body)) continue;
     const amount = money(body[key]);

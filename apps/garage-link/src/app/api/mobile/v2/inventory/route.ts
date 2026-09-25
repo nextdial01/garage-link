@@ -2,7 +2,7 @@ import { getGarageMobileBearerContext } from '@/lib/mobile/bearerAuth';
 import { vehicleCost, type CostParts } from '@/lib/mobile/vehicleCost';
 import { mobileReadPage, mobileReadResult, mobileReadHeaders } from '@/lib/mobile/pagination';
 
-const FIELDS = 'id, management_no, vin, maker, model_name, grade, status, purchase_supplier_name, purchase_supplier_type, purchase_date, purchase_price, direct_cost_special, direct_cost_accessories, direct_cost_agency, direct_cost_legal, direct_cost_other, direct_cost_repair, listing_price, sale_price, sold_date, market_value, created_at, updated_at';
+const FIELDS = 'inspection_expiry_date, liability_insurance_expiry_date, id, management_no, vin, maker, model_name, grade, status, purchase_supplier_name, purchase_supplier_type, purchase_date, purchase_price, direct_cost_special, direct_cost_accessories, direct_cost_agency, direct_cost_legal, direct_cost_other, direct_cost_repair, listing_price, sale_price, sold_date, market_value, created_at, updated_at';
 
 export async function GET(request: Request) {
   const context = await getGarageMobileBearerContext(request);
