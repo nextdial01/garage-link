@@ -2,7 +2,7 @@
   "expo": {
     "name": "GARAGE LINK",
     "slug": "garage-link-mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "default",
     "icon": "./assets/app-icon-ios.png",
     "scheme": "garagelink",
@@ -85,7 +85,7 @@
       "releaseEnvironment": "production",
       "buildProvenance": {
         "sourceSha": "set-by-eas-build",
-        "appVersion": "1.0.0",
+        "appVersion": "1.0.1",
         "buildNumber": "CFBundleVersion"
       },
       "eas": {
