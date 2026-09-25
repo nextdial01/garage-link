@@ -1,0 +1,61 @@
+{
+  "candidate": "05",
+  "snapshot_sha256": "04a6798e6939e1e8f7193da72f36af1199eb72f3a4d8e8067a23b1770e151738",
+  "source_head": "a7cf7d75fb0dadcf3439c1565ad3e5a612fe08d5",
+  "build": "PASS",
+  "web_lint": "PASS",
+  "web_typecheck": "PASS",
+  "security_tests": 388,
+  "qa_tests": 99,
+  "mobile": {
+    "result": "PASS",
+    "evidence_candidate": "03",
+    "source_identical": true,
+    "test_files": 14,
+    "ssr_cases": 144,
+    "lint": "PASS",
+    "typecheck": "PASS"
+  },
+  "database": {
+    "result": "PASS",
+    "evidence_candidate": "05",
+    "suites": [
+      {
+        "suite": "baseline",
+        "exit_code": 0
+      },
+      {
+        "suite": "qa-migrations",
+        "exit_code": 0
+      },
+      {
+        "suite": "db003",
+        "exit_code": 0
+      },
+      {
+        "suite": "overhaul-upgrade",
+        "exit_code": 0
+      },
+      {
+        "suite": "overhaul-fresh",
+        "exit_code": 0
+      },
+      {
+        "suite": "mobile-migrations",
+        "exit_code": 0
+      }
+    ],
+    "legacy_dob_lifecycle_positive_and_negative": "PASS fresh and upgrade"
+  },
+  "drift_at_completion": 0,
+  "workspace_dependency_changes": 0,
+  "production_changed": false,
+  "main_changed": false,
+  "inherited_runtime_sha256": "20be01139748a0ae31ebc85c8fbf2300ea39f7acfab0026320776869898cb5b8",
+  "build_evidence_candidate": "04",
+  "web_evidence_candidate": "04",
+  "new_changes": [
+    "20260925193108_garage_customer_legacy_birth_lifecycle.sql",
+    "overhaul_birth_lifecycle_contract.sql"
+  ]
+}

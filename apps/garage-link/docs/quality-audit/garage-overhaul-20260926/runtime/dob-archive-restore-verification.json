@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-09-25T19:35:34.306223+00:00",
+  "head": "a7cf7d75fb0dadcf3439c1565ad3e5a612fe08d5",
+  "migration": "20260925193108_garage_customer_legacy_birth_lifecycle.sql",
+  "migrationSha256": "268d0c12cc3b42b4819a1be06f6ae92c7cd5562820bd469cc44f20a0306a5ccf",
+  "ordinaryNullEditPatchRequests": 0,
+  "fixtureBirthDate": null,
+  "fixtureRestored": true,
+  "results": [
+    {
+      "route": "/customers/a9260000-0000-4000-8000-000000000096",
+      "status": "PASS",
+      "operations": "DOBNULL詳細→通常保存拒否→softdelete→trash再開→restore→顧客再開/reloadDOBNULL保持→通常保存引き続き拒否",
+      "saveResult": "PASS",
+      "reloadResult": "PASS",
+      "errors": [],
+      "failed": []
+    }
+  ]
+}

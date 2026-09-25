@@ -1,0 +1,8 @@
+{
+  "candidate": "06",
+  "runtime_identical_05_except_db_runner": true,
+  "runtime_files": 699,
+  "excluded_changed_file": "apps/garage-link/scripts/db/run-g0b-ci.sh",
+  "runtime_sha256": "c1365f48fc9a6cf04c6d7ade90909910b1bb9f08e43b3e7f727615717341cc73",
+  "db_sql_identical_05": true
+}

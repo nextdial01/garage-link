@@ -18,3 +18,5 @@
 
 主証跡: `runtime/auth-browser-results.json`、`runtime/auth-reset-final-results.json`、`runtime/auth-signup-results.json`、`runtime/final-route-executions.json`、`runtime/*-results.json`、`PAGE_INVENTORY_OPERATION_CANDIDATE.csv`。
 全画面回帰PASSとは判定しない。親の7画面と帳票13画面統合、BLOCKED維持が必要。
+
+最終監視補完: `WEB_MONITOR_CLASSIFICATION.md`参照。admin plan→billing往復ではconsole Failed to fetchと同時にAuth/billing ERR_ABORTEDを観測し非重大navigation cancellationに分類しました。全console0とは主張しません。担当104の実操作結果58PASS/46BLOCKED、帳票13の実見出し・権限も統合済みです。

@@ -72,3 +72,18 @@ Codex追加: 現時点は実装なし。
 - Web parts and maintenance list main operations passed including save→reload→detail→back, after fixing test navigation-await selectors.
 - Shared fixture global logout invalidated parallel browser sessions; sequential per-role scheduling prevents test interference. Synthetic CAPTCHA UI contract passes, actual hosted human CAPTCHA remains unverified.
 - Final isolated snapshot02 build/full suites underway. Source code frozen after lost-deal UI correction; final inventory/PR evidence still pending.
+
+### 2026-09-26 04:25 JST — frozen code and draft PR
+- candidate04 source hash 8d88faf93fbcb85941980f0034510f5e0e96905516148a336bbf0ef2c12c0798, build/lint/type/security388/QA99 PASS. Mobile14files/144SSR and DB6suites inherited only after exact source match.
+- Web124 inventory:78PASS,42BLOCKED_FEATURE_MOVED,2BLOCKED_NOT_IMPLEMENTED,2BLOCKED_EXTERNAL_SIDE_EFFECT. Mobile36 RNWeb real-API screens passed save/reopen. Native iOS final logout/one-tap login/process restart session restore passed; native business checks continuing.
+- Feature commit a7cf7d75fb0dadcf3439c1565ad3e5a612fe08d5 pushed, Draft PR https://github.com/nextdial01/garage-link/pull/36 created and attached. Read-back confirms draft/open/main base/correct head, Actions runs0. No Production or main modification.
+- Full acceptance remains blocked; no complete/PASS declaration. Remaining evidence-only additions will keep the code candidate unchanged.
+
+### 2026-09-26 04:40 JST — legacy NULL lifecycle regression resolved
+- Confirmed that the DOB requirement incorrectly blocked unchanged legacy customers from archive/restore. Added a narrowly scoped trigger exception; normal edit/create, future date, mixed field changes and cross-store/viewer writes remain rejected.
+- Candidate05 DB all6 suites PASS, including fresh/upgrade positive/negative lifecycle cases. Application700files match04, so build/Web/Mobile evidence inherited transparently. Actual UI archive→trash→restore→reopen/reload passed, normal-save PATCH remained blocked, error counters0. No UI change required.
+- Native iOS business verification continues; full route acceptance stays BLOCKED. PR remains draft.
+
+### 2026-09-26 04:47 JST — repeatable verification gaps
+- Final review found that the new overhaul SQL contracts were only in the dedicated audit runner, not package test:db:fresh. Added isolated fresh/upgrade lanes to the existing standard runner; baseline coverage and owned-container cleanup preserved. Standard command rerun underway, candidate06.
+- Standard Web tests/e2e suite had not been executed in this run despite custom real Playwright operation evidence. Auth auditor is running safe local cases and will update obsolete DOB/maker expectations without weakening assertions. External Stripe lifecycle remains prohibited/BLOCKED.

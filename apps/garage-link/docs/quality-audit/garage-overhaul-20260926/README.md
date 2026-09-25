@@ -12,7 +12,7 @@
 
 ## 検証の境界
 
-自動検証はcandidate04の固定コードで実施。build、Web lint／型、security388件、QA99件がPASS。Mobile全14 test filesと144 SSRケース、DB新規／既存更新を含む6suiteはソース同一性を照合して証拠を引き継いでいます。SSR表示は全画面実操作の代用にしていません。
+現在のDB検証候補はcandidate06です。DB新規／既存更新を含む6suiteを再実行しPASS。DB runner以外のアプリ・依存関係・試験699ファイルの同一性を照合し、candidate04のbuild、Web lint／型、security388件、QA99件、およびMobile全14 test filesと144 SSRケースのPASSを引き継ぎました。SSR表示は全画面実操作の代用にしていません。
 
 実操作はローカルSupabase・Mailpit・合成データのみ。Webはpage.tsxを再集計した124画面、Mobileは通常OTPを除いた36画面を棚卸し。画面一覧は各CSV、個別40項目はACCEPTANCE.jsonを参照してください。Webの移行案内・未実装設定・外部送信の制約はBLOCKEDのまま残し、PASSへ読み替えません。
 
@@ -24,10 +24,14 @@ Mobileの全画面操作はReact Native Web＋実ローカルAPIです。iOS Sim
 
 ## DB適用と戻し方
 
-今回のmigrationはローカルだけへ適用しました。本番適用・DROPはしていません。既存NULLの生年月日を保持しつつ今後の保存で必須化し、数量列をnumericへ広げ、履歴列を追加しています。
+今回のmigrationはローカルだけへ適用しました。本番適用・DROPはしていません。既存NULLの生年月日を保持しつつ新規・通常編集の保存で必須化し、業務値を変えない削除・復元のみ許可します。NULL既存顧客の削除・復元で生じた回帰を修正し、DB正負試験と実UI再操作で確認しました。数量列をnumericへ広げ、履歴列を追加しています。
 
 戻す必要がある場合は、まずアプリを前の版へ戻し、追加列と小数データを保持してください。利用後のnumericをintegerへ縮小したり、履歴列をDROPする逆migrationは用意していません。テスト用DBではtransaction rollback・再適用と既存データ保持を検証しました。実環境のDB適用／復旧は本PRの承認範囲に含まれません。
 
 ## リリース前の未確認
 
 全画面回帰のBLOCKED、native全画面の未確認箇所、実人間CAPTCHA、実機カメラを解消または正本の受入範囲として明示する必要があります。外部送信・実決済は行っていません。GitHub Actionsを起動しないためコミットに `[skip ci]` を付け、PRはdraftで提出します。
+
+## 標準コマンドへの組込み
+
+`pnpm --filter @apps/garage-link run test:db:fresh` に今回の8契約を組み込み、新規・既存更新の両経路でPASS。専用の外部試験スクリプトだけに依存しません。標準Web E2Eの旧仕様前提の見直しと、iOS nativeの追加実操作を継続中です。

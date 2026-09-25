@@ -1,0 +1,18 @@
+{
+  "checked_at": "2026-09-25T19:42:08.837938+00:00",
+  "scope": [
+    "apps/garage-link/src",
+    "apps/garage-link-mobile/src",
+    "apps/garage-link-mobile/App.tsx"
+  ],
+  "quantity_integer_parse_matches": 0,
+  "ambiguous_named_price_label_matches": 0,
+  "legacy_work_item_join_matches": [
+    {
+      "file": "apps/garage-link-mobile/src/v2/Content.tsx",
+      "line": 63,
+      "use": "read-only legacy display with Japanese delimiter; structured edit/save is separate"
+    }
+  ],
+  "status": "PASS scoped static audit; not substitute for actual operations"
+}
