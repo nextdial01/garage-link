@@ -8,10 +8,11 @@ trap cleanup EXIT INT TERM
 docker run --pull=never --network none --name "$NAME" -e POSTGRES_PASSWORD='local-disposable-only' -d "$IMAGE" >/dev/null
 bash "$APP_ROOT/scripts/db/wait-supabase-ready.sh" "$NAME"
 node "$APP_ROOT/scripts/db/migration-runner.mjs" apply --container "$NAME" --environment g0b-garage-mobile-v2 --manifest "$APP_ROOT/supabase/baseline/manifest.json" >/dev/null
-for migration in "$APP_ROOT"/supabase/migrations/20260925000{1,2,3,4,5,6}00_*.sql; do
+migrations=("$APP_ROOT"/supabase/migrations/20260925000{1,2,3,4,5,6}00_*.sql "$APP_ROOT"/supabase/migrations/20260925013046_mobile_photo_metadata_service_grant.sql)
+for migration in "${migrations[@]}"; do
   docker exec -i "$NAME" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < "$migration" >/dev/null
 done
-for migration in "$APP_ROOT"/supabase/migrations/20260925000{1,2,3,4,5,6}00_*.sql; do
+for migration in "${migrations[@]}"; do
   docker exec -i "$NAME" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < "$migration" >/dev/null
 done
 docker exec -i "$NAME" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < "$APP_ROOT/supabase/tests/mobile_v2_migration_contract.sql"

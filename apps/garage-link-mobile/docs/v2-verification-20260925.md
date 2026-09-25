@@ -45,3 +45,26 @@ Screenshots generated outside the repository: `/private/tmp/garage-v2-web-360-qa
 ## Gate interpretation
 
 Static/build/database checks passed. Web UI fixture checks passed for the operated paths. Android UI operation, real camera and full authenticated mobile-to-server E2E remain unconfirmed. These must not be reported as PASS.
+
+## Final candidate follow-up (2026-09-25)
+
+An isolated Supabase stack was built from the repository's baseline manifest and the V2 migrations. A disposable staff user signed in through local Supabase Auth. Against the actual local Next route handlers and PostgREST, the following HTTP sequence saved, reopened and read back records: customer, appointment, purchase, deal, appraisal, two-line quote, sale, invoice, partial payment, payment replay, full payment, delivery, maintenance reception, cost edit, maintenance quote/invoice and completion. Purchase and invoice replay returned the original records. Overpayment returned 409. An invalid bearer returned 401, a foreign store header returned 403 for reads and writes, and a viewer could read but received 403 on write. These are HTTP/API/DB checks; the full sequence was not operated from a native app.
+
+The same isolated stack exposed a release-blocking photo defect: the authenticated upload route stored the object, then failed to insert its metadata because `service_role` lacked `SELECT` and `INSERT` on `public.uploaded_files`. The added migration grants only those server-side privileges; `anon` and `authenticated` retain no direct insert. With the grant, vehicle and maintenance photos uploaded, retained their category, appeared in the API readback and loaded through signed URLs. A real camera and native photo picker remain unconfirmed. Security advisor reported no errors.
+
+The four unchanged Web preview/landing type errors that also failed PR #32 staging were fixed narrowly. Local Next build and Vercel staging at the corresponding PR head passed. The full local verify command passed. An automatic GitHub verify run initially stopped at an external Docker registry rate limit; its normal retry completed successfully. Production was not changed.
+
+Production rollout order after Owner SHA approval: apply the six V2 additive migrations in timestamp order, then `20260925013046_mobile_photo_metadata_service_grant.sql`; verify each migration and the contract query before deploying the approved SHA. Capture the pre-apply ACL for `uploaded_files`. Rollback server/mobile first, retain additive data and operation receipts, then revoke the added service privileges only if the pre-apply ACL proves they were absent. Drop new fields or operation tables only after data and callers are migrated away. No Production migration was applied during this candidate verification.
+
+### Final eight counterevidence rounds
+
+| Round | Failure hypothesis | Executed counterevidence | Unconfirmed limit |
+| --- | --- | --- | --- |
+| 1. Business chain | A step between purchase and delivery or reception and invoice is missing. | Local authenticated HTTP/API/DB sequence completed both chains with readback. | Native whole-chain operation. |
+| 2. Mobile density | V2 is a scaled desktop form. | 360/390 px fixture operations showed five tabs, short create forms and bounded first view. | Every detailed form was not operated. |
+| 3. Quick actions | Important tasks take more steps than the prototype. | Quick customer, purchase, deal and reception were operated in the UI fixture; route labels and transitions were reviewed. | Quote, sale, payment and delivery tap totals were not instrumented end to end. |
+| 4. Financial consistency | A replay or excess payment corrupts balances. | Purchase, quote, invoice and payment replay, partial/full settlement and 409 overpayment were exercised through HTTP; SQL transactional contracts passed. | Network partition during an in-flight mobile write. |
+| 5. Store and role | A substituted store or viewer can write. | Actual HTTP read/write with a foreign store header returned 403; viewer write returned 403 while viewer read worked. | Other role combinations not all operated. |
+| 6. Photos | A photo loses its category or is linked elsewhere. | Initial metadata 500 was repaired; vehicle and maintenance upload/category/signed readback passed with a store-scoped route; a foreign related ID returned 403. | Native picker/camera not operated. |
+| 7. Screen behavior | Narrow width, keyboard or back blocks saving. | Existing 360/390 browser fixture and iOS customer keyboard/save/back/reopen operation passed. | Android GUI and all native screens remain unconfirmed. |
+| 8. Regression | Existing login or business routes fail. | Local Auth sign-in, store context, server/mobile type checks, lint, security tests, pre-owner gate and local Next build passed; Vercel staging passed. | Production and store builds were intentionally not published. |
