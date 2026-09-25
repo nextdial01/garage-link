@@ -1,0 +1,117 @@
+{
+  "results": [
+    {
+      "routes": [
+        "auth/login"
+      ],
+      "operations": "fresh session email/password one click → today, no OTP",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T20:53:59.009Z"
+    },
+    {
+      "routes": [
+        "stores"
+      ],
+      "operations": "select store→today→back to stores→select again→authenticated today",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T20:53:59.221Z"
+    },
+    {
+      "routes": [
+        "tab/today"
+      ],
+      "operations": "expand→collapse→leave→reopen→expand",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T20:53:59.296Z"
+    },
+    {
+      "routes": [
+        "tab/customers",
+        "create/customers",
+        "detail/customers",
+        "edit/customers"
+      ],
+      "operations": "create DOB→save→detail→edit→save→list search→reopen→stored values match",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T20:54:03.603Z"
+    },
+    {
+      "routes": [
+        "tab/vehicles",
+        "create/vehicles",
+        "detail/vehicles",
+        "edit/vehicles"
+      ],
+      "operations": "maker select and two expiry dates→4dp purchase save→edit→list search→reopen verify",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T20:54:09.212Z"
+    },
+    {
+      "routes": [
+        "tab/deals",
+        "create/deals",
+        "detail/deals",
+        "edit/deals"
+      ],
+      "operations": "customer→deal with vehicle→save→edit→save→list search→reopen",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T20:54:10.402Z"
+    },
+    {
+      "routes": [
+        "create/appointments",
+        "edit/appointments",
+        "detail/appointments"
+      ],
+      "operations": "deal→appointment save→edit memo→save→deal→reopen persisted memo",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T20:54:11.531Z"
+    },
+    {
+      "routes": [
+        "create/tradeIns",
+        "edit/tradeIns",
+        "detail/tradeIns"
+      ],
+      "operations": "deal→trade maker selected→save→edit memo→save→deal→reopen values",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T20:54:14.870Z"
+    },
+    {
+      "routes": [
+        "sale"
+      ],
+      "operations": "safe synthetic deal sale→confirm→return list→reopen contracted state",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T20:54:17.222Z"
+    },
+    {
+      "routes": [
+        "cancel"
+      ],
+      "operations": "sale cancellation reason→confirm→list→reopen restored state",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T20:54:17.751Z"
+    },
+    {
+      "routes": [
+        "delivery"
+      ],
+      "operations": "new synthetic deal sale→delivery confirm→deal reopen→vehicle delivered→leave→reopen state match",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T20:54:19.653Z"
+    }
+  ],
+  "errors": []
+}

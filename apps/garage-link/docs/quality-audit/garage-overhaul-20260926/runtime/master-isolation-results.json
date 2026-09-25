@@ -1,0 +1,14 @@
+{
+  "results": [
+    {
+      "test": "other_store_maker_hidden_and_empty_guide",
+      "status": "PASS",
+      "operations": "store A manufacturer options→switch B→reload→A maker absent/empty guide→masters link→A entry absent"
+    },
+    {
+      "test": "store_restore_readback",
+      "status": "PASS"
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,174 @@
+[
+  {
+    "test": "part_decimal_category_create_edit_reload",
+    "status": "PASS",
+    "path": "/parts/b5e3bdb6-ddd3-45e1-ace2-fa7c0da62fad"
+  },
+  {
+    "test": "postal_actual_lookup_hyphen_manual_edit",
+    "status": "PASS"
+  },
+  {
+    "test": "inline_customer_vehicle_work_three_rows_reload",
+    "status": "PASS",
+    "path": "/maintenance/45328991-f3ed-4b71-8f76-36cbb20facfd"
+  },
+  {
+    "test": "work_edit_delete_reopen",
+    "status": "PASS"
+  },
+  {
+    "test": "responsive_page_overflow",
+    "status": "PASS"
+  },
+  {
+    "test": "errors",
+    "status": "FAIL",
+    "errors": [
+      {
+        "failed": "/vehicles",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/customers",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/appointments",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/dashboard",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/deals",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/parts/b5e3bdb6-ddd3-45e1-ace2-fa7c0da62fad",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": false,
+        "rsc": true
+      },
+      {
+        "failed": "/parts/b5e3bdb6-ddd3-45e1-ace2-fa7c0da62fad",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": false,
+        "rsc": true
+      },
+      {
+        "failed": "/parts/f9871ad4-942d-42bd-8456-0f18385c2b11",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/parts/7db144ed-fd4a-4a6a-8d1d-74d4cf06255f",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/parts/c8aa7840-426f-4131-8f76-faa4a097b4a9",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/parts/c8b5b4e8-ca9b-43e8-896a-5c3ee04651d9",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/settings/masters",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/vehicles",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/deals",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/customers",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/maintenance/45328991-f3ed-4b71-8f76-36cbb20facfd",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      {
+        "failed": "/maintenance/45328991-f3ed-4b71-8f76-36cbb20facfd",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": false,
+        "rsc": true
+      },
+      {
+        "failed": "/maintenance/45328991-f3ed-4b71-8f76-36cbb20facfd",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      }
+    ]
+  }
+]

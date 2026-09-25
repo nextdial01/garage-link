@@ -1,0 +1,265 @@
+{
+  "platform": "iOS Simulator / Expo Go native React Native",
+  "device": "4B35C5F6-2DBC-45D3-AE68-52D83F15589D",
+  "role": "synthetic admin",
+  "store": "primary synthetic store",
+  "candidate_hash": "aaf776925c1d4483748f3cabb20c4a4a5ecac6294b9c8639ef0597d707199da4",
+  "updated_at": "2026-09-26T06:02:30.608126+09:00",
+  "screens": [
+    {
+      "screen": "customers/new",
+      "status": "PASS",
+      "operations": "Typed name NativeCustomer2609260417, DOB1990-01-02, phone09000000000; saved; detail displayed; reopened after edit"
+    },
+    {
+      "screen": "customers/edit",
+      "status": "PASS",
+      "operations": "Changed name suffix EDIT; saved; list and detail reopened; edit form retained name,DOB,phone"
+    },
+    {
+      "screen": "customers/list",
+      "status": "PASS",
+      "operations": "Opened, searched exact edited name, opened matching result; repeated navigation"
+    },
+    {
+      "screen": "customers/detail",
+      "status": "PASS",
+      "operations": "Opened saved customer; entered edit; returned through searched list; reopened detail and edit"
+    },
+    {
+      "screen": "vehicles/new",
+      "status": "PASS",
+      "operations": "Created VIN NATIVE2609260421 / NativeCar2609260421 / master 回帰試験メーカー; inspection2027-01-02,liability2027-01-03; synthetic supplier and price110000; saved and reopened"
+    },
+    {
+      "screen": "vehicles/edit",
+      "status": "PASS",
+      "operations": "Opened cost edit,changed price110000 to120000,saved; list search and reopened total120000"
+    },
+    {
+      "screen": "vehicles/list",
+      "status": "PASS",
+      "operations": "Opened,searched NativeCar2609260421,opened matching detail,rechecked"
+    },
+    {
+      "screen": "vehicles/detail",
+      "status": "PASS",
+      "operations": "Saved detail,used purchase and basic tabs,edited price; reopened via searched list and verified VIN/maker/both dates/total120000"
+    },
+    {
+      "screen": "deals/new",
+      "status": "PASS",
+      "operations": "UI selected synthetic customer+vehicle,created; edited title NativeDealEDIT260926; saved; searched list and reopened matching detail; related appointment action opened"
+    },
+    {
+      "screen": "deals/edit",
+      "status": "PASS",
+      "operations": "UI selected synthetic customer+vehicle,created; edited title NativeDealEDIT260926; saved; searched list and reopened matching detail; related appointment action opened"
+    },
+    {
+      "screen": "deals/list",
+      "status": "PASS",
+      "operations": "UI selected synthetic customer+vehicle,created; edited title NativeDealEDIT260926; saved; searched list and reopened matching detail; related appointment action opened"
+    },
+    {
+      "screen": "deals/detail",
+      "status": "PASS",
+      "operations": "UI selected synthetic customer+vehicle,created; edited title NativeDealEDIT260926; saved; searched list and reopened matching detail; related appointment action opened"
+    },
+    {
+      "screen": "appointments/new",
+      "status": "PASS",
+      "operations": "Created related synthetic appointment 2026-09-26T16:00, saved; edited to17:00, invalid leftover suffix safely rejected, corrected date saved and detailed17:00 verified"
+    },
+    {
+      "screen": "appointments/edit",
+      "status": "PASS",
+      "operations": "Created related synthetic appointment 2026-09-26T16:00, saved; edited to17:00, invalid leftover suffix safely rejected, corrected date saved and detailed17:00 verified"
+    },
+    {
+      "screen": "appointments/detail",
+      "status": "PASS",
+      "operations": "After corrected17:00 save, opened edit then back; detail reread17:00; returned deal and opened trade-in"
+    },
+    {
+      "screen": "tradeIns/new",
+      "status": "PASS",
+      "operations": "Created master-maker NativeTrade260926 appraisal30000/trade20000; saved detail; edited trade25000; saved; edit/back/reopen confirmed25000"
+    },
+    {
+      "screen": "tradeIns/edit",
+      "status": "PASS",
+      "operations": "Created master-maker NativeTrade260926 appraisal30000/trade20000; saved detail; edited trade25000; saved; edit/back/reopen confirmed25000"
+    },
+    {
+      "screen": "tradeIns/detail",
+      "status": "PASS",
+      "operations": "Created master-maker NativeTrade260926 appraisal30000/trade20000; saved detail; edited trade25000; saved; edit/back/reopen confirmed25000"
+    },
+    {
+      "screen": "photos/tradeIn",
+      "status": "PASS",
+      "operations": "After parent static native Expo File fix+Reload, same library PNG saved; edit/back fetched record; blue photo and 入庫時 visible",
+      "reason": "Prior failures retained in photo_attempts; fixed by parent"
+    },
+    {
+      "screen": "sale",
+      "status": "PASS",
+      "operations": "SyntheticDeal sale180000 saved, list and reopened detail status成約"
+    },
+    {
+      "screen": "cancel",
+      "status": "PASS",
+      "operations": "Entered SyntheticNativeCancellation,confirmed cancellation, list and reopened detail失注"
+    },
+    {
+      "screen": "photos/vehicle",
+      "status": "PASS",
+      "operations": "Selected same synthetic libraryPNG, saved; left to list, reopened vehicle+photo tab, bluephoto/category visible"
+    },
+    {
+      "screen": "delivery",
+      "status": "PASS",
+      "operations": "Separate NativeDelivery260926 deal created and sold190000; delivery confirm; vehicle list status納車済み; reopened detail loaded and status納車済み verified"
+    },
+    {
+      "screen": "maintenance/new",
+      "status": "PASS",
+      "operations": "Native inline customer DOB1990-01-02 + vehicle maker/dates saved together; work3 rows4000; row1 copy/nameEditedCopy/deleteThirdWork save4500; left to list/search347476c6/reopened detail4500; work comma retained."
+    },
+    {
+      "screen": "maintenance/edit",
+      "status": "PASS",
+      "operations": "Native inline customer DOB1990-01-02 + vehicle maker/dates saved together; work3 rows4000; row1 copy/nameEditedCopy/deleteThirdWork save4500; left to list/search347476c6/reopened detail4500; work comma retained."
+    },
+    {
+      "screen": "maintenance",
+      "status": "PASS",
+      "operations": "Native inline customer DOB1990-01-02 + vehicle maker/dates saved together; work3 rows4000; row1 copy/nameEditedCopy/deleteThirdWork save4500; left to list/search347476c6/reopened detail4500; work comma retained."
+    },
+    {
+      "screen": "maintenance/detail",
+      "status": "PASS",
+      "operations": "Native inline customer DOB1990-01-02 + vehicle maker/dates saved together; work3 rows4000; row1 copy/nameEditedCopy/deleteThirdWork save4500; left to list/search347476c6/reopened detail4500; work comma retained."
+    },
+    {
+      "screen": "photos/maintenance",
+      "status": "PASS",
+      "operations": "Library synthetic PNG upload; returned to detail; left to list/reopened/photo; decoded blue image and category入庫時 verified."
+    },
+    {
+      "screen": "quote",
+      "status": "PASS",
+      "operations": "Maintenance3row4500 saved; copied editable draft qty2 saved5000; original reopened4500 unchanged."
+    },
+    {
+      "screen": "quoteDetail",
+      "status": "PASS",
+      "operations": "Original4500 and copy5000 reopened via maintenance; latest label patch reloaded; net4546+tax454=5000 with qty2/1.5/0.5 and included unit labels. Original native print preview4092+408=4500."
+    },
+    {
+      "screen": "invoice",
+      "status": "PASS",
+      "operations": "Quote5000 to invoice draft5000; invoice copy editable qty2.5 saved5500/unpaid5500/paid0; original reopened draft5000/paid0 unchanged."
+    },
+    {
+      "screen": "invoiceDetail",
+      "status": "PASS",
+      "operations": "Copied invoice issued then cash500; latest label patch reloaded; reopened net5001+tax499=5500/paid500/unpaid5000. UI-generated PDF copied from known Simulator cache and text/render visually verified identical."
+    },
+    {
+      "screen": "payment",
+      "status": "PASS",
+      "operations": "Opened issued copy5500; synthetic cash500 save; back to maintenance/list and invoice reopen5500/paid500/unpaid5000; payment reopened input5000 then back without second save."
+    }
+  ],
+  "evidence": [
+    "native-customer-reopened.png",
+    "native-vehicle-reopened.png",
+    "native-deal-reopened.png",
+    "native-appointment-reopened.png",
+    "native-tradein-reopened.png",
+    "native-cancel-reopened.png",
+    "native-tradein-photo-reopened.png",
+    "native-vehicle-photo-reopened.png",
+    "native-delivery-reopened.png",
+    "native-maintenance-final-reopened.png",
+    "native-work-edited-reopened.png",
+    "native-maintenance-photo-reopened.png",
+    "native-quote-copy-reopened-labels.png",
+    "native-invoice-original-reopened-labels.png",
+    "native-invoice-copy-reopened-labels.png",
+    "native-payment-reopened.png",
+    "native-quote-print-preview.png",
+    "native-invoice-generated.pdf",
+    "native-invoice-generated.png"
+  ],
+  "harness_notes": [
+    "Maestro numeric hideKeyboard unsupported; dismissed by blank label tap; save succeeded",
+    "One device unreachable transient on edit attempt; retry succeeded",
+    "Maestro eraseText removes only text before caret; right-edge tap to end before erase100 avoids suffix retention. Blank label area tap dismisses native keyboard.",
+    "Maestro scrollUntilVisible treats bottom-tab-covered button as visible. First maintenance draft lost by tab hit; re-entered; screenshot proves natural extra swipe reveals full save button. All final saves/reopens verified.",
+    "iOS share extensions Preview/Print returned to app on Simulator. Quote direct print preview verified; invoice PDF was generated through native UI then its exact known cached file was copied/rendered for full contents verification. No external send or printing."
+  ],
+  "production_changed": false,
+  "external_effects": false,
+  "photo_root_cause": "RESOLVED: Expo57 fetch converter rejects legacy URI object; static native Expo File helper passes real converter. Native trade-in, vehicle, maintenance photo upload and reopened decoded image verified.",
+  "next_resume": "Native business main operations complete; parent integrates 33 business + 3 auth/store/today routes. No additional device action required.",
+  "counts": {
+    "pass": 33,
+    "fail": 0,
+    "blocked": 0
+  },
+  "scope_notes": [
+    "Maestro native iOS Simulator UI, not ReactNativeWeb/API-only evidence",
+    "Screens PASS only after main mutation/navigation and reopen value/status check",
+    "Native console/network-global monitoring not claimed from UI alone; visible upload error tracked separately",
+    "Synthetic fixtures retained in isolated local Supabase for repeatability; no production or external send/payment"
+  ],
+  "fixtures": {
+    "customer": "NativeCustomer2609260417EDIT",
+    "vehicle": "NativeCar2609260421",
+    "vehicle_id": "399b14ce-cc8b-455d-9f62-8b9f167a4aab",
+    "cancelled_deal": "NativeDealEDIT260926",
+    "delivery_deal": "NativeDelivery260926",
+    "trade_in": "NativeTrade260926",
+    "appointment": "2026-09-26T17:00:00+00:00",
+    "maintenance_no": "M-347476c6-f17f-4f03-b0cc-39c8f129a556",
+    "maintenance_customer": "NativeMaintCust260926B",
+    "maintenance_vehicle": "NativeMaintCar260926B",
+    "quote_original": "Q-M-AEE1DFB3C0456B714D0A",
+    "quote_copy": "Q-M-67E7CB98902EBBF2C241",
+    "invoice_original": "INV-9729c873-5be7-426b-9f55-abfaa6685a40",
+    "invoice_copy": "INV-20260925-B8D0CC42"
+  },
+  "photo_attempts": [
+    {
+      "time_jst": "2026-09-26 04:51–04:53",
+      "result": "FAIL",
+      "message": "通信を完了できませんでした。",
+      "cause": "Expo57 rejects legacy URI multipart before network; parent reproduced converter error"
+    },
+    {
+      "time_jst": "2026-09-26 05:03",
+      "result": "FAIL",
+      "message": "通信を完了できませんでした。",
+      "note": "Before explicit Reload; stale bundle possible"
+    },
+    {
+      "time_jst": "2026-09-26 05:06",
+      "result": "FAIL",
+      "message": "Expected HMRClient.setup() call at startup.",
+      "note": "After Expo Reload and store reselect. Parent replacing dynamic import with platform native module."
+    },
+    {
+      "time_jst": "2026-09-26 05:09–05:10",
+      "result": "PASS",
+      "note": "Static native helper, explicit Reload; save+reopen image verified"
+    }
+  ],
+  "candidate_final": "514ed7c1ec53dddbdb27149707ba9047d7f8eab20a30d7e7ef356b5594c3a3ca",
+  "pdf_checks": {
+    "quote": "UI generation/share sheet plus direct print preview: subtotal4092 tax408 total4500; original qty1.5/1.5/0.5.",
+    "invoice": "UI generation450KB; exact cache D191F7F8 PDF rendered: subtotal5001 tax499 total5500 paid500 unpaid5000; qty2.5/1.5/0.5."
+  }
+}

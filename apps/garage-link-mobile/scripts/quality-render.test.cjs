@@ -24,3 +24,7 @@ for (const page of ['customers','vehicles','maintenance','quotes']) {
  assert.ok(!render(new URL(`http://127.0.0.1/?screen=${page}`)).includes('さらに読み込む'));
 }
 console.log(`GARAGE_SYNTHETIC_RENDER_${count}_CASES=PASS`);
+
+const waitingForSettings=render(new URL('http://127.0.0.1/?screen=today&businessPending=1'));
+assert.ok(waitingForSettings.includes('店舗設定を確認しています。'), 'unresolved business settings keep the real readiness gate visible');
+assert.ok(!waitingForSettings.includes('DEMO-001 / デモ自動車 / サンプルワゴン'), 'business content stays hidden until settings resolve');

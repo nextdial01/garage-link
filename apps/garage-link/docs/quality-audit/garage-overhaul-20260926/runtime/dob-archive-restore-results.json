@@ -1,0 +1,11 @@
+[
+  {
+    "route": "/customers/a9260000-0000-4000-8000-000000000096",
+    "status": "PASS",
+    "operations": "DOBNULL詳細→通常保存拒否→softdelete→trash再開→restore→顧客再開/reloadDOBNULL保持→通常保存引き続き拒否",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": []
+  }
+]

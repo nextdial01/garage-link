@@ -1,0 +1,23 @@
+{
+  "results": [
+    {
+      "test": "decimal_stock_confirm_reload",
+      "status": "PASS",
+      "path": "/maintenance/8c07eaa6-7d63-4faf-b7af-2b93364315b3",
+      "partpath": "/parts/180bc9a1-ee8d-415b-b090-b24e9b80d3b9",
+      "before": 10.5,
+      "quantity": 1.5,
+      "after": 9
+    },
+    {
+      "test": "decimal_stock_return_reopen",
+      "status": "PASS",
+      "after": 10.5
+    },
+    {
+      "test": "part_stock_detail_readback",
+      "status": "PASS"
+    }
+  ],
+  "issues": []
+}

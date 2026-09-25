@@ -1,5 +1,10 @@
 'use client';
 
+import { storedPriceToDisplay, displayPriceToStored, type TaxDisplayMode } from '@/lib/business/money';
+import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
+
+import MasterSelect from '@/components/business/MasterSelect';
+
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
@@ -26,6 +31,7 @@ type VehicleRow = {
   mileage_km: number | null;
   color: string | null;
   inspection_expiry_date: string | null;
+  liability_insurance_expiry_date: string | null;
   purchase_price: number | null;
   direct_cost_special: number | null;
   direct_cost_accessories: number | null;
@@ -50,7 +56,7 @@ type ListingStatusRow = { id: string; vehicle_id: string; channel: string; statu
 
 type VehicleForm = {
   management_no: string; vehicle_type: string; maker: string; model_name: string; grade: string; vin: string; registration_no: string;
-  first_registration_month: string; model_year: string; displacement_cc: string; mileage_km: string; color: string; inspection_expiry_date: string;
+  first_registration_month: string; model_year: string; displacement_cc: string; mileage_km: string; color: string; inspection_expiry_date: string; liability_insurance_expiry_date: string;
   purchase_price: string; direct_cost_special: string; direct_cost_accessories: string; direct_cost_agency: string; direct_cost_legal: string; base_price: string; total_price: string; market_value: string; market_source: string; market_checked_at: string; market_conditions: string; market_note: string;
   status: string; location_name: string; description: string; internal_memo: string;
 };
@@ -58,7 +64,7 @@ type VehicleForm = {
 const inputClass = 'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100';
 const emptyForm: VehicleForm = {
   management_no: '', vehicle_type: '', maker: '', model_name: '', grade: '', vin: '', registration_no: '', first_registration_month: '',
-  model_year: '', displacement_cc: '', mileage_km: '', color: '', inspection_expiry_date: '', purchase_price: '', direct_cost_special: '', direct_cost_accessories: '', direct_cost_agency: '', direct_cost_legal: '', base_price: '', total_price: '', market_value: '', market_source: '', market_checked_at: '', market_conditions: '', market_note: '',
+  model_year: '', displacement_cc: '', mileage_km: '', color: '', inspection_expiry_date: '', liability_insurance_expiry_date: '', purchase_price: '', direct_cost_special: '', direct_cost_accessories: '', direct_cost_agency: '', direct_cost_legal: '', base_price: '', total_price: '', market_value: '', market_source: '', market_checked_at: '', market_conditions: '', market_note: '',
   status: '在庫中', location_name: '', description: '', internal_memo: '',
 };
 
@@ -82,7 +88,7 @@ function toNullableNumber(value: string) {
   const numberValue = Number(value);
   return Number.isNaN(numberValue) ? null : numberValue;
 }
-function mapVehicleToForm(vehicle: VehicleRow): VehicleForm {
+function mapVehicleToForm(vehicle: VehicleRow, mode: TaxDisplayMode): VehicleForm {
   const text = (value: string | null | undefined) => {
     if (value === null || value === undefined || value === 'undefined' || value === 'null') {
       return '';
@@ -104,12 +110,13 @@ function mapVehicleToForm(vehicle: VehicleRow): VehicleForm {
     mileage_km: vehicle.mileage_km === null ? '' : String(vehicle.mileage_km ?? ''),
     color: vehicle.color ?? '',
     inspection_expiry_date: vehicle.inspection_expiry_date ?? '',
-    purchase_price: vehicle.purchase_price === null ? '' : String(vehicle.purchase_price ?? ''),
-    direct_cost_special: vehicle.direct_cost_special === null ? '' : String(vehicle.direct_cost_special ?? ''),
-    direct_cost_accessories: vehicle.direct_cost_accessories === null ? '' : String(vehicle.direct_cost_accessories ?? ''),
-    direct_cost_agency: vehicle.direct_cost_agency === null ? '' : String(vehicle.direct_cost_agency ?? ''),
+    liability_insurance_expiry_date: vehicle.liability_insurance_expiry_date ?? '',
+    purchase_price: vehicle.purchase_price === null ? '' : String(storedPriceToDisplay(vehicle.purchase_price ?? 0, mode)),
+    direct_cost_special: vehicle.direct_cost_special === null ? '' : String(storedPriceToDisplay(vehicle.direct_cost_special ?? 0, mode)),
+    direct_cost_accessories: vehicle.direct_cost_accessories === null ? '' : String(storedPriceToDisplay(vehicle.direct_cost_accessories ?? 0, mode)),
+    direct_cost_agency: vehicle.direct_cost_agency === null ? '' : String(storedPriceToDisplay(vehicle.direct_cost_agency ?? 0, mode)),
     direct_cost_legal: vehicle.direct_cost_legal === null ? '' : String(vehicle.direct_cost_legal ?? ''),
-    base_price: vehicle.base_price === null ? '' : String(vehicle.base_price ?? ''),
+    base_price: vehicle.base_price === null ? '' : String(storedPriceToDisplay(vehicle.base_price ?? 0, mode)),
     total_price: vehicle.total_price === null ? '' : String(vehicle.total_price ?? ''),
     market_value: vehicle.market_value === null ? '' : String(vehicle.market_value ?? ''),
     market_source: vehicle.market_source ?? '', market_checked_at: vehicle.market_checked_at ?? '',
@@ -147,9 +154,12 @@ const directCostLabels: Record<'direct_cost_special' | 'direct_cost_accessories'
 };
 
 export default function VehicleDetailPage() {
+  const { mode: priceMode, loading: priceLoading, error: priceError } = useBusinessSettings();
+  const priceLabel = priceMode === 'excluded' ? '税抜' : '税込';
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
   const [storeId, setStoreId] = useState('');
+  const [originalVehicle, setOriginalVehicle] = useState<VehicleRow | null>(null);
   const [form, setForm] = useState<VehicleForm>(emptyForm);
   const [savedStatus, setSavedStatus] = useState('');
   const [deals, setDeals] = useState<DealRow[]>([]);
@@ -189,7 +199,8 @@ export default function VehicleDetailPage() {
         if (customerResult.error) throw new Error(customerResult.error.message);
         if (maintenanceResult.error) throw new Error(maintenanceResult.error.message);
         if (listingResult.error) throw new Error(listingResult.error.message);
-        setForm(mapVehicleToForm(vehicleResult.data));
+        setOriginalVehicle(vehicleResult.data);
+        setForm(mapVehicleToForm(vehicleResult.data, priceMode));
         setSavedStatus(vehicleResult.data.status ?? '在庫中');
         setDeals(dealResult.data ?? []);
         setCustomers(customerResult.data ?? []);
@@ -202,11 +213,20 @@ export default function VehicleDetailPage() {
       }
     }
     void loadVehicle();
-  }, [vehicleId]);
+  }, [vehicleId, priceMode]);
+
+  function storedPrice(name: 'purchase_price' | 'base_price' | 'direct_cost_special' | 'direct_cost_accessories' | 'direct_cost_agency') {
+    const value = toNullableNumber(form[name]);
+    if (value === null) return null;
+    const original = originalVehicle?.[name];
+    if (original != null && value === storedPriceToDisplay(original, priceMode)) return original;
+    return displayPriceToStored(value, priceMode);
+  }
 
   async function handleSave() {
     try {
       setIsSaving(true); setErrorMessage(''); setSuccessMessage('');
+      if (priceLoading || priceError) throw new Error(priceError || '金額表示設定を読み込み中です。');
       if (!storeId) throw new Error('所属店舗が見つかりません。');
       const supabase = createClient();
       if (form.status === '売約済み' && savedStatus !== '売約済み') {
@@ -235,8 +255,8 @@ export default function VehicleDetailPage() {
         management_no: toNullableText(form.management_no), vehicle_type: toNullableText(form.vehicle_type), maker: toNullableText(form.maker),
         model_name: toNullableText(form.model_name), grade: toNullableText(form.grade), vin: toNullableText(form.vin), registration_no: toNullableText(form.registration_no),
         first_registration_month: toNullableText(form.first_registration_month), model_year: toNullableNumber(form.model_year), displacement_cc: toNullableNumber(form.displacement_cc),
-        mileage_km: toNullableNumber(form.mileage_km), color: toNullableText(form.color), inspection_expiry_date: form.inspection_expiry_date || null,
-        purchase_price: toNullableNumber(form.purchase_price), direct_cost_special: toNullableNumber(form.direct_cost_special), direct_cost_accessories: toNullableNumber(form.direct_cost_accessories), direct_cost_agency: toNullableNumber(form.direct_cost_agency), direct_cost_legal: toNullableNumber(form.direct_cost_legal), base_price: toNullableNumber(form.base_price), total_price: toNullableNumber(form.total_price),
+        mileage_km: toNullableNumber(form.mileage_km), color: toNullableText(form.color), inspection_expiry_date: form.inspection_expiry_date || null, liability_insurance_expiry_date: form.liability_insurance_expiry_date || null,
+        purchase_price: storedPrice('purchase_price'), direct_cost_special: storedPrice('direct_cost_special'), direct_cost_accessories: storedPrice('direct_cost_accessories'), direct_cost_agency: storedPrice('direct_cost_agency'), direct_cost_legal: toNullableNumber(form.direct_cost_legal), base_price: storedPrice('base_price'), total_price: toNullableNumber(form.total_price),
         market_value: toNullableNumber(form.market_value), market_source: toNullableText(form.market_source), market_checked_at: form.market_checked_at || null,
         market_conditions: toNullableText(form.market_conditions), market_note: toNullableText(form.market_note),
         location_name: toNullableText(form.location_name), description: toNullableText(form.description), internal_memo: toNullableText(form.internal_memo),
@@ -244,6 +264,7 @@ export default function VehicleDetailPage() {
       };
       const { error } = await supabase.from<VehicleRow>('vehicles').update(updatePayload).eq('id', vehicleId).eq('store_id', storeId);
       if (error) throw new Error(error.message);
+      setOriginalVehicle((previous) => previous ? { ...previous, ...updatePayload } : previous);
       setSavedStatus(form.status);
       setSuccessMessage('車両情報を保存しました。');
     } catch (error) {
@@ -291,15 +312,17 @@ export default function VehicleDetailPage() {
           {errorMessage && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>}
           {successMessage && <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{successMessage}</p>}
           <Section title="車両基本情報">
+            <Field label="メーカー"><MasterSelect kind="vehicle_maker" value={form.maker} onChange={(value) => updateField('maker', value)} className={inputClass} /></Field>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {([
-                ['management_no','管理番号','text'],['vehicle_type','車両タイプ','text'],['maker','メーカー','text'],['model_name','車種名','text'],['grade','グレード','text'],['vin','車台番号','text'],['registration_no','登録番号','text'],['first_registration_month','初度登録年月','text'],['model_year','年式','number'],['displacement_cc','排気量','number'],['mileage_km','走行距離','number'],['color','色','text'],
+                ['management_no','管理番号','text'],['vehicle_type','車両タイプ','text'],['model_name','車種名','text'],['grade','グレード','text'],['vin','車台番号','text'],['registration_no','登録番号','text'],['first_registration_month','初度登録年月','text'],['model_year','年式','number'],['displacement_cc','排気量','number'],['mileage_km','走行距離','number'],['color','色','text'],
               ] as [keyof VehicleForm,string,string][]).map(([name,label,type]) => <Field key={name} label={label}><input type={type} className={inputClass} value={form[name]} onChange={(event) => updateField(name, event.target.value)} /></Field>)}
             </div>
           </Section>
           <Section title="車検・状態">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <Field label="車検満了日"><input type="date" className={inputClass} value={form.inspection_expiry_date} onChange={(event) => updateField('inspection_expiry_date', event.target.value)} /></Field>
+              <Field label="自賠責保険満了日"><input type="date" className={inputClass} value={form.liability_insurance_expiry_date} onChange={(event) => updateField('liability_insurance_expiry_date', event.target.value)} /></Field>
               <Field label="ステータス"><select className={inputClass} value={form.status} onChange={(event) => updateField('status', event.target.value)}>{['在庫中','展示中','商談中','整備中','売約済み','納車済み'].map((option) => <option key={option}>{option}</option>)}</select></Field>
               <Field label="保管場所"><input className={inputClass} value={form.location_name} onChange={(event) => updateField('location_name', event.target.value)} /></Field>
               <Field label="説明" wide><textarea className={`${inputClass} min-h-24`} value={form.description} onChange={(event) => updateField('description', event.target.value)} /></Field>
@@ -308,23 +331,23 @@ export default function VehicleDetailPage() {
           </Section>
           <Section title="価格情報">
             <div className="grid gap-4 md:grid-cols-3">
-              {(['purchase_price','base_price','total_price'] as const).map((name) => <Field key={name} label={priceLabels[name]}><input type="number" className={`${inputClass} text-right`} value={form[name]} onChange={(event) => updateField(name, event.target.value)} /></Field>)}
+              {(['purchase_price','base_price','total_price'] as const).map((name) => <Field key={name} label={name === 'total_price' ? '支払総額（税・法定費用含む）' : `${priceLabels[name]}（${priceLabel}）`}><input type="number" step="0.0001" className={`${inputClass} text-right`} value={form[name]} onChange={(event) => updateField(name, event.target.value)} /></Field>)}
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {(['direct_cost_special','direct_cost_accessories','direct_cost_agency','direct_cost_legal'] as const).map((name) => <Field key={name} label={directCostLabels[name]}><input type="number" className={`${inputClass} text-right`} value={form[name]} onChange={(event) => updateField(name, event.target.value)} /></Field>)}
+              {(['direct_cost_special','direct_cost_accessories','direct_cost_agency','direct_cost_legal'] as const).map((name) => <Field key={name} label={`${directCostLabels[name]}（${name === 'direct_cost_legal' ? '税対象外' : priceLabel}）`}><input type="number" step="0.0001" className={`${inputClass} text-right`} value={form[name]} onChange={(event) => updateField(name, event.target.value)} /></Field>)}
             </div>
             <p className="mt-4 text-sm font-bold text-slate-700">直接原価合計 {([form.direct_cost_special, form.direct_cost_accessories, form.direct_cost_agency, form.direct_cost_legal].reduce((sum, value) => sum + (Number(value || 0) || 0), 0)).toLocaleString()}円</p>
           </Section>
           <Section title="相場確認">
             <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">相場は参考情報です。出所・確認日・条件がない数字は相場として扱いません。</div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <Field label="参考相場"><input type="number" className={`${inputClass} text-right`} value={form.market_value} onChange={(event) => updateField('market_value', event.target.value)} placeholder="未確認" /></Field>
+              <Field label="参考相場（税区分未確認）"><input type="number" className={`${inputClass} text-right`} value={form.market_value} onChange={(event) => updateField('market_value', event.target.value)} placeholder="未確認" /></Field>
               <Field label="出どころ"><input className={inputClass} value={form.market_source} onChange={(event) => updateField('market_source', event.target.value)} placeholder="例：Goo小売 / AA / 自店実績" /></Field>
               <Field label="確認日"><input type="date" className={inputClass} value={form.market_checked_at} onChange={(event) => updateField('market_checked_at', event.target.value)} /></Field>
               <Field label="検索条件" wide><input className={inputClass} value={form.market_conditions} onChange={(event) => updateField('market_conditions', event.target.value)} placeholder="例：2021年・5万km・大阪府" /></Field>
               <Field label="相場メモ" wide><textarea className={`${inputClass} min-h-20`} value={form.market_note} onChange={(event) => updateField('market_note', event.target.value)} placeholder="価格を決めた理由など" /></Field>
             </div>
-            <p className="mt-4 text-sm font-bold text-slate-700">{form.market_value && form.market_source && form.market_checked_at ? `参考相場 ${Number(form.market_value).toLocaleString()}円（${form.market_source}・${form.market_checked_at}確認）` : '相場未確認'}</p>
+            <p className="mt-4 text-sm font-bold text-slate-700">{form.market_value && form.market_source && form.market_checked_at ? `参考相場（税区分未確認） ${Number(form.market_value).toLocaleString()}円（${form.market_source}・${form.market_checked_at}確認）` : '相場未確認'}</p>
           </Section>
           <Section title="掲載状況">
             <p className="mb-4 text-sm text-slate-500">外部媒体との自動連携前でも、今どこに掲載しているかを記録できます。</p>

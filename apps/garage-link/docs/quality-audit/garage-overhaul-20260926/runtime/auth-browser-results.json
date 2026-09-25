@@ -1,0 +1,111 @@
+[
+  {
+    "test": "audit_one_attempt_login",
+    "status": "PASS",
+    "submits": 1,
+    "otp": 0,
+    "errors": []
+  },
+  {
+    "test": "audit_session_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "audit_members_access",
+    "status": "PASS",
+    "deniedNotice": 0
+  },
+  {
+    "test": "logout_relogin",
+    "status": "PASS"
+  },
+  {
+    "test": "fresh_context_session_restore",
+    "status": "PASS"
+  },
+  {
+    "test": "wrong_password_then_correct",
+    "status": "PASS",
+    "wrongStatus": 401
+  },
+  {
+    "test": "owner_one_attempt_login",
+    "status": "PASS",
+    "submits": 1,
+    "otp": 0,
+    "errors": []
+  },
+  {
+    "test": "owner_session_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "owner_members_access",
+    "status": "PASS",
+    "deniedNotice": 0
+  },
+  {
+    "test": "admin_one_attempt_login",
+    "status": "PASS",
+    "submits": 1,
+    "otp": 0,
+    "errors": []
+  },
+  {
+    "test": "admin_session_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "admin_members_access",
+    "status": "PASS",
+    "deniedNotice": 0
+  },
+  {
+    "test": "implementer_one_attempt_login",
+    "status": "PASS",
+    "submits": 1,
+    "otp": 0,
+    "errors": []
+  },
+  {
+    "test": "implementer_session_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "implementer_members_access",
+    "status": "PASS",
+    "deniedNotice": 2
+  },
+  {
+    "test": "staff_one_attempt_login",
+    "status": "PASS",
+    "submits": 1,
+    "otp": 0,
+    "errors": []
+  },
+  {
+    "test": "staff_session_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "staff_members_access",
+    "status": "PASS",
+    "deniedNotice": 2
+  },
+  {
+    "test": "viewer_one_attempt_login",
+    "status": "PASS",
+    "submits": 1,
+    "otp": 0,
+    "errors": []
+  },
+  {
+    "test": "viewer_session_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "viewer_members_access",
+    "status": "PASS",
+    "deniedNotice": 2
+  }
+]

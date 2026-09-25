@@ -17,6 +17,7 @@ type StoreMemberRow = {
 };
 
 const settingCards = [
+  { title: 'マスター管理・金額表示方式', href: '/settings/masters', description: '車両メーカー、部品カテゴリー、作業分類と税込・税抜表示を管理します。' },
   {
     title: '会社情報・帳票設定',
     href: '/settings/company',

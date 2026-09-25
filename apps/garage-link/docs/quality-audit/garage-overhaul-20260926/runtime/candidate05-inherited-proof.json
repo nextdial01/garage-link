@@ -1,0 +1,8 @@
+{
+  "candidate05": "04a6798e6939e1e8f7193da72f36af1199eb72f3a4d8e8067a23b1770e151738",
+  "build_web_mobile_runtime_identical_to_04": true,
+  "runtime_files": 700,
+  "runtime_sha256": "20be01139748a0ae31ebc85c8fbf2300ea39f7acfab0026320776869898cb5b8",
+  "reexecuted_database_evidence": "candidate05-db-suites.json",
+  "definition": "all snapshot files excluding Markdown/docs and supabase directory; includes app code, assets, dependencies manifests, unit tests, package source, DB runner scripts"
+}

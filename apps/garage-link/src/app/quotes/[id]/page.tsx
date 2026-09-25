@@ -1,4 +1,5 @@
 'use client';
+import { priceLabel, type TaxDisplayMode } from '@/lib/business/money';
 
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
@@ -13,6 +14,7 @@ type StoreMemberRow = { store_id: string; role: string | null };
 type LinkedInvoiceRow = { id: string };
 
 type QuoteRow = {
+  tax_display_mode: TaxDisplayMode | null;
   id: string;
   store_id: string;
   deal_id: string | null;
@@ -45,6 +47,7 @@ type QuoteItemRow = {
   item_type: string | null;
   name: string | null;
   quantity: number | null;
+  line_discount_input_amount?: number | null;
   unit_price: number | null;
   amount: number | null;
 };
@@ -114,7 +117,7 @@ export default function QuoteDetailPage() {
         const [quoteResult, invoiceCheckResult, itemResult] = await Promise.all([
           supabase
             .from<QuoteRow>('quotes')
-            .select('id, store_id, deal_id, customer_id, vehicle_id, quote_no, title, status, issue_status, issue_date, expiry_date, assigned_user_name, customer_name, customer_phone, customer_email, customer_address, vehicle_label, subtotal_amount, tax_amount, discount_amount, trade_in_amount, total_amount, customer_note, created_at')
+            .select('tax_display_mode, id, store_id, deal_id, customer_id, vehicle_id, quote_no, title, status, issue_status, issue_date, expiry_date, assigned_user_name, customer_name, customer_phone, customer_email, customer_address, vehicle_label, subtotal_amount, tax_amount, discount_amount, trade_in_amount, total_amount, customer_note, created_at')
             .eq('id', id)
             .eq('store_id', member.store_id)
             .single(),
@@ -125,7 +128,7 @@ export default function QuoteDetailPage() {
             .eq('store_id', member.store_id),
           supabase
             .from<QuoteItemRow>('quote_items')
-            .select('id, item_order, item_type, name, quantity, unit_price, amount')
+            .select('line_discount_input_amount, id, item_order, item_type, name, quantity, unit_price, amount')
             .eq('quote_id', id)
             .eq('store_id', member.store_id)
             .order('item_order', { ascending: true }),
@@ -156,6 +159,7 @@ export default function QuoteDetailPage() {
       description="見積書の内容を確認します"
       actionButton={
         <div className="flex flex-wrap gap-2">
+          {quote && role !== 'viewer' && (<Link href={`/quotes/new?copyFrom=${id}`} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold">コピー</Link>)}
           {quote && role !== 'viewer' && quote.issue_status !== 'cancelled' && !linkedInvoiceId && (
             <Link
               href={`/quotes/${id}/edit`}
@@ -282,8 +286,8 @@ export default function QuoteDetailPage() {
                       <th className="px-4 py-3 text-left">項目</th>
                       <th className="px-4 py-3 text-left">種別</th>
                       <th className="px-4 py-3 text-right">数量</th>
-                      <th className="px-4 py-3 text-right">単価</th>
-                      <th className="px-4 py-3 text-right">金額</th>
+                      <th className="px-4 py-3 text-right">{quote.tax_display_mode ? priceLabel('単価',quote.tax_display_mode) : '単価（保存時）'}</th>
+                      <th className="px-4 py-3 text-right">{quote.tax_display_mode ? '金額（税抜・税対象外）' : '金額（保存時）'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -292,7 +296,7 @@ export default function QuoteDetailPage() {
                         <td className="px-4 py-3 font-semibold text-slate-950">{displayValue(item.name)}</td>
                         <td className="px-4 py-3 text-slate-500">{displayValue(item.item_type)}</td>
                         <td className="px-4 py-3 text-right">{item.quantity ?? '-'}</td>
-                        <td className="px-4 py-3 text-right">{formatPrice(item.unit_price)}</td>
+                        <td className="px-4 py-3 text-right">{formatPrice(item.unit_price)}{!!item.line_discount_input_amount && <span className="block text-xs">行値引 {formatPrice(item.line_discount_input_amount)}</span>}</td>
                         <td className="px-4 py-3 text-right font-bold">{formatPrice(item.amount)}</td>
                       </tr>
                     ))}

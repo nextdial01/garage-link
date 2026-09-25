@@ -4,6 +4,7 @@
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { decimal, calculateDocument, storedPriceToDisplay, priceLabel, type TaxDisplayMode, type MoneyLine } from '@/lib/business/money';
 import { loadedPartsTotal } from '@/lib/maintenance/formValues';
 import PartPickerModal, { type PickedPart } from './PartPickerModal';
 
@@ -47,11 +48,13 @@ type Props = {
   jobId: string;
   storeId: string;
   canEdit: boolean;
+  mode?: TaxDisplayMode;
+  onLinesChange?: (lines: MoneyLine[]) => void;
   onTotalChange?: (total: number) => void;
 };
 
-function computeSubtotal(quantity: number, unitPrice: number, discountAmount: number): number {
-  return Math.max(quantity * unitPrice - discountAmount, 0);
+function computeSubtotal(quantity: number, unitPrice: number, discountAmount: number, mode: TaxDisplayMode = 'included', taxRate = 0.1): number {
+  try { const result = calculateDocument([{quantity,unit_price:unitPrice,tax_rate:taxRate}],mode,{discount:discountAmount}); return mode === 'included' ? result.total_amount : result.total_amount - result.tax_amount; } catch { return 0; }
 }
 
 function formatPrice(value: number | null | undefined) {
@@ -63,7 +66,7 @@ const cellClass = 'px-3 py-2 text-sm';
 const inputClass =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100';
 
-export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }: Props) {
+export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange, mode = 'included', onLinesChange }: Props) {
   const [parts, setParts] = useState<JobPartRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showPicker, setShowPicker] = useState(false);
@@ -76,6 +79,8 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
 
   // onTotalChange を ref で逃がして、親の毎レンダーごとの新規アロー関数で
   // useEffect が再実行されないようにする。
+  const onLinesChangeRef = useRef(onLinesChange);
+  useEffect(() => { onLinesChangeRef.current = onLinesChange; }, [onLinesChange]);
   const onTotalChangeRef = useRef(onTotalChange);
   useEffect(() => {
     onTotalChangeRef.current = onTotalChange;
@@ -84,6 +89,7 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
   const notifyTotal = useCallback((rows: JobPartRow[]) => {
     const total = rows.reduce((sum, p) => sum + p.subtotal_amount, 0);
     onTotalChangeRef.current?.(total);
+    onLinesChangeRef.current?.(rows.map((row) => ({quantity:1,unit_price:row.subtotal_amount,tax_rate:row.tax_rate})));
   }, []);
 
   useEffect(() => {
@@ -106,6 +112,7 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
         setParts(rows);
         const total = loadedPartsTotal(rows);
         if (total !== null) onTotalChangeRef.current?.(total);
+        onLinesChangeRef.current?.(rows.map((row) => ({quantity:1,unit_price:row.subtotal_amount,tax_rate:row.tax_rate})));
       } catch {
         if (!cancelled) setErrorMessage('使用部品の読み込みに失敗しました。');
       } finally {
@@ -136,8 +143,8 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
       part_id: picked.id,
       part_no: picked.part_no,
       name: picked.name,
-      unit_price: picked.unit_price ?? 0,
-      cost_price: picked.cost_price ?? null,
+      unit_price: picked.unit_price == null ? 0 : storedPriceToDisplay(picked.unit_price, mode),
+      cost_price: picked.cost_price == null ? null : storedPriceToDisplay(picked.cost_price, mode),
     });
   }
 
@@ -156,7 +163,8 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
     setErrorMessage('');
     try {
       const supabase = createClient();
-      const subtotal = computeSubtotal(1, fields.unit_price, 0);
+      const totals = calculateDocument([{quantity:1,unit_price:fields.unit_price}],mode);
+      const subtotal = mode === 'included' ? totals.total_amount : totals.total_amount - totals.tax_amount;
       const { data, error } = await supabase
         .from<JobPartRow>('maintenance_job_parts')
         .insert({
@@ -170,8 +178,8 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
           cost_price: fields.cost_price,
           discount_amount: 0,
           tax_rate: 0.1,
-          tax_amount: 0,
           subtotal_amount: subtotal,
+          tax_amount: totals.tax_amount,
           work_memo: null,
           stock_adjusted: false,
         })
@@ -190,12 +198,14 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
   async function handleSaveEdit(partId: string) {
     if (!editState) return;
     setErrorMessage('');
-    const qty = Math.max(parseInt(editState.quantity, 10) || 1, 1);
+    try {
+    const qty = decimal(editState.quantity);
+    if (qty <= 0) throw new Error('数量は0より大きい値を入力してください。');
     const unitPrice = parseFloat(editState.unit_price) || 0;
     const costPrice = editState.cost_price.trim() ? parseFloat(editState.cost_price) : null;
     const discountAmount = parseFloat(editState.discount_amount) || 0;
-    const subtotal = computeSubtotal(qty, unitPrice, discountAmount);
-    try {
+    const totals = calculateDocument([{quantity:qty,unit_price:unitPrice,tax_rate:Number(editState.tax_rate || '0.1')}],mode,{discount:discountAmount});
+    const subtotal = mode === 'included' ? totals.total_amount : totals.total_amount - totals.tax_amount;
       const supabase = createClient();
       const { error } = await supabase
         .from('maintenance_job_parts')
@@ -204,8 +214,9 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
           unit_price: unitPrice,
           cost_price: costPrice,
           discount_amount: discountAmount,
-          tax_rate: parseFloat(editState.tax_rate) || 0.1,
+          tax_rate: Number(editState.tax_rate || '0.1'),
           subtotal_amount: subtotal,
+          tax_amount: totals.tax_amount,
           work_memo: editState.work_memo.trim() || null,
         })
         .eq('id', partId)
@@ -219,7 +230,9 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
               unit_price: unitPrice,
               cost_price: costPrice,
               discount_amount: discountAmount,
+              tax_rate: Number(editState.tax_rate || '0.1'),
               subtotal_amount: subtotal,
+          tax_amount: totals.tax_amount,
               work_memo: editState.work_memo.trim() || null,
             }
           : p,
@@ -239,11 +252,7 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
     setBusyIds((prev) => new Set(prev).add(part.id));
     try {
       const supabase = createClient();
-      const result = await supabase.rpc('adjust_repair_part_stock', {
-        p_part_id: part.part_id,
-        p_store_id: storeId,
-        p_delta: -part.quantity,
-      });
+      const result = await supabase.rpc('set_maintenance_part_stock', { p_store_id: storeId, p_job_part_id: part.id, p_confirm: true });
       const resultData = result.data as AdjustResult | null;
       if (result.error) throw result.error;
       if (!resultData?.ok) {
@@ -255,12 +264,6 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
         }
         throw new Error(errMsg);
       }
-      const { error: updateError } = await supabase
-        .from('maintenance_job_parts')
-        .update({ stock_adjusted: true, stock_adjusted_at: new Date().toISOString() })
-        .eq('id', part.id)
-        .eq('store_id', storeId);
-      if (updateError) throw updateError;
       setParts((prev) =>
         prev.map((p) =>
           p.id === part.id ? { ...p, stock_adjusted: true, stock_adjusted_at: new Date().toISOString() } : p,
@@ -284,11 +287,7 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
       const supabase = createClient();
 
       if (part.stock_adjusted && part.part_id) {
-        const result = await supabase.rpc('adjust_repair_part_stock', {
-          p_part_id: part.part_id,
-          p_store_id: storeId,
-          p_delta: part.quantity,
-        });
+        const result = await supabase.rpc('set_maintenance_part_stock', { p_store_id: storeId, p_job_part_id: part.id, p_confirm: false });
         const resultData = result.data as AdjustResult | null;
         if (result.error) throw result.error;
         if (!resultData?.ok) throw new Error(resultData?.error ?? '在庫の返却に失敗しました。');
@@ -358,7 +357,7 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
               <tr>
                 <th className="px-3 py-3">部品名</th>
                 <th className="px-3 py-3 text-right">数量</th>
-                <th className="px-3 py-3 text-right">単価</th>
+                <th className="px-3 py-3 text-right">{priceLabel('単価',mode)}</th>
                 <th className="px-3 py-3 text-right">値引</th>
                 <th className="px-3 py-3 text-right">小計</th>
                 <th className="px-3 py-3">在庫</th>
@@ -385,7 +384,8 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
                       <td className={cellClass}>
                         <input
                           type="number"
-                          min="1"
+                          min="0.001"
+                          step="0.001"
                           className={`${inputClass} w-20 text-right`}
                           value={editState.quantity}
                           onChange={(e) => setEditState((s) => s && ({ ...s, quantity: e.target.value }))}
@@ -412,9 +412,9 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
                       <td className={`${cellClass} text-right font-bold`}>
                         {formatPrice(
                           computeSubtotal(
-                            parseInt(editState.quantity) || 1,
+                            Number(editState.quantity) || 0,
                             parseFloat(editState.unit_price) || 0,
-                            parseFloat(editState.discount_amount) || 0,
+                            parseFloat(editState.discount_amount) || 0, mode, Number(editState.tax_rate || '0.1'),
                           ),
                         )}
                       </td>

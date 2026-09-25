@@ -1,0 +1,447 @@
+{
+  "base_sha": "8893ebb8ce131b22aed0e87ee8ad3f5596410048",
+  "frozen_candidate": "candidate10",
+  "status": "BLOCKED_FULL_ACCEPTANCE",
+  "checks": [
+    {
+      "id": 1,
+      "requirement": "メーカーをマスター登録",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-results.json"
+      ]
+    },
+    {
+      "id": 2,
+      "requirement": "車両登録でメーカー選択",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 3,
+      "requirement": "他店舗メーカー非表示",
+      "status": "PASS",
+      "evidence": [
+        "runtime/master-isolation-results.json",
+        "overhaul-db-result.md"
+      ]
+    },
+    {
+      "id": 4,
+      "requirement": "部品カテゴリー登録",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-results.json"
+      ]
+    },
+    {
+      "id": 5,
+      "requirement": "部品登録でカテゴリー選択",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 6,
+      "requirement": "自賠責満了日保存",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 7,
+      "requirement": "見積コピー",
+      "status": "PASS",
+      "evidence": [
+        "runtime/document-operations-results.json",
+        "runtime/deal-document-results.json",
+        "runtime/mobile-document-api-results.json"
+      ]
+    },
+    {
+      "id": 8,
+      "requirement": "請求コピー",
+      "status": "PASS",
+      "evidence": [
+        "runtime/document-operations-results.json",
+        "runtime/deal-document-results.json",
+        "runtime/mobile-document-api-results.json"
+      ]
+    },
+    {
+      "id": 9,
+      "requirement": "コピー先編集",
+      "status": "PASS",
+      "evidence": [
+        "runtime/document-operations-results.json",
+        "runtime/deal-document-results.json",
+        "runtime/mobile-document-api-results.json"
+      ]
+    },
+    {
+      "id": 10,
+      "requirement": "コピー元不変",
+      "status": "PASS",
+      "evidence": [
+        "runtime/document-operations-results.json",
+        "runtime/deal-document-results.json",
+        "runtime/mobile-document-api-results.json"
+      ]
+    },
+    {
+      "id": 11,
+      "requirement": "郵便番号住所検索",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 12,
+      "requirement": "検索失敗時手入力",
+      "status": "PASS",
+      "evidence": [
+        "runtime/vehicle-customer-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 13,
+      "requirement": "数量1.5計算",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 14,
+      "requirement": "数量0.5計算",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 15,
+      "requirement": "小数在庫減算",
+      "status": "PASS",
+      "evidence": [
+        "runtime/decimal-stock-browser-results.json",
+        "overhaul-birth-stock-db.log"
+      ]
+    },
+    {
+      "id": 16,
+      "requirement": "小数在庫返却",
+      "status": "PASS",
+      "evidence": [
+        "runtime/decimal-stock-browser-results.json",
+        "overhaul-birth-stock-db.log"
+      ]
+    },
+    {
+      "id": 17,
+      "requirement": "税込表示設定",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-tax-results.json"
+      ]
+    },
+    {
+      "id": 18,
+      "requirement": "税抜表示設定",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-tax-results.json"
+      ]
+    },
+    {
+      "id": 19,
+      "requirement": "設定切替後ラベル変更",
+      "status": "PASS",
+      "evidence": [
+        "runtime/document-tax-mode-results.json"
+      ]
+    },
+    {
+      "id": 20,
+      "requirement": "税計算一致",
+      "status": "PASS",
+      "evidence": [
+        "runtime/document-operations-results.json",
+        "runtime/deal-document-results.json",
+        "runtime/mobile-document-api-results.json"
+      ]
+    },
+    {
+      "id": 21,
+      "requirement": "見積合計一致",
+      "status": "PASS",
+      "evidence": [
+        "runtime/document-operations-results.json",
+        "runtime/deal-document-results.json",
+        "runtime/mobile-document-api-results.json"
+      ]
+    },
+    {
+      "id": 22,
+      "requirement": "請求合計一致",
+      "status": "PASS",
+      "evidence": [
+        "runtime/document-operations-results.json",
+        "runtime/deal-document-results.json",
+        "runtime/mobile-document-api-results.json"
+      ]
+    },
+    {
+      "id": 23,
+      "requirement": "プレビュー合計一致",
+      "status": "PASS",
+      "evidence": [
+        "runtime/document-operations-results.json",
+        "runtime/deal-document-results.json",
+        "runtime/mobile-document-api-results.json"
+      ]
+    },
+    {
+      "id": 24,
+      "requirement": "生年月日必須",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 25,
+      "requirement": "年齢欄なし",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 26,
+      "requirement": "整備内顧客登録",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 27,
+      "requirement": "整備内車両登録",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 28,
+      "requirement": "作業3行登録",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 29,
+      "requirement": "作業行編集",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 30,
+      "requirement": "作業行削除",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 31,
+      "requirement": "作業行コピー",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 32,
+      "requirement": "作業名カンマ保持",
+      "status": "PASS",
+      "evidence": [
+        "runtime/business-save-results.json",
+        "runtime/mobile-maintenance-results.json",
+        "runtime/customer-edit-results.json"
+      ]
+    },
+    {
+      "id": 33,
+      "requirement": "整備→見積",
+      "status": "PASS",
+      "evidence": [
+        "runtime/maintenance-part-discount-results.json",
+        "runtime/mobile-maintenance-results.json"
+      ]
+    },
+    {
+      "id": 34,
+      "requirement": "整備→請求",
+      "status": "PASS",
+      "evidence": [
+        "runtime/maintenance-part-discount-results.json",
+        "runtime/mobile-maintenance-results.json"
+      ]
+    },
+    {
+      "id": 35,
+      "requirement": "OTPなし初回ログイン1発成功",
+      "status": "PASS",
+      "evidence": [
+        "runtime/auth-browser-results.json"
+      ]
+    },
+    {
+      "id": 36,
+      "requirement": "ログアウト→再ログイン",
+      "status": "PASS",
+      "evidence": [
+        "runtime/auth-browser-results.json"
+      ]
+    },
+    {
+      "id": 37,
+      "requirement": "パスワード再設定",
+      "status": "PASS",
+      "evidence": [
+        "runtime/auth-reset-final-results.json"
+      ]
+    },
+    {
+      "id": 38,
+      "requirement": "セッション再読込",
+      "status": "PASS",
+      "evidence": [
+        "runtime/auth-browser-results.json"
+      ]
+    },
+    {
+      "id": 39,
+      "requirement": "権限別アクセス",
+      "status": "PASS",
+      "evidence": [
+        "runtime/auth-browser-results.json"
+      ]
+    },
+    {
+      "id": 40,
+      "requirement": "全画面回帰",
+      "status": "BLOCKED",
+      "evidence": [
+        "PAGE_INVENTORY_FINAL.csv",
+        "MOBILE_PAGE_INVENTORY_FINAL.csv",
+        "MOBILE_INVENTORY_NOTES.md"
+      ],
+      "reason": "移行済み機能・未実装placeholder・外部副作用・プラットフォーム別未確認をPASSにしない"
+    }
+  ],
+  "web_inventory": "PAGE_INVENTORY_FINAL.csv",
+  "mobile_inventory": "MOBILE_PAGE_INVENTORY_FINAL.csv",
+  "prohibited": [
+    "production_change",
+    "main_merge",
+    "github_actions",
+    "orca",
+    "real_customer_send",
+    "live_payment",
+    "irreversible_delete"
+  ],
+  "additional_regression": {
+    "legacy_null_birth_archive_restore": "PASS",
+    "evidence": [
+      "DOB_ARCHIVE_RESTORE_UI_RESULT.md",
+      "runtime/candidate05-final-acceptance.json"
+    ]
+  },
+  "app_runtime_base_candidate04_content_sha256": "8d88faf93fbcb85941980f0034510f5e0e96905516148a336bbf0ef2c12c0798",
+  "code_manifest_sha256": "f8b7ae5df5acf15b80216101a059c963da38f842ae58566f0554d6f6be0f1b55",
+  "verification_note": "最終候補10 code936固定。Mobile15suite/型/lint/SSR144 PASS、fresh RNWeb36全実操作PASS。Web/DB/API/auth/lockは候補08と完全一致、Web124=78PASS/46BLOCKED。Native33業務＋3auth/store/todayの36routeを補完検証し別csvへ記録。",
+  "inherited_candidate08_snapshot_sha256": "3da45e17d23538052b43cd43cc3afaf8beb14fa8a2669760e13ff525b8b58cf5",
+  "automated": {
+    "web_build_lint_type": "PASS_INHERITED_IDENTICAL_SOURCE",
+    "security_passed": 390,
+    "qa_passed": 99,
+    "mobile_test_files_passed": 15,
+    "mobile_ssr_cases_passed": 144,
+    "e2e_passed": 32,
+    "e2e_skipped": 2,
+    "database": "PASS_IDENTICAL_265_FILES",
+    "external_stripe_test_registry": "NOT_EXECUTED"
+  },
+  "web_summary": {
+    "count": 124,
+    "tested": 124,
+    "pass": 78,
+    "fail": 0,
+    "blocked": 46,
+    "blocked_counts": {
+      "feature_moved": 42,
+      "not_implemented": 2,
+      "external_side_effect": 2
+    }
+  },
+  "mobile_summary": {
+    "platform": "React Native Web, final frozen candidate10",
+    "count": 36,
+    "tested": 36,
+    "pass": 36,
+    "fail": 0,
+    "blocked": 0,
+    "evidence": "runtime/final-rnweb-candidate.json"
+  },
+  "native_supplement": {
+    "count": 36,
+    "pass": 36,
+    "fail": 0,
+    "blocked": 0,
+    "platform": "iOS Simulator / Expo Go",
+    "global_console_http_monitor": "NOT_CAPTURED",
+    "invoice_os_preview": "NOT_VERIFIED; UI-generated PDF rendered and compared separately",
+    "inventory": "NATIVE_PAGE_INVENTORY_FINAL.csv"
+  },
+  "remaining_acceptance": "REMAINING_ACCEPTANCE.md"
+}

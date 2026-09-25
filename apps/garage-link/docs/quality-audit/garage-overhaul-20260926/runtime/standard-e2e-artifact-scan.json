@@ -1,0 +1,33 @@
+[
+  {
+    "path": "standard-e2e-output/.last-run.json",
+    "type": ".json",
+    "knownPasswordHit": false,
+    "sessionTokenHit": false,
+    "captureArtifact": false
+  },
+  {
+    "path": "standard-e2e-after-minimal-fix/standard-e2e-results.json",
+    "type": ".json",
+    "knownPasswordHit": false,
+    "sessionTokenHit": false,
+    "captureArtifact": false
+  },
+  {
+    "path": "standard-e2e-after-minimal-fix/standard-e2e.log",
+    "type": ".log",
+    "knownPasswordHit": false,
+    "sessionTokenHit": false,
+    "captureArtifact": false
+  },
+  {
+    "path": "standard-e2e.log",
+    "knownPasswordHit": false,
+    "sessionTokenHit": false
+  },
+  {
+    "path": "standard-e2e-results.json",
+    "knownPasswordHit": false,
+    "sessionTokenHit": false
+  }
+]

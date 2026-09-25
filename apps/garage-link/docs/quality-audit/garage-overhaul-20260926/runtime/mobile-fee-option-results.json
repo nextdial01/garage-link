@@ -1,0 +1,26 @@
+[
+  {
+    "test": "mobile_quote_decimal_snapshot_retry",
+    "status": "PASS",
+    "id": "50a8cf68-2a8d-436a-be98-1176a4d55b21"
+  },
+  {
+    "test": "mobile_quote_to_invoice_snapshot",
+    "status": "PASS",
+    "id": "75214961-6fb5-419a-8b9f-10c66712f700"
+  },
+  {
+    "test": "mobile_invoice_copy_saved_after_edit",
+    "status": "PASS",
+    "id": "0213fff8-cdb2-40c8-96d7-9a21d3620505"
+  },
+  {
+    "test": "mobile_quote_copy",
+    "status": "PASS",
+    "id": "a670987e-17d3-4b64-a7b7-61da12613437"
+  },
+  {
+    "test": "mobile_invoice_invalid_part_rejected_without_save",
+    "status": "PASS"
+  }
+]

@@ -54,7 +54,7 @@ test.describe('controlled Auth email contract', () => {
     expect(page).toContain('GET never consumes the token');
     expect(page).toContain('robots: { index: false, follow: false }');
     expect(route).toContain('supabase.auth.verifyOtp');
-    expect(route).toContain('NextResponse.redirect(new URL(confirmation.next, request.url), 303)');
+    expect(route).toContain('NextResponse.redirect(new URL(confirmation.next, redirectOrigin), 303)');
     expect(route).not.toContain('console.log');
     expect(middleware).toContain("'/auth/confirm'");
     expect(middleware).toContain("'/api/auth/confirm'");
@@ -66,4 +66,16 @@ test.describe('controlled Auth email contract', () => {
     expect(config).toContain('[auth.email.template.confirmation]');
     expect(config).toContain('[auth.email.template.recovery]');
   });
+});
+
+test('loopback confirmation is limited to development with the isolated local auth service', () => {
+  const previous = process.env;
+  try {
+    process.env = { ...previous, NODE_ENV: 'development', NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:62321' };
+    expect(controlledEmailCallbackUrl('http://127.0.0.1:3001', '/auth/reset-password', null).origin).toBe('http://127.0.0.1:3001');
+    process.env = { ...process.env, NODE_ENV: 'production' };
+    expect(() => controlledEmailCallbackUrl('http://127.0.0.1:3001', '/auth/reset-password', null)).toThrow();
+    process.env = { ...process.env, NODE_ENV: 'development', NEXT_PUBLIC_SUPABASE_URL: 'https://remote.example.invalid' };
+    expect(() => controlledEmailCallbackUrl('http://127.0.0.1:3001', '/auth/reset-password', null)).toThrow();
+  } finally { process.env = previous; }
 });

@@ -1,0 +1,14 @@
+{
+  "candidate": "08",
+  "manifest": "candidate08-code-files.json",
+  "canonical_serialization": "JSON sort_keys=true ensure_ascii=false separators=(comma,colon), UTF-8 no newline",
+  "digest_sha256": "0e4db081cd51c323e5d46bdb2378915c19979fb1d205bedcfa40d8bb0b6d59f2",
+  "included_files": 936,
+  "excluded_document_files": 188,
+  "exclusion_rule": "Exclude .md/.mdx/.rst, any docs/doc/documentation/.agents directory, operations/reviews and operations/commercial evidence. Keep source, dependencies, tests, SQL, config/workflows, scripts, public assets. Workflows only hashed, never executed.",
+  "source_head": "bee0d53cd6af08c873826af1f50e3e1ee01f31cc",
+  "changed": [],
+  "added": [],
+  "matches_current": true,
+  "checked_utc": "2026-09-25T20:14:37.800362+00:00"
+}

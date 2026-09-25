@@ -1,0 +1,59 @@
+{
+  "inventory_count": 36,
+  "coverage": {
+    "mobile-journey": [
+      "auth/login",
+      "cancel",
+      "create/appointments",
+      "create/customers",
+      "create/deals",
+      "create/tradeIns",
+      "create/vehicles",
+      "delivery",
+      "detail/appointments",
+      "detail/customers",
+      "detail/deals",
+      "detail/tradeIns",
+      "detail/vehicles",
+      "edit/appointments",
+      "edit/customers",
+      "edit/deals",
+      "edit/tradeIns",
+      "edit/vehicles",
+      "sale",
+      "stores",
+      "tab/customers",
+      "tab/deals",
+      "tab/today",
+      "tab/vehicles"
+    ],
+    "mobile-maintenance": [
+      "auth/login",
+      "create/maintenance",
+      "detail/maintenance",
+      "edit/maintenance",
+      "invoice",
+      "invoiceDetail",
+      "payment",
+      "quote",
+      "quoteDetail",
+      "tab/maintenance",
+      "tab/today"
+    ],
+    "mobile-discount-copy": [],
+    "mobile-fee-option": [],
+    "mobile-photo-operations": [
+      "photo/maintenance_job",
+      "photo/trade_in_vehicle",
+      "photo/vehicle"
+    ]
+  },
+  "missing": [],
+  "api_only": [
+    "mobile-discount-copy",
+    "mobile-fee-option"
+  ],
+  "state": "WAITING_PATCH_READY",
+  "account": "owner (admin unchanged)",
+  "source_changes": false
+}

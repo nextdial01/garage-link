@@ -1,0 +1,55 @@
+{
+  "official_test_widget": true,
+  "human_challenge_verified": false,
+  "checks": [
+    {
+      "name": "initial",
+      "url": "/help",
+      "posts": [
+        {
+          "status": 200,
+          "body": null
+        }
+      ],
+      "alert": [
+        ""
+      ]
+    },
+    {
+      "name": "logout-relogin",
+      "url": "/dashboard",
+      "posts": [
+        {
+          "status": 200,
+          "body": null
+        }
+      ],
+      "alert": []
+    },
+    {
+      "name": "lp-client-transition",
+      "url": "/dashboard",
+      "posts": [
+        {
+          "status": 200,
+          "body": null
+        }
+      ],
+      "alert": []
+    }
+  ],
+  "errors": [],
+  "missingCaptcha": {
+    "status": 401,
+    "body": {
+      "code": "BOT_PROTECTION_REQUIRED"
+    }
+  },
+  "invalidCaptcha": {
+    "status": 200,
+    "body": {
+      "ok": true
+    }
+  },
+  "lpLinkCount": 2
+}

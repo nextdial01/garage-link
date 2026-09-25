@@ -153,7 +153,7 @@ export default function InvoiceDetailPage() {
           .eq('store_id', member.store_id);
         const agg: Record<string, number> = {};
         for (const it of items ?? []) {
-          if (it.part_id) agg[it.part_id] = (agg[it.part_id] ?? 0) + Math.max(0, Math.floor(Number(it.quantity ?? 0)));
+          if (it.part_id) agg[it.part_id] = (agg[it.part_id] ?? 0) + Math.max(0, Number(it.quantity ?? 0));
         }
         setItemPartQty(agg);
       } catch (error) {
@@ -358,6 +358,7 @@ export default function InvoiceDetailPage() {
       description="請求書の確認・入金状態・ステータスを管理します"
       actionButton={
         <div className="flex gap-2">
+          {invoice && role !== 'viewer' && (<Link href={`/invoices/new?copyFrom=${id}`} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold">コピー</Link>)}
           {invoice && (
             <Link
               href={invoice.deal_id ? `/deals/${invoice.deal_id}/invoices/preview?invoiceId=${invoice.id}` : `/invoices/${invoice.id}/preview`}

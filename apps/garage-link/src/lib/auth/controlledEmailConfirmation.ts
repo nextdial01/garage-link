@@ -27,9 +27,17 @@ function safeRelativePath(value: string | null): string | null {
   return `${parsed.pathname}${parsed.search}`;
 }
 
+function isAllowedConfirmationOrigin(origin: URL): boolean {
+  if (origin.protocol === 'https:' && GARAGE_LINK_HOST.test(origin.hostname)) return true;
+  // Development-only local mail sink: never permit arbitrary preview or production hosts.
+  return process.env.NODE_ENV === 'development'
+    && process.env.NEXT_PUBLIC_SUPABASE_URL === 'http://127.0.0.1:62321'
+    && origin.origin === 'http://127.0.0.1:3001';
+}
+
 export function controlledEmailConfirmationRedirect(origin: string, callbackPath: string): string {
   const base = new URL(origin);
-  if (base.protocol !== 'https:' || !GARAGE_LINK_HOST.test(base.hostname)) {
+  if (!isAllowedConfirmationOrigin(base)) {
     throw new Error('CONTROLLED_EMAIL_CONFIRM_ORIGIN_INVALID');
   }
   const next = safeRelativePath(callbackPath);
@@ -41,7 +49,7 @@ export function controlledEmailConfirmationRedirect(origin: string, callbackPath
 
 export function controlledEmailCallbackUrl(origin: string, nextPath: string, qaRunId: string | null): URL {
   const confirmOrigin = new URL(origin);
-  if (confirmOrigin.protocol !== 'https:' || !GARAGE_LINK_HOST.test(confirmOrigin.hostname)) {
+  if (!isAllowedConfirmationOrigin(confirmOrigin)) {
     throw new Error('CONTROLLED_EMAIL_CONFIRM_ORIGIN_INVALID');
   }
   const callback = new URL(AUTH_CALLBACK_PATH, confirmOrigin);

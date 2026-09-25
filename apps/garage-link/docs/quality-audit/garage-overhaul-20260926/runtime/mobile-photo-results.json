@@ -1,0 +1,21 @@
+{
+  "results": [
+    {
+      "route": "photo/vehicle",
+      "status": "PASS",
+      "operations": "open→choose local PNG→upload→return→list→reopen→decoded image visible"
+    },
+    {
+      "route": "photo/maintenance_job",
+      "status": "PASS",
+      "operations": "open→choose local PNG→upload→return→list→reopen→decoded image visible"
+    },
+    {
+      "route": "photo/trade_in_vehicle",
+      "status": "PASS",
+      "operations": "open→choose local PNG→upload→return→list→reopen→decoded image visible"
+    }
+  ],
+  "errors": [],
+  "native_camera": "BLOCKED: physical camera unavailable in React Native Web/simulator"
+}

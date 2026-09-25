@@ -369,8 +369,10 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(callbackEvidence,/GARAGE_PREVIEW_OTP_SINK_SECRET/);
   assert.match(callbackEvidence,/release_qa_callback/);
   assert.match(callbackEvidence,/store_created/);
-  assert.match(await readFile(resolve(appRoot,'src/app/api/auth/admin-email-otp/request/route.ts'),'utf8'),/Retry-After/);
-  assert.match(await readFile(resolve(appRoot,'src/app/api/auth/admin-email-otp/request/route.ts'),'utf8'),/retryAfter: 60/);
+  const retiredOtp = await readFile(resolve(appRoot,'src/app/api/auth/admin-email-otp/request/route.ts'),'utf8');
+  assert.match(retiredOtp,/ROUTINE_EMAIL_OTP_RETIRED/);
+  assert.match(retiredOtp,/status: 410/);
+  assert.doesNotMatch(retiredOtp,/sendAdministratorEmailOtp|retryAfter|Retry-After/);
   assert.match(callbackEvidence,/onboarding_completed/);
   assert.match(callbackEvidence,/validCallbackChain/);
   assert.match(callbackEvidence,/server_bound_continuation: true/);

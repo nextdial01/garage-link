@@ -1,0 +1,18 @@
+[
+  {
+    "test": "signup_confirmation_mail",
+    "status": "PASS"
+  },
+  {
+    "test": "signup_email_confirmation",
+    "status": "PASS"
+  },
+  {
+    "test": "signup_store_creation",
+    "status": "PASS"
+  },
+  {
+    "test": "signup_confirmed_account_login",
+    "status": "PASS"
+  }
+]

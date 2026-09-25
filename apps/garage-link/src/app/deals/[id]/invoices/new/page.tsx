@@ -3,6 +3,12 @@
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
+import { saveDocument } from '@/lib/business/saveDocument';
+import PartLineItemsEditor, { type PartLineItem } from '@/components/parts/PartLineItemsEditor';
+import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
+import { priceLabel, storedPriceToDisplay, type TaxDisplayMode } from '@/lib/business/money';
+import { vehicleInvoiceDefaults, vehicleInvoiceBalanceLine } from '@/lib/business/vehicleInvoice';
+import { safeDocumentCalculation } from '@/lib/business/documents';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -46,15 +52,15 @@ type VehicleRow = {
   model_year: number | null;
   mileage_km: number | null;
   vin: string | null;
+  base_price: number | null;
   total_price: number | null;
   status: string | null;
 };
 
-type InvoiceIdRow = {
-  id: string;
-};
 
 type InvoiceInsert = {
+  tax_display_mode: TaxDisplayMode;
+  discount_input_amount: number;
   store_id: string;
   quote_id: string | null;
   deal_id: string;
@@ -97,31 +103,7 @@ type InvoiceInsert = {
   cancel_reason: string | null;
 };
 
-type InvoiceItemInsert = {
-  store_id: string;
-  invoice_id: string;
-  item_order: number;
-  item_type: string;
-  name: string;
-  quantity: number;
-  unit_price: number;
-  tax_rate: number;
-  tax_amount: number;
-  amount: number;
-  part_id?: string | null;
-  cost_price?: number | null;
-};
 
-type PartLineItem = {
-  localId: string;
-  part_id: string | null;
-  part_no: string;
-  name: string;
-  quantity: string;
-  unit_price: string;
-  cost_price: string;
-  tax_rate: string;
-};
 
 const inputClass =
   'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100';
@@ -154,7 +136,7 @@ function createDocumentNo(prefix: string) {
     .toTimeString()
     .slice(0, 8)
     .replaceAll(':', '');
-  return `${prefix}-${date}-${time}`;
+  return `${prefix}-${date}-${time}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 }
 
 function FieldLabel({ htmlFor, children }: { htmlFor: string; children: string }) {
@@ -169,10 +151,12 @@ export default function DealInvoiceNewPage() {
   const params = useParams<{ id: string }>();
   const dealId = params.id;
   const router = useRouter();
+  const businessSettings=useBusinessSettings();
+  const mode=businessSettings.mode;
   const [deal, setDeal] = useState<DealRow | null>(null);
   const [customer, setCustomer] = useState<CustomerRow | null>(null);
   const [vehicle, setVehicle] = useState<VehicleRow | null>(null);
-  const [vehicles, setVehicles] = useState<VehicleCandidate[]>([]);
+  const [vehicles, setVehicles] = useState<(VehicleCandidate & { base_price: number | null })[]>([]);
   const [vehicleSearchText, setVehicleSearchText] = useState('');
   const [invoiceNo, setInvoiceNo] = useState('');
   const [issueDate, setIssueDate] = useState('');
@@ -182,6 +166,8 @@ export default function DealInvoiceNewPage() {
   const [paymentItems, setPaymentItems] = useState<PaymentItem[]>([
     createPaymentItem(),
   ]);
+  const [invoiceAmounts,setInvoiceAmounts]=useState<Record<string,string>>({});
+  const [snapshotFields,setSnapshotFields]=useState<Record<string,string>>({});
   const [partLineItems, setPartLineItems] = useState<PartLineItem[]>([]);
   const [showPartPicker, setShowPartPicker] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -218,14 +204,14 @@ export default function DealInvoiceNewPage() {
           dealData.vehicle_id
             ? supabase
                 .from<VehicleRow>('vehicles')
-                .select('id, management_no, registration_no, maker, model_name, model_year, mileage_km, vin, total_price, status')
+                .select('id, management_no, registration_no, maker, model_name, model_year, mileage_km, vin, base_price, total_price, status')
                 .eq('id', dealData.vehicle_id)
                 .single()
             : Promise.resolve({ data: null, error: null }),
           supabase
-            .from<VehicleCandidate>('vehicles')
+            .from<VehicleCandidate & { base_price: number | null }>('vehicles')
             .select(
-              'id, management_no, registration_no, maker, model_name, model_year, mileage_km, total_price, status'
+              'id, management_no, registration_no, maker, model_name, model_year, mileage_km, base_price, total_price, status'
             )
             .eq('store_id', dealData.store_id)
             .order('created_at', { ascending: false }),
@@ -253,8 +239,8 @@ export default function DealInvoiceNewPage() {
       }
     }
 
-    void loadDeal();
-  }, [dealId]);
+    if (!businessSettings.loading) void loadDeal();
+  }, [dealId, businessSettings.loading, mode]);
 
   const honorific = useMemo(() => {
     return customer?.customer_type === '法人' || customer?.customer_type === 'corporate'
@@ -262,18 +248,16 @@ export default function DealInvoiceNewPage() {
       : '様';
   }, [customer?.customer_type]);
 
-  const invoiceTotal = vehicle?.total_price ?? 0;
+  const [balanceCategory,setBalanceCategory] = useState('');
+  const vehicleDefaults = vehicleInvoiceDefaults(vehicle?.base_price,vehicle?.total_price,mode);
+  const invoiceTotal = Number(invoiceAmounts.vehicle ?? vehicleDefaults.vehicle);
+  const effectiveAmounts: Record<string,string> = {...vehicleDefaults,...invoiceAmounts,vehicle:String(invoiceTotal)};
 
-  const partsSubtotal = useMemo(
-    () =>
-      partLineItems.reduce(
-        (sum, item) => sum + (parseInt(item.quantity, 10) || 1) * (parseFloat(item.unit_price) || 0),
-        0,
-      ),
-    [partLineItems],
-  );
-
-  const grandTotal = invoiceTotal + partsSubtotal;
+  const balanceAmount=Number(effectiveAmounts.stamp_fee || 0);
+  let balanceLine: ReturnType<typeof vehicleInvoiceBalanceLine> = null;
+  try { balanceLine=vehicleInvoiceBalanceLine(balanceAmount,mode,balanceCategory || 'out_of_scope'); } catch { /* Save validates incomplete monetary input before writing. */ }
+  const summary=safeDocumentCalculation([{key:'vehicle',name:'車両本体価格',itemType:'vehicle'},{key:'registration_fee',name:'登録代行費用',itemType:'fee'},{key:'delivery_maintenance_fee',name:'納車整備費用',itemType:'fee'}],effectiveAmounts,[...partLineItems,...(balanceLine?[balanceLine]:[])],mode);
+  const grandTotal=summary.totalAmount;
 
   function addPartFromPicker(picked: PickedPart) {
     setShowPartPicker(false);
@@ -285,7 +269,7 @@ export default function DealInvoiceNewPage() {
         part_no: picked.part_no ?? '',
         name: picked.name,
         quantity: '1',
-        unit_price: picked.unit_price !== null ? String(picked.unit_price) : '',
+        unit_price: picked.unit_price !== null ? String(storedPriceToDisplay(picked.unit_price, mode)) : '',
         cost_price: picked.cost_price !== null ? String(picked.cost_price) : '',
         tax_rate: '0.1',
       },
@@ -300,17 +284,10 @@ export default function DealInvoiceNewPage() {
     ]);
   }
 
-  function updatePartItem(localId: string, field: keyof PartLineItem, value: string) {
-    setPartLineItems((prev) =>
-      prev.map((item) => (item.localId === localId ? { ...item, [field]: value } : item)),
-    );
-  }
-
-  function removePartItem(localId: string) {
-    setPartLineItems((prev) => prev.filter((item) => item.localId !== localId));
-  }
 
   function selectReplacementVehicle(nextVehicle: VehicleCandidate) {
+    setBalanceCategory('');
+    setInvoiceAmounts(current=>Object.fromEntries(Object.entries(current).filter(([key])=>!['vehicle','stamp_fee','discount'].includes(key))));
     setVehicle({
       id: nextVehicle.id,
       management_no: nextVehicle.management_no,
@@ -320,6 +297,7 @@ export default function DealInvoiceNewPage() {
       model_year: nextVehicle.model_year,
       mileage_km: nextVehicle.mileage_km,
       vin: null,
+      base_price: vehicles.find(row=>row.id===nextVehicle.id)?.base_price ?? null,
       total_price: nextVehicle.total_price,
       status: nextVehicle.status,
     });
@@ -327,6 +305,7 @@ export default function DealInvoiceNewPage() {
 
   async function saveInvoice(issueStatus: 'draft' | 'issued') {
     setErrorMessage('');
+    if(balanceAmount>0 && !balanceCategory) { setErrorMessage('支払総額との差額の税区分を選択してください。'); return; }
     setIsSaving(true);
 
     try {
@@ -335,6 +314,9 @@ export default function DealInvoiceNewPage() {
       }
 
       const supabase = createClient();
+      vehicleInvoiceBalanceLine(balanceAmount,mode,balanceCategory);
+      if(summary.error) throw new Error(summary.error);
+      if(businessSettings.loading || businessSettings.error) throw new Error(businessSettings.error || '設定の読み込みをお待ちください。');
       await assertDocumentLimitAvailable(supabase, deal.store_id);
       const now = new Date().toISOString();
       const finalInvoiceNo = invoiceNo.trim() || createDocumentNo('INV');
@@ -348,29 +330,31 @@ export default function DealInvoiceNewPage() {
         customer_id: deal.customer_id,
         vehicle_id: vehicle?.id ?? deal.vehicle_id,
         invoice_no: finalInvoiceNo,
-        title: deal.title,
+        title: snapshotFields.title ?? (deal.title),
         status: 'draft',
         issue_status: 'draft',
         issue_date: finalIssueDate,
         payment_due_date: toNullableText(paymentDueDate),
-        assigned_user_name: deal.assigned_user_name,
-        customer_name: customer?.name ?? null,
-        customer_phone: customer?.phone ?? null,
-        customer_email: customer?.email ?? null,
+        assigned_user_name: snapshotFields.assigned_user_name ?? (deal.assigned_user_name),
+        customer_name: snapshotFields.customer_name ?? (customer?.name ?? null),
+        customer_phone: snapshotFields.customer_phone ?? (customer?.phone ?? null),
+        customer_email: snapshotFields.customer_email ?? (customer?.email ?? null),
         customer_postal_code: customer?.postal_code ?? null,
-        customer_address: customer?.address ?? null,
-        customer_honorific: honorific,
-        vehicle_label: vehicleLabel(vehicle),
+        customer_address: snapshotFields.customer_address ?? (customer?.address ?? null),
+        customer_honorific: snapshotFields.customer_honorific ?? (honorific),
+        vehicle_label: snapshotFields.vehicle_label ?? (vehicleLabel(vehicle)),
         vehicle_maker: vehicle?.maker ?? null,
         vehicle_model_name: vehicle?.model_name ?? null,
         vehicle_year: vehicle?.model_year ?? null,
         vehicle_mileage_km: vehicle?.mileage_km ?? null,
         vehicle_vin: vehicle?.vin ?? null,
-        vehicle_registration_no: vehicle?.registration_no ?? null,
-        subtotal_amount: totalAmount,
-        tax_amount: 0,
-        discount_amount: 0,
-        trade_in_amount: 0,
+        vehicle_registration_no: snapshotFields.vehicle_registration_no ?? (vehicle?.registration_no ?? null),
+        tax_display_mode: mode,
+        discount_input_amount: summary.discount_input_amount,
+        subtotal_amount: summary.subtotalAmount,
+        tax_amount: summary.taxAmount,
+        discount_amount: summary.discountAmount,
+        trade_in_amount: summary.tradeInAmount,
         total_amount: totalAmount,
         paid_amount: 0,
         unpaid_amount: totalAmount,
@@ -391,66 +375,7 @@ export default function DealInvoiceNewPage() {
         cancel_reason: null,
       };
 
-      const { data: invoice, error: invoiceError } = await supabase
-        .from<InvoiceIdRow>('invoices')
-        .insert(invoicePayload)
-        .select('id')
-        .single();
-
-      if (invoiceError || !invoice?.id) {
-        throw new Error(invoiceError?.message ?? '請求書の保存に失敗しました。');
-      }
-
-      if (invoiceTotal !== 0) {
-        const itemPayload: InvoiceItemInsert = {
-          store_id: deal.store_id,
-          invoice_id: invoice.id,
-          item_order: 1,
-          item_type: 'vehicle',
-          name: '車両本体・諸費用',
-          quantity: 1,
-          unit_price: invoiceTotal,
-          tax_rate: 0.1,
-          tax_amount: 0,
-          amount: invoiceTotal,
-        };
-        const { error: itemError } = await supabase
-          .from<InvoiceItemInsert>('invoice_items')
-          .insert(itemPayload);
-
-        if (itemError) {
-          throw new Error(itemError.message);
-        }
-      }
-
-      const partItemPayloads: InvoiceItemInsert[] = partLineItems
-        .filter((item) => item.name.trim())
-        .map((item, index) => {
-          const qty = parseInt(item.quantity, 10) || 1;
-          const price = parseFloat(item.unit_price) || 0;
-          const amount = qty * price;
-          return {
-            store_id: deal.store_id,
-            invoice_id: invoice.id,
-            item_order: (invoiceTotal !== 0 ? 1 : 0) + index + 1,
-            item_type: 'part',
-            name: item.name.trim(),
-            quantity: qty,
-            unit_price: price,
-            tax_rate: parseFloat(item.tax_rate) || 0.1,
-            tax_amount: 0,
-            amount,
-            part_id: item.part_id ?? null,
-            cost_price: item.cost_price.trim() ? Math.round(parseFloat(item.cost_price)) : null,
-          };
-        });
-
-      if (partItemPayloads.length > 0) {
-        const { error: partItemError } = await supabase
-          .from<InvoiceItemInsert>('invoice_items')
-          .insert(partItemPayloads);
-        if (partItemError) throw new Error(partItemError.message);
-      }
+      const invoice=await saveDocument('invoice',deal.store_id,invoicePayload,summary.persisted);
 
       if (issueStatus === 'issued') {
         const response = await fetch(`/api/invoices/${invoice.id}/issue`, {
@@ -490,7 +415,8 @@ export default function DealInvoiceNewPage() {
         </Link>
       }
     >
-      <form onSubmit={handleSubmit} className="mx-auto max-w-7xl space-y-8">
+      <p className="mb-4 text-sm">金額入力：{mode === 'included' ? '税込' : '税抜'}{summary.error && <span role="alert">{summary.error}</span>}</p>
+          <form onSubmit={handleSubmit} className="mx-auto max-w-7xl space-y-8">
         <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
           PDFプレビューでは会社情報・ロゴ・角印が反映されます。
         </p>
@@ -556,7 +482,7 @@ export default function DealInvoiceNewPage() {
                   <input
                     id="assigned_user_name"
                     type="text"
-                    defaultValue={deal?.assigned_user_name ?? ''}
+                    value={snapshotFields.assigned_user_name ?? deal?.assigned_user_name ?? ''} onChange={e=>setSnapshotFields(current=>({...current,assigned_user_name:e.target.value}))}
                     className={inputClass}
                   />
                 </div>
@@ -592,39 +518,39 @@ export default function DealInvoiceNewPage() {
               <div className="grid gap-5 px-5 py-6 sm:px-6 md:grid-cols-2 xl:grid-cols-3">
                 <div>
                   <FieldLabel htmlFor="deal_title">商談</FieldLabel>
-                  <input id="deal_title" type="text" defaultValue={deal?.title ?? ''} className={inputClass} />
+                  <input id="deal_title" type="text" value={snapshotFields.title ?? (deal?.title ?? '')} onChange={e=>setSnapshotFields(current=>({...current,title:e.target.value}))} className={inputClass} />
                 </div>
                 <div>
                   <FieldLabel htmlFor="customer_name">顧客名</FieldLabel>
-                  <input id="customer_name" type="text" defaultValue={customer?.name ?? ''} className={inputClass} />
+                  <input id="customer_name" type="text" value={snapshotFields.customer_name ?? (customer?.name ?? '')} onChange={e=>setSnapshotFields(current=>({...current,customer_name:e.target.value}))} className={inputClass} />
                 </div>
                 <div>
                   <FieldLabel htmlFor="honorific">敬称</FieldLabel>
-                  <input id="honorific" type="text" defaultValue={honorific} className={inputClass} />
+                  <input id="honorific" type="text" value={snapshotFields.customer_honorific ?? (honorific)} onChange={e=>setSnapshotFields(current=>({...current,customer_honorific:e.target.value}))} className={inputClass} />
                 </div>
                 <div>
                   <FieldLabel htmlFor="phone">電話番号</FieldLabel>
-                  <input id="phone" type="tel" defaultValue={customer?.phone ?? ''} className={inputClass} />
+                  <input id="phone" type="tel" value={snapshotFields.customer_phone ?? (customer?.phone ?? '')} onChange={e=>setSnapshotFields(current=>({...current,customer_phone:e.target.value}))} className={inputClass} />
                 </div>
                 <div>
                   <FieldLabel htmlFor="email">メールアドレス</FieldLabel>
-                  <input id="email" type="email" defaultValue={customer?.email ?? ''} className={inputClass} />
+                  <input id="email" type="email" value={snapshotFields.customer_email ?? (customer?.email ?? '')} onChange={e=>setSnapshotFields(current=>({...current,customer_email:e.target.value}))} className={inputClass} />
                 </div>
                 <div className="md:col-span-2 xl:col-span-3">
                   <FieldLabel htmlFor="address">住所</FieldLabel>
-                  <input id="address" type="text" defaultValue={customer?.address ?? ''} className={inputClass} />
+                  <input id="address" type="text" value={snapshotFields.customer_address ?? (customer?.address ?? '')} onChange={e=>setSnapshotFields(current=>({...current,customer_address:e.target.value}))} className={inputClass} />
                 </div>
                 <div>
                   <FieldLabel htmlFor="vehicle_label">対象車両</FieldLabel>
-                  <input id="vehicle_label" type="text" defaultValue={vehicleLabel(vehicle)} className={inputClass} />
+                  <input id="vehicle_label" type="text" value={snapshotFields.vehicle_label ?? (vehicleLabel(vehicle))} onChange={e=>setSnapshotFields(current=>({...current,vehicle_label:e.target.value}))} className={inputClass} />
                 </div>
                 <div>
                   <FieldLabel htmlFor="registration_no">登録番号</FieldLabel>
-                  <input id="registration_no" type="text" defaultValue={vehicle?.registration_no ?? ''} className={inputClass} />
+                  <input id="registration_no" type="text" value={snapshotFields.vehicle_registration_no ?? (vehicle?.registration_no ?? '')} onChange={e=>setSnapshotFields(current=>({...current,vehicle_registration_no:e.target.value}))} className={inputClass} />
                 </div>
                 <div>
-                  <FieldLabel htmlFor="total_price">支払総額</FieldLabel>
-                  <input id="total_price" type="text" defaultValue={formatPrice(vehicle?.total_price)} className={`${inputClass} text-right`} />
+                  <FieldLabel htmlFor="total_price">{priceLabel('車両本体価格',mode)}</FieldLabel>
+                  <input id="total_price" type="number" min="0" step="0.0001" value={invoiceAmounts.vehicle ?? String(invoiceTotal)} onChange={e=>setInvoiceAmounts(current=>({...current,vehicle:e.target.value}))} className={`${inputClass} text-right`} />
                 </div>
               </div>
             </section>
@@ -633,16 +559,15 @@ export default function DealInvoiceNewPage() {
               <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
                 <h3 className="text-lg font-bold text-slate-950">請求明細・メモ</h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  invoices テーブル作成後に保存処理を接続します。
+                  車両本体価格と支払総額との差額を分け、登録済みの支払総額を維持します。差額がある場合は、その税区分を確認して選択するまで保存できません。複数の税区分が混在する場合は差額を0にして内訳を明細へ追加してください。
                 </p>
               </div>
               <div className="grid gap-5 px-5 py-6 sm:px-6 md:grid-cols-2 xl:grid-cols-3">
-                {['車両本体価格', '登録代行費用', '納車整備費用', '値引き', '下取り金額', '請求合計'].map((label) => (
-                  <div key={label}>
-                    <FieldLabel htmlFor={label}>{label}</FieldLabel>
-                    <input id={label} type="number" className={`${inputClass} text-right`} />
-                  </div>
+                {([{key:'vehicle',label:'車両本体価格'},{key:'stamp_fee',label:'支払総額との差額（支払額）'},{key:'registration_fee',label:'登録代行費用'},{key:'delivery_maintenance_fee',label:'納車整備費用'},{key:'discount',label:'値引き'},{key:'trade_in',label:'下取り金額'}]).map(field => (
+                  <div key={field.key}><FieldLabel htmlFor={`fee-${field.key}`}>{field.key==='discount'||field.key==='trade_in'||field.key==='stamp_fee'?field.label:priceLabel(field.label,mode)}</FieldLabel><input id={`fee-${field.key}`} type="number" min="0" step={field.key==='discount'||field.key==='trade_in'?'1':'0.0001'} value={effectiveAmounts[field.key] ?? ''} onChange={e=>setInvoiceAmounts(current=>({...current,[field.key]:e.target.value}))} className={inputClass}/></div>
                 ))}
+                {balanceAmount>0 && <div><FieldLabel htmlFor="balance-tax-category">支払総額との差額の税区分（必須）</FieldLabel><select id="balance-tax-category" value={balanceCategory} onChange={e=>setBalanceCategory(e.target.value)} className={inputClass}><option value="">未確定：選択してください</option><option value="out_of_scope">法定費用等（税対象外）</option><option value="exempt">非課税</option><option value="taxable10">課税10%</option><option value="taxable8">課税8%</option></select>{!balanceCategory && <p role="status">差額の税区分は未確定です。表示額は保存できません。</p>}</div>}
+                <div><p>消費税</p><output>{formatPrice(summary.taxAmount)}</output></div><div><p>請求合計</p><output>{formatPrice(summary.totalAmount)}</output></div>
                 <div className="md:col-span-2 xl:col-span-3">
                   <FieldLabel htmlFor="memo">備考</FieldLabel>
                   <textarea
@@ -688,79 +613,7 @@ export default function DealInvoiceNewPage() {
                     手動で行追加
                   </button>
                 </div>
-                {partLineItems.length > 0 && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[640px] text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200 text-left text-xs font-bold text-slate-500">
-                          <th className="pb-2 pr-2">部品名</th>
-                          <th className="pb-2 pr-2 w-20">数量</th>
-                          <th className="pb-2 pr-2 w-28">単価</th>
-                          <th className="pb-2 pr-2 w-28 text-right">小計</th>
-                          <th className="pb-2 w-16"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {partLineItems.map((item) => {
-                          const qty = parseInt(item.quantity, 10) || 1;
-                          const price = parseFloat(item.unit_price) || 0;
-                          const subtotal = qty * price;
-                          return (
-                            <tr key={item.localId}>
-                              <td className="py-2 pr-2">
-                                <input
-                                  type="text"
-                                  value={item.name}
-                                  onChange={(e) => updatePartItem(item.localId, 'name', e.target.value)}
-                                  placeholder="部品名・作業名"
-                                  className={inputClass}
-                                />
-                              </td>
-                              <td className="py-2 pr-2">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={item.quantity}
-                                  onChange={(e) => updatePartItem(item.localId, 'quantity', e.target.value)}
-                                  className={`${inputClass} text-right`}
-                                />
-                              </td>
-                              <td className="py-2 pr-2">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={item.unit_price}
-                                  onChange={(e) => updatePartItem(item.localId, 'unit_price', e.target.value)}
-                                  placeholder="0"
-                                  className={`${inputClass} text-right`}
-                                />
-                              </td>
-                              <td className="py-2 pr-2 text-right font-semibold text-slate-900">
-                                {subtotal.toLocaleString('ja-JP')}円
-                              </td>
-                              <td className="py-2">
-                                <button
-                                  type="button"
-                                  onClick={() => removePartItem(item.localId)}
-                                  className="rounded-lg px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50"
-                                >
-                                  削除
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t border-slate-200">
-                          <td colSpan={3} className="pt-3 text-right text-sm font-bold text-slate-700">部品合計</td>
-                          <td className="pt-3 pr-2 text-right font-bold text-slate-900">{partsSubtotal.toLocaleString('ja-JP')}円</td>
-                          <td />
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                )}
+                <PartLineItemsEditor mode={mode} items={partLineItems} onChange={setPartLineItems} />
               </div>
             </section>
 

@@ -9,13 +9,13 @@ import {
 } from '../../src/lib/security/adminEmailOtp';
 
 test.describe('Stripe security controls', () => {
-  test('login lockout and administrator email OTP are enforced in PostgREST', async () => {
+  test('login lockout remains enforced while routine OTP is retired', async () => {
     const [migration, emailOtp, loginRoute, middleware, otpForm, removal] = await Promise.all([
       readFile('supabase/migrations/20260722000200_auth_security_hardening.sql', 'utf8'),
       readFile('supabase/migrations/20260723000300_admin_email_otp.sql', 'utf8'),
-      readFile('src/app/api/auth/password-login/route.ts', 'utf8'),
+      readFile('src/lib/auth/password-login-handler.ts', 'utf8'),
       readFile('src/middleware.ts', 'utf8'),
-      readFile('src/app/security/email-otp/EmailOtpForm.tsx', 'utf8'),
+      readFile('src/app/security/email-otp/page.tsx', 'utf8'),
       readFile('supabase/migrations/20260723000100_remove_admin_access_code.sql', 'utf8'),
     ]);
 
@@ -39,17 +39,11 @@ test.describe('Stripe security controls', () => {
     await expect(access('src/app/security/admin-access/page.tsx')).rejects.toThrow();
     expect(removal).toContain('drop table if exists public.admin_access_credentials');
 
-    expect(middleware).toContain("const postAuthPath = isSecurityGate(pathname)");
-    expect(middleware.indexOf('shouldCheckAdminSecurity')).toBeLessThan(
-      middleware.indexOf('const postAuthPath'),
-    );
-    expect(middleware).toContain("service.rpc('admin_email_otp_bootstrap_context'");
+    expect(middleware).not.toContain('shouldCheckAdminSecurity');
+    expect(middleware).not.toContain("service.rpc('admin_email_otp_bootstrap_context'");
     expect(middleware).not.toContain("from('store_members')");
     expect(middleware).not.toContain("from('memberships')");
-
-    expect(otpForm).toContain("fetch('/api/auth/admin-email-otp/request'");
-    expect(otpForm).toContain("fetch('/api/auth/admin-email-otp/verify'");
-    expect(otpForm).toContain('この端末では、確認後30日間');
+    expect(otpForm).toContain("redirect('/dashboard')");
     await expect(access('src/app/security/mfa/MfaForm.tsx')).rejects.toThrow();
   });
 

@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useHydrated } from '@/lib/browser/useHydrated';
 import { TrackedLoginLink } from './TrackedSignupLink';
 import { Menu, X } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import styles from './garage-landing.module.css';
 
 export function MobileNavigation() {
+  const isHydrated = useHydrated();
   const [open, setOpen] = useState(false);
   const navigationId = useId();
 
@@ -26,6 +28,7 @@ export function MobileNavigation() {
       <button
         type="button"
         data-testid="mobile-menu-trigger"
+        disabled={!isHydrated}
         className={styles.mobileMenuButton}
         aria-label={open ? 'メニューを閉じる' : 'メニューを開く'}
         aria-expanded={open}

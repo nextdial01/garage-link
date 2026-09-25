@@ -431,7 +431,7 @@ export default function LaunchChecklistPage() {
             .from<LineSettingsRow>('line_settings')
             .select('id, webhook_url, connection_status')
             .eq('store_id', member.store_id)
-            .single(),
+            .maybeSingle(),
         ]);
 
         if (storeResult.error) {

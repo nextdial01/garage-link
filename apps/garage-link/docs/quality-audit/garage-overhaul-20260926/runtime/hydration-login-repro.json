@@ -1,0 +1,12 @@
+{
+  "scenario": "Slow JavaScript delivery; fill server-rendered editable login inputs before React hydration; release JS then inspect only booleans",
+  "before": {
+    "emailEditable": true,
+    "passwordEditable": true
+  },
+  "after": {
+    "emailMatches": true,
+    "passwordMatches": true,
+    "buttonEnabled": false
+  }
+}

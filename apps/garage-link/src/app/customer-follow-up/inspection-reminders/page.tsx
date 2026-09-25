@@ -5,6 +5,7 @@ import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
+import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 import { REMINDER_STATUS_LABELS, REMINDER_STATUSES, type ReminderStatus } from '@/lib/inspection-reminders/shared';
 
 type EventRow = {
@@ -74,12 +75,8 @@ export default function InspectionReminderHistoryPage() {
     setErrorMessage('');
     try {
       if (!role) {
-        const supabase = createClient();
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData.user?.id) {
-          const { data: member } = await supabase.from<{ role: string | null }>('memberships').select('role').eq('user_id', userData.user.id).single();
-          setRole(member?.role ?? '');
-        }
+        const context = await requireActiveGarageStore();
+        setRole(context.role ?? '');
       }
 
       const params = new URLSearchParams();
@@ -123,12 +120,16 @@ export default function InspectionReminderHistoryPage() {
     setErrorMessage('');
     try {
       const supabase = createClient();
-      const { error } = await supabase
-        .from('inspection_reminder_events')
-        .update({ status: 'skipped' })
-        .eq('id', id)
-        .eq('status', 'pending');
+      const context = await requireActiveGarageStore({ force: true });
+      const { data, error } = await supabase.rpc('skip_inspection_reminder_event', {
+        p_store_id: context.storeId,
+        p_event_id: id,
+      });
       if (error) throw new Error(error.message);
+      if (!data || typeof data !== 'object' || !('ok' in data) || data.ok !== true) {
+        setErrorMessage('対象の状態が更新されました。再読込して確認してください。');
+        return;
+      }
       await load();
     } catch (error) {
       setErrorMessage(toUserErrorMessage(error, 'スキップに失敗しました。'));

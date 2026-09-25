@@ -52,6 +52,9 @@ function createRuntime() {
   const supabase = { auth: { getSession: async () => ({ data: { session: { access_token: 'synthetic-access-token' } } }) } };
   const mobileApi = loadCommonJs(mobileApiSource, {
     './supabase': { supabase },
+    './photoUpload': loadCommonJs(readFileSync(new URL('../src/photoUpload.ts', import.meta.url), 'utf8'), { 'react-native': { Platform: { OS: 'ios' } } }),
+    'react-native': { Platform: { OS: 'ios' } },
+    './apiOrigin': loadCommonJs(readFileSync(new URL('../src/apiOrigin.ts', import.meta.url), 'utf8'), {}, {URL, __DEV__: false}),
     './trustedDevice': trustedDevice,
   }, {
     AbortController,
@@ -117,36 +120,14 @@ test('SecureStore read and malformed-token failures are not converted to a missi
   await assert.rejects(malformed.trustedDevice.getTrustedDeviceToken(), (error) => error?.code === 'trusted_device_token_invalid');
 });
 
-test('ordinary API requests stop with a safe storage diagnostic instead of dropping the proof', async () => {
+test('ordinary API requests ignore retired trusted-device storage failures', async () => {
   const runtime = createRuntime();
   runtime.failRead(true);
-  await assert.rejects(runtime.api.stores(), (error) => error?.code === 'trusted_device_read_failed' && !error.message.includes('synthetic secure'));
-  assert.equal(runtime.requests.length, 0);
-});
-
-test('OTP request can proceed without a readable old token so recovery remains possible', async () => {
-  const runtime = createRuntime();
-  runtime.failRead(true);
-  const result = await runtime.api.requestAdminEmailOtp();
-  assert.equal(result.ok, true);
+  await runtime.api.stores();
   assert.equal(runtime.requests.length, 1);
   assert.equal(runtime.requests[0].trustedHeaderPresent, false);
-});
-
-test('OTP verification persists and reads back the new token without returning it to callers', async () => {
-  const runtime = createRuntime();
-  runtime.failRead(true);
-  runtime.recoverReadOnVerify(true);
-  const result = await runtime.api.verifyAdminEmailOtp('123456');
-  assert.deepEqual({ ...result }, { ok: true });
-  assert.equal(runtime.storage.get('garage-link.trusted-device-token'), syntheticToken);
-  assert.equal(runtime.requests[0].trustedHeaderPresent, false);
-});
-
-test('OTP verification exposes a typed persistence error if SecureStore cannot save', async () => {
-  const runtime = createRuntime();
-  runtime.failWrite(true);
-  await assert.rejects(runtime.api.verifyAdminEmailOtp('123456'), (error) => error?.code === 'trusted_device_save_failed');
+  assert.equal(runtime.api.requestAdminEmailOtp, undefined);
+  assert.equal(runtime.api.verifyAdminEmailOtp, undefined);
 });
 
 test('trusted-token deletion failure is explicit and does not claim logout cleanup succeeded', async () => {

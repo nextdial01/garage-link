@@ -3,6 +3,11 @@
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
+import { saveDocument } from '@/lib/business/saveDocument';
+import MasterSelect from '@/components/business/MasterSelect';
+import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
+import { priceLabel, storedPriceToDisplay, type TaxDisplayMode } from '@/lib/business/money';
+import { safeDocumentCalculation, importDocument, nonTaxFeeKeys, type StoredDocumentLine } from '@/lib/business/documents';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -14,6 +19,12 @@ import { createClient } from '@/lib/supabase/client';
 type StoreMemberRow = { store_id: string; role: string | null };
 
 type QuoteDetailRow = {
+  subtotal_amount: number | null;
+  tax_amount: number | null;
+  tax_display_mode: TaxDisplayMode | null;
+  discount_input_amount: number | null;
+  discount_amount: number | null;
+  trade_in_amount: number | null;
   id: string;
   store_id: string;
   deal_id: string | null;
@@ -131,20 +142,6 @@ type QuoteFormState = {
   internal_memo: string;
 };
 
-type QuoteItemInsert = {
-  store_id: string;
-  quote_id: string;
-  item_order: number;
-  item_type: string;
-  name: string;
-  quantity: number;
-  unit_price: number;
-  tax_rate: number;
-  tax_amount: number;
-  amount: number;
-  part_id?: string | null;
-  cost_price?: number | null;
-};
 
 type AmountKey =
   | 'vehicle_base_price'
@@ -217,6 +214,9 @@ function FieldLabel({ htmlFor, children }: { htmlFor: string; children: string }
 export default function EditQuotePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const businessSettings = useBusinessSettings();
+  const [documentMode, setDocumentMode] = useState<TaxDisplayMode | null>(null);
+  const mode = documentMode ?? businessSettings.mode;
 
   const [formState, setFormState] = useState<QuoteFormState>(emptyForm);
   const [amounts, setAmounts] = useState<Record<AmountKey, string>>(emptyAmounts);
@@ -245,20 +245,7 @@ export default function EditQuotePage() {
   const selectedCustomer = useMemo(() => customers.find((c) => c.id === formState.customer_id), [customers, formState.customer_id]);
   const selectedVehicle = useMemo(() => vehicles.find((v) => v.id === formState.vehicle_id), [vehicles, formState.vehicle_id]);
 
-  const partsSubtotal = useMemo(() => partLineItems.reduce((sum, item) => {
-    return sum + (parseInt(item.quantity, 10) || 1) * (parseFloat(item.unit_price) || 0);
-  }, 0), [partLineItems]);
-
-  const summary = useMemo(() => {
-    const fixedSubtotal = amountItems
-      .filter((item) => !item.negative)
-      .reduce((t, item) => t + toNumber(amounts[item.key]), 0);
-    const subtotalAmount = fixedSubtotal + partsSubtotal;
-    const discountAmount = toNumber(amounts.discount);
-    const tradeInAmount = toNumber(amounts.trade_in);
-    const taxAmount = 0;
-    return { subtotalAmount, taxAmount, discountAmount, tradeInAmount, totalAmount: subtotalAmount + taxAmount - discountAmount - tradeInAmount };
-  }, [amounts, partsSubtotal]);
+  const summary = useMemo(() => safeDocumentCalculation(amountItems, amounts, partLineItems, mode), [amounts, partLineItems, mode]);
 
   useEffect(() => {
     async function load() {
@@ -290,7 +277,7 @@ export default function EditQuotePage() {
           await Promise.all([
             supabase
               .from<QuoteDetailRow>('quotes')
-              .select('id, store_id, deal_id, customer_id, vehicle_id, quote_no, title, status, issue_status, issue_date, expiry_date, assigned_user_name, customer_name, customer_phone, customer_email, customer_address, customer_honorific, vehicle_label, vehicle_maker, vehicle_model_name, vehicle_year, vehicle_mileage_km, vehicle_vin, vehicle_inspection_expiry_date, total_amount, payment_method, loan_request, down_payment, installment_count, payment_due_date, customer_note, internal_memo')
+              .select('subtotal_amount, tax_amount, tax_display_mode, discount_input_amount, discount_amount, trade_in_amount, id, store_id, deal_id, customer_id, vehicle_id, quote_no, title, status, issue_status, issue_date, expiry_date, assigned_user_name, customer_name, customer_phone, customer_email, customer_address, customer_honorific, vehicle_label, vehicle_maker, vehicle_model_name, vehicle_year, vehicle_mileage_km, vehicle_vin, vehicle_inspection_expiry_date, total_amount, payment_method, loan_request, down_payment, installment_count, payment_due_date, customer_note, internal_memo')
               .eq('id', id)
               .eq('store_id', member.store_id)
               .single(),
@@ -315,8 +302,8 @@ export default function EditQuotePage() {
               .eq('store_id', member.store_id)
               .order('created_at', { ascending: false }),
             supabase
-              .from<QuoteItemRow>('quote_items')
-              .select('id, item_type, name, quantity, unit_price, tax_rate, amount, part_id, cost_price')
+              .from<QuoteItemRow & StoredDocumentLine>('quote_items')
+              .select('*')
               .eq('quote_id', id)
               .eq('store_id', member.store_id)
               .order('item_order', { ascending: true }),
@@ -376,28 +363,10 @@ export default function EditQuotePage() {
           internal_memo: quote.internal_memo ?? '',
         });
 
-        const newAmounts = { ...emptyAmounts };
-        for (const item of itemResult.data ?? []) {
-          const match = amountItems.find((a) => a.name === item.name);
-          if (match && item.amount !== null) {
-            newAmounts[match.key] = String(Math.abs(item.amount));
-          }
-        }
-        setAmounts(newAmounts);
-
-        const newParts: PartLineItem[] = (itemResult.data ?? [])
-          .filter((item) => item.item_type === 'part' && item.name)
-          .map((item) => ({
-            localId: item.id,
-            part_id: item.part_id ?? null,
-            part_no: '',
-            name: item.name!,
-            quantity: String(item.quantity ?? 1),
-            unit_price: String(item.unit_price ?? 0),
-            cost_price: item.cost_price !== null ? String(item.cost_price) : '',
-            tax_rate: String(item.tax_rate ?? 0.1),
-          }));
-        setPartLineItems(newParts);
+        const imported=importDocument({...quote}, itemResult.data ?? []);
+        setDocumentMode(imported.mode);
+        setAmounts({...emptyAmounts,discount:imported.discount,trade_in:imported.tradeIn});
+        setPartLineItems(imported.lines);
 
         setDeals(dealResult.data ?? []);
         setCustomers(customerResult.data ?? []);
@@ -436,7 +405,7 @@ export default function EditQuotePage() {
           const v = vehicles.find((v) => v.id === deal.vehicle_id);
           if (v) {
             next = { ...next, vehicle_id: v.id, vehicle_label: vehicleLabel(v), vehicle_maker: v.maker ?? '', vehicle_model_name: v.model_name ?? '', vehicle_year: v.model_year !== null ? String(v.model_year) : '', vehicle_mileage_km: v.mileage_km !== null ? String(v.mileage_km) : '', vehicle_vin: v.vin ?? '', vehicle_inspection_expiry_date: v.inspection_expiry_date ?? '' };
-            if (v.base_price !== null) setAmounts((a) => ({ ...a, vehicle_base_price: String(v.base_price) }));
+            if (v.base_price !== null) setAmounts((a) => ({ ...a, vehicle_base_price: String(storedPriceToDisplay(v.base_price ?? 0, mode)) }));
           }
         }
         return next;
@@ -449,7 +418,7 @@ export default function EditQuotePage() {
       if (name === 'vehicle_id') {
         const v = vehicles.find((v) => v.id === value);
         if (!v) return { ...current, vehicle_id: value };
-        if (v.base_price !== null) setAmounts((a) => ({ ...a, vehicle_base_price: String(v.base_price) }));
+        if (v.base_price !== null) setAmounts((a) => ({ ...a, vehicle_base_price: String(storedPriceToDisplay(v.base_price ?? 0, mode)) }));
         return { ...current, vehicle_id: v.id, vehicle_label: vehicleLabel(v), vehicle_maker: v.maker ?? '', vehicle_model_name: v.model_name ?? '', vehicle_year: v.model_year !== null ? String(v.model_year) : '', vehicle_mileage_km: v.mileage_km !== null ? String(v.mileage_km) : '', vehicle_vin: v.vin ?? '', vehicle_inspection_expiry_date: v.inspection_expiry_date ?? '' };
       }
       return { ...current, [name]: value };
@@ -460,7 +429,7 @@ export default function EditQuotePage() {
     setShowPartPicker(false);
     setPartLineItems((prev) => [
       ...prev,
-      { localId: `${Date.now()}-${Math.random()}`, part_id: picked.id, part_no: picked.part_no ?? '', name: picked.name, quantity: '1', unit_price: String(picked.unit_price ?? ''), cost_price: String(picked.cost_price ?? ''), tax_rate: '0.1' },
+      { localId: `${Date.now()}-${Math.random()}`, part_id: picked.id, part_no: picked.part_no ?? '', name: picked.name, quantity: '1', unit_price: String(storedPriceToDisplay(picked.unit_price ?? 0, mode)), cost_price: String(picked.cost_price ?? ''), tax_rate: '0.1' },
     ]);
   }
 
@@ -481,6 +450,7 @@ export default function EditQuotePage() {
 
       const supabase = createClient();
 
+      if (summary.error) throw new Error(summary.error);
       const quotePayload = {
         deal_id: toNullableText(formState.deal_id),
         customer_id: toNullableText(formState.customer_id),
@@ -503,6 +473,8 @@ export default function EditQuotePage() {
         vehicle_mileage_km: toNullableNumber(formState.vehicle_mileage_km),
         vehicle_vin: toNullableText(formState.vehicle_vin),
         vehicle_inspection_expiry_date: toNullableText(formState.vehicle_inspection_expiry_date),
+        tax_display_mode: mode,
+        discount_input_amount: summary.discount_input_amount,
         subtotal_amount: summary.subtotalAmount,
         tax_amount: summary.taxAmount,
         discount_amount: summary.discountAmount,
@@ -517,54 +489,8 @@ export default function EditQuotePage() {
         internal_memo: toNullableText(formState.internal_memo),
       };
 
-      const { error: updateError } = await supabase
-        .from<QuoteDetailRow>('quotes')
-        .update(quotePayload)
-        .eq('id', id)
-        .eq('store_id', storeId);
-      if (updateError) throw new Error(updateError.message);
-
-      const { error: deleteError } = await supabase
-        .from<QuoteItemRow>('quote_items')
-        .delete()
-        .eq('quote_id', id)
-        .eq('store_id', storeId);
-      if (deleteError) throw new Error(deleteError.message);
-
-      const itemPayloads: QuoteItemInsert[] = amountItems
-        .map((item, index) => {
-          const amount = toNumber(amounts[item.key]);
-          const signed = item.negative ? amount * -1 : amount;
-          return { store_id: storeId, quote_id: id, item_order: index + 1, item_type: item.itemType, name: item.name, quantity: 1, unit_price: signed, tax_rate: 0.1, tax_amount: 0, amount: signed };
-        })
-        .filter((item) => item.amount !== 0);
-
-      if (itemPayloads.length > 0) {
-        const { error } = await supabase.from<QuoteItemInsert>('quote_items').insert(itemPayloads);
-        if (error) throw new Error(error.message);
-      }
-
-      const partItemPayloads: QuoteItemInsert[] = partLineItems
-        .filter((item) => item.name.trim())
-        .map((item, index) => {
-          const qty = parseInt(item.quantity, 10) || 1;
-          const price = parseFloat(item.unit_price) || 0;
-          return {
-            store_id: storeId, quote_id: id,
-            item_order: itemPayloads.length + index + 1,
-            item_type: 'part', name: item.name.trim(),
-            quantity: qty, unit_price: price,
-            tax_rate: parseFloat(item.tax_rate) || 0.1,
-            tax_amount: 0, amount: qty * price,
-            part_id: item.part_id ?? null,
-            cost_price: item.cost_price.trim() ? Math.round(parseFloat(item.cost_price)) : null,
-          };
-        });
-
-      if (partItemPayloads.length > 0) {
-        const { error } = await supabase.from<QuoteItemInsert>('quote_items').insert(partItemPayloads);
-        if (error) throw new Error(error.message);
-      }
+      const itemPayloads=summary.persisted;
+      await saveDocument('quote',storeId,quotePayload,itemPayloads,id);
 
       await logAudit({
         supabase,
@@ -577,7 +503,7 @@ export default function EditQuotePage() {
         targetId: id,
         targetLabel: formState.quote_no || id,
         beforeData: { total_amount: beforeRef.current.total_amount, status: beforeRef.current.status, item_count: beforeRef.current.item_count },
-        afterData: { total_amount: summary.totalAmount, status, item_count: itemPayloads.length + partItemPayloads.length },
+        afterData: { total_amount: summary.totalAmount, status, item_count: itemPayloads.length },
       });
 
       sessionStorage.setItem('flash_quotes', '見積書を更新しました。');
@@ -642,6 +568,7 @@ export default function EditQuotePage() {
         </Link>
       }
     >
+      <p className="mb-4 text-sm">金額入力：{mode === 'included' ? '税込' : '税抜'}（保存後は帳票に保持されます）{summary.error && <span role="alert" className="ml-3 text-red-600">{summary.error}</span>}</p>
       <form onSubmit={handleSubmit} className="mx-auto max-w-7xl space-y-8">
         {errorMessage && (
           <div className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
@@ -752,7 +679,7 @@ export default function EditQuotePage() {
             </div>
             <div>
               <FieldLabel htmlFor="vehicle_maker">メーカー</FieldLabel>
-              <input id="vehicle_maker" type="text" value={formState.vehicle_maker} onChange={(e) => updateField('vehicle_maker', e.target.value)} className={inputClass} />
+              <MasterSelect id="vehicle_maker" kind="vehicle_maker" value={formState.vehicle_maker} onChange={value=>updateField('vehicle_maker',value)} className={inputClass} />
             </div>
             <div>
               <FieldLabel htmlFor="vehicle_model_name">車種名</FieldLabel>
@@ -793,7 +720,7 @@ export default function EditQuotePage() {
           <div className="grid gap-5 px-5 py-6 sm:px-6 md:grid-cols-2 xl:grid-cols-3">
             {amountItems.map((item) => (
               <div key={item.key}>
-                <FieldLabel htmlFor={item.key}>{item.name}</FieldLabel>
+                <FieldLabel htmlFor={item.key}>{item.negative ? item.name : priceLabel(item.name, mode, nonTaxFeeKeys.has(item.key) ? 'out_of_scope' : 'taxable')}</FieldLabel>
                 <input id={item.key} type="number" value={amounts[item.key]} onChange={(e) => setAmounts((a) => ({ ...a, [item.key]: e.target.value }))} className={`${inputClass} text-right`} />
               </div>
             ))}
@@ -863,7 +790,7 @@ export default function EditQuotePage() {
               + 部品を追加
             </button>
           </div>
-          <PartLineItemsEditor items={partLineItems} onChange={setPartLineItems} />
+          <PartLineItemsEditor mode={mode} items={partLineItems} onChange={setPartLineItems} />
         </section>
 
         <section className="rounded-2xl border border-blue-100 bg-white shadow-sm">

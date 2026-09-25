@@ -17,13 +17,8 @@ test.describe('staging owner preview contract', () => {
     expect(guard).toContain("host !== 'garage-link.tech'");
     expect(source).toContain("admin.auth.admin.generateLink");
     expect(source).toContain("supabase.auth.verifyOtp");
-    expect(source).toContain('readSessionClaims(verified.data.session)');
-    expect(source).toContain("admin.from('admin_trusted_sessions').upsert");
-    expect(source).toContain('deviceTokenHash');
-    expect(source).toContain('createTrustedDeviceCookieValue');
-    expect(source).toContain('ADMIN_EMAIL_OTP_COOKIE');
-    expect(source).toContain('trustedDeviceCookieOptions');
-    expect(source).toContain('OWNER_PREVIEW_TRUSTED_SESSION_FAILED');
+    expect(source).not.toContain("admin.from('admin_trusted_sessions').upsert");
+    expect(source).not.toContain('ADMIN_EMAIL_OTP_COOKIE');
     expect(source).not.toContain('action_link');
     expect(source).not.toContain('NextResponse.json({ access_token');
     expect(source).not.toContain('NextResponse.json({ refresh_token');

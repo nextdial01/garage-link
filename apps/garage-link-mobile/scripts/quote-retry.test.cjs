@@ -7,6 +7,7 @@ const ts = require('typescript');
 const React = require('react');
 global.requestAnimationFrame = (callback) => { callback(0); return 0; };
 const root = path.resolve(__dirname, '..');
+const fixtureModules = new Map();
 const source = fs.readFileSync(path.join(root, 'App.tsx'), 'utf8');
 const names = [...source.matchAll(/const \[(\w+)(?:,\s*\w+)?\] = useState/g)].map(m => m[1]);
 let state = {}, refs = [], index = 0, refIndex = 0, calls = [];
@@ -22,13 +23,23 @@ const filename = path.join(root, 'App.quote-retry-test.cjs');
 const mod = new Module(filename, module); mod.filename = filename; mod.paths = Module._nodeModulePaths(root);
 mod.require = id => {
   if (id === 'react') return react;
-  if (id === 'react-native') return { StyleSheet:{create:v=>v}, Platform:{OS:'ios'}, useWindowDimensions:()=>({width:390}), ...Object.fromEntries(['ActivityIndicator','View','Text','ScrollView','FlatList','Image','TextInput','TouchableOpacity','KeyboardAvoidingView'].map(k=>[k,k])) };
+  if (id === 'react-native') return { StyleSheet:{create:v=>v}, Platform:{OS:'ios',select:options=>options.ios ?? options.default}, useWindowDimensions:()=>({width:390}), ...Object.fromEntries(['ActivityIndicator','View','Text','ScrollView','FlatList','Image','TextInput','TouchableOpacity','KeyboardAvoidingView'].map(k=>[k,k])) };
   if (id === 'react-native-safe-area-context') return {SafeAreaProvider:'SafeAreaProvider',SafeAreaView:'SafeAreaView'};
   if (id === '@expo/vector-icons/Ionicons') return 'Icon';
   if (id === './src/mobileApi') return {mobileApi:api,MobileApiError:ApiError};
   if (id === './src/supabase') return {supabase:{},mobileConfigurationError:null};
   if (id.startsWith('expo-')) return {};
-  if (id.startsWith('./src/')) return require(path.resolve(root,id+'.ts'));
+  if (id.startsWith('./src/') || id.startsWith('./../garage-link/src/lib/business/')) {
+    const base = path.resolve(root, id);
+    const localFile = [base, base + '.web.ts', base + '.web.tsx', base + '.ts', base + '.tsx'].find(file => fs.existsSync(file) && fs.statSync(file).isFile());
+    if (!localFile) throw new Error(`Missing local fixture module: ${id}`);
+    if (fixtureModules.has(localFile)) return fixtureModules.get(localFile).exports;
+    const child = new Module(localFile, module); child.filename = localFile; child.paths = Module._nodeModulePaths(path.dirname(localFile));
+    fixtureModules.set(localFile, child);
+    child.require = specifier => mod.require(specifier.startsWith('.') ? './' + path.relative(root, path.resolve(path.dirname(localFile), specifier)) : specifier);
+    child._compile(ts.transpileModule(fs.readFileSync(localFile, 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText, localFile);
+    return child.exports;
+  }
   if (id.endsWith('.png')) return 1;
   return require(id);
 };
