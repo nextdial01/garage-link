@@ -10,6 +10,7 @@ import PartLineItemsEditor, { type PartLineItem } from '@/components/parts/PartL
 import PartPickerModal, { type PickedPart } from '@/components/parts/PartPickerModal';
 import { DOCUMENT_LIMIT_MESSAGE, assertDocumentLimitAvailable } from '@/lib/billing/garageSubscription';
 import { createClient } from '@/lib/supabase/client';
+import { manualPartsDocumentLine } from '@/lib/maintenance/formValues';
 
 type StoreMemberRow = {
   store_id: string;
@@ -501,7 +502,7 @@ export default function NewQuotePage() {
           const [{ data: jobRow, error: jobError }, { data: jobParts, error: jobPartsError }] = await Promise.all([
             supabase
               .from('maintenance_jobs')
-              .select('id, customer_id, vehicle_id, job_no, job_type, request_detail, work_items, work_memo, customer_message, labor_amount')
+              .select('id, customer_id, vehicle_id, job_no, job_type, request_detail, work_items, work_memo, customer_message, labor_amount, parts_amount')
               .eq('id', initialJobId)
               .eq('store_id', member.store_id)
               .single(),
@@ -526,6 +527,7 @@ export default function NewQuotePage() {
             work_memo: string | null;
             customer_message: string | null;
             labor_amount: number | null;
+            parts_amount: number | null;
           };
           const customer = (customerResult.data ?? []).find((c) => c.id === jr.customer_id) ?? null;
           const vehicle = (vehicleResult.data ?? []).find((v) => v.id === jr.vehicle_id) ?? null;
@@ -554,34 +556,33 @@ export default function NewQuotePage() {
             id: string; part_id: string | null; part_no: string | null; name: string;
             quantity: number; unit_price: number; cost_price: number | null; tax_rate: number;
           }>;
-          if (partRows.length > 0) {
-            setPartLineItems(partRows.map((p) => ({
-              localId: `${Date.now()}-${p.id}`,
-              part_id: p.part_id,
-              part_no: p.part_no ?? '',
-              name: p.name,
-              quantity: String(p.quantity),
-              unit_price: String(p.unit_price),
-              cost_price: p.cost_price !== null ? String(p.cost_price) : '',
-              tax_rate: String(p.tax_rate ?? 0.1),
-            })));
-          }
+          const newItems: PartLineItem[] = partRows.map((p) => ({
+            localId: `${Date.now()}-${p.id}`,
+            part_id: p.part_id,
+            part_no: p.part_no ?? '',
+            name: p.name,
+            quantity: String(p.quantity),
+            unit_price: String(p.unit_price),
+            cost_price: p.cost_price !== null ? String(p.cost_price) : '',
+            tax_rate: String(p.tax_rate ?? 0.1),
+          }));
+
+          const manualParts = manualPartsDocumentLine(jr.parts_amount, partRows.length);
+          if (manualParts) newItems.push(manualParts);
 
           if (jr.labor_amount && jr.labor_amount > 0) {
-            setPartLineItems((prev) => [
-              ...prev,
-              {
-                localId: `${Date.now()}-labor`,
-                part_id: null,
-                part_no: '',
-                name: '工賃',
-                quantity: '1',
-                unit_price: String(jr.labor_amount),
-                cost_price: '',
-                tax_rate: '0.1',
-              },
-            ]);
+            newItems.push({
+              localId: `${Date.now()}-labor`,
+              part_id: null,
+              part_no: '',
+              name: '工賃',
+              quantity: '1',
+              unit_price: String(jr.labor_amount),
+              cost_price: '',
+              tax_rate: '0.1',
+            });
           }
+          setPartLineItems(newItems);
         }
       } catch (error) {
         setErrorMessage(toUserErrorMessage(error, '選択肢の取得に失敗しました。'));
