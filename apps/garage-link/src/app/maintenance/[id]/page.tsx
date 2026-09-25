@@ -11,6 +11,7 @@ import JobPartsPanel from '@/components/parts/JobPartsPanel';
 import SoftDeleteButton from '@/components/SoftDeleteButton';
 import { logAudit } from '@/lib/audit/logAudit';
 import { createClient } from '@/lib/supabase/client';
+import { maintenanceJobTypes } from '@/lib/maintenance/formValues';
 
 type StoreMemberRow = { store_id: string; role: string | null };
 
@@ -639,7 +640,7 @@ export default function MaintenanceDetailPage() {
         <div className="space-y-6">
           <Section title="基本情報">
             <Field label="受付番号"><input className={inputClass} value={form.job_no} onChange={(event) => updateField('job_no', event.target.value)} /></Field>
-            <Field label="種別"><select className={inputClass} value={form.job_type} onChange={(event) => updateField('job_type', event.target.value)}>{['車検', '点検', '整備', '修理', 'カスタム', 'その他'].map((option) => <option key={option}>{option}</option>)}</select></Field>
+            <Field label="種別"><select className={inputClass} value={form.job_type} onChange={(event) => updateField('job_type', event.target.value)}>{maintenanceJobTypes(form.job_type).map((option) => <option key={option}>{option}</option>)}</select></Field>
             <Field label="ステータス"><select className={inputClass} value={form.status} onChange={(event) => updateField('status', event.target.value)}>{statusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
             <Field label="優先度"><select className={inputClass} value={form.priority} onChange={(event) => updateField('priority', event.target.value)}>{priorityOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
             <Field label="受付日"><input type="date" className={inputClass} value={form.reception_date} onChange={(event) => updateField('reception_date', event.target.value)} /></Field>

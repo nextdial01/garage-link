@@ -10,6 +10,7 @@ import PartLineItemsEditor, { type PartLineItem } from '@/components/parts/PartL
 import PartPickerModal, { type PickedPart } from '@/components/parts/PartPickerModal';
 import { DOCUMENT_LIMIT_MESSAGE, assertDocumentLimitAvailable } from '@/lib/billing/garageSubscription';
 import { createClient } from '@/lib/supabase/client';
+import { manualPartsDocumentLine } from '@/lib/maintenance/formValues';
 
 type StoreMemberRow = {
   store_id: string;
@@ -364,7 +365,7 @@ export default function NewInvoicePage() {
           const [{ data: jobRow, error: jobError }, { data: jobParts, error: jobPartsError }] = await Promise.all([
             supabase
               .from('maintenance_jobs')
-              .select('id, customer_id, vehicle_id, job_no, request_detail, work_memo, customer_message, labor_amount')
+              .select('id, customer_id, vehicle_id, job_no, request_detail, work_memo, customer_message, labor_amount, parts_amount')
               .eq('id', initialJobId)
               .eq('store_id', member.store_id)
               .single(),
@@ -383,6 +384,7 @@ export default function NewInvoicePage() {
             job_no: string | null; request_detail: string | null;
             work_memo: string | null; customer_message: string | null;
             labor_amount: number | null;
+            parts_amount: number | null;
           };
           if (jr.customer_id) setCustomerId(jr.customer_id);
           if (jr.vehicle_id) setVehicleId(jr.vehicle_id);
@@ -423,6 +425,8 @@ export default function NewInvoicePage() {
             cost_price: p.cost_price !== null ? String(p.cost_price) : '',
             tax_rate: String(p.tax_rate ?? 0.1),
           }));
+          const manualParts = manualPartsDocumentLine(jr.parts_amount, partRows.length);
+          if (manualParts) newItems.push(manualParts);
           if (jr.labor_amount && jr.labor_amount > 0) {
             newItems.push({
               localId: `${Date.now()}-labor`,

@@ -4,6 +4,7 @@
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { loadedPartsTotal } from '@/lib/maintenance/formValues';
 import PartPickerModal, { type PickedPart } from './PartPickerModal';
 
 type JobPartRow = {
@@ -103,7 +104,8 @@ export default function JobPartsPanel({ jobId, storeId, canEdit, onTotalChange }
         if (error) throw error;
         const rows = data ?? [];
         setParts(rows);
-        notifyTotal(rows);
+        const total = loadedPartsTotal(rows);
+        if (total !== null) onTotalChangeRef.current?.(total);
       } catch {
         if (!cancelled) setErrorMessage('使用部品の読み込みに失敗しました。');
       } finally {

@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
 import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
+import { MAINTENANCE_JOB_TYPES } from '@/lib/maintenance/formValues';
 
 type CustomerRow = {
   id: string;
@@ -229,7 +230,7 @@ export default function NewMaintenancePage() {
           <h3 className="text-lg font-bold text-slate-950">受付基本情報</h3>
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <label><span className="text-sm font-bold text-slate-700">受付番号</span><input className={`${inputClass} mt-2`} value={form.job_no} onChange={(e) => updateField('job_no', e.target.value)} placeholder="例：M-2026-000001" /></label>
-            <label><span className="text-sm font-bold text-slate-700">受付種別</span><select className={`${inputClass} mt-2`} value={form.job_type} onChange={(e) => updateField('job_type', e.target.value)}>{['車検','法定点検','一般整備','修理','カスタム','オイル交換','その他'].map((v)=><option key={v}>{v}</option>)}</select></label>
+            <label><span className="text-sm font-bold text-slate-700">受付種別</span><select className={`${inputClass} mt-2`} value={form.job_type} onChange={(e) => updateField('job_type', e.target.value)}>{MAINTENANCE_JOB_TYPES.map((v)=><option key={v}>{v}</option>)}</select></label>
             <label><span className="text-sm font-bold text-slate-700">受付日</span><input type="date" className={`${inputClass} mt-2`} value={form.reception_date} onChange={(e) => updateField('reception_date', e.target.value)} /></label>
             <label><span className="text-sm font-bold text-slate-700">受付経路</span><select className={`${inputClass} mt-2`} value={form.reception_route} onChange={(e) => updateField('reception_route', e.target.value)}>{['LINE','電話','来店','メール','Webフォーム','紹介','その他'].map((v)=><option key={v}>{v}</option>)}</select></label>
             <label><span className="text-sm font-bold text-slate-700">ステータス</span><select className={`${inputClass} mt-2`} value={form.status} onChange={(e) => updateField('status', e.target.value)}>{[['received','受付'],['estimating','見積中'],['waiting','入庫待ち'],['working','作業中'],['completed','完了'],['delivered','納車済み'],['cancelled','キャンセル']].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>
