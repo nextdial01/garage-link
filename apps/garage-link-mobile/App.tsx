@@ -7,7 +7,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { buttonLayout, createRequestCoordinator, mergePage, parentTab, quoteValidationError, quoteVehicleId, userFacingError } from './src/qualityState';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
+import { sharePrintedPdf } from './src/v2/sharePdf';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { Session } from '@supabase/supabase-js';
 import { MobileApiError, mobileApi, type Customer, type CustomerDetail, type MaintenanceJob, type Quote, type QuoteDraft, type Store, type Today, type Vehicle, type VehicleDetail, type VehicleDraft } from './src/mobileApi';
@@ -432,10 +432,9 @@ export function GarageMobileApp() {
   async function exportPdf() {
     if (!quote) return;
     await run(async (isCurrent) => {
-      const result = await Print.printToFileAsync({ html: quoteHtml });
+      const result = await Print.printToFileAsync({ html: quoteHtml, base64: Platform.OS === 'android' });
       if (!isCurrent()) return;
-      if (!await Sharing.isAvailableAsync()) throw new MobileApiError('Sharing unavailable', 'share', 0, 'share_unavailable');
-      if (isCurrent()) await Sharing.shareAsync(result.uri, { mimeType: 'application/pdf', dialogTitle: '見積書を保存・共有' });
+      if (isCurrent()) await sharePrintedPdf(result, '見積書を保存・共有');
     }, true);
   }
   async function printQuote() { if (quote) await run(() => Print.printAsync({ html: quoteHtml }), true); }

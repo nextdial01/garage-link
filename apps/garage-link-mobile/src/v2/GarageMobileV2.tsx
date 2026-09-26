@@ -6,8 +6,8 @@ import { Fragment, useEffect, useEffectEvent, useState, useRef } from 'react';
 import { Platform, BackHandler, Text } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { mobileApi, type Store, type V2Record, type V2Resource, type Quote } from '../mobileApi';
+import { sharePrintedPdf } from './sharePdf';
 import { Button, Card, Field, Info, Row, Shell, type Tab } from './Ui';
 import { TabContent, DetailContent, FormContent, PhotoContent, QuoteContent, InvoiceContent, PaymentContent, formPayload, parseQuoteItems } from './Content';
 
@@ -214,9 +214,8 @@ export default function GarageMobileV2({ store, onLogout, onStore }: { store: St
   async function shareQuote(quote: Quote) {
     await run(async () => {
       if (Platform.OS === 'web') { webDocumentPreview(quoteHtml(quote)); return; }
-      const result = await Print.printToFileAsync({html:quoteHtml(quote)});
-      if (!await Sharing.isAvailableAsync()) throw new Error('共有機能を利用できません。');
-      await Sharing.shareAsync(result.uri,{mimeType:'application/pdf',dialogTitle:'見積書を共有'});
+      const result = await Print.printToFileAsync({html:quoteHtml(quote), base64:Platform.OS === 'android'});
+      await sharePrintedPdf(result, '見積書を共有');
     });
   }
   async function printQuote(quote: Quote) { await run(async () => { if (Platform.OS === 'web') { webDocumentPreview(quoteHtml(quote)); return; } await Print.printAsync({html:quoteHtml(quote)}); }); }
@@ -225,7 +224,7 @@ export default function GarageMobileV2({ store, onLogout, onStore }: { store: St
     if (saved) { setOperationId(operationKey()); const result = await run(() => mobileApi.v2InvoiceDetail(store.id,id),true); if (result) setInvoiceView(result.invoice); }
   }
   async function shareInvoice(invoice: V2Record) {
-    await run(async () => { if (Platform.OS === 'web') { webDocumentPreview(documentHtml('invoice',invoice,invoiceItems)); return; } const printed = await Print.printToFileAsync({html:documentHtml('invoice',invoice,invoiceItems)}); if (!await Sharing.isAvailableAsync()) throw new Error('共有機能を利用できません。'); await Sharing.shareAsync(printed.uri,{mimeType:'application/pdf',dialogTitle:'請求書を共有'}); });
+    await run(async () => { if (Platform.OS === 'web') { webDocumentPreview(documentHtml('invoice',invoice,invoiceItems)); return; } const printed = await Print.printToFileAsync({html:documentHtml('invoice',invoice,invoiceItems),base64:Platform.OS === 'android'}); await sharePrintedPdf(printed,'請求書を共有'); });
   }
   const title = route.kind === 'tab' ? ({ today:'今日', vehicles:'車両', deals:'商談', maintenance:'整備', customers:'顧客' } as const)[route.tab] : route.kind === 'form' ? ({ vehicles:'仕入登録', customers:'顧客登録', deals:'商談登録', maintenance:'整備受付', appointments:'予約登録', tradeIns:'下取り査定' } as Record<Entity,string>)[route.entity] : ({ detail:'詳細', photo:'写真を追加', quote:'見積を作る', quoteDetail:'見積詳細', invoice:'請求を作る', invoiceDetail:'請求詳細', payment:'入金を登録', sale:'成約にする', delivery:'納車を完了', cancel:'売約取消' } as Record<string,string>)[route.kind];
   if (!businessReady) return <Shell title={title} tab={route.tab} onTab={tab} onBack={onStore} onLogout={onLogout} busy={!businessError} error={businessError || undefined}><Text>店舗設定を確認しています。</Text></Shell>;
