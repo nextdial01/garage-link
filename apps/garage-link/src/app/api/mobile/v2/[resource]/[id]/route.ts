@@ -22,7 +22,7 @@ export async function GET(request: Request, { params }: HandlerContext) {
   if (resource === 'maintenance') {
     const client = createBearerClient(request.headers.get('authorization')!.replace(/^Bearer\s+/i,''));
     if (!client) return fail(500, 'connection_failed');
-    const parts = await client.from('maintenance_job_parts').select('id,part_id,part_no,name,quantity,unit_price,cost_price,tax_rate,discount_amount,subtotal_amount,work_memo').eq('job_id',id).eq('store_id',context.member.storeId).order('created_at');
+    const parts = await client.from('maintenance_job_parts').select('id,part_id,part_no,name,quantity,unit_price,tax_rate,discount_amount,subtotal_amount').eq('job_id',id).eq('store_id',context.member.storeId).order('created_at');
     if (parts.error) return fail(500, 'maintenance_parts_read_failed');
     return Response.json({ ok: true, row: { ...(data as unknown as Record<string,unknown>), maintenance_parts: parts.data ?? [] } });
   }

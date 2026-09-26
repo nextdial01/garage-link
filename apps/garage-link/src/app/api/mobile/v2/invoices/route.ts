@@ -4,6 +4,7 @@ import { assertDocumentLimitAvailable } from '@/lib/billing/garageSubscription';
 import { documentCalculation, importDocument, type DocumentHeader, type StoredDocumentLine } from '@/lib/business/documents';
 import type { PartLineItem } from '@/components/parts/PartLineItemsEditor';
 import { uuid } from '@/lib/mobile/v2Resources';
+import { trustedSourceItemCost } from '@/lib/mobile/sourceItemCost';
 
 const FIELDS = 'tax_display_mode,discount_input_amount,id,quote_id,deal_id,maintenance_job_id,customer_id,vehicle_id,invoice_no,title,status,issue_status,issue_date,payment_due_date,customer_name,vehicle_label,subtotal_amount,tax_amount,discount_amount,trade_in_amount,total_amount,paid_amount,unpaid_amount,customer_note,updated_at';
 
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
   if(body?.sourceInvoiceId != null) {
     if(!uuid(body.sourceInvoiceId) || !Array.isArray(body.items) || body.items.length>100 || body.items.length===0) return Response.json({ok:false,code:'invalid_invoice_copy'},{status:400});
     const [source,sourceItems]=await Promise.all([
-      context.service.from('invoices').select('*').eq('id',body.sourceInvoiceId).eq('store_id',context.member.storeId).maybeSingle(),
+      context.service.from('invoices').select('*').eq('id',body.sourceInvoiceId).eq('store_id',context.member.storeId).is('deleted_at',null).maybeSingle(),
       context.service.from('invoice_items').select('*').eq('invoice_id',body.sourceInvoiceId).eq('store_id',context.member.storeId).order('item_order'),
     ]);
     if(source.error || !source.data || sourceItems.error) return Response.json({ok:false,code:'forbidden_source'},{status:403});
@@ -57,8 +58,9 @@ export async function POST(request: Request) {
           if(item.itemType==='discount')discount+=deduction;else tradeIn+=deduction;continue;
         }
         if(item.partId != null && !uuid(item.partId)) throw new Error('part_scope');
-        if(item.costPrice != null && (typeof item.costPrice!=='number' || !Number.isFinite(item.costPrice) || item.costPrice<0)) throw new Error('invalid_cost');
-        draftLines.push({line_discount_input_amount:String(item.lineDiscountInputAmount ?? 0),localId:String(index),name:item.name.trim(),item_type:typeof item.itemType==='string'?item.itemType:'part',part_id:uuid(item.partId)?String(item.partId):null,part_no:'',quantity:String(item.quantity),unit_price:String(item.unitPrice),cost_price:item.costPrice==null?'':String(item.costPrice),tax_rate:String(item.taxRate ?? 0.1),tax_category:item.taxCategory==='exempt'||item.taxCategory==='out_of_scope'?item.taxCategory:'taxable',unit:typeof item.unit==='string'?item.unit.slice(0,40):'',note:typeof item.note==='string'?item.note.slice(0,500):''});
+        const sourceItemId=item.sourceItemId == null ? null : uuid(item.sourceItemId) ? item.sourceItemId : (()=>{throw new Error('invalid_source_item');})();
+        const trustedCost=trustedSourceItemCost(sourceItemId,sourceItems.data ?? []);
+        draftLines.push({line_discount_input_amount:String(item.lineDiscountInputAmount ?? 0),localId:String(index),name:item.name.trim(),item_type:typeof item.itemType==='string'?item.itemType:'part',part_id:uuid(item.partId)?String(item.partId):null,part_no:'',quantity:String(item.quantity),unit_price:String(item.unitPrice),cost_price:trustedCost==null?'':String(trustedCost),tax_rate:String(item.taxRate ?? 0.1),tax_category:item.taxCategory==='exempt'||item.taxCategory==='out_of_scope'?item.taxCategory:'taxable',unit:typeof item.unit==='string'?item.unit.slice(0,40):'',note:typeof item.note==='string'?item.note.slice(0,500):''});
       }
       const calculation=documentCalculation([],{discount:String(discount),trade_in:String(tradeIn)},draftLines,imported.mode);
       // This helper only calls from/rpc; the SSR ambient auth.getClaims type differs from the bearer SDK.

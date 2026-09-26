@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/audit/logAudit';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { importDocument, type DocumentHeader, type StoredDocumentLine } from '@/lib/business/documents';
 import { calculateDocument, decimal, type TaxDisplayMode, type TaxCategory } from '@/lib/business/money';
+import { trustedSourceItemCost, type TrustedSourceItemCost } from '@/lib/mobile/sourceItemCost';
 
 const ITEM_TYPES = new Set(['vehicle', 'part', 'labor', 'service', 'fee', 'option', 'registration', 'inspection', 'tax', 'insurance', 'other', 'discount', 'trade_in']);
 const NEGATIVE_TYPES = new Set(['discount', 'trade_in']);
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     customerId ? context.service.from('customers').select('id, name, phone, email, address').eq('id', customerId).eq('store_id', context.member.storeId).maybeSingle() : Promise.resolve({ data: null, error: null }),
     vehicleId ? context.service.from('vehicles').select('id, management_no, maker, model_name, model_year, mileage_km, vin, inspection_expiry_date').eq('id', vehicleId).eq('store_id', context.member.storeId).maybeSingle() : Promise.resolve({ data: null, error: null }),
     dealId ? context.service.from('deals').select('id, customer_id, vehicle_id').eq('id', dealId).eq('store_id', context.member.storeId).maybeSingle() : Promise.resolve({ data: null, error: null }),
-    maintenanceJobId ? context.service.from('maintenance_jobs').select('id, customer_id, vehicle_id, tax_display_mode').eq('id', maintenanceJobId).eq('store_id', context.member.storeId).maybeSingle() : Promise.resolve({ data: null, error: null }),
+    maintenanceJobId ? context.service.from('maintenance_jobs').select('id, customer_id, vehicle_id, tax_display_mode').eq('id', maintenanceJobId).eq('store_id', context.member.storeId).is('deleted_at', null).maybeSingle() : Promise.resolve({ data: null, error: null }),
   ]);
   if (customerResult.error || vehicleResult.error || dealResult.error || maintenanceResult.error || (customerId && !customerResult.data) || (vehicleId && !vehicleResult.data) || (dealId && !dealResult.data) || (maintenanceJobId && !maintenanceResult.data)) return Response.json({ ok: false, code: 'forbidden_related_resource', error: '関連先にアクセスできません。' }, { status: 403 });
   if (dealResult.data && ((customerId && dealResult.data.customer_id !== customerId) || (vehicleId && dealResult.data.vehicle_id !== vehicleId))) return Response.json({ ok: false, code: 'invalid_association', error: '商談と顧客・車両の関連が一致しません。' }, { status: 400 });
@@ -60,12 +61,12 @@ export async function POST(request: Request) {
     const itemType = text(item.itemType, 40); const name = text(item.name, 160); const quantity = money(item.quantity, 3); const unitPrice = money(item.unitPrice, 4); const taxRate = typeof item.taxRate === 'number' && item.taxRate >= 0 && item.taxRate <= 0.5 ? item.taxRate : 0.1;
     if (!itemType || !ITEM_TYPES.has(itemType) || !name || quantity === null || quantity <= 0 || unitPrice === null || (!NEGATIVE_TYPES.has(itemType) && unitPrice < 0) || (NEGATIVE_TYPES.has(itemType) && unitPrice > 0)) return null;
     const partId=item.partId == null?null:uuid(item.partId);
-    const costPrice=item.costPrice == null?null:money(item.costPrice,4);
-    if((item.partId != null && !partId) || (item.costPrice != null && (costPrice===null || costPrice<0))) return null;
+    const sourceItemId=item.sourceItemId == null?null:uuid(item.sourceItemId);
+    if((item.partId != null && !partId) || (item.sourceItemId != null && !sourceItemId)) return null;
     const taxCategory: TaxCategory = item.taxCategory === 'exempt' || item.taxCategory === 'out_of_scope' ? item.taxCategory : 'taxable';
     const lineDiscount=money(item.lineDiscountInputAmount ?? 0,0);
     if(lineDiscount===null || lineDiscount<0) return null;
-    return { line_discount_input_amount:lineDiscount,item_order:index+1,item_type:itemType,part_id:partId,cost_price:costPrice,name,description:text(item.description,500),quantity,unit_price:unitPrice,tax_rate:taxRate,tax_category:taxCategory,unit:text(item.unit,40),note:text(item.note,500) };
+    return { sourceItemId, line_discount_input_amount:lineDiscount,item_order:index+1,item_type:itemType,part_id:partId,cost_price:null as number|null,name,description:text(item.description,500),quantity,unit_price:unitPrice,tax_rate:taxRate,tax_category:taxCategory,unit:text(item.unit,40),note:text(item.note,500) };
   });
   if (items.some((item) => !item)) return Response.json({ ok: false, code: 'invalid_items', error: '見積明細を確認してください。' }, { status: 400 });
   const validatedItems = items as Array<NonNullable<typeof items[number]>>;
@@ -80,17 +81,31 @@ export async function POST(request: Request) {
   let mode: TaxDisplayMode = maintenanceMode === 'included' || maintenanceMode === 'excluded' ? maintenanceMode : storeResult.data.tax_display_mode === 'excluded' ? 'excluded' : 'included';
   let sourceDiscount=0,sourceTradeIn=0;
   let copySource: DocumentHeader | null=null;
+  let trustedSourceItems: TrustedSourceItemCost[] = [];
   if (body.sourceQuoteId != null) {
     const sourceId=uuid(body.sourceQuoteId);
     if(!sourceId) return Response.json({ok:false,code:'invalid_source'},{status:400});
     const [source,sourceItems]=await Promise.all([
-      context.service.from('quotes').select('*').eq('id',sourceId).eq('store_id',context.member.storeId).maybeSingle(),
+      context.service.from('quotes').select('*').eq('id',sourceId).eq('store_id',context.member.storeId).is('deleted_at',null).maybeSingle(),
       context.service.from('quote_items').select('*').eq('quote_id',sourceId).eq('store_id',context.member.storeId).order('item_order'),
     ]);
     if(source.error || !source.data || sourceItems.error) return Response.json({ok:false,code:'forbidden_source',error:'コピー元にアクセスできません。'},{status:403});
     copySource=source.data as DocumentHeader;
+    trustedSourceItems = sourceItems.data ?? [];
+    try { for (const item of validatedItems) trustedSourceItemCost(item.sourceItemId, trustedSourceItems); }
+    catch { return Response.json({ok:false,code:'invalid_source_item',error:'コピー元の明細を確認してください。'},{status:400}); }
     const imported=importDocument(source.data as DocumentHeader,(sourceItems.data ?? []) as StoredDocumentLine[]);
     mode=imported.mode;sourceDiscount=Number(imported.discount);sourceTradeIn=Number(imported.tradeIn);
+  } else {
+    const maintenanceItemIds = validatedItems.flatMap(item => item.sourceItemId ? [item.sourceItemId] : []);
+    if (maintenanceItemIds.length) {
+      if (!maintenanceJobId) return Response.json({ok:false,code:'invalid_source_item'},{status:400});
+      const maintenanceParts = await context.service.from('maintenance_job_parts').select('id,cost_price').eq('job_id',maintenanceJobId).eq('store_id',context.member.storeId).in('id',maintenanceItemIds);
+      if (maintenanceParts.error || maintenanceParts.data?.length !== new Set(maintenanceItemIds).size) return Response.json({ok:false,code:'invalid_source_item'},{status:400});
+      trustedSourceItems = maintenanceParts.data ?? [];
+      try { for (const item of validatedItems) trustedSourceItemCost(item.sourceItemId, trustedSourceItems); }
+      catch { return Response.json({ok:false,code:'invalid_source_item'},{status:400}); }
+    }
   }
   if(body.taxDisplayMode != null && body.taxDisplayMode !== mode) return Response.json({ok:false,code:'tax_mode_mismatch',error:'金額表示方式が更新されました。元の画面を開き直してください。'},{status:400});
   let calculated: ReturnType<typeof calculateDocument>;
@@ -100,7 +115,10 @@ export async function POST(request: Request) {
     const tradeIn=validatedItems.some(item=>item.item_type==='trade_in')?validatedItems.filter(item=>item.item_type==='trade_in').reduce((sum,item)=>sum-item.quantity*item.unit_price,0):Number(body.tradeInAmount ?? sourceTradeIn);
     calculated=calculateDocument(positiveItems,mode,{discount,tradeIn});
   } catch { return Response.json({ok:false,code:'invalid_total',error:'見積の数量・金額を確認してください。'},{status:400}); }
-  const safeItems=positiveItems.map((item,index)=>({...item,...calculated.lines[index],tax_amount:calculated.lines[index].discounted_tax_amount,item_order:index+1}));
+  const safeItems=positiveItems.map((item,index)=>{
+    const { sourceItemId, ...persistedInput } = item;
+    return {...persistedInput,cost_price:trustedSourceItemCost(sourceItemId, trustedSourceItems),...calculated.lines[index],tax_amount:calculated.lines[index].discounted_tax_amount,item_order:index+1};
+  });
   const totals={taxDisplayMode:mode,discountInputAmount:calculated.discount_input_amount,subtotalAmount:calculated.subtotal_amount,taxAmount:calculated.tax_amount,discountAmount:calculated.discount_amount,tradeInAmount:calculated.trade_in_amount,totalAmount:calculated.total_amount};
   // The operation key must also stabilize server-generated fields across a retry.
   const operationHash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`${context.member.storeId}:${idempotencyKey}`)))).map(value=>value.toString(16).padStart(2,'0')).join('');
