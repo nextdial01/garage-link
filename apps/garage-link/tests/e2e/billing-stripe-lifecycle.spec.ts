@@ -602,8 +602,8 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
     const event = templates[0];
     expect(event).toBeTruthy();
     assertOwnedObject(event!.data.object);
-    await replay(event!);
-    expect((await replay(event!)).ok()).toBe(true);
+    await replay(event);
+    expect((await replay(event)).ok()).toBe(true);
 
     expect(templates.length).toBeGreaterThanOrEqual(1);
     const synthetic = [1, 2].map((suffix) => ({
