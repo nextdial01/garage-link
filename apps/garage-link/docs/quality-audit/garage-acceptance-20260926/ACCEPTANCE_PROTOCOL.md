@@ -12,6 +12,13 @@ The existing overhaul remains in place. Production deployment, main merge, GitHu
 - `/settings/security` is read-only. It displays the authenticated account and current store role, Web login bot protection mode, self-only login restriction state and links to password reset, membership and audit management. Routine email OTP cannot be enabled from this page. No credentials or identity hashes leave the server helper.
 - Billing acceptance uses the existing Stripe test registry and synthetic fixtures only. Complete test Checkout, local signed webhook processing, application return and subscription readback. `BLOCKED_EXTERNAL_TEST_ENV` requires evidence that no safe test environment can run.
 
+## Defects detected by acceptance
+
+- An unavailable identity service must fail closed with a temporary 503 response while preserving the existing session and retry URL. A 401 continues to reject authentication. Do not treat a temporary outage as proof that the user logged out.
+- A failed Stripe webhook releases its processing lease. A later signed delivery must be able to reclaim a null or expired lease, while the update compares the observed status so that concurrent completion and terminal events cannot be reclaimed.
+- Android forms must keep fields reachable and visible above the keyboard. Preserve the existing iOS keyboard behavior and verify both native platforms when changing the shared form shell.
+- Commercial tests must use synthetic local tenants and owned test-mode Stripe objects, keep credentials in memory and exercise the current Stripe-authoritative entitlement contract. Released processing leases, safe retries and cleanup are part of the test evidence; obsolete OTP preparation is not required.
+
 ## Freeze and evidence
 
 After source review, commit one candidate and record its SHA and file manifest. Run all safe available automated suites and every one of the 124 Web routes against that candidate. Previous results are historical evidence, not inherited final PASS. Final browser tests include open, primary operation, back/close, reopen and reload; mutation routes also save and verify retained values. Run fresh-session login, logout/relogin, wrong-password recovery and reset after the changes. Exercise all 36 Android screens when the installed emulator can run. iOS evidence is identified separately.

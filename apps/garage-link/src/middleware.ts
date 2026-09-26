@@ -166,6 +166,12 @@ function attachReleaseQaAuthBoundary(
   return response;
 }
 
+function isTransientAuthFailure(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  return ('status' in error && typeof error.status === 'number' && error.status >= 500)
+    || ('name' in error && error.name === 'AuthRetryableFetchError');
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -203,6 +209,21 @@ export async function middleware(request: NextRequest) {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
+
+  // An unavailable identity service cannot establish authorization, but is not
+  // evidence that the user's existing session is invalid.
+  if (!user && isTransientAuthFailure(authError) && !isPublicPath(pathname)) {
+    const unavailable = pathname.startsWith('/api/')
+      ? NextResponse.json({ error: 'authentication_temporarily_unavailable' }, { status: 503 })
+      : new NextResponse(`<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>認証を確認できませんでした</title><body><main><h1>認証を確認できませんでした</h1><p>一時的に接続できません。時間をおいて再読み込みしてください。</p><a href="">再読み込み</a></main></body></html>`, {
+          status: 503,
+          headers: { 'content-type': 'text/html; charset=utf-8' },
+        });
+    unavailable.headers.set('cache-control', 'no-store');
+    unavailable.headers.set('retry-after', '5');
+    unavailable.headers.set('content-security-policy', "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
+    return responseWithSessionCookies(unavailable, response);
+  }
 
   if (!user && isRecoverableStaleSessionError(authError)) {
     clearStaleSupabaseAuthCookies(response, request);

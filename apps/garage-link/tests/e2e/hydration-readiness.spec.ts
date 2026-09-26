@@ -15,9 +15,22 @@ test('低速JSでも準備完了後の初回入力と1回ログインが成功�
   page.on('request', (request) => { if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/auth/password-login') posts += 1; });
   try {
     await page.goto('/login', { waitUntil: 'commit' });
-    await expect(page.locator('#email')).toBeDisabled();
-    await expect(page.locator('#password')).toBeDisabled();
-    await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeDisabled();
+    const email = page.locator('#email');
+    const loading = page.getByText('ログイン画面を読み込んでいます...', { exact: true });
+    // A release build's useSearchParams boundary renders its explicit Suspense
+    // fallback before JavaScript; development may already render disabled fields.
+    await expect(email.or(loading).first()).toBeVisible();
+    if (await email.isVisible()) {
+      await expect(email).toBeDisabled();
+      await expect(page.locator('#password')).toBeDisabled();
+      await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toBeDisabled();
+    } else {
+      await expect(loading).toBeVisible();
+      await expect(email).toHaveCount(0);
+      await expect(page.locator('#password')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'ログイン', exact: true })).toHaveCount(0);
+    }
+    expect(posts).toBe(0);
   } finally { release(); }
   await expect(page.locator('#email')).toBeEnabled();
   await page.locator('#email').fill(process.env.E2E_EMAIL!);
