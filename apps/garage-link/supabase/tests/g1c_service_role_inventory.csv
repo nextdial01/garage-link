@@ -41,3 +41,4 @@ src/lib/stripe/applyPlan.ts,stripe-worker,webhook,tenant-from-subscription,exclu
 src/lib/stripe/garageSubscriptionSync.ts,stripe-worker,signed-webhook-or-cron-caller,authoritative-subscription-and-lease,excluded-stripe-batch
 src/lib/stripe/garageWebhookProcessor.ts,stripe-worker,signed-webhook-or-cron-caller,event-and-subscription-lease,excluded-stripe-batch
 src/lib/supabase/admin.ts,client-factory,server,caller-required,central-factory
+src/lib/security/accountSecurityOverview.ts,user-auth,session,active-store-owner-admin-self-login-lock,accepted-user-scoped

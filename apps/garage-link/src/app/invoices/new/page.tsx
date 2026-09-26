@@ -1,5 +1,6 @@
 'use client';
 
+import { createDocumentNo } from '@/lib/business/documentNumbers';
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
@@ -170,14 +171,6 @@ const emptyAmounts: Record<AmountKey, string> = {
   discount: '',
   trade_in: '',
 };
-
-function createDocumentNo(prefix: string) {
-  const now = new Date();
-  const date = now.toISOString().slice(0, 10).replaceAll('-', '');
-  const time = now.toTimeString().slice(0, 8).replaceAll(':', '');
-  return `${prefix}-${date}-${time}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
-}
-
 
 function toNullableText(value: string) {
   return value.trim() === '' ? null : value.trim();
