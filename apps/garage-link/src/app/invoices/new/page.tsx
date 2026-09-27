@@ -9,6 +9,7 @@ import MasterSelect from '@/components/business/MasterSelect';
 import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
 import { priceLabel, storedPriceToDisplay, type TaxDisplayMode } from '@/lib/business/money';
 import { safeDocumentCalculation, importDocument, documentLine, nonTaxFeeKeys, type DocumentHeader, type StoredDocumentLine } from '@/lib/business/documents';
+import { humanDocumentMemo, mergeDocumentMemo } from '@/lib/business/documentMemo';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -243,6 +244,7 @@ export default function NewInvoicePage() {
   const [internalMemo, setInternalMemo] = useState('');
   const [partLineItems, setPartLineItems] = useState<PartLineItem[]>([]);
   const [showPartPicker, setShowPartPicker] = useState(false);
+  const structuredMemoSource = useRef<string | null>(null);
 
   useEffect(() => {
     async function loadOptions() {
@@ -488,6 +490,7 @@ export default function NewInvoicePage() {
     ]);
     if(header.error || !header.data || items.error) throw new Error(header.error?.message || items.error?.message || 'コピー元を取得できませんでした。');
     const source=header.data, imported=importDocument(source,items.data ?? []);
+    structuredMemoSource.current = source.internal_memo == null ? null : String(source.internal_memo);
     setDocumentMode(imported.mode);setPartLineItems(imported.lines);setAmounts({...emptyAmounts,discount:imported.discount,trade_in:imported.tradeIn});
     setCustomerId(String(source.customer_id ?? ''));
     setCustomerName(String(source.customer_name ?? ''));
@@ -507,7 +510,7 @@ export default function NewInvoicePage() {
     setTitle(String(source.title ?? ''));
     setAssignedUser(String(source.assigned_user_name ?? ''));
     setMemo(String(source.customer_note ?? ''));
-    setInternalMemo(String(source.internal_memo ?? ''));
+    setInternalMemo(humanDocumentMemo(source.internal_memo == null ? null : String(source.internal_memo)));
   }
   async function importQuoteItems(selectedQuoteId: string, overrideStoreId?: string) {
     const effectiveStoreId=overrideStoreId ?? storeId;
@@ -593,7 +596,7 @@ export default function NewInvoicePage() {
         paid_amount: 0,
         unpaid_amount: summary.totalAmount,
         customer_note: toNullableText(memo),
-        internal_memo: toNullableText(internalMemo),
+        internal_memo: mergeDocumentMemo(internalMemo, structuredMemoSource.current),
       };
 
       await saveDocument('invoice',storeId,invoicePayload,summary.persisted);

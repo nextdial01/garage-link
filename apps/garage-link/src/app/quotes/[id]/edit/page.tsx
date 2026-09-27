@@ -8,6 +8,7 @@ import MasterSelect from '@/components/business/MasterSelect';
 import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
 import { priceLabel, storedPriceToDisplay, type TaxDisplayMode } from '@/lib/business/money';
 import { safeDocumentCalculation, importDocument, nonTaxFeeKeys, type StoredDocumentLine } from '@/lib/business/documents';
+import { humanDocumentMemo, mergeDocumentMemo } from '@/lib/business/documentMemo';
 import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -240,6 +241,7 @@ export default function EditQuotePage() {
   const [isIssuedQuote, setIsIssuedQuote] = useState(false);
 
   const beforeRef = useRef({ total_amount: 0, status: '', item_count: 0 });
+  const structuredMemoSource = useRef<string | null>(null);
   const saveErrorRef = useRef<HTMLDivElement>(null);
 
   const selectedCustomer = useMemo(() => customers.find((c) => c.id === formState.customer_id), [customers, formState.customer_id]);
@@ -360,8 +362,9 @@ export default function EditQuotePage() {
           installment_count: quote.installment_count !== null ? String(quote.installment_count) : '',
           payment_due_date: quote.payment_due_date ?? '',
           customer_note: quote.customer_note ?? '',
-          internal_memo: quote.internal_memo ?? '',
+          internal_memo: humanDocumentMemo(quote.internal_memo),
         });
+        structuredMemoSource.current = quote.internal_memo;
 
         const imported=importDocument({...quote}, itemResult.data ?? []);
         setDocumentMode(imported.mode);
@@ -486,7 +489,7 @@ export default function EditQuotePage() {
         installment_count: toNullableNumber(formState.installment_count),
         payment_due_date: toNullableText(formState.payment_due_date),
         customer_note: toNullableText(formState.customer_note),
-        internal_memo: toNullableText(formState.internal_memo),
+        internal_memo: mergeDocumentMemo(formState.internal_memo, structuredMemoSource.current),
       };
 
       const itemPayloads=summary.persisted;

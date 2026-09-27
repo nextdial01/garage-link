@@ -9,6 +9,7 @@ import MasterSelect from '@/components/business/MasterSelect';
 import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
 import { priceLabel, storedPriceToDisplay, type TaxDisplayMode } from '@/lib/business/money';
 import { safeDocumentCalculation, importDocument, documentLine, nonTaxFeeKeys, type DocumentHeader, type StoredDocumentLine } from '@/lib/business/documents';
+import { humanDocumentMemo, mergeDocumentMemo } from '@/lib/business/documentMemo';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -380,6 +381,7 @@ export default function NewQuotePage() {
   const saveErrorRef = useRef<HTMLDivElement>(null);
   const [partLineItems, setPartLineItems] = useState<PartLineItem[]>([]);
   const [showPartPicker, setShowPartPicker] = useState(false);
+  const structuredMemoSource = useRef<string | null>(null);
 
   const selectedCustomer = useMemo(() => {
     return customers.find((customer) => customer.id === formState.customer_id);
@@ -463,6 +465,7 @@ export default function NewQuotePage() {
             supabase.from<StoredDocumentLine>('quote_items').select('*').eq('quote_id', copyId).eq('store_id', member.store_id).order('item_order', {ascending:true}),
           ]);
           if (source.error || !source.data || sourceItems.error) throw new Error(source.error?.message || sourceItems.error?.message || 'コピー元を取得できませんでした。');
+          structuredMemoSource.current = source.data.internal_memo == null ? null : String(source.data.internal_memo);
           const copied = importDocument(source.data, sourceItems.data ?? []);
           setDocumentMode(copied.mode);
           setPartLineItems(copied.lines);
@@ -471,7 +474,11 @@ export default function NewQuotePage() {
             const next={...current};
             for(const key of Object.keys(initialFormState) as (keyof QuoteFormState)[]) {
               if (['quote_no','issue_date','expiry_date','status'].includes(key)) continue;
-              if (source.data?.[key] != null) next[key]=String(source.data[key]);
+              if (source.data?.[key] != null) {
+                next[key] = key === 'internal_memo'
+                  ? humanDocumentMemo(String(source.data[key]))
+                  : String(source.data[key]);
+              }
             }
             return next;
           });
@@ -756,7 +763,7 @@ export default function NewQuotePage() {
         installment_count: toNullableNumber(formState.installment_count),
         payment_due_date: toNullableText(formState.payment_due_date),
         customer_note: toNullableText(formState.customer_note),
-        internal_memo: toNullableText(formState.internal_memo),
+        internal_memo: mergeDocumentMemo(formState.internal_memo, structuredMemoSource.current),
       };
 
       await saveDocument('quote',storeId,quotePayload,summary.persisted);

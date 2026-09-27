@@ -8,6 +8,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { confirmAction, promptAction } from '@/components/ui/actionDialog';
 import { createClient } from '@/lib/supabase/client';
+import { humanDocumentMemo, mergeDocumentMemo } from '@/lib/business/documentMemo';
 
 type StoreMemberRow = { store_id: string; role: string | null };
 
@@ -109,6 +110,7 @@ export default function InvoiceDetailPage() {
   const [editPaymentDueDate, setEditPaymentDueDate] = useState('');
   const [editAssignedUser, setEditAssignedUser] = useState('');
   const [editInternalMemo, setEditInternalMemo] = useState('');
+  const structuredMemoSource = useRef<string | null>(null);
   const [stockBusy, setStockBusy] = useState<'idle' | 'confirming' | 'cancelling'>('idle');
   const [stockMessage, setStockMessage] = useState('');
   const [stockError, setStockError] = useState('');
@@ -143,7 +145,8 @@ export default function InvoiceDetailPage() {
         setInvoice(data);
         setEditPaymentDueDate(data.payment_due_date ?? '');
         setEditAssignedUser(data.assigned_user_name ?? '');
-        setEditInternalMemo(data.internal_memo ?? '');
+        structuredMemoSource.current = data.internal_memo;
+        setEditInternalMemo(humanDocumentMemo(data.internal_memo));
 
         // 部品明細を取得して part_id ごとに集計（在庫確定UIの差分判定用）
         const { data: items } = await supabase
@@ -183,7 +186,7 @@ export default function InvoiceDetailPage() {
         .update({
           payment_due_date: editPaymentDueDate || null,
           assigned_user_name: editAssignedUser.trim() || null,
-          internal_memo: editInternalMemo.trim() || null,
+          internal_memo: mergeDocumentMemo(editInternalMemo, structuredMemoSource.current),
         })
         .eq('id', id)
         .eq('store_id', storeId);
@@ -195,7 +198,7 @@ export default function InvoiceDetailPage() {
               ...prev,
               payment_due_date: editPaymentDueDate || null,
               assigned_user_name: editAssignedUser.trim() || null,
-              internal_memo: editInternalMemo.trim() || null,
+              internal_memo: mergeDocumentMemo(editInternalMemo, structuredMemoSource.current),
             }
           : prev,
       );

@@ -43,7 +43,7 @@ export default function PartLineItemsEditor({ items, onChange, mode = 'included'
         <table className="w-full min-w-[960px] table-fixed text-sm">
           <colgroup>
             <col />
-            <col style={{ width: '80px' }} />
+            <col style={{ width: '110px' }} />
             <col style={{ width: '140px' }} />
             <col style={{ width: '110px' }} />
             <col style={{ width: '150px' }} /><col style={{ width: '140px' }} /><col style={{ width: '64px' }} />
@@ -51,7 +51,7 @@ export default function PartLineItemsEditor({ items, onChange, mode = 'included'
           <thead className="bg-slate-50 text-xs font-bold text-slate-500">
             <tr>
               <th className="px-4 py-3 text-left">部品・作業内容</th>
-              <th className="px-4 py-3 text-right">数量</th>
+              <th className="px-2 py-3 text-right">数量</th>
               <th className="px-4 py-3 text-right">{priceLabel('単価', mode)}</th>
               <th className="px-4 py-3 text-right">小計</th>
               <th className="px-4 py-3">税区分</th><th className="px-4 py-3">単位・備考</th><th className="px-4 py-3"></th>
@@ -72,7 +72,7 @@ export default function PartLineItemsEditor({ items, onChange, mode = 'included'
                       className={cellInput}
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-2 py-3">
                     <input
                       type="number"
                       value={item.quantity}
