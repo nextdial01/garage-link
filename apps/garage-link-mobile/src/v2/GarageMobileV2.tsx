@@ -11,10 +11,12 @@ import { mobileApi, type Store, type V2Record, type V2Resource, type Quote } fro
 import { sharePrintedPdf } from './sharePdf';
 import { Button, Card, Field, Info, Row, Shell, type Tab } from './Ui';
 import { TabContent, DetailContent, FormContent, PhotoContent, QuoteContent, InvoiceContent, PaymentContent, formPayload, parseQuoteItems } from './Content';
+import { dealCustomerLabel, dealVehicleLabel } from './dealLabels';
 
 type Entity = 'vehicles' | V2Resource;
 type Route = { kind: 'tab'; tab: Tab } | { kind: 'detail'; tab: Tab; entity: Entity; id: string } | { kind: 'form'; tab: Tab; entity: Entity; id?: string } | { kind: 'photo'; tab: Tab; relatedType: 'vehicle' | 'maintenance_job' | 'trade_in_vehicle'; id: string } | { kind: 'quote'; invoiceSourceId?: string; tab: Tab; dealId?: string; jobId?: string; customerId: string; vehicleId?: string } | { kind: 'quoteDetail'; tab: Tab; id: string } | { kind: 'invoice'; tab: Tab; quoteId: string } | { kind: 'invoiceDetail'; tab: Tab; id: string } | { kind: 'payment'; tab: Tab; invoiceId: string } | { kind: 'sale'; tab: Tab; dealId: string } | { kind: 'delivery'; tab: Tab; dealId: string } | { kind:'cancel';tab:Tab;dealId:string };
 type InventoryRow = Record<string, unknown> & { id: string };
+type DealRelatedLabels = { dealId: string; customerLabel: string; vehicleLabel: string };
 const str = (row: Record<string, unknown> | null | undefined, key: string) => typeof row?.[key] === 'string' ? row[key] as string : '';
 const num = (row: Record<string, unknown> | null | undefined, key: string) => typeof row?.[key] === 'number' ? row[key] as number : 0;
 const yen = (amount: number) => `${amount.toLocaleString('ja-JP')}円`;
@@ -66,6 +68,7 @@ export default function GarageMobileV2({ store, onLogout, onStore }: { store: St
   const [today, setToday] = useState<Record<string, unknown> | null>(null);
   const [metrics, setMetrics] = useState<Record<string, number> | null>(null);
   const [current, setCurrent] = useState<V2Record | InventoryRow | null>(null);
+  const [dealRelatedLabels, setDealRelatedLabels] = useState<DealRelatedLabels | null>(null);
   const [photos, setPhotos] = useState<{ id: string; photo_category: string | null }[]>([]);
   const [relatedQuotes, setRelatedQuotes] = useState<Quote[]>([]);
   const [relatedInvoices, setRelatedInvoices] = useState<V2Record[]>([]);
@@ -165,6 +168,7 @@ export default function GarageMobileV2({ store, onLogout, onStore }: { store: St
   }, [route.kind, route.tab, store.id, searchQuery]);
   useEffect(() => { if (Platform.OS !== 'android') return; const listener = BackHandler.addEventListener('hardwareBackPress', () => handleHardwareBack()); return () => listener.remove(); }, []);
   async function readDetail(entity: Entity, id: string) {
+    setDealRelatedLabels(entity === 'deals' ? { dealId:id, customerLabel:'読み込み中…', vehicleLabel:'読み込み中…' } : null);
     const result = await run(async () => {
       if (entity === 'vehicles') {
         const inventory = canFinance ? (await mobileApi.v2PurchaseDetail(store.id,id)).vehicle : (rows.vehicles ?? []).find((item) => item.id === id);
@@ -173,6 +177,25 @@ export default function GarageMobileV2({ store, onLogout, onStore }: { store: St
         return { ...detail.vehicle, ...inventory, inspection_expiry_date: detail.vehicle.inspectionExpiryDate, liability_insurance_expiry_date: detail.vehicle.liabilityInsuranceExpiryDate, id } as V2Record;
       }
       const record = await mobileApi.v2Detail(store.id, entity, id);
+      if (entity === 'deals') {
+        const customerId = str(record.row, 'customer_id');
+        const vehicleId = str(record.row, 'vehicle_id');
+        const cachedCustomer = rows.customers?.find((item) => item.id === customerId);
+        const cachedVehicle = rows.vehicles?.find((item) => item.id === vehicleId);
+        const [customerName, vehicleName] = await Promise.all([
+          dealCustomerLabel(cachedCustomer) || !customerId
+            ? Promise.resolve(dealCustomerLabel(cachedCustomer))
+            : mobileApi.v2Detail(store.id, 'customers', customerId).then(({ row }) => dealCustomerLabel(row)).catch(() => ''),
+          dealVehicleLabel(cachedVehicle) || !vehicleId
+            ? Promise.resolve(dealVehicleLabel(cachedVehicle))
+            : mobileApi.detail(store.id, vehicleId).then(({ vehicle }) => dealVehicleLabel(vehicle as unknown as Record<string, unknown>)).catch(() => ''),
+        ]);
+        setDealRelatedLabels({
+          dealId:id,
+          customerLabel: customerId ? customerName || '関連情報を取得できません' : '未設定',
+          vehicleLabel: vehicleId ? vehicleName || '関連情報を取得できません' : '未設定',
+        });
+      }
       if (entity === 'maintenance') setPhotos((await mobileApi.v2Photos(store.id, 'maintenance_job', id)).photos);
       if (entity === 'tradeIns') setPhotos((await mobileApi.v2Photos(store.id,'trade_in_vehicle',id)).photos);
       if (entity === 'deals' || entity === 'customers' || entity === 'maintenance') {
@@ -242,7 +265,7 @@ export default function GarageMobileV2({ store, onLogout, onStore }: { store: St
   if (!businessReady) return <Shell title={title} tab={route.tab} onTab={tab} onBack={onStore} onLogout={onLogout} busy={!businessError} error={businessError || undefined}><Text>店舗設定を確認しています。</Text></Shell>;
   return <Shell title={title} tab={route.tab} onTab={tab} onBack={route.kind === 'tab' ? onStore : back} onLogout={onLogout} busy={busy} error={error}>
     {route.kind === 'tab' && <TabContent tab={route.tab} today={today} metrics={metrics} rows={rows} search={search[route.tab]} hasMore={route.tab !== 'today' && nextOffsets[route.tab] != null} onMore={() => { if (route.tab !== 'today') void loadMore(route.tab,search[route.tab]); }} onSearch={(text) => setSearch((old) => ({ ...old, [route.tab]: text }))} onOpen={(entity, id) => void open(entity, id, route.tab)} onInvoice={(id) => void openInvoice(id, route.tab)} onCreate={(entity, preset) => startForm(entity, route.tab, preset)} canWrite={canWrite} canFinance={canFinance} />}
-    {route.kind === 'detail' && current?.id === route.id && current && <DetailContent row={current} entity={route.entity} tab={detailTab} setTab={setDetailTab} photos={photos} storeId={store.id} rows={rows} relatedQuotes={relatedQuotes} relatedInvoices={relatedInvoices} canWrite={canWrite && !busy} canFinance={canFinance && !busy} onEdit={() => startForm(route.entity, route.tab, editDraft(route.entity, current,businessMode), current.id)} onCreate={(entity,preset) => startForm(entity, route.tab, preset)} onPhoto={(type) => push({ kind:'photo', tab:route.tab, relatedType:type, id:current.id })} onQuote={() => { const customerId = str(current,'customer_id') || (route.entity === 'customers' ? current.id : ''); const vehicleId = str(current,'vehicle_id') || (route.entity === 'vehicles' ? current.id : undefined); setDraft(route.entity === 'maintenance' ? maintenanceQuoteDraft(current,businessMode) : route.entity === 'vehicles' ? vehicleQuoteDraft(num(current,'listing_price'),businessMode) : {quoteMode:businessMode,quoteCount:'1',quoteName0:'見積項目',quotePrice0:'0'}); setOperationId(operationKey()); push({ kind:'quote', tab:route.tab, customerId, vehicleId, dealId:route.entity === 'deals' ? current.id : undefined, jobId:route.entity === 'maintenance' ? current.id : undefined }); }} onSale={() => { setDraft({ salePrice:String(num(current,'budget') || 0) }); setOperationId(operationKey()); push({ kind:'sale', tab:route.tab, dealId:current.id }); }} onDelivery={() => { setOperationId(operationKey()); push({ kind:'delivery', tab:route.tab, dealId:current.id }); }} onInvoice={(quoteId) => { setFormId(clientId()); push({ kind:'invoice', tab:route.tab, quoteId }); }} onPayment={(invoiceId) => { setOperationId(operationKey()); push({ kind:'payment', tab:route.tab, invoiceId }); }} onQuoteDetail={(id) => void openQuote(id,route.tab)} onInvoiceDetail={(id) => void openInvoice(id,route.tab)} onStatus={(status) => void updateStatus(route.entity, current.id, status)} />}
+    {route.kind === 'detail' && current?.id === route.id && current && <DetailContent row={current} entity={route.entity} tab={detailTab} setTab={setDetailTab} photos={photos} storeId={store.id} rows={rows} relatedQuotes={relatedQuotes} dealRelatedLabels={dealRelatedLabels} relatedInvoices={relatedInvoices} canWrite={canWrite && !busy} canFinance={canFinance && !busy} onEdit={() => startForm(route.entity, route.tab, editDraft(route.entity, current,businessMode), current.id)} onCreate={(entity,preset) => startForm(entity, route.tab, preset)} onPhoto={(type) => push({ kind:'photo', tab:route.tab, relatedType:type, id:current.id })} onQuote={() => { const customerId = str(current,'customer_id') || (route.entity === 'customers' ? current.id : ''); const vehicleId = str(current,'vehicle_id') || (route.entity === 'vehicles' ? current.id : undefined); setDraft(route.entity === 'maintenance' ? maintenanceQuoteDraft(current,businessMode) : route.entity === 'vehicles' ? vehicleQuoteDraft(num(current,'listing_price'),businessMode) : {quoteMode:businessMode,quoteCount:'1',quoteName0:'見積項目',quotePrice0:'0'}); setOperationId(operationKey()); push({ kind:'quote', tab:route.tab, customerId, vehicleId, dealId:route.entity === 'deals' ? current.id : undefined, jobId:route.entity === 'maintenance' ? current.id : undefined }); }} onSale={() => { setDraft({ salePrice:String(num(current,'budget') || 0) }); setOperationId(operationKey()); push({ kind:'sale', tab:route.tab, dealId:current.id }); }} onDelivery={() => { setOperationId(operationKey()); push({ kind:'delivery', tab:route.tab, dealId:current.id }); }} onInvoice={(quoteId) => { setFormId(clientId()); push({ kind:'invoice', tab:route.tab, quoteId }); }} onPayment={(invoiceId) => { setOperationId(operationKey()); push({ kind:'payment', tab:route.tab, invoiceId }); }} onQuoteDetail={(id) => void openQuote(id,route.tab)} onInvoiceDetail={(id) => void openInvoice(id,route.tab)} onStatus={(status) => void updateStatus(route.entity, current.id, status)} />}
     {route.kind === 'detail' && current?.id === route.id && current && ['deals','customers','maintenance'].includes(route.entity) && <Card title="関連履歴">{relatedAppointments.map((item) => <Row key={item.id} title={`予約 ${formatJstAppointmentDateTime(str(item,'scheduled_at'))}`} subtitle={str(item,'status')} onPress={() => void open('appointments',item.id,route.tab)} />)}{relatedTradeIns.map((item) => <Row key={item.id} title={`査定 ${str(item,'maker')} ${str(item,'model_name')}`} subtitle={yen(num(item,'appraisal_amount'))} onPress={() => void open('tradeIns',item.id,route.tab)} />)}{relatedQuotes.map((item) => <Row key={item.id} title={`見積 ${item.quoteNo || ''}`} subtitle={yen(item.totalAmount || 0)} onPress={() => void openQuote(item.id,route.tab)} />)}{relatedInvoices.map((item) => <Row key={item.id} title={`請求 ${str(item,'invoice_no')}`} subtitle={yen(num(item,'unpaid_amount'))} onPress={() => void openInvoice(item.id,route.tab)} />)}{!relatedAppointments.length && !relatedTradeIns.length && !relatedQuotes.length && !relatedInvoices.length && <Text>関連履歴はありません。</Text>}</Card>}
     {route.kind === 'detail' && current?.id === route.id && current && route.entity === 'customers' && <Card title="顧客の車両・商談・整備">{customerVehicles.map((item) => <Row key={item.id} title={`${item.maker || ''} ${item.modelName || ''}`.trim() || '車両'} onPress={() => void open('vehicles',item.id,route.tab)} />)}{customerDeals.map((item) => <Row key={item.id} title={item.title || '商談'} onPress={() => void open('deals',item.id,route.tab)} />)}{customerMaintenance.map((item) => <Row key={item.id} title={item.job_no || '整備'} onPress={() => void open('maintenance',item.id,route.tab)} />)}</Card>}
     {route.kind === 'detail' && current?.id === route.id && current && route.entity === 'deals' && str(current,'status') === '成約' && canFinance && <Card title="危険操作"><Button title="売約を取り消す" danger onPress={() => { setDraft({cancelReason:''}); setOperationId(operationKey()); push({kind:'cancel',tab:route.tab,dealId:current.id}); }} /></Card>}
