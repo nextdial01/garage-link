@@ -1,0 +1,27 @@
+{
+  "results": [
+    {
+      "test": "/deals/[id]/quotes/new",
+      "status": "PASS",
+      "operation": "decimal row/save/deal/readback/preview",
+      "id": "7a6c5f4d-4ad8-45a0-b064-509c91a61685"
+    },
+    {
+      "test": "/deals/[id]/quotes/preview",
+      "status": "PASS",
+      "operation": "saved quantities/unit/total/reopen"
+    },
+    {
+      "test": "/deals/[id]/invoices/new",
+      "status": "PASS",
+      "operation": "editable fixed fee/header/decimal row/save/preview",
+      "id": "2ec83d0e-c8a0-4268-ad28-65b888c35d67"
+    },
+    {
+      "test": "/deals/[id]/invoices/preview",
+      "status": "PASS",
+      "operation": "quantity/unit/saved total/reopen"
+    }
+  ],
+  "issues": []
+}

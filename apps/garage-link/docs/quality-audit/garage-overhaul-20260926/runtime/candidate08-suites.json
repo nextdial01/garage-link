@@ -1,0 +1,114 @@
+[
+  {
+    "suite": "web-lint",
+    "exit_code": 0
+  },
+  {
+    "suite": "web-security",
+    "exit_code": 0
+  },
+  {
+    "suite": "web-qa",
+    "exit_code": 0
+  },
+  {
+    "suite": "db-runner",
+    "exit_code": 0
+  },
+  {
+    "suite": "db-relation",
+    "exit_code": 0
+  },
+  {
+    "suite": "db-scope-static",
+    "exit_code": 0
+  },
+  {
+    "suite": "qa-manifest",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-typecheck",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-lint",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-api-origin.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-auth-lifecycle.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-auth-transport.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-captcha-contract.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-document-draft.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-document-html.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-japanese-font-contract.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-password-login.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-photo-upload.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-quality-api.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-quality-render.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-quality-state.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-quote-retry.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-trusted-device-contract.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-trusted-device-key.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "test-line-link-s2s",
+    "exit_code": 0
+  },
+  {
+    "suite": "test-l-link-inquiry-s2s",
+    "exit_code": 0
+  },
+  {
+    "suite": "test-inquiry-response-management",
+    "exit_code": 0
+  },
+  {
+    "suite": "test-line-link-s2s-ack",
+    "exit_code": 0
+  }
+]

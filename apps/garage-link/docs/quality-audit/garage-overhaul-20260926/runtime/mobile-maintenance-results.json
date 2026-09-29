@@ -1,0 +1,97 @@
+{
+  "results": [
+    {
+      "routes": [
+        "auth/login"
+      ],
+      "operations": "fresh session email/password one click → today, no OTP",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T19:10:45.298Z"
+    },
+    {
+      "routes": [
+        "tab/today"
+      ],
+      "operations": "expand→collapse→leave→reopen→expand",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T19:10:45.379Z"
+    },
+    {
+      "routes": [
+        "tab/maintenance",
+        "create/maintenance",
+        "detail/maintenance",
+        "edit/maintenance"
+      ],
+      "operations": "inline DOB customer and maker vehicle/two expiry dates→3 work rows 1.5/.5→save→edit/copy/delete→save→4500 readback",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T19:10:48.584Z"
+    },
+    {
+      "routes": [
+        "create/quote",
+        "detail/quote",
+        "copy/quote"
+      ],
+      "operations": "maintenance rows→quote save 4500→copy unsaved editable→quantity2→save 5000",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T19:10:49.024Z"
+    },
+    {
+      "routes": [
+        "create/invoice",
+        "detail/invoice",
+        "copy/invoice"
+      ],
+      "operations": "quote→invoice5000→copy edit qty2.5→save5500 unpaid5500",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T19:10:50.095Z"
+    },
+    {
+      "routes": [
+        "create/payment"
+      ],
+      "operations": "issue invoice→synthetic cash500→save→invoice unpaid5000",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T19:10:51.638Z"
+    },
+    {
+      "routes": [
+        "preview/mobile-quote"
+      ],
+      "operations": "actual RN PDF button→snapshot HTML popup→total/mode match→PDF artifact→close",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T19:10:52.731Z"
+    },
+    {
+      "routes": [
+        "preview/mobile-invoice"
+      ],
+      "operations": "actual RN PDF button→snapshot HTML popup→total/mode match→PDF artifact→close",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T19:10:53.045Z"
+    },
+    {
+      "routes": [
+        "tab/maintenance",
+        "detail/maintenance",
+        "detail/quote",
+        "detail/invoice",
+        "create/payment"
+      ],
+      "operations": "leave to list→search job→reopen job4500→quote5000→back→invoice5500 unpaid5000→payment reopen5000→back",
+      "status": "PASS",
+      "platform": "React Native Web, real local API",
+      "time": "2026-09-25T19:10:53.078Z"
+    }
+  ],
+  "errors": []
+}

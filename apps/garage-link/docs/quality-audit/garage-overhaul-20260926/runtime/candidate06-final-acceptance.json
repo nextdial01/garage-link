@@ -1,0 +1,80 @@
+{
+  "candidate": "06",
+  "snapshot_sha256": "f0aeecadeae801e1eb6180a9f8c5b4c1d68cb198c4d42e0200458bbca38e31ab",
+  "source_head": "a7cf7d75fb0dadcf3439c1565ad3e5a612fe08d5",
+  "build": "PASS",
+  "web_lint": "PASS",
+  "web_typecheck": "PASS",
+  "security_tests": 388,
+  "qa_tests": 99,
+  "mobile": {
+    "result": "PASS",
+    "evidence_candidate": "03",
+    "source_identical": true,
+    "test_files": 14,
+    "ssr_cases": 144,
+    "lint": "PASS",
+    "typecheck": "PASS"
+  },
+  "database": {
+    "result": "PASS",
+    "evidence_candidate": "05",
+    "suites": [
+      {
+        "suite": "baseline",
+        "exit_code": 0
+      },
+      {
+        "suite": "qa-migrations",
+        "exit_code": 0
+      },
+      {
+        "suite": "db003",
+        "exit_code": 0
+      },
+      {
+        "suite": "overhaul-upgrade",
+        "exit_code": 0
+      },
+      {
+        "suite": "overhaul-fresh",
+        "exit_code": 0
+      },
+      {
+        "suite": "mobile-migrations",
+        "exit_code": 0
+      }
+    ],
+    "legacy_dob_lifecycle_positive_and_negative": "PASS fresh and upgrade"
+  },
+  "drift_at_completion": 0,
+  "workspace_dependency_changes": 0,
+  "production_changed": false,
+  "main_changed": false,
+  "inherited_runtime_sha256": "c1365f48fc9a6cf04c6d7ade90909910b1bb9f08e43b3e7f727615717341cc73",
+  "build_evidence_candidate": "04",
+  "web_evidence_candidate": "04",
+  "new_changes": [
+    "20260925193108_garage_customer_legacy_birth_lifecycle.sql",
+    "overhaul_birth_lifecycle_contract.sql",
+    "scripts/db/run-g0b-ci.sh"
+  ],
+  "runtime_files_excluding_changed_db_runner": 699,
+  "standard_database_command": {
+    "command": "pnpm --filter @apps/garage-link run test:db:fresh",
+    "exit_code": 0,
+    "all_overhaul_contracts": 8,
+    "modes": [
+      "fresh",
+      "upgrade"
+    ],
+    "log": "standard-db-overhaul-integration.log",
+    "db_runner_unit_tests": 4
+  },
+  "dob_ui": {
+    "result": "PASS",
+    "ordinary_null_edit_patch_requests": 0,
+    "critical_errors": 0,
+    "evidence": "dob-archive-restore-verification.json"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "candidate": "04",
+  "source_sha256": "aaf776925c1d4483748f3cabb20c4a4a5ecac6294b9c8639ef0597d707199da4",
+  "code_changed_during_test": false,
+  "platform": "React Native Web + actual local API",
+  "results_file": "mobile-maintenance-results.json",
+  "results_sha256": "63591cb03540fad1c653ab16b964a5221bea4169d898ff634cd7e4fa63f2463f",
+  "journeys": 9,
+  "status": "PASS",
+  "errors": []
+}

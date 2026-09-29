@@ -61,7 +61,10 @@ async function claimStripeEvent(event: Stripe.Event): Promise<EventClaim> {
       error_message: null,
     })
     .eq('stripe_event_id', event.id)
-    .lte('lease_expires_at', new Date().toISOString())
+    // A failed attempt releases its lease to NULL. Compare the observed state
+    // as well as the lease so a concurrent completion cannot be reclaimed.
+    .eq('status', existing.status)
+    .or(`lease_expires_at.is.null,lease_expires_at.lte.${new Date().toISOString()}`)
     .select('id')
     .maybeSingle();
   if (retryError) throw new Error('stripe_event_reclaim_failed');

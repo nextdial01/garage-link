@@ -1,0 +1,9 @@
+{
+  "scenario": "Slow JavaScript delivery; tap server-rendered enabled mobile menu once before hydration, then release JS",
+  "before": {
+    "enabled": true
+  },
+  "after": {
+    "expanded": "false"
+  }
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "suite": "baseline",
+    "exit_code": 0
+  },
+  {
+    "suite": "qa-migrations",
+    "exit_code": 0
+  },
+  {
+    "suite": "db003",
+    "exit_code": 0
+  },
+  {
+    "suite": "overhaul-upgrade",
+    "exit_code": 0
+  },
+  {
+    "suite": "overhaul-fresh",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-migrations",
+    "exit_code": 0
+  }
+]

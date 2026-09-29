@@ -8,6 +8,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { confirmAction, promptAction } from '@/components/ui/actionDialog';
 import { createClient } from '@/lib/supabase/client';
+import { humanDocumentMemo, mergeDocumentMemo } from '@/lib/business/documentMemo';
 
 type StoreMemberRow = { store_id: string; role: string | null };
 
@@ -109,6 +110,7 @@ export default function InvoiceDetailPage() {
   const [editPaymentDueDate, setEditPaymentDueDate] = useState('');
   const [editAssignedUser, setEditAssignedUser] = useState('');
   const [editInternalMemo, setEditInternalMemo] = useState('');
+  const structuredMemoSource = useRef<string | null>(null);
   const [stockBusy, setStockBusy] = useState<'idle' | 'confirming' | 'cancelling'>('idle');
   const [stockMessage, setStockMessage] = useState('');
   const [stockError, setStockError] = useState('');
@@ -143,7 +145,8 @@ export default function InvoiceDetailPage() {
         setInvoice(data);
         setEditPaymentDueDate(data.payment_due_date ?? '');
         setEditAssignedUser(data.assigned_user_name ?? '');
-        setEditInternalMemo(data.internal_memo ?? '');
+        structuredMemoSource.current = data.internal_memo;
+        setEditInternalMemo(humanDocumentMemo(data.internal_memo));
 
         // 部品明細を取得して part_id ごとに集計（在庫確定UIの差分判定用）
         const { data: items } = await supabase
@@ -153,7 +156,7 @@ export default function InvoiceDetailPage() {
           .eq('store_id', member.store_id);
         const agg: Record<string, number> = {};
         for (const it of items ?? []) {
-          if (it.part_id) agg[it.part_id] = (agg[it.part_id] ?? 0) + Math.max(0, Math.floor(Number(it.quantity ?? 0)));
+          if (it.part_id) agg[it.part_id] = (agg[it.part_id] ?? 0) + Math.max(0, Number(it.quantity ?? 0));
         }
         setItemPartQty(agg);
       } catch (error) {
@@ -183,7 +186,7 @@ export default function InvoiceDetailPage() {
         .update({
           payment_due_date: editPaymentDueDate || null,
           assigned_user_name: editAssignedUser.trim() || null,
-          internal_memo: editInternalMemo.trim() || null,
+          internal_memo: mergeDocumentMemo(editInternalMemo, structuredMemoSource.current),
         })
         .eq('id', id)
         .eq('store_id', storeId);
@@ -195,7 +198,7 @@ export default function InvoiceDetailPage() {
               ...prev,
               payment_due_date: editPaymentDueDate || null,
               assigned_user_name: editAssignedUser.trim() || null,
-              internal_memo: editInternalMemo.trim() || null,
+              internal_memo: mergeDocumentMemo(editInternalMemo, structuredMemoSource.current),
             }
           : prev,
       );
@@ -358,6 +361,7 @@ export default function InvoiceDetailPage() {
       description="請求書の確認・入金状態・ステータスを管理します"
       actionButton={
         <div className="flex gap-2">
+          {invoice && role !== 'viewer' && (<Link href={`/invoices/new?copyFrom=${id}`} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold">コピー</Link>)}
           {invoice && (
             <Link
               href={invoice.deal_id ? `/deals/${invoice.deal_id}/invoices/preview?invoiceId=${invoice.id}` : `/invoices/${invoice.id}/preview`}

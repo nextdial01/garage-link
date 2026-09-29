@@ -1,4 +1,5 @@
 'use client';
+import { priceLabel, type TaxDisplayMode, type TaxCategory } from '@/lib/business/money';
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -61,6 +62,7 @@ type VehicleRow = {
 };
 
 type InvoiceRow = {
+  tax_display_mode: TaxDisplayMode | null;
   id: string;
   invoice_no: string | null;
   issue_status: string | null;
@@ -83,6 +85,13 @@ type InvoiceRow = {
 };
 
 type InvoiceItemRow = {
+  quantity?: number | null;
+  unit_price?: number | null;
+  unit?: string | null;
+  note?: string | null;
+  line_discount_input_amount?: number | null;
+  tax_category?: TaxCategory | null;
+  tax_rate?: number | null;
   id: string;
   name: string | null;
   amount: number | null;
@@ -204,7 +213,7 @@ export default function InvoicePreviewPage() {
 
       const invoiceId = new URLSearchParams(window.location.search).get('invoiceId');
       const invoiceSelect =
-        'id, invoice_no, issue_status, issue_date, payment_due_date, customer_name, customer_phone, customer_address, customer_honorific, vehicle_label, subtotal_amount, tax_amount, discount_amount, trade_in_amount, total_amount, paid_amount, unpaid_amount, customer_note, internal_memo';
+        'tax_display_mode, id, invoice_no, issue_status, issue_date, payment_due_date, customer_name, customer_phone, customer_address, customer_honorific, vehicle_label, subtotal_amount, tax_amount, discount_amount, trade_in_amount, total_amount, paid_amount, unpaid_amount, customer_note, internal_memo';
       let selectedInvoice: InvoiceRow | null = null;
 
       if (invoiceId) {
@@ -228,7 +237,7 @@ export default function InvoicePreviewPage() {
       if (selectedInvoice?.id) {
         const { data: items } = await supabase
           .from<InvoiceItemRow>('invoice_items')
-          .select('id, name, amount')
+          .select('line_discount_input_amount, id, name, quantity, unit_price, amount, tax_category, tax_rate, unit, note')
           .eq('invoice_id', selectedInvoice.id)
           .order('item_order', { ascending: true });
         setInvoiceItems(items ?? []);
@@ -271,7 +280,7 @@ export default function InvoicePreviewPage() {
   const discount = invoice?.discount_amount ?? 0;
   const tradeIn = invoice?.trade_in_amount ?? 0;
   const paymentBreakdown = parseMemoJson<PaymentMemoItem[]>(invoice?.internal_memo, '支払方法内訳', []).filter(hasPaymentItem);
-  const items =
+  const items: InvoiceItemRow[] =
     invoiceItems.length > 0
       ? invoiceItems
       : [
@@ -411,8 +420,8 @@ export default function InvoicePreviewPage() {
                 <th className="border border-slate-300 px-3 py-2 text-left">項目名</th>
                 <th className="border border-slate-300 px-3 py-2 text-left">内容</th>
                 <th className="border border-slate-300 px-3 py-2 text-right">数量</th>
-                <th className="border border-slate-300 px-3 py-2 text-right">単価</th>
-                <th className="border border-slate-300 px-3 py-2 text-right">金額</th>
+                <th className="border border-slate-300 px-3 py-2 text-right">{invoice?.tax_display_mode ? priceLabel('単価', invoice.tax_display_mode) : '単価（保存時）'}</th>
+                <th className="border border-slate-300 px-3 py-2 text-right">{invoice?.tax_display_mode ? '金額（税抜・税対象外）' : '金額（保存時）'}</th>
                 <th className="border border-slate-300 px-3 py-2 text-center">税区分</th>
               </tr>
             </thead>
@@ -420,11 +429,11 @@ export default function InvoicePreviewPage() {
               {items.map((item) => (
                 <tr key={item.id}>
                   <td className="border border-slate-300 px-3 py-2">{displayValue(item.name)}</td>
-                  <td className="border border-slate-300 px-3 py-2">-</td>
-                  <td className="border border-slate-300 px-3 py-2 text-right">1</td>
+                  <td className="border border-slate-300 px-3 py-2">{displayValue(item.note)}</td>
+                  <td className="border border-slate-300 px-3 py-2 text-right">{displayValue(item.quantity ?? 1)}</td>
+                  <td className="border border-slate-300 px-3 py-2 text-right">{formatPrice(item.unit_price ?? item.amount)} {!!item.line_discount_input_amount && <span className="block text-xs">行値引 {formatPrice(item.line_discount_input_amount)}</span>}</td>
                   <td className="border border-slate-300 px-3 py-2 text-right">{formatPrice(item.amount)}</td>
-                  <td className="border border-slate-300 px-3 py-2 text-right">{formatPrice(item.amount)}</td>
-                  <td className="border border-slate-300 px-3 py-2 text-center">対象外</td>
+                  <td className="border border-slate-300 px-3 py-2 text-center">{item.tax_category === 'exempt' ? '非課税' : item.tax_category === 'out_of_scope' ? '税対象外' : item.tax_rate != null ? `${item.tax_rate * 100}%` : '旧帳票'}</td>
                 </tr>
               ))}
             </tbody>

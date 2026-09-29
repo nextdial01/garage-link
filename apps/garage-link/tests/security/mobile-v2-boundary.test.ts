@@ -35,6 +35,18 @@ test('client-supplied store ID is never an authority for V2 writes', () => {
   }
 });
 
+test('deal label lookups require authenticated store-scoped customer and vehicle reads', () => {
+  const v2Detail = source('[resource]/[id]/route.ts');
+  expect(v2Detail).toContain('getGarageMobileBearerContext(request)');
+  expect(v2Detail).toContain(".eq('store_id', context.member.storeId)");
+  expect(v2Detail).not.toContain('createAdminClient');
+
+  const vehicleDetail = readFileSync(resolve(process.cwd(), 'src/app/api/mobile/vehicles/[vehicleId]/route.ts'), 'utf8');
+  expect(vehicleDetail).toContain('getGarageMobileBearerContext(request)');
+  expect(vehicleDetail).toContain(".eq('store_id', context.member.storeId)");
+  expect(vehicleDetail).not.toContain('createAdminClient');
+});
+
 test('photo category writes verify the related row in the authenticated store', () => {
   const upload = readFileSync(resolve(process.cwd(), 'src/app/api/storage/upload/route.ts'), 'utf8');
   expect(upload).toContain(".eq('store_id', context.member.storeId)");

@@ -7,12 +7,14 @@ RUN_ID="${G0B_RUN_ID:-$PPID-$$}"
 FRESH="garage-link-g0b-fresh-$RUN_ID"
 UPGRADE="garage-link-g0b-upgrade-$RUN_ID"
 RESTORE="garage-link-g0b-restore-$RUN_ID"
+OVERHAUL_FRESH="garage-link-g0b-overhaul-fresh-$RUN_ID"
+OVERHAUL_UPGRADE="garage-link-g0b-overhaul-upgrade-$RUN_ID"
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/garage-link-g0b.XXXXXX")"
 MANIFEST="$APP_ROOT/supabase/baseline/manifest.json"
 EXPECTED_LEDGER_COUNT="$(jq '.entries | length' "$MANIFEST")"
 
 cleanup() {
-  docker rm -f "$FRESH" "$UPGRADE" "$RESTORE" >/dev/null 2>&1 || true
+  docker rm -f "$FRESH" "$UPGRADE" "$RESTORE" "$OVERHAUL_FRESH" "$OVERHAUL_UPGRADE" >/dev/null 2>&1 || true
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT INT TERM
@@ -154,5 +156,45 @@ for name in "$FRESH" "$RESTORE"; do
   docker exec "$name" psql -X -Atq -U postgres -d postgres -f - < "$APP_ROOT/supabase/tests/g0b_catalog_fingerprint.sql" > "$TMP_DIR/${name}.fingerprint"
 done
 diff -u "$TMP_DIR/${FRESH}.fingerprint" "$TMP_DIR/${RESTORE}.fingerprint"
+
+# Keep post-baseline business contracts executable from package test:db:fresh.
+# Separate disposable databases preserve the frozen baseline/catalog tests above.
+run_overhaul_contracts() {
+  local name="$1" mode="$2" file
+  echo "[g0b] overhaul $mode"
+  start_db "$name"
+  runner apply --container "$name" --environment "g0b-ci-overhaul-$mode"
+  if [[ "$mode" == fresh ]]; then
+    psql_file "$name" "$APP_ROOT/supabase/migrations/20260925171308_garage_business_master_and_document_contract.sql"
+  fi
+  psql_file "$name" "$APP_ROOT/supabase/tests/g1a_fixture.sql"
+  psql_file "$name" "$APP_ROOT/supabase/tests/overhaul_legacy_fixture.sql"
+  # Apply/reapply before validating legacy values, then each dependent contract.
+  for file in \
+    migrations/20260925171308_garage_business_master_and_document_contract.sql \
+    migrations/20260925171308_garage_business_master_and_document_contract.sql \
+    tests/overhaul_business_contract.sql \
+    migrations/20260925172207_garage_maintenance_inline_atomic.sql \
+    tests/overhaul_inline_contract.sql \
+    migrations/20260925000400_mobile_quote_atomic.sql \
+    migrations/20260925174204_garage_document_atomic.sql \
+    tests/overhaul_document_contract.sql \
+    migrations/20260925175418_garage_customer_birth_and_job_stock_atomic.sql \
+    tests/overhaul_birth_stock_contract.sql \
+    migrations/20260925181120_garage_price_precision_and_maintenance_cancel_compat.sql \
+    tests/overhaul_price_cancel_contract.sql \
+    migrations/20260925182047_garage_inspection_reminder_skip_control.sql \
+    tests/overhaul_reminder_contract.sql \
+    migrations/20260925182218_garage_document_line_discount_snapshot.sql \
+    tests/overhaul_line_discount_contract.sql \
+    migrations/20260925193108_garage_customer_legacy_birth_lifecycle.sql \
+    tests/overhaul_birth_lifecycle_contract.sql \
+    migrations/20260926010000_retire_routine_email_otp.sql; do
+    echo "[g0b] overhaul $mode: $file"
+    psql_file "$name" "$APP_ROOT/supabase/$file"
+  done
+}
+run_overhaul_contracts "$OVERHAUL_FRESH" fresh
+run_overhaul_contracts "$OVERHAUL_UPGRADE" upgrade
 
 echo '[g0b] PASS'

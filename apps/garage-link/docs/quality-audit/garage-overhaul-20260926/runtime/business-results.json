@@ -1,0 +1,19 @@
+[
+  {
+    "test": "master_create_reopen",
+    "status": "PASS"
+  },
+  {
+    "test": "master_edit_disable_order_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "part_category_create_reload",
+    "status": "PASS"
+  },
+  {
+    "test": "browser_errors",
+    "status": "PASS",
+    "errors": []
+  }
+]

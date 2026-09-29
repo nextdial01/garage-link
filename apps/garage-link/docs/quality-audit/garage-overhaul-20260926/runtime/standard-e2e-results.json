@@ -1,0 +1,1565 @@
+{
+  "config": {
+    "argv": [
+      "/opt/homebrew/Cellar/node/26.9.0/bin/node",
+      "/Users/ksk/kannagi/projects/garage-link/worktrees/garage-link-overhaul-20260926/node_modules/.pnpm/@playwright+test@1.61.1/node_modules/@playwright/test/cli.js",
+      "test",
+      "--config",
+      "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/standard-e2e.config.cjs",
+      "--timeout",
+      "25000",
+      "tests/e2e/smoke.spec.ts",
+      "tests/e2e/customers.spec.ts",
+      "tests/e2e/vehicles.spec.ts",
+      "tests/e2e/maintenance.spec.ts",
+      "tests/e2e/inventory-counts.spec.ts",
+      "tests/e2e/line.spec.ts",
+      "tests/e2e/landing-mobile-navigation.test.ts",
+      "tests/e2e/landing-real-operations.test.ts",
+      "tests/e2e/billing.spec.ts",
+      "tests/e2e/hydration-readiness.spec.ts"
+    ],
+    "configFile": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/standard-e2e.config.cjs",
+    "rootDir": "/Users/ksk/kannagi/projects/garage-link/worktrees/garage-link-overhaul-20260926/apps/garage-link/tests/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/standard-e2e-output",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/Users/ksk/kannagi/projects/garage-link/worktrees/garage-link-overhaul-20260926/apps/garage-link/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 25000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/standard-e2e-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "billing.spec.ts",
+      "file": "billing.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "プラン・契約E2E",
+          "file": "billing.spec.ts",
+          "line": 166,
+          "column": 15,
+          "specs": [
+            {
+              "title": "Free契約自動作成、プラン申込、completed反映、二重反映、L-Link制御を確認する",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "E2E credentials, Supabase env, and E2E_ALLOW_BILLING_MUTATIONS=true are required.",
+                      "location": {
+                        "file": "/Users/ksk/kannagi/projects/garage-link/worktrees/garage-link-overhaul-20260926/apps/garage-link/tests/e2e/billing.spec.ts",
+                        "line": 167,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:09:41.780Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "description": "E2E credentials, Supabase env, and E2E_ALLOW_BILLING_MUTATIONS=true are required.",
+                          "location": {
+                            "file": "/Users/ksk/kannagi/projects/garage-link/worktrees/garage-link-overhaul-20260926/apps/garage-link/tests/e2e/billing.spec.ts",
+                            "line": 167,
+                            "column": 8
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-413a1523ab719b84bd0e",
+              "file": "billing.spec.ts",
+              "line": 169,
+              "column": 7
+            },
+            {
+              "title": "プラン制限に関係する主要画面が開ける",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "E2E credentials, Supabase env, and E2E_ALLOW_BILLING_MUTATIONS=true are required.",
+                      "location": {
+                        "file": "/Users/ksk/kannagi/projects/garage-link/worktrees/garage-link-overhaul-20260926/apps/garage-link/tests/e2e/billing.spec.ts",
+                        "line": 167,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": -1,
+                      "parallelIndex": -1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:09:41.781Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "description": "E2E credentials, Supabase env, and E2E_ALLOW_BILLING_MUTATIONS=true are required.",
+                          "location": {
+                            "file": "/Users/ksk/kannagi/projects/garage-link/worktrees/garage-link-overhaul-20260926/apps/garage-link/tests/e2e/billing.spec.ts",
+                            "line": 167,
+                            "column": 8
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-dcdc80894c3162903d0d",
+              "file": "billing.spec.ts",
+              "line": 297,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "customers.spec.ts",
+      "file": "customers.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "顧客登録フロー",
+          "file": "customers.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "必須生年月日を登録し一覧から再開して確認できる",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 11414,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[e2e:login] navigating to /login\n"
+                        },
+                        {
+                          "text": "[e2e:login] submitting credentials\n"
+                        },
+                        {
+                          "text": "[e2e:login] post-login, now at http://127.0.0.1:3001/dashboard\n"
+                        },
+                        {
+                          "text": "[e2e:login] login complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:09:41.965Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "c79134c03d523b7bf7b3-d627214f22674a7aa346",
+              "file": "customers.spec.ts",
+              "line": 8,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "hydration-readiness.spec.ts",
+      "file": "hydration-readiness.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "低速JSでも準備完了後の初回入力と1回ログインが成功する",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 25000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1618,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T20:09:53.452Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8d4410bc3b28c1c885f7-a297fe69481731ab8063",
+          "file": "hydration-readiness.spec.ts",
+          "line": 11,
+          "column": 5
+        },
+        {
+          "title": "低速JSでも操作可能になったメニューの最初のtapが有効",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 25000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3404,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-25T20:09:55.075Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "8d4410bc3b28c1c885f7-c20c71f43eea03bcd524",
+          "file": "hydration-readiness.spec.ts",
+          "line": 32,
+          "column": 5
+        }
+      ]
+    },
+    {
+      "title": "inventory-counts.spec.ts",
+      "file": "inventory-counts.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "棚卸しページ",
+          "file": "inventory-counts.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "一覧と登録画面が開ける",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8263,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[e2e:login] navigating to /login\n"
+                        },
+                        {
+                          "text": "[e2e:login] submitting credentials\n"
+                        },
+                        {
+                          "text": "[e2e:login] post-login, now at http://127.0.0.1:3001/dashboard\n"
+                        },
+                        {
+                          "text": "[e2e:login] login complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:09:58.486Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1d2c9796ebc05b219eeb-0d8cf215e13d86150df1",
+              "file": "inventory-counts.spec.ts",
+              "line": 11,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "landing-mobile-navigation.test.ts",
+      "file": "landing-mobile-navigation.test.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "GARAGE LINK LP mobile navigation",
+          "file": "landing-mobile-navigation.test.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "opens, closes, and follows an in-page destination at 360px",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 744,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:06.755Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "dc701a36a942fed934ff-e8451d66c4e4f88aadf4",
+              "file": "landing-mobile-navigation.test.ts",
+              "line": 5,
+              "column": 9
+            },
+            {
+              "title": "opens, closes, and follows an in-page destination at 390px",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 843,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:07.504Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "dc701a36a942fed934ff-42137feae56325ceafa7",
+              "file": "landing-mobile-navigation.test.ts",
+              "line": 5,
+              "column": 9
+            },
+            {
+              "title": "opens, closes, and follows an in-page destination at 430px",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 840,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:08.351Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "dc701a36a942fed934ff-e9289901d6ba7496968b",
+              "file": "landing-mobile-navigation.test.ts",
+              "line": 5,
+              "column": 9
+            },
+            {
+              "title": "keeps the mobile control hidden on desktop",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 459,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:09.196Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "dc701a36a942fed934ff-a6a0cc5d7724c202cb16",
+              "file": "landing-mobile-navigation.test.ts",
+              "line": 29,
+              "column": 7
+            },
+            {
+              "title": "uses one maintained icon system instead of one-off inline drawings",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 441,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:09.660Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "dc701a36a942fed934ff-34a2e8755ea02b80d0b9",
+              "file": "landing-mobile-navigation.test.ts",
+              "line": 37,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "landing-real-operations.test.ts",
+      "file": "landing-real-operations.test.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "GARAGE LINK LP real operations",
+          "file": "landing-real-operations.test.ts",
+          "line": 11,
+          "column": 6,
+          "specs": [
+            {
+              "title": "mobile menu actually navigates to 機能",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 680,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:10.107Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "6fe12738cc3979ef5286-1b952cad433dcfbb4931",
+              "file": "landing-real-operations.test.ts",
+              "line": 13,
+              "column": 9
+            },
+            {
+              "title": "mobile menu actually navigates to 料金",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1489,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:10.791Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "6fe12738cc3979ef5286-a9190ae86d4476521ede",
+              "file": "landing-real-operations.test.ts",
+              "line": 13,
+              "column": 9
+            },
+            {
+              "title": "mobile menu actually navigates to 業種別",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 743,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:12.287Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "6fe12738cc3979ef5286-64112d5c1eec59e774dd",
+              "file": "landing-real-operations.test.ts",
+              "line": 13,
+              "column": 9
+            },
+            {
+              "title": "mobile menu actually navigates to FAQ",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1507,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:13.035Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "6fe12738cc3979ef5286-c5460203965d88a684c5",
+              "file": "landing-real-operations.test.ts",
+              "line": 13,
+              "column": 9
+            },
+            {
+              "title": "mobile menu actually navigates to ログイン",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1216,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:14.546Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "6fe12738cc3979ef5286-f3cf4b538e39a8d59079",
+              "file": "landing-real-operations.test.ts",
+              "line": 13,
+              "column": 9
+            },
+            {
+              "title": "close button and backdrop both close the menu",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 571,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:15.766Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "6fe12738cc3979ef5286-f372845690a09961a283",
+              "file": "landing-real-operations.test.ts",
+              "line": 40,
+              "column": 7
+            },
+            {
+              "title": "hero CTA reaches an operable signup form and fires conversion steps",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 650,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:16.341Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "6fe12738cc3979ef5286-58bd6e549f9f246f1af8",
+              "file": "landing-real-operations.test.ts",
+              "line": 58,
+              "column": 7
+            },
+            {
+              "title": "all signup CTA placements point to the tracked registration route",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 470,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:16.994Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "6fe12738cc3979ef5286-91831430e8b79bcfce02",
+              "file": "landing-real-operations.test.ts",
+              "line": 111,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "line.spec.ts",
+      "file": "line.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "LINE管理ページ",
+          "file": "line.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [
+            {
+              "title": "/line が開ける",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4026,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[e2e:login] navigating to /login\n"
+                        },
+                        {
+                          "text": "[e2e:login] submitting credentials\n"
+                        },
+                        {
+                          "text": "[e2e:login] post-login, now at http://127.0.0.1:3001/dashboard\n"
+                        },
+                        {
+                          "text": "[e2e:login] login complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:17.469Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7df5889e5ae787a8b7fc-6a81e6f2bb93347c5f50",
+              "file": "line.spec.ts",
+              "line": 14,
+              "column": 9
+            },
+            {
+              "title": "/line/tags が開ける",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 7445,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[e2e:login] navigating to /login\n"
+                        },
+                        {
+                          "text": "[e2e:login] submitting credentials\n"
+                        },
+                        {
+                          "text": "[e2e:login] post-login, now at http://127.0.0.1:3001/dashboard\n"
+                        },
+                        {
+                          "text": "[e2e:login] login complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:21.499Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7df5889e5ae787a8b7fc-2e94f56f081852c3806a",
+              "file": "line.spec.ts",
+              "line": 14,
+              "column": 9
+            },
+            {
+              "title": "/line/templates が開ける",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2746,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[e2e:login] navigating to /login\n"
+                        },
+                        {
+                          "text": "[e2e:login] submitting credentials\n"
+                        },
+                        {
+                          "text": "[e2e:login] post-login, now at http://127.0.0.1:3001/dashboard\n"
+                        },
+                        {
+                          "text": "[e2e:login] login complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:28.949Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7df5889e5ae787a8b7fc-2ea58226e95520ed80f8",
+              "file": "line.spec.ts",
+              "line": 14,
+              "column": 9
+            },
+            {
+              "title": "/line/friends が開ける",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2830,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[e2e:login] navigating to /login\n"
+                        },
+                        {
+                          "text": "[e2e:login] submitting credentials\n"
+                        },
+                        {
+                          "text": "[e2e:login] post-login, now at http://127.0.0.1:3001/dashboard\n"
+                        },
+                        {
+                          "text": "[e2e:login] login complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:31.698Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7df5889e5ae787a8b7fc-c542512b9814822f220a",
+              "file": "line.spec.ts",
+              "line": 14,
+              "column": 9
+            },
+            {
+              "title": "/line/settings が開ける",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3833,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[e2e:login] navigating to /login\n"
+                        },
+                        {
+                          "text": "[e2e:login] submitting credentials\n"
+                        },
+                        {
+                          "text": "[e2e:login] post-login, now at http://127.0.0.1:3001/dashboard\n"
+                        },
+                        {
+                          "text": "[e2e:login] login complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:34.532Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7df5889e5ae787a8b7fc-27eeb6d17e581b59e582",
+              "file": "line.spec.ts",
+              "line": 14,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "maintenance.spec.ts",
+      "file": "maintenance.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "整備・車検ページ",
+          "file": "maintenance.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "一覧と登録画面が開ける",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 10354,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[e2e:login] navigating to /login\n"
+                        },
+                        {
+                          "text": "[e2e:login] submitting credentials\n"
+                        },
+                        {
+                          "text": "[e2e:login] post-login, now at http://127.0.0.1:3001/dashboard\n"
+                        },
+                        {
+                          "text": "[e2e:login] login complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:38.371Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "2ddc135d3caca248d6d1-7e73c7ca6232212d5241",
+              "file": "maintenance.spec.ts",
+              "line": 11,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "smoke.spec.ts",
+      "file": "smoke.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "GARAGE LINK smoke test",
+          "file": "smoke.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [
+            {
+              "title": "未認証の保護APIはログインHTMLではなく401 JSONを返す",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 22,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:48.730Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-4e8b4faae3da8f254b6f",
+              "file": "smoke.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "公開画面で実行時JavaScriptエラーが発生しない",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2509,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:48.755Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-5e48dbdba9c00f8d6093",
+              "file": "smoke.spec.ts",
+              "line": 15,
+              "column": 7
+            },
+            {
+              "title": "/login opens without application errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 440,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:51.268Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-784a82dc7125857e1951",
+              "file": "smoke.spec.ts",
+              "line": 26,
+              "column": 9
+            },
+            {
+              "title": "/dashboard opens without application errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 449,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:51.711Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-4d62c74c7547a8bfd36f",
+              "file": "smoke.spec.ts",
+              "line": 26,
+              "column": 9
+            },
+            {
+              "title": "/vehicles opens without application errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 444,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:52.164Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-7919d1ab4cef8eed2b2a",
+              "file": "smoke.spec.ts",
+              "line": 26,
+              "column": 9
+            },
+            {
+              "title": "/customers opens without application errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 452,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:52.612Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-1a17bf0381a95caea47e",
+              "file": "smoke.spec.ts",
+              "line": 26,
+              "column": 9
+            },
+            {
+              "title": "/deals opens without application errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 455,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:53.068Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-a6cff183e0fef4c56dbb",
+              "file": "smoke.spec.ts",
+              "line": 26,
+              "column": 9
+            },
+            {
+              "title": "/line opens without application errors",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 25000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 468,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:53.526Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4219922fea2e2bd3c691-776aeedd95227400bd64",
+              "file": "smoke.spec.ts",
+              "line": 26,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "vehicles.spec.ts",
+      "file": "vehicles.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "車両登録フロー",
+          "file": "vehicles.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "マスターメーカーと別々の満了日を保存し再開できる",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 10626,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[e2e:login] navigating to /login\n"
+                        },
+                        {
+                          "text": "[e2e:login] submitting credentials\n"
+                        },
+                        {
+                          "text": "[e2e:login] post-login, now at http://127.0.0.1:3001/dashboard\n"
+                        },
+                        {
+                          "text": "[e2e:login] login complete\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T20:10:53.999Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b96d6ac1827fbdecc424-b26e16601e2e3fb65ecf",
+              "file": "vehicles.spec.ts",
+              "line": 8,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-25T20:09:41.704Z",
+    "duration": 82947.056,
+    "expected": 32,
+    "skipped": 2,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

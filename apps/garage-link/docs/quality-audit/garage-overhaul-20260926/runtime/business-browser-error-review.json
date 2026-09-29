@@ -1,0 +1,206 @@
+{
+  "source": "business-save-results.json",
+  "candidate": "08 code / 09 local origin build",
+  "critical": [],
+  "noncritical": [
+    {
+      "event": {
+        "failed": "/vehicles",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/customers",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/appointments",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/dashboard",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/deals",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/parts/b5e3bdb6-ddd3-45e1-ace2-fa7c0da62fad",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": false,
+        "rsc": true
+      },
+      "reason": "Current route RSC canceled by explicit test reload/back; same route data save/reopen/value readback PASS. No failed mutation or HTTP error."
+    },
+    {
+      "event": {
+        "failed": "/parts/b5e3bdb6-ddd3-45e1-ace2-fa7c0da62fad",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": false,
+        "rsc": true
+      },
+      "reason": "Current route RSC canceled by explicit test reload/back; same route data save/reopen/value readback PASS. No failed mutation or HTTP error."
+    },
+    {
+      "event": {
+        "failed": "/parts/f9871ad4-942d-42bd-8456-0f18385c2b11",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/parts/7db144ed-fd4a-4a6a-8d1d-74d4cf06255f",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/parts/c8aa7840-426f-4131-8f76-faa4a097b4a9",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/parts/c8b5b4e8-ca9b-43e8-896a-5c3ee04651d9",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/settings/masters",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/vehicles",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/deals",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/customers",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/maintenance/45328991-f3ed-4b71-8f76-36cbb20facfd",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    },
+    {
+      "event": {
+        "failed": "/maintenance/45328991-f3ed-4b71-8f76-36cbb20facfd",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": false,
+        "rsc": true
+      },
+      "reason": "Current route RSC canceled by explicit test reload/back; same route data save/reopen/value readback PASS. No failed mutation or HTTP error."
+    },
+    {
+      "event": {
+        "failed": "/maintenance/45328991-f3ed-4b71-8f76-36cbb20facfd",
+        "reason": "net::ERR_ABORTED",
+        "method": "GET",
+        "resourceType": "fetch",
+        "prefetch": true,
+        "rsc": true
+      },
+      "reason": "Next route prefetch canceled by navigation; explicit prefetch header observed"
+    }
+  ],
+  "status": "PASS"
+}

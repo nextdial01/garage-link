@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   ]);
   if (appointments.error || deliveries.error || incomplete.error || assignedWork.error || todayIntakes.error || todayDeals.error || overdueDeals.error || unpaid.error || store.error) return Response.json({ ok: false, code: 'today_read_failed', error: '今日の作業を取得できませんでした。' }, { status: 500 });
   try {
-    const maintenanceRows = [...(deliveries.data ?? []), ...(incomplete.data ?? []), ...(assignedWork.data ?? [])];
+    const maintenanceRows = [...(deliveries.data ?? []), ...(incomplete.data ?? []), ...(assignedWork.data ?? []), ...(todayIntakes.data ?? [])];
     const identities = await withMaintenanceIdentity(context.service, context.member.storeId, maintenanceRows);
     const identityById = new Map(identities.map((item) => [String(item.id), { customerName: item.customerName, vehicleLabel: item.vehicleLabel }]));
     const identify = <T extends { id: string }>(rows: T[]) => rows.map((row) => ({ ...row, ...identityById.get(row.id) }));

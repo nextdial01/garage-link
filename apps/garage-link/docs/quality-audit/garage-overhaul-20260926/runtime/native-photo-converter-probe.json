@@ -1,0 +1,7 @@
+{
+  "old_uri_object_rejected": true,
+  "file_bytes_interface_accepted": true,
+  "input_bytes": 780,
+  "installed_converter": "apps/garage-link-mobile/node_modules/expo/src/winter/fetch/convertFormData.ts",
+  "status": "REPRODUCED"
+}

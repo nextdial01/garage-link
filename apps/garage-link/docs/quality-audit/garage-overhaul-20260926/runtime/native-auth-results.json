@@ -1,0 +1,34 @@
+{
+  "platform": "iOS 26.4 iPhone 17 Pro Simulator / Expo Go / local API",
+  "first_login": {
+    "status": "PASS",
+    "operations": "Final code: actual logout → empty login form → synthetic admin email/password → one login tap → decline iOS save prompt → primary store → Maestro assert 今日/ログアウト"
+  },
+  "session_restore": {
+    "status": "PASS",
+    "operations": "simctl terminate only local Expo Go → reopen same loopback app → authenticated store selection with no password field → choose primary store → 今日/ログアウト assertions PASS"
+  },
+  "otp_redirect": {
+    "status": "PASS",
+    "operations": "Direct authenticated 今日 screen, no routine OTP screen"
+  },
+  "navigation": {
+    "status": "OPERATED_NOT_FULL_ROUTE_ACCEPTANCE",
+    "operations": "vehicle/deal/maintenance/customer tabs → corresponding create button verified → today expand/collapse → customer create form opened"
+  },
+  "captcha_enabled_environment": {
+    "status": "NOT_TESTED",
+    "reason": "Real human CAPTCHA not run; isolated synthetic CAPTCHA contract PASS separately. Local authentication CAPTCHA disabled."
+  },
+  "initial_runtime_failures": {
+    "status": "RESOLVED_QA_RUNTIME",
+    "reason": "Expo CI bundle cache retained pre-change HTTPS-only origin validator. Cleared cache and removed CI environment before successful login."
+  },
+  "candidate": "04",
+  "verified_at": "2026-09-25T19:12:21.257648+00:00",
+  "code_content_sha256": "8d88faf93fbcb85941980f0034510f5e0e96905516148a336bbf0ef2c12c0798",
+  "expo_tools_interference": {
+    "status": "RESOLVED",
+    "operations": "Closed Tools sheet and dragged Expo floating gear from top right to left side using visible-screen coordinates; then logout UI worked."
+  }
+}

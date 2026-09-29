@@ -32,7 +32,8 @@ test('release safety env gates LINE, email, Stripe live, and cron execution', ()
   expect(email.indexOf('isAdminSecurityOtpEmailAllowed()')).toBeLessThan(email.indexOf("fetch('https://api.resend.com"));
   expect(email).toContain("return 'resend_sender_configuration_invalid'");
   expect(email).not.toContain('console.error');
-  expect(mobileOtpRequest).toContain("console.error('garage_admin_otp_email_delivery_failed', { reason: sent.error })");
+  expect(mobileOtpRequest).toContain('ROUTINE_EMAIL_OTP_RETIRED');
+  expect(mobileOtpRequest).not.toContain('sendTransactionalEmail');
   expect(mobileOtpRequest).not.toContain('console.error(\'garage_admin_otp_email_delivery_failed\', { email:');
   expect(mobileBearerAuth).toContain("const MOBILE_REVIEW_PROOF_HEADER = 'x-garage-mobile-review-proof'");
   expect(mobileBearerAuth).toContain('reviewFixtureProofFor(userData.user.id)');

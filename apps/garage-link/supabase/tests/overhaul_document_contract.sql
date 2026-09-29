@@ -1,0 +1,48 @@
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','50000000-0000-0000-0000-000000000001',true);
+do $$ declare v jsonb; v_quote uuid; v_invoice uuid; v_count bigint; v_before text;
+ h jsonb:='{"quote_no":"ATOMIC-Q","customer_id":"93000000-0000-0000-0000-000000000001","status":"承認済み","tax_display_mode":"included","discount_input_amount":110,"subtotal_amount":1365,"tax_amount":126,"discount_amount":100,"trade_in_amount":0,"total_amount":1391}';
+ items jsonb:='[{"name":"Oil, fractional","item_type":"part","part_id":"92000000-0000-0000-0000-000000000001","quantity":1.5,"unit_price":1000.5,"cost_price":500.25,"tax_rate":0.1,"tax_category":"taxable","amount":1365,"tax_amount":126,"unit":"L","note":"Saved note"}]';
+begin
+ v:=public.save_document('51100000-0000-0000-0000-000000000001','quote',h,items);v_quote:=(v->>'id')::uuid;
+ if not exists(select 1 from public.quotes where id=v_quote and status='承認済み' and tax_display_mode='included' and discount_input_amount=110) then raise exception 'quote header mismatch'; end if;
+ if not exists(select 1 from public.quote_items where quote_id=v_quote and quantity=1.5 and unit_price=1000.5 and cost_price=500.25 and unit='L' and note='Saved note' and tax_category='taxable') then raise exception 'quote line lost precision/snapshot'; end if;
+ select count(*) into v_count from public.quotes;
+ begin perform public.save_document('51100000-0000-0000-0000-000000000001','quote',h||'{"total_amount":1,"quote_no":"BAD-TOTAL"}',items); raise exception 'inconsistent total accepted'; exception when invalid_parameter_value then null; end;
+ begin perform public.save_document('51100000-0000-0000-0000-000000000001','quote',h||'{"quote_no":"ATOMIC-FAIL"}','[{"name":"","quantity":1}]'); raise exception 'invalid item accepted'; exception when invalid_parameter_value then null; end;
+ if (select count(*) from public.quotes)<>v_count then raise exception 'orphan quote'; end if;
+ begin perform public.save_document('51100000-0000-0000-0000-000000000001','quote',h||'{"title":"should rollback"}','[{"name":"","quantity":1}]',v_quote); raise exception 'invalid edit accepted'; exception when invalid_parameter_value then null; end;
+ if exists(select 1 from public.quotes where id=v_quote and title='should rollback') or (select count(*) from public.quote_items where quote_id=v_quote)<>1 then raise exception 'partial edit leaked'; end if;
+ v:=public.save_document('51100000-0000-0000-0000-000000000001','quote',h||'{"quote_no":"ISSUED-Q","issue_status":"issued"}',items);v_quote:=(v->>'id')::uuid;
+ if not exists(select 1 from public.quotes where id=v_quote and issue_status='issued' and issued_at is not null) then raise exception 'quote issue failed'; end if;
+ perform public.save_document('51100000-0000-0000-0000-000000000001','quote','{"title":"existing issued edit","issue_status":"issued"}',items,v_quote);
+ if not exists(select 1 from public.quotes where id=v_quote and title='existing issued edit' and issue_status='issued') then raise exception 'issued quote regression'; end if;
+ v:=public.save_document('51100000-0000-0000-0000-000000000001','invoice',(h-'quote_no'-'status')||jsonb_build_object('invoice_no','ATOMIC-I','quote_id',v_quote),items);v_invoice:=(v->>'id')::uuid;
+ if not exists(select 1 from public.invoices where id=v_invoice and paid_amount=0 and unpaid_amount=1391 and issue_status='draft') then raise exception 'invoice initial balances wrong'; end if;
+ perform public.save_document('51100000-0000-0000-0000-000000000001','invoice','{"total_amount":1491,"discount_amount":0}',items,v_invoice);
+ if not exists(select 1 from public.invoices where id=v_invoice and unpaid_amount=1491 and paid_amount=0) then raise exception 'draft unpaid balance wrong'; end if;
+ begin perform public.save_document('51100000-0000-0000-0000-000000000001','quote','{"title":"linked edit"}',items,v_quote); raise exception 'linked quote edit accepted'; exception when insufficient_privilege then null; end;
+ begin perform public.save_document('51100000-0000-0000-0000-000000000001','invoice','{"invoice_no":"FAKE-PAID","paid_amount":500}',items); raise exception 'paid injection accepted'; exception when invalid_parameter_value then null; end;
+ begin perform public.save_document('51100000-0000-0000-0000-000000000001','quote',h||'{"quote_no":"FOREIGN-PART"}',jsonb_set(items,'{0,part_id}','"99999999-0000-0000-0000-000000000001"')); raise exception 'foreign part accepted'; exception when foreign_key_violation then null; end;
+end $$;
+select set_config('request.jwt.claim.sub','50000000-0000-0000-0000-000000000005',true);
+do $$ begin
+ begin perform public.save_document('51100000-0000-0000-0000-000000000001','quote','{"quote_no":"VIEWER"}','[]'); raise exception 'viewer accepted'; exception when insufficient_privilege then null; end;
+end $$;
+reset role;
+set local role service_role;
+do $$ declare v uuid; v_again uuid;
+ q jsonb:='{"quoteNo":"MOBILE-SNAPSHOT","internalMemo":"private copied memo","paymentMethod":"cash","loanRequest":"希望なし","downPayment":100,"installmentCount":1,"paymentDueDate":"2026-12-01","customerId":"93000000-0000-0000-0000-000000000001","taxDisplayMode":"excluded","discountInputAmount":100,"totalAmount":1000}';
+ i jsonb:='[{"item_order":1,"item_type":"labor","name":"Mobile","part_id":"92000000-0000-0000-0000-000000000001","cost_price":123.4567,"quantity":0.5,"unit_price":1000.5,"tax_rate":0.1,"amount":500,"tax_amount":50,"unit":"h","note":"kept","tax_category":"taxable"}]';
+begin
+ v:=public.garage_mobile_create_quote('51100000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','owner','mobile-atomic-overhaul',q,i);
+ v_again:=public.garage_mobile_create_quote('51100000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','owner','mobile-atomic-overhaul',q,i);
+ if v<>v_again then raise exception 'mobile idempotency lost'; end if;
+ perform set_config('role','none',true);
+ if not exists(select 1 from public.quotes where id=v and tax_display_mode='excluded' and discount_input_amount=100 and internal_memo='private copied memo' and payment_method='cash' and down_payment=100 and installment_count=1 and payment_due_date='2026-12-01') then raise exception 'mobile header snapshot lost'; end if;
+ if not exists(select 1 from public.quote_items where quote_id=v and unit_price=1000.5 and note='kept' and unit='h' and part_id='92000000-0000-0000-0000-000000000001' and cost_price=123.4567) then raise exception 'mobile unit precision lost'; end if;
+end $$;
+rollback;
+select 'OVERHAUL_DOCUMENT_ATOMIC_PASS' result;

@@ -1,0 +1,42 @@
+{
+  "candidate_code_manifest_sha256": "f8b7ae5df5acf15b80216101a059c963da38f842ae58566f0554d6f6be0f1b55",
+  "origin": "http://127.0.0.1:63002",
+  "documents": {
+    "routes": 13,
+    "status": "PASS",
+    "evidence": [
+      "document-operations-results.json",
+      "deal-document-results.json"
+    ]
+  },
+  "business": {
+    "routes": 6,
+    "status": "PASS",
+    "evidence": [
+      "business-save-results.json",
+      "business-list-results.json",
+      "business-browser-error-review.json"
+    ]
+  },
+  "master_settings": {
+    "routes": 1,
+    "status": "PASS",
+    "evidence": [
+      "business-results.json",
+      "business-tax-results.json",
+      "document-tax-mode-results.json"
+    ],
+    "operations": "add/edit/disable/order/enable/reopen manufacturer/category; included/excluded save/reload; historical price/source preserved"
+  },
+  "monitor": {
+    "critical": 0,
+    "scope": "Parent Web documents/business, console/pageerror and HTTP response monitoring; business requestfailed classified separately"
+  },
+  "native_monitor_limitation": "Native supplementary UI is not a global console/all HTTP capture. Dev incomingRequests logging disabled, no safe current server status file; RNWeb network monitoring separate.",
+  "total_parent_routes": {
+    "count": 20,
+    "pass": 20,
+    "fail": 0
+  },
+  "web_candidate_inheritance": "Candidate10 Web/DB/API/auth unchanged from08/09, compared code manifest"
+}

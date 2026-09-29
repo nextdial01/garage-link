@@ -1,5 +1,8 @@
 'use client';
 
+import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
+import { storedPriceToDisplay, priceLabel } from '@/lib/business/money';
+import MasterFilter from '@/components/business/MasterFilter';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import Modal from '@/components/ui/Modal';
@@ -42,7 +45,9 @@ function stockBadgeClass(status: string, stock: number) {
 }
 
 export default function PartPickerModal({ storeId, onSelect, onAddManual, onClose }: Props) {
+  const business = useBusinessSettings();
   const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('');
   const [parts, setParts] = useState<PartRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -66,7 +71,7 @@ export default function PartPickerModal({ storeId, onSelect, onAddManual, onClos
       setParts(
         (data ?? [])
           .filter((p: PartRow) => {
-            if (p.deleted_at || p.status === '廃番') return false;
+            if (p.deleted_at || p.status === '廃番' || (category && p.category !== category)) return false;
             if (!lower) return true;
             return (
               p.name.toLowerCase().includes(lower) ||
@@ -79,7 +84,7 @@ export default function PartPickerModal({ storeId, onSelect, onAddManual, onClos
     } finally {
       setIsLoading(false);
     }
-  }, [storeId]);
+  }, [storeId, category]);
 
   useEffect(() => {
     const timer = setTimeout(() => void fetchParts(query), 200);
@@ -99,6 +104,7 @@ export default function PartPickerModal({ storeId, onSelect, onAddManual, onClos
       )}
     >
         <div className="border-b border-slate-100 pb-3">
+          <MasterFilter kind="part_category" value={category} onChange={setCategory} existing={parts.map((part) => part.category)} />
           <input
             ref={inputRef}
             type="text"
@@ -145,7 +151,7 @@ export default function PartPickerModal({ storeId, onSelect, onAddManual, onClos
                     <div className="shrink-0 text-right">
                       <p className="text-sm font-bold text-slate-950">
                         {part.unit_price !== null
-                          ? `${part.unit_price.toLocaleString('ja-JP')}円`
+                          ? `${storedPriceToDisplay(part.unit_price, business.mode).toLocaleString('ja-JP')}円 ${priceLabel('単価', business.mode)}`
                           : '-'}
                       </p>
                       <span

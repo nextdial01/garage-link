@@ -1,0 +1,15 @@
+{
+  "results": [
+    {
+      "route": "/parts",
+      "status": "PASS",
+      "operations": "search→master category filter→detail→back→search again"
+    },
+    {
+      "route": "/maintenance",
+      "status": "PASS",
+      "operations": "open panel→status save→reload→reopen verify→restore→detail→back→reopen"
+    }
+  ],
+  "errors": []
+}

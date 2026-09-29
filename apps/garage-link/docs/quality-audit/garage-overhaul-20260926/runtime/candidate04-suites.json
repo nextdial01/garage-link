@@ -1,0 +1,50 @@
+[
+  {
+    "suite": "web-lint",
+    "exit_code": 0
+  },
+  {
+    "suite": "web-typecheck",
+    "exit_code": 0
+  },
+  {
+    "suite": "web-security",
+    "exit_code": 0
+  },
+  {
+    "suite": "web-qa",
+    "exit_code": 0
+  },
+  {
+    "suite": "db-runner",
+    "exit_code": 0
+  },
+  {
+    "suite": "db-relation",
+    "exit_code": 0
+  },
+  {
+    "suite": "db-scope-static",
+    "exit_code": 0
+  },
+  {
+    "suite": "qa-manifest",
+    "exit_code": 0
+  },
+  {
+    "suite": "test-line-link-s2s",
+    "exit_code": 0
+  },
+  {
+    "suite": "test-l-link-inquiry-s2s",
+    "exit_code": 0
+  },
+  {
+    "suite": "test-inquiry-response-management",
+    "exit_code": 0
+  },
+  {
+    "suite": "test-line-link-s2s-ack",
+    "exit_code": 0
+  }
+]

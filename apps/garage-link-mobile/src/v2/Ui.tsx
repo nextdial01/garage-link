@@ -9,8 +9,8 @@ export const tabs: { key: Tab; label: string }[] = [{ key: 'today', label: '今�
 export function Shell({ title, tab, onTab, onBack, onLogout, children, error, busy }: { title: string; tab: Tab; onTab: (tab: Tab) => void; onBack?: () => void; onLogout: () => void; children: ReactNode; error?: string; busy?: boolean }) {
   return <SafeAreaView style={s.safe} edges={['top','left','right','bottom']}>
     <View style={s.header}><TouchableOpacity style={s.headerSide} onPress={onBack ?? onLogout} accessibilityRole="button"><Text style={s.link}>{onBack ? '‹ 戻る' : 'ログアウト'}</Text></TouchableOpacity><Text style={s.headerTitle} numberOfLines={1}>{title}</Text><TouchableOpacity style={s.headerSide} onPress={onLogout} accessibilityRole="button"><Text style={s.link}>ログアウト</Text></TouchableOpacity></View>
-    <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={56}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
+    <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 56 : 0}>
+      <ScrollView key={`${tab}:${title}`} keyboardShouldPersistTaps="handled" contentContainerStyle={s.content}>
         {error ? <View style={s.error}><Text style={s.errorText}>{error}</Text></View> : null}
         {busy ? <Text style={s.busy}>保存・読込中…</Text> : null}
         {children}

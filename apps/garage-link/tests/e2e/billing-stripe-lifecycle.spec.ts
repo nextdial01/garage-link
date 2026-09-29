@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import { login } from './helpers';
 
 const required = (name: string) => {
   const value = process.env[name]?.trim();
@@ -31,6 +32,27 @@ const checkoutSessionIds = new Set<string>();
 const subscriptionIds = new Set<string>();
 const invoiceIds = new Set<string>();
 let quotaPrefix: string;
+
+// Refuse to mutate another test user's objects, even when the key is test mode.
+const assertOwnedCustomer = (customer: Stripe.Customer | Stripe.DeletedCustomer) => {
+  if (customer.deleted || customer.livemode || customer.metadata.disposable !== 'true'
+    || !customer.metadata.marker?.startsWith(`garage-link-commercial-e2e:disposable:${tenantId}:`)) {
+    throw new Error('Disposable customer ownership mismatch');
+  }
+};
+const assertOwnedObject = (object: { livemode: boolean; customer?: string | { id: string } | null }) => {
+  const objectCustomer = typeof object.customer === 'string' ? object.customer : object.customer?.id;
+  if (object.livemode || !customerId || objectCustomer !== customerId) {
+    throw new Error('Disposable object ownership mismatch');
+  }
+};
+const assertCleanupScope = async () => {
+  if (customerId) assertOwnedCustomer(await stripe.customers.retrieve(customerId));
+  if (clockId) {
+    const clock = await stripe.testHelpers.testClocks.retrieve(clockId);
+    if (clock.livemode || clock.name !== marker) throw new Error('Disposable clock ownership mismatch');
+  }
+};
 
 const readDbSubscription = async () => admin.from('company_subscriptions')
   .select('company_id,tenant_id,plan,billing_state,stripe_status,grace_ends_at,stripe_customer_id,stripe_subscription_id,pending_plan,pending_plan_effective_at')
@@ -63,6 +85,27 @@ const waitFor = async (predicate: () => Promise<boolean>, label: string) => {
 // Any OTHER 5xx is a real failure and is not in this list.
 const expectAccepted = (response: { status(): number }) => {
   expect([202, 503]).toContain(response.status());
+};
+
+// A lease conflict before any Stripe write is a rejected operation, not an
+// accepted mutation. A user may submit a fresh action after it settles. Never
+// replay an applied/unknown operation with a new key (could duplicate billing).
+const requestCancellation = async (page: Page, suffix: string, action: string) => {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const key = `${marker}:${suffix}${attempt ? `:retry-${attempt}` : ''}`;
+    const response = await page.request.post('/api/billing/cancellation', {
+      headers: { 'idempotency-key': key }, data: { action, termsAccepted: true },
+    });
+    console.info(JSON.stringify({ checkpoint: 'cancellation-attempt', action, attempt: attempt + 1, status: response.status() }));
+    if (response.status() !== 503) return response;
+    const { data: operation, error } = await admin.from('billing_sync_operations')
+      .select('status,diagnostic_code').eq('tenant_id', tenantId).eq('idempotency_key', key).maybeSingle();
+    expect(error).toBeNull();
+    if (operation?.status !== 'failed' || operation.diagnostic_code !== 'subscription_mutation_in_progress') return response;
+    console.info(JSON.stringify({ checkpoint: 'cancellation-retry', attempt: attempt + 1, operationStatus: operation.status, diagnostic: operation.diagnostic_code, stripeMutationPerformed: false }));
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  throw new Error('Cancellation lease remained busy after three safe attempts');
 };
 
 const waitForClock = async () => waitFor(async () => (
@@ -162,6 +205,13 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
     if (required('E2E_MARKER') !== 'garage-link-commercial-disposable') {
       throw new Error('Disposable marker mismatch');
     }
+    if (required('E2E_ALLOW_BILLING_MUTATIONS') !== 'true') throw new Error('Billing mutation permission missing');
+    const databaseUrl = new URL(required('E2E_TEST_SUPABASE_URL'));
+    if (!['localhost', '127.0.0.1', '[::1]'].includes(databaseUrl.hostname)) {
+      throw new Error('Disposable billing tests require local Supabase');
+    }
+    const appUrl = new URL(required('PLAYWRIGHT_BASE_URL'));
+    if (!['localhost', '127.0.0.1', '[::1]'].includes(appUrl.hostname)) throw new Error('Local billing app required');
     stripe = new Stripe(secret, { apiVersion: '2026-07-29.dahlia' });
     admin = createClient(
       required('E2E_TEST_SUPABASE_URL'),
@@ -183,27 +233,17 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
     if (userSignInError || !userSignInData.session) {
       throw new Error(`e2e_user_supabase_signin_failed: ${userSignInError?.message ?? 'no session'}`);
     }
-    // This is a plain signInWithPassword() session, not the browser's OTP-verified one
-    // (that one lives in storageState from billing-auth.setup.ts), so Supabase's
-    // PostgREST pre-request hook (enforce_administrator_email_otp, applied to every
-    // request by an administrator-role user) would reject it. Seed a matching
-    // admin_trusted_sessions row via service_role - exactly what the app's own
-    // /api/auth/admin-email-otp/verify route does after a real OTP check - so this
-    // second, Node-side session is recognized as step-up-verified too. This does not
-    // consume an OTP challenge itself.
-    const [, jwtPayload] = userSignInData.session.access_token.split('.');
-    const sessionId = (JSON.parse(Buffer.from(jwtPayload, 'base64url').toString('utf8')) as { session_id?: string }).session_id;
-    if (!sessionId) throw new Error('e2e_user_jwt_session_id_missing');
-    const { error: trustedSessionError } = await admin.from('admin_trusted_sessions').insert({
-      user_id: userSignInData.session.user.id,
-      session_id: sessionId,
-      device_token_hash: crypto.randomUUID(),
-      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-    });
-    if (trustedSessionError) throw new Error(`e2e_trusted_session_seed_failed: ${trustedSessionError.message}`);
-
     tenantId = required('E2E_TENANT_ID');
     storeId = required('E2E_STORE_ID');
+    const { data: membership, error: membershipError } = await asUser.from('store_members')
+      .select('store_id,role').eq('user_id', userSignInData.user.id).single();
+    if (membershipError || membership?.store_id !== storeId || membership.role !== 'owner') {
+      throw new Error('Disposable owner/store scope mismatch');
+    }
+    const { data: store, error: storeError } = await asUser.from('stores')
+      .select('tenant_id').eq('id', storeId).single();
+    if (storeError || store?.tenant_id !== tenantId) throw new Error('Disposable store/tenant scope mismatch');
+    if (!required('E2E_EMAIL').endsWith('@example.invalid')) throw new Error('Synthetic email required');
     checkoutEmail = `garage-link-e2e-disposable+${tenantId}@example.invalid`;
     quotaPrefix = `E2E-B1B-${tenantId.slice(0, 8)}`;
 
@@ -233,9 +273,9 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
       if ('deleted' in customer && customer.deleted) {
         console.info('[rehydrate] prior customer was deleted by a completed run, starting fresh');
       } else {
+        assertOwnedCustomer(customer);
         customerId = rehydratedCustomerId;
-        marker = customer.metadata.marker
-          ?? `garage-link-commercial-e2e:disposable:${tenantId}:${crypto.randomUUID()}`;
+        marker = customer.metadata.marker;
         if (typeof customer.test_clock === 'string') {
           clockId = customer.test_clock;
         } else if (customer.test_clock && typeof customer.test_clock === 'object') {
@@ -243,11 +283,14 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
         }
         if (existing?.stripe_subscription_id) {
           const rehydratedSubscriptionId: string = existing.stripe_subscription_id;
+          const subscription = await stripe.subscriptions.retrieve(rehydratedSubscriptionId);
+          assertOwnedObject(subscription);
           subscriptionId = rehydratedSubscriptionId;
           subscriptionIds.add(rehydratedSubscriptionId);
         }
       }
     }
+    await assertCleanupScope();
     console.info(JSON.stringify({
       checkpoint: 'rehydrate', tenantId, storeId,
       rehydratedPlan: existing?.plan ?? null,
@@ -255,6 +298,10 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
       rehydratedSubscriptionId: Boolean(subscriptionId),
       rehydratedClockId: Boolean(clockId),
     }));
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await login(page);
   });
 
   test('2 signup／onboarding', async ({ page }) => {
@@ -498,24 +545,15 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
     expect(paid.amount_paid).toBe(7480);
     await waitFor(async () => (await readDbSubscription()).data?.billing_state === 'active', 'billing_state recovered to active');
 
-    const cancelResponse = await page.request.post('/api/billing/cancellation', {
-      headers: { 'idempotency-key': `${marker}:cancel` },
-      data: { action: 'schedule', termsAccepted: true },
-    });
+    const cancelResponse = await requestCancellation(page, 'cancel', 'schedule');
     expectAccepted(cancelResponse);
     await waitFor(async () => (await readDbSubscription()).data?.billing_state === 'cancellation_scheduled', 'cancellation scheduled');
 
-    const restoreResponse = await page.request.post('/api/billing/cancellation', {
-      headers: { 'idempotency-key': `${marker}:restore` },
-      data: { action: 'restore', termsAccepted: true },
-    });
+    const restoreResponse = await requestCancellation(page, 'restore', 'restore');
     expectAccepted(restoreResponse);
     await waitFor(async () => (await readDbSubscription()).data?.billing_state === 'active', 'cancellation restored to active');
 
-    const cancelAgain = await page.request.post('/api/billing/cancellation', {
-      headers: { 'idempotency-key': `${marker}:cancel-final` },
-      data: { action: 'schedule', termsAccepted: true },
-    });
+    const cancelAgain = await requestCancellation(page, 'cancel-final', 'schedule');
     expectAccepted(cancelAgain);
     await waitFor(async () => (await readDbSubscription()).data?.billing_state === 'cancellation_scheduled', 'final cancellation scheduled');
     const previousSubscription = subscriptionId;
@@ -556,15 +594,17 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
         data: payload, headers: { 'stripe-signature': signature, 'content-type': 'application/json' },
       });
     };
-    const event = (await stripe.events.list({
-      limit: 1, types: ['customer.subscription.updated'],
-    })).data[0]!;
+    const templates = (await stripe.events.list({
+      limit: 100, types: ['customer.subscription.created', 'customer.subscription.updated'],
+    })).data.filter((event): event is Stripe.CustomerSubscriptionUpdatedEvent | Stripe.CustomerSubscriptionCreatedEvent =>
+      (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.created')
+      && event.data.object.id === subscriptionId);
+    const event = templates[0];
+    expect(event).toBeTruthy();
+    assertOwnedObject(event!.data.object);
     await replay(event);
     expect((await replay(event)).ok()).toBe(true);
 
-    const templates = (await stripe.events.list({
-      limit: 2, types: ['customer.subscription.updated'],
-    })).data;
     expect(templates.length).toBeGreaterThanOrEqual(1);
     const synthetic = [1, 2].map((suffix) => ({
       ...templates[0],
@@ -599,6 +639,13 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
       }).eq('id', operationId);
       expect(recoveryError).toBeNull();
     }
+    // The local cron endpoint is global: refuse to run while another fixture has
+    // unfinished work rather than mutating an unrelated tenant during this test.
+    const { count: otherPending, error: otherPendingError } = await admin.from('billing_sync_operations')
+      .select('id', { count: 'exact', head: true }).neq('tenant_id', tenantId)
+      .in('status', ['started', 'stripe_applied', 'reconciliation_required', 'retry_scheduled']);
+    expect(otherPendingError).toBeNull();
+    expect(otherPending).toBe(0);
     const response = await request.post(`${baseUrl}/api/jobs/billing-reconciliation`, {
       headers: { authorization: `Bearer ${required('CRON_SECRET')}` },
     });
@@ -619,8 +666,10 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
     // checkpoint must cancel it itself before asserting convergence, not merely observe
     // afterAll's later result. Cancelling an already-canceled subscription here is a
     // harmless no-op for afterAll's own identical pass.
+    await assertCleanupScope();
     for (const trackedSubscriptionId of subscriptionIds) {
       const subscription = await stripe.subscriptions.retrieve(trackedSubscriptionId);
+      assertOwnedObject(subscription);
       if (subscription.status !== 'canceled') await stripe.subscriptions.cancel(trackedSubscriptionId);
     }
     const remaining = await stripe.subscriptions.list({ customer: customerId!, status: 'all' });
@@ -638,29 +687,26 @@ test.describe.serial('GARAGE LINK Stripe commercial checkpoints', () => {
 
   test.afterAll(async () => {
     try {
+      await assertCleanupScope();
       await asUser.from('vehicles').delete().eq('store_id', storeId)
         .like('management_no', `${quotaPrefix}%`);
       for (const trackedSubscriptionId of subscriptionIds) {
         const subscription = await stripe.subscriptions.retrieve(trackedSubscriptionId);
+        assertOwnedObject(subscription);
         if (subscription.status !== 'canceled') await stripe.subscriptions.cancel(trackedSubscriptionId);
       }
       for (const trackedSessionId of checkoutSessionIds) {
         const session = await stripe.checkout.sessions.retrieve(trackedSessionId);
+        assertOwnedObject(session);
         if (session.status === 'open') await stripe.checkout.sessions.expire(trackedSessionId);
       }
       for (const trackedInvoiceId of invoiceIds) {
         const invoice = await stripe.invoices.retrieve(trackedInvoiceId);
+        assertOwnedObject(invoice);
         if (invoice.status === 'draft') await stripe.invoices.del(trackedInvoiceId);
       }
       if (customerId) await stripe.customers.del(customerId);
       if (clockId) await stripe.testHelpers.testClocks.del(clockId);
-      // OTP challenge residue: this run's own admin_trusted_sessions row (seeded in
-      // beforeAll) is a real security artifact, not a test fixture - revoke it explicitly
-      // rather than leaving it to expire naturally in an hour.
-      await admin.from('admin_trusted_sessions')
-        .update({ revoked_at: new Date().toISOString() })
-        .eq('user_id', (await asUser.auth.getUser()).data.user?.id ?? '')
-        .is('revoked_at', null);
       console.info(JSON.stringify({
         teardown: 'garage_commercial_marker',
         checkout_sessions_terminal: checkoutSessionIds.size,

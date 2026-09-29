@@ -1,0 +1,33 @@
+{
+  "started_at": "2026-09-25T20:54:11.337257+00:00",
+  "product_patch_files": [
+    {
+      "path": "apps/garage-link-mobile/src/v2/GarageMobileV2.tsx",
+      "sha256": "f116a7750a92a1a4d6f0badc80a874c081cad22aef106d2f0cf35ac515a7d013"
+    },
+    {
+      "path": "apps/garage-link-mobile/src/v2/documentHtml.ts",
+      "sha256": "bcba83565e5f544c2d07ad0c55117ef4f114475d50a21e854e8747479f2117d3"
+    },
+    {
+      "path": "apps/garage-link-mobile/scripts/document-html.test.mjs",
+      "sha256": "dbd6ad2e6439e8ff68899e12e9c49a259dc5971fe44d0f1cd912a4de37c4a794"
+    }
+  ],
+  "actor": "owner",
+  "environment": "React Native Web localhost8082 / real local API3001 / Supabase62321",
+  "original_scripts_unchanged": true,
+  "capture": "no trace/HAR/storageState",
+  "coverage": "rnweb-final-coverage-plan.json",
+  "harness_fixes": [
+    "wait for primary store selection instead of swallowing 5-second failure",
+    "expect save/readback timeout30s while visible busy, no assertion removed"
+  ],
+  "completed_at": "2026-09-25T20:57:29.743783+00:00",
+  "source_patch_drift": [],
+  "route_count": 36,
+  "pass_count": 36,
+  "missing": [],
+  "observed_errors": [],
+  "api_contract_tests": 10
+}

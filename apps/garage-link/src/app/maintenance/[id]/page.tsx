@@ -5,6 +5,11 @@ import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import MasterSelect from '@/components/business/MasterSelect';
+import WorkDetailsEditor from '@/components/business/WorkDetailsEditor';
+import MaintenanceSummary from '@/components/business/MaintenanceSummary';
+import { normalizedWorkDetails, legacyWorkDetails, maintenanceTotals, type WorkDetail } from '@/lib/business/workDetails';
+import { calculateLine, priceLabel, type TaxDisplayMode, type MoneyLine } from '@/lib/business/money';
 import AppShell from '@/components/AppShell';
 import { confirmAction } from '@/components/ui/actionDialog';
 import JobPartsPanel from '@/components/parts/JobPartsPanel';
@@ -30,6 +35,10 @@ type MaintenanceJobRow = {
   request_detail: string | null;
   symptoms: string | null;
   work_items: string[] | null;
+  work_details: WorkDetail[] | null;
+  work_details_version: number;
+  tax_display_mode: TaxDisplayMode | null;
+  discount_input_amount: number | null;
   planned_parts: string | null;
   work_instruction: string | null;
   scheduled_in_at: string | null;
@@ -80,6 +89,7 @@ type VehicleRow = {
   model_year: number | null;
   mileage_km: number | null;
   inspection_expiry_date: string | null;
+  liability_insurance_expiry_date: string | null;
 };
 
 type MaintenanceFormState = {
@@ -234,7 +244,7 @@ function mapJobToForm(job: MaintenanceJobRow): MaintenanceFormState {
     assigned_user_name: job.assigned_user_name ?? '',
     request_detail: job.request_detail ?? '',
     symptoms: job.symptoms ?? '',
-    work_items: (job.work_items ?? []).join(', '),
+    work_items: '',
     planned_parts: job.planned_parts ?? '',
     work_instruction: job.work_instruction ?? '',
     scheduled_in_at: toInputDateTime(job.scheduled_in_at),
@@ -301,7 +311,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
         <h3 className="text-lg font-bold text-slate-950">{title}</h3>
       </div>
-      <div className="grid gap-4 px-5 py-6 sm:px-6 md:grid-cols-2 xl:grid-cols-3">{children}</div>
+      <div className="grid grid-cols-1 gap-4 px-5 py-6 sm:px-6 md:grid-cols-2 xl:grid-cols-3">{children}</div>
     </section>
   );
 }
@@ -315,6 +325,9 @@ export default function MaintenanceDetailPage() {
   const [job, setJob] = useState<MaintenanceJobRow | null>(null);
   const [customer, setCustomer] = useState<CustomerRow | null>(null);
   const [vehicle, setVehicle] = useState<VehicleRow | null>(null);
+  const [partLines, setPartLines] = useState<MoneyLine[]>([]);
+  const [workRows, setWorkRows] = useState<WorkDetail[]>([]);
+  const mode = job?.tax_display_mode ?? 'included';
   const [form, setForm] = useState<MaintenanceFormState>(emptyForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -357,6 +370,7 @@ export default function MaintenanceDetailPage() {
 
         setJob(jobData);
         setForm(mapJobToForm(jobData));
+        setWorkRows(jobData.work_details_version === 1 ? jobData.work_details ?? [] : legacyWorkDetails(jobData.work_items ?? [], jobData.labor_amount ?? 0));
         previousStatusRef.current = jobData.status ?? '';
 
         const [customerResult, vehicleResult] = await Promise.all([
@@ -371,7 +385,7 @@ export default function MaintenanceDetailPage() {
           jobData.vehicle_id
             ? supabase
                 .from<VehicleRow>('vehicles')
-                .select('id, management_no, registration_no, maker, model_name, model_year, mileage_km, inspection_expiry_date')
+                .select('id, management_no, registration_no, maker, model_name, model_year, mileage_km, inspection_expiry_date, liability_insurance_expiry_date')
                 .eq('id', jobData.vehicle_id)
                 .eq('store_id', member.store_id)
                 .single()
@@ -429,6 +443,8 @@ export default function MaintenanceDetailPage() {
       setMessage('');
       setSaveError('');
       const supabase = createClient();
+      const rows = normalizedWorkDetails(workRows);
+      const totals = maintenanceTotals(rows, mode, Number(form.parts_amount || 0), Number(form.inspection_amount || 0), Number(form.legal_fee_amount || 0), Number(form.additional_amount || 0), Number(form.discount_amount || 0), partLines);
       const previousStatus = previousStatusRef.current;
 
       let cancelledPatch: { cancelled_at?: string; cancelled_by_user_name?: string | null } = {};
@@ -461,7 +477,11 @@ export default function MaintenanceDetailPage() {
           assigned_user_name: toNullableText(form.assigned_user_name),
           request_detail: toNullableText(form.request_detail),
           symptoms: toNullableText(form.symptoms),
-          work_items: form.work_items.split(',').map((item) => item.trim()).filter(Boolean),
+          work_items: rows.map((row) => row.description),
+          work_details: rows.map((row) => ({ ...row, ...calculateLine(row, mode) })),
+          work_details_version: 1,
+          tax_display_mode: mode,
+          discount_input_amount: totals.discount_input_amount,
           planned_parts: toNullableText(form.planned_parts),
           work_instruction: toNullableText(form.work_instruction),
           scheduled_in_at: form.scheduled_in_at || null,
@@ -472,14 +492,14 @@ export default function MaintenanceDetailPage() {
           actual_finish_date: form.actual_finish_date || null,
           actual_delivery_date: form.actual_delivery_date || null,
           loaner_status: toNullableText(form.loaner_status),
-          labor_amount: toNullableNumber(form.labor_amount),
+          labor_amount: rows.reduce((sum, row) => sum + calculateLine(row, mode).input_amount, 0),
           parts_amount: toNullableNumber(form.parts_amount),
           inspection_amount: toNullableNumber(form.inspection_amount),
           legal_fee_amount: toNullableNumber(form.legal_fee_amount),
           additional_amount: toNullableNumber(form.additional_amount),
           discount_amount: toNullableNumber(form.discount_amount),
-          estimated_total_amount: toNullableNumber(form.estimated_total_amount),
-          billing_amount: toNullableNumber(form.billing_amount),
+          estimated_total_amount: totals.total_amount,
+          billing_amount: totals.total_amount,
           payment_method: toNullableText(form.payment_method),
           estimate_confirm_status: toNullableText(form.estimate_confirm_status),
           line_notification_enabled: form.line_notification_enabled === 'true',
@@ -644,7 +664,7 @@ export default function MaintenanceDetailPage() {
             <Field label="ステータス"><select className={inputClass} value={form.status} onChange={(event) => updateField('status', event.target.value)}>{statusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
             <Field label="優先度"><select className={inputClass} value={form.priority} onChange={(event) => updateField('priority', event.target.value)}>{priorityOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
             <Field label="受付日"><input type="date" className={inputClass} value={form.reception_date} onChange={(event) => updateField('reception_date', event.target.value)} /></Field>
-            <Field label="受付経路"><input className={inputClass} value={form.reception_route} onChange={(event) => updateField('reception_route', event.target.value)} /></Field>
+            <Field label="受付経路"><MasterSelect kind="reception_route" className={inputClass} value={form.reception_route} onChange={(value) => updateField('reception_route', value)} /></Field>
             <Field label="担当者"><input className={inputClass} value={form.assigned_user_name} onChange={(event) => updateField('assigned_user_name', event.target.value)} /></Field>
             <div className="flex items-end">
               <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${getStatusClass(form.status)}`}>{statusLabel(form.status)}</span>
@@ -666,14 +686,14 @@ export default function MaintenanceDetailPage() {
               <InfoItem label="車種名" value={vehicle?.model_name} />
               <InfoItem label="年式" value={vehicle?.model_year} />
               <InfoItem label="走行距離" value={vehicle?.mileage_km ? `${vehicle.mileage_km.toLocaleString()}km` : null} />
-              <InfoItem label="車検満了日" value={vehicle?.inspection_expiry_date} />
+              <InfoItem label="車検満了日" value={vehicle?.inspection_expiry_date} /><InfoItem label="自賠責保険満了日" value={vehicle?.liability_insurance_expiry_date} />
             </Section>
           </section>
 
           <Section title="作業内容">
             <Field label="依頼内容" wide><textarea className={`${inputClass} min-h-28`} value={form.request_detail} onChange={(event) => updateField('request_detail', event.target.value)} /></Field>
             <Field label="症状" wide><textarea className={`${inputClass} min-h-28`} value={form.symptoms} onChange={(event) => updateField('symptoms', event.target.value)} /></Field>
-            <Field label="作業項目"><input className={inputClass} value={form.work_items} onChange={(event) => updateField('work_items', event.target.value)} placeholder="例：車検, オイル交換" /></Field>
+            <div className="col-span-full min-w-0"><WorkDetailsEditor value={workRows} onChange={setWorkRows} mode={mode} /><MaintenanceSummary rows={workRows} mode={mode} parts={Number(form.parts_amount || 0)} inspection={Number(form.inspection_amount || 0)} legal={Number(form.legal_fee_amount || 0)} extra={Number(form.additional_amount || 0)} discount={Number(form.discount_amount || 0)} partLines={partLines} /></div>
             <Field label="使用予定部品"><textarea className={`${inputClass} min-h-28`} value={form.planned_parts} onChange={(event) => updateField('planned_parts', event.target.value)} /></Field>
             <Field label="作業指示" wide><textarea className={`${inputClass} min-h-28`} value={form.work_instruction} onChange={(event) => updateField('work_instruction', event.target.value)} /></Field>
           </Section>
@@ -691,16 +711,13 @@ export default function MaintenanceDetailPage() {
 
           <Section title="金額">
             {[
-              ['labor_amount', '工賃'],
               ['parts_amount', '部品代'],
               ['inspection_amount', '車検費用'],
               ['legal_fee_amount', '法定費用'],
               ['additional_amount', '追加費用'],
               ['discount_amount', '値引き'],
-              ['estimated_total_amount', '見積合計'],
-              ['billing_amount', '請求金額'],
             ].map(([key, label]) => (
-              <Field key={key} label={label}>
+              <Field key={key} label={key.endsWith('_amount') ? priceLabel(label, mode, key === 'legal_fee_amount' ? 'out_of_scope' : 'taxable') : label}>
                 <input
                   type="number"
                   className={`${inputClass} text-right`}
@@ -721,7 +738,7 @@ export default function MaintenanceDetailPage() {
               ['completion_notice_enabled', '完了案内'],
               ['next_inspection_notice_enabled', '次回車検案内'],
             ].map(([key, label]) => (
-              <Field key={key} label={label}>
+              <Field key={key} label={key.endsWith('_amount') ? priceLabel(label, mode, key === 'legal_fee_amount' ? 'out_of_scope' : 'taxable') : label}>
                 <select className={inputClass} value={form[key as keyof MaintenanceFormState]} onChange={(event) => updateField(key as keyof MaintenanceFormState, event.target.value)}>
                   <option value="true">有効</option>
                   <option value="false">無効</option>
@@ -740,7 +757,7 @@ export default function MaintenanceDetailPage() {
           </Section>
 
           {storeId && maintenanceId && (
-            <JobPartsPanel
+            <JobPartsPanel mode={mode} onLinesChange={setPartLines}
               jobId={maintenanceId}
               storeId={storeId}
               canEdit={!role || role === 'owner' || role === 'admin' || role === 'implementer' || role === 'staff'}

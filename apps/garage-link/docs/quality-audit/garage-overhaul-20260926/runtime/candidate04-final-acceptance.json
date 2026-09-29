@@ -1,0 +1,37 @@
+{
+  "candidate": "04",
+  "snapshot_sha256": "e4e40ee7aa49acda99e12eaf53c4f082de6fea052ae8b61306408d0fa4b4106a",
+  "code_content_sha256": "8d88faf93fbcb85941980f0034510f5e0e96905516148a336bbf0ef2c12c0798",
+  "source_head": "8893ebb8ce131b22aed0e87ee8ad3f5596410048",
+  "build": "PASS",
+  "web_lint": "PASS",
+  "web_typecheck": "PASS",
+  "security_tests": 388,
+  "qa_tests": 99,
+  "mobile": {
+    "result": "PASS",
+    "evidence_candidate": "03",
+    "source_identical": true,
+    "test_files": 14,
+    "ssr_cases": 144,
+    "lint": "PASS",
+    "typecheck": "PASS"
+  },
+  "database": {
+    "result": "PASS",
+    "evidence_candidate": "02",
+    "source_identical_02_03_04": true,
+    "suites": [
+      "baseline",
+      "qa-migrations",
+      "db003",
+      "overhaul-upgrade",
+      "overhaul-fresh",
+      "mobile-migrations"
+    ]
+  },
+  "drift_at_completion": 0,
+  "workspace_dependency_changes": 0,
+  "production_changed": false,
+  "main_changed": false
+}

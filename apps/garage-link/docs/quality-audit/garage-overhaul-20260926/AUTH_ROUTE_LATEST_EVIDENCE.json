@@ -1,0 +1,2144 @@
+{
+  "/": {
+    "route": "/",
+    "status": "PASS",
+    "operations": "本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/legal/tokusho",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/_next/static/chunks/app/legal/privacy/page-fb70ab921a689822.js",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/_next/static/chunks/app/legal/terms/page-fb70ab921a689822.js",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/features": {
+    "route": "/features",
+    "status": "PASS",
+    "operations": "本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致",
+    "errors": [],
+    "failed": [],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/pricing": {
+    "route": "/pricing",
+    "status": "PASS",
+    "operations": "本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致",
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/public-recheck-results.json"
+  },
+  "/faq": {
+    "route": "/faq",
+    "status": "PASS",
+    "operations": "本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致",
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/public-recheck-results.json"
+  },
+  "/help": {
+    "route": "/help",
+    "status": "PASS",
+    "operations": "本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/legal/privacy",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/industries/maintenance": {
+    "route": "/industries/maintenance",
+    "status": "PASS",
+    "operations": "本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致",
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/public-recheck-results.json"
+  },
+  "/industries/motorcycle": {
+    "route": "/industries/motorcycle",
+    "status": "PASS",
+    "operations": "本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致",
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/public-recheck-results.json"
+  },
+  "/industries/used-car": {
+    "route": "/industries/used-car",
+    "status": "PASS",
+    "operations": "本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致",
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/public-recheck-results.json"
+  },
+  "/legal/privacy": {
+    "route": "/legal/privacy",
+    "status": "PASS",
+    "operations": "本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致",
+    "errors": [],
+    "failed": [],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/legal/terms": {
+    "route": "/legal/terms",
+    "status": "PASS",
+    "operations": "本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致",
+    "errors": [],
+    "failed": [],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/legal/tokusho": {
+    "route": "/legal/tokusho",
+    "status": "PASS",
+    "operations": "本文末尾まで閲覧→主要リンク操作→戻る→再読込・見出し一致",
+    "errors": [],
+    "failed": [],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/analytics": {
+    "route": "/line/analytics",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/auto-replies/[id]": {
+    "route": "/line/auto-replies/[id]",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/auto-replies": {
+    "route": "/line/auto-replies",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/campaigns/[id]": {
+    "route": "/line/campaigns/[id]",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/campaigns": {
+    "route": "/line/campaigns",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/delivery-settings": {
+    "route": "/line/delivery-settings",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/drafts": {
+    "route": "/line/drafts",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/forms/[id]": {
+    "route": "/line/forms/[id]",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/forms": {
+    "route": "/line/forms",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/friends/[id]": {
+    "route": "/line/friends/[id]",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/friends": {
+    "route": "/line/friends",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/message-logs": {
+    "route": "/line/message-logs",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line": {
+    "route": "/line",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/reservations": {
+    "route": "/line/reservations",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/rich-menus/[id]": {
+    "route": "/line/rich-menus/[id]",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/rich-menus": {
+    "route": "/line/rich-menus",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/routes/[id]": {
+    "route": "/line/routes/[id]",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/routes": {
+    "route": "/line/routes",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/settings": {
+    "route": "/line/settings",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/steps/[id]": {
+    "route": "/line/steps/[id]",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/steps": {
+    "route": "/line/steps",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/tags/[id]": {
+    "route": "/line/tags/[id]",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/tags": {
+    "route": "/line/tags",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/templates/[id]": {
+    "route": "/line/templates/[id]",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/dashboard/today-actions",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/templates": {
+    "route": "/line/templates",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/webhook-events": {
+    "route": "/line/webhook-events",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line/webhook-settings": {
+    "route": "/line/webhook-settings",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package/billing": {
+    "route": "/line-package/billing",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package/dashboard": {
+    "route": "/line-package/dashboard",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package/delivery-logs": {
+    "route": "/line-package/delivery-logs",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package/forms": {
+    "route": "/line-package/forms",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package/friends": {
+    "route": "/line-package/friends",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package/inquiries": {
+    "route": "/line-package/inquiries",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package/messages/new": {
+    "route": "/line-package/messages/new",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package/messages": {
+    "route": "/line-package/messages",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package": {
+    "route": "/line-package",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package/rich-menus": {
+    "route": "/line-package/rich-menus",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package/scenarios": {
+    "route": "/line-package/scenarios",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package/settings": {
+    "route": "/line-package/settings",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package/steps": {
+    "route": "/line-package/steps",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/line-package/users": {
+    "route": "/line-package/users",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "現行移行案内→L-LINK設定→戻る→車両管理→再開確認。旧child画面はlayoutで未描画",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals/84bf26c5-28fe-4131-ac40-8a159faad7cf",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals/faaa668d-399e-4081-ab2d-9ac615bdfd44",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles/new",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新操作）",
+    "reloadResult": "未確認",
+    "noticeNavigation": "PASS",
+    "dynamicFixture": "子画面が描画されずID参照なし、業務fixture操作は未実施",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/menu": {
+    "route": "/menu",
+    "status": "PASS",
+    "operations": "主要関連リンク→戻る→再開・再読込",
+    "errors": [],
+    "failed": [],
+    "saveResult": "対象外（非更新案内）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/settings": {
+    "route": "/settings",
+    "status": "PASS",
+    "operations": "主要関連リンク→戻る→再開・再読込",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/settings",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新案内）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/settings/security": {
+    "route": "/settings/security",
+    "status": "BLOCKED_NOT_IMPLEMENTED",
+    "operations": "主要関連リンク→戻る→再開・再読込",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/settings/company",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/members",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/masters",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/stores",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新案内）",
+    "reloadResult": "未確認",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/settings/documents": {
+    "route": "/settings/documents",
+    "status": "BLOCKED_NOT_IMPLEMENTED",
+    "operations": "主要関連リンク→戻る→再開・再読込",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/settings/stores",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/masters",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/company",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/_next/image",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/members",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新案内）",
+    "reloadResult": "未確認",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/settings/security-check": {
+    "route": "/settings/security-check",
+    "status": "PASS",
+    "operations": "主要関連リンク→戻る→再開・再読込",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/settings/stores",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/masters",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/members",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/company",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新案内）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/supabase-test": {
+    "route": "/supabase-test",
+    "status": "PASS",
+    "operations": "主要関連リンク→戻る→再開・再読込",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/settings/stores",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/members",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/masters",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/company",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "saveResult": "対象外（非更新案内）",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/navigation-remainder-results.json"
+  },
+  "/deals/new": {
+    "route": "/deals/new",
+    "status": "PASS",
+    "operations": "入力→保存→一覧→詳細→再読込確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "fixture": "/deals/53bd4958-6982-48ab-a8cc-f3b2e224054c",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/business-remainder-results.json"
+  },
+  "/deals/[id]": {
+    "route": "/deals/[id]",
+    "status": "PASS",
+    "operations": "タイトル編集→保存→一覧へ戻る→再度詳細→値確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "fixture": "/deals/53bd4958-6982-48ab-a8cc-f3b2e224054c",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/business-remainder-results.json"
+  },
+  "/deals": {
+    "route": "/deals",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/deals-list-final-results.json"
+  },
+  "/appointments": {
+    "route": "/appointments",
+    "status": "PASS",
+    "operations": "予約登録→状態更新→別画面→再開→状態一致",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/business-remainder-results.json"
+  },
+  "/settings/company": {
+    "route": "/settings/company",
+    "status": "PASS",
+    "operations": "安全な設定値変更→保存→戻る→再開→再読込一致→元値復元→再読込",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals",
+        "failure": "net::ERR_ABORTED",
+        "prefetch": true,
+        "resource": "fetch",
+        "method": "GET"
+      },
+      {
+        "path": "/dashboard",
+        "failure": "net::ERR_ABORTED",
+        "prefetch": true,
+        "resource": "fetch",
+        "method": "GET"
+      },
+      {
+        "path": "/vehicles",
+        "failure": "net::ERR_ABORTED",
+        "prefetch": true,
+        "resource": "fetch",
+        "method": "GET"
+      },
+      {
+        "path": "/customers",
+        "failure": "net::ERR_ABORTED",
+        "prefetch": true,
+        "resource": "fetch",
+        "method": "GET"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/settings-recheck-results.json"
+  },
+  "/settings/accounting-export": {
+    "route": "/settings/accounting-export",
+    "status": "PASS",
+    "operations": "安全な設定値変更→保存→戻る→再開→再読込一致→元値復元→再読込",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/settings-recheck-results.json"
+  },
+  "/settings/store": {
+    "route": "/settings/store",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/vehicles",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/customers",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/dashboard",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/dashboard-settings-results.json"
+  },
+  "/analytics": {
+    "route": "/analytics",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/analytics-recheck-results.json"
+  },
+  "/dashboard": {
+    "route": "/dashboard",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/dashboard",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/legal/terms",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/login",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/remaining-settings-results.json"
+  },
+  "/dashboard/today-actions": {
+    "route": "/dashboard/today-actions",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/dashboard/today-actions",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/dashboard-settings-results.json"
+  },
+  "/settings/audit-logs": {
+    "route": "/settings/audit-logs",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/settings/audit-logs",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/menu",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/customers",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/dashboard-settings-results.json"
+  },
+  "/settings/launch-checklist": {
+    "route": "/settings/launch-checklist",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/dashboard-settings-results.json"
+  },
+  "/settings/members": {
+    "route": "/settings/members",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/vehicles",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/dashboard",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/customers",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/remaining-settings-results.json"
+  },
+  "/settings/env-check": {
+    "route": "/settings/env-check",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/masters",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/stores",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/company",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/_next/image",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/remaining-settings-results.json"
+  },
+  "/settings/import-export": {
+    "route": "/settings/import-export",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/vehicle-csv-results.json"
+  },
+  "/settings/billing": {
+    "route": "/settings/billing",
+    "status": "BLOCKED_EXTERNAL_SIDE_EFFECT",
+    "operations": "希望プラン・備考・利用規約確認入力→送信直前で停止→戻る→再開。Stripe申込未送信",
+    "saveResult": "未確認",
+    "reloadResult": "未確認",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/billing-recheck-results.json"
+  },
+  "/security/email-otp": {
+    "route": "/security/email-otp",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/analytics-recheck-results.json"
+  },
+  "/security/mfa": {
+    "route": "/security/mfa",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/analytics-recheck-results.json"
+  },
+  "/onboarding": {
+    "route": "/onboarding",
+    "status": "PASS",
+    "operations": "初回会社/店舗入力→4step保存→dashboard→会社設定値一致→onboarding再開はdashboard→reload",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "origin": "http://127.0.0.1:3001",
+    "source_candidate": "candidate08 (1124 files unchanged)",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/onboarding-results.json"
+  },
+  "/settings/trash": {
+    "route": "/settings/trash",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/dashboard",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/customers",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/deals",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/trash-results.json"
+  },
+  "/login": {
+    "route": "/login",
+    "status": "PASS",
+    "operations": "全5権限でログアウト状態→email/password→1submit→dashboard、誤password後正常password成功",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/auth-page-operations-results.json",
+    "candidate": "working tree; not final frozen SHA",
+    "origin": "http://127.0.0.1:63001",
+    "source_candidate": "candidate08 (1124 source files unchanged)"
+  },
+  "/logout": {
+    "route": "/logout",
+    "status": "PASS",
+    "operations": "ログイン状態→logout→login→再login→dashboard",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/auth-page-operations-results.json",
+    "candidate": "working tree; not final frozen SHA",
+    "origin": "http://127.0.0.1:63001",
+    "source_candidate": "candidate08 (1124 source files unchanged)"
+  },
+  "/forgot-password": {
+    "route": "/forgot-password",
+    "status": "PASS",
+    "operations": "合成メール入力→local Mailpitメール到着→リンク開く→reset→新passwordでlogin",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/auth-page-operations-results.json",
+    "candidate": "working tree; not final frozen SHA",
+    "origin": "http://127.0.0.1:3001",
+    "source_candidate": "candidate08 (1124 source files unchanged)"
+  },
+  "/auth/confirm": {
+    "route": "/auth/confirm",
+    "status": "PASS",
+    "operations": "local確認メールのリンク→確認ボタンPOST→callback→登録/回復先一致",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/auth-page-operations-results.json",
+    "candidate": "working tree; not final frozen SHA",
+    "origin": "http://127.0.0.1:3001",
+    "source_candidate": "candidate08 (1124 source files unchanged)"
+  },
+  "/auth/callback": {
+    "route": "/auth/callback",
+    "status": "PASS",
+    "operations": "signup/resetの実確認後callback→所定画面→セッション付き復帰",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/auth-page-operations-results.json",
+    "candidate": "working tree; not final frozen SHA",
+    "origin": "http://127.0.0.1:3001",
+    "source_candidate": "candidate08 (1124 source files unchanged)"
+  },
+  "/auth/reset-password": {
+    "route": "/auth/reset-password",
+    "status": "PASS",
+    "operations": "local再設定メール→確認→新password保存→logout/login→dashboard",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/auth-page-operations-results.json",
+    "candidate": "working tree; not final frozen SHA",
+    "origin": "http://127.0.0.1:3001",
+    "source_candidate": "candidate08 (1124 source files unchanged)"
+  },
+  "/signup": {
+    "route": "/signup",
+    "status": "PASS",
+    "operations": "新規入力→localMailpit確認→店舗登録→logout→1回login→onboarding",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/auth-page-operations-results.json",
+    "candidate": "working tree; not final frozen SHA",
+    "origin": "http://127.0.0.1:3001",
+    "source_candidate": "candidate08 (1124 source files unchanged)"
+  },
+  "/inquiries": {
+    "route": "/inquiries",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/inquiry-plan-results.json"
+  },
+  "/admin/plan-requests": {
+    "route": "/admin/plan-requests",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/legal/terms",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/plan-recheck-results.json"
+  },
+  "/membership/accept": {
+    "route": "/membership/accept",
+    "status": "PASS",
+    "operations": "合成招待fixture→本人login→招待accept→dashboard→同招待再開の冪等確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "userId": "003da088-b724-4fcf-948c-f2272a7da873",
+    "membershipId": "d2870a46-d446-468a-a008-ab731b9acc0d",
+    "errors": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/membership-results.json"
+  },
+  "/customer-follow-up/inspection-reminders": {
+    "route": "/customer-follow-up/inspection-reminders",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/followup-results.json"
+  },
+  "/customer-follow-up/delivery-candidates": {
+    "route": "/customer-follow-up/delivery-candidates",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/followup-results.json"
+  },
+  "/vehicles/new": {
+    "route": "/vehicles/new",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/vehicles/29a38f21-54a7-4edc-a8c4-f71fb49b08a3",
+        "failure": "net::ERR_ABORTED"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/vehicle-debug-results.json"
+  },
+  "/vehicles/[id]": {
+    "route": "/vehicles/[id]",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/vehicle-edit-results.json"
+  },
+  "/vehicles": {
+    "route": "/vehicles",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/vehicle-edit-results.json"
+  },
+  "/customers/new": {
+    "route": "/customers/new",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/customers/16133b40-651f-454e-b63c-3d740ada9921",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/appointments",
+        "failure": "net::ERR_ABORTED"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/vehicle-customer-results.json"
+  },
+  "/customers/[id]": {
+    "route": "/customers/[id]",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/customer-edit-results.json"
+  },
+  "/customers": {
+    "route": "/customers",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/customers/16133b40-651f-454e-b63c-3d740ada9921",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/customers/16133b40-651f-454e-b63c-3d740ada9921",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/_next/static/chunks/app/customers/%5Bid%5D/page-18c859131b109ab1.js",
+        "failure": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/customers/16133b40-651f-454e-b63c-3d740ada9921",
+        "failure": "net::ERR_ABORTED"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/vehicle-customer-results.json"
+  },
+  "LEGACY_NULL_BIRTH_DATE_EDIT": {
+    "route": "LEGACY_NULL_BIRTH_DATE_EDIT",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/customer-edit-results.json"
+  },
+  "/vehicle-management": {
+    "route": "/vehicle-management",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/vehicle-edit-results.json"
+  },
+  "/deals/[id]/line/new": {
+    "route": "/deals/[id]/line/new",
+    "status": "BLOCKED_FEATURE_MOVED",
+    "operations": "移行案内→L-LINK設定→戻る→dashboard→再開・reload。layoutが旧child画面を抑止、主業務未実施",
+    "saveResult": "未確認",
+    "reloadResult": "未確認",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/deal-line-operation-results.json"
+  },
+  "/settings/customer-follow-up/inspection-reminders": {
+    "route": "/settings/customer-follow-up/inspection-reminders",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/deals",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/vehicles",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/dashboard",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/customers",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/last-settings-final-results.json"
+  },
+  "/settings/l-link": {
+    "route": "/settings/l-link",
+    "status": "BLOCKED_EXTERNAL_SIDE_EFFECT",
+    "operations": "別SaaS連携案内確認→設定戻る→再開。外部L-LINK接続変更未実施",
+    "saveResult": "未確認",
+    "reloadResult": "未確認",
+    "errors": [],
+    "failed": [
+      {
+        "path": "/appointments",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/company",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/stores",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "path": "/settings/masters",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/last-settings-final-results.json"
+  },
+  "/settings/stores": {
+    "route": "/settings/stores",
+    "status": "PASS",
+    "operations": "主操作→関連画面→戻る→再開・再確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/store-inventory-fresh-results.json"
+  },
+  "/inventory-counts/new": {
+    "route": "/inventory-counts/new",
+    "status": "PASS",
+    "operations": "入力→保存→一覧→詳細→再読込",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "fixture": "/inventory-counts/bbdd76fd-816c-4dd1-bfa3-f9277f3066e1",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/store-inventory-fresh-results.json"
+  },
+  "/inventory-counts/[id]": {
+    "route": "/inventory-counts/[id]",
+    "status": "PASS",
+    "operations": "名称編集→保存→一覧→再詳細→値確認",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "fixture": "/inventory-counts/bbdd76fd-816c-4dd1-bfa3-f9277f3066e1",
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/store-inventory-fresh-results.json"
+  },
+  "/inventory-counts": {
+    "route": "/inventory-counts",
+    "status": "PASS",
+    "operations": "新規一覧反映→詳細→戻る→再操作",
+    "saveResult": "PASS",
+    "reloadResult": "PASS",
+    "errors": [],
+    "failed": [],
+    "evidence": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/candidate08-route-results/store-inventory-fresh-results.json"
+  }
+}

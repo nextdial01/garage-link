@@ -1,0 +1,10 @@
+[
+  {
+    "suite": "test:brand-release",
+    "exit_code": 0
+  },
+  {
+    "suite": "test:commercial-contract-drift",
+    "exit_code": 0
+  }
+]

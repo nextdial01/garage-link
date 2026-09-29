@@ -87,6 +87,8 @@ function toVehicleInsert(row: Record<string, string>, storeId: string) {
     grade: row.grade || null,
     vin: row.vin || null,
     registration_no: row.registration_no || null,
+    inspection_expiry_date: row.inspection_expiry_date || null,
+    liability_insurance_expiry_date: row.liability_insurance_expiry_date || null,
     model_year: normalizeNumber(row.model_year),
     mileage_km: normalizeNumber(row.mileage_km),
     color: row.color || null,

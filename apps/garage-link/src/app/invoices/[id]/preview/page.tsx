@@ -1,4 +1,5 @@
 'use client';
+import { priceLabel, type TaxDisplayMode, type TaxCategory } from '@/lib/business/money';
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -33,6 +34,7 @@ type CompanyProfile = {
 };
 
 type InvoiceRow = {
+  tax_display_mode: TaxDisplayMode | null;
   id: string;
   invoice_no: string | null;
   issue_status: string | null;
@@ -57,6 +59,13 @@ type InvoiceRow = {
 };
 
 type InvoiceItemRow = {
+  quantity?: number | null;
+  unit_price?: number | null;
+  unit?: string | null;
+  note?: string | null;
+  line_discount_input_amount?: number | null;
+  tax_category?: TaxCategory | null;
+  tax_rate?: number | null;
   id: string;
   name: string | null;
   amount: number | null;
@@ -153,7 +162,7 @@ export default function StandaloneInvoicePreviewPage() {
       setSealUrl(await imageUrl(store?.seal_image_path));
 
       const invoiceSelect =
-        'id, invoice_no, issue_status, issue_date, payment_due_date, customer_name, customer_phone, customer_address, customer_honorific, vehicle_label, vehicle_maker, vehicle_model_name, subtotal_amount, tax_amount, discount_amount, trade_in_amount, total_amount, paid_amount, unpaid_amount, customer_note, internal_memo';
+        'tax_display_mode, id, invoice_no, issue_status, issue_date, payment_due_date, customer_name, customer_phone, customer_address, customer_honorific, vehicle_label, vehicle_maker, vehicle_model_name, subtotal_amount, tax_amount, discount_amount, trade_in_amount, total_amount, paid_amount, unpaid_amount, customer_note, internal_memo';
 
       const { data: invoiceData } = await supabase
         .from<InvoiceRow>('invoices')
@@ -167,7 +176,7 @@ export default function StandaloneInvoicePreviewPage() {
       if (invoiceData?.id) {
         const { data: items } = await supabase
           .from<InvoiceItemRow>('invoice_items')
-          .select('id, name, amount')
+          .select('line_discount_input_amount, id, name, quantity, unit_price, amount, tax_category, tax_rate, unit, note')
           .eq('invoice_id', invoiceData.id)
           .eq('store_id', member.store_id)
           .order('item_order', { ascending: true });
@@ -190,16 +199,7 @@ export default function StandaloneInvoicePreviewPage() {
   const tradeIn = invoice?.trade_in_amount ?? 0;
   const paymentBreakdown = parseMemoJson<PaymentMemoItem[]>(invoice?.internal_memo, '支払方法内訳', []).filter(hasPaymentItem);
 
-  const items =
-    invoiceItems.length > 0
-      ? invoiceItems
-      : [
-          { id: 'vehicle', name: '車両本体価格', amount: total },
-          { id: 'registration', name: '登録代行費用', amount: 0 },
-          { id: 'maintenance', name: '納車整備費用', amount: 0 },
-          { id: 'discount', name: '値引き', amount: 0 },
-          { id: 'trade-in', name: '下取り充当', amount: 0 },
-        ];
+  const items: InvoiceItemRow[] = invoiceItems.length ? invoiceItems : [{id:'legacy-total',name:'請求合計（旧帳票）',amount:total,quantity:1,unit_price:total}];
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8 text-slate-950 print:bg-white print:p-0">
@@ -305,8 +305,8 @@ export default function StandaloneInvoicePreviewPage() {
                 <th className="border border-slate-300 px-3 py-2 text-left">項目名</th>
                 <th className="border border-slate-300 px-3 py-2 text-left">内容</th>
                 <th className="border border-slate-300 px-3 py-2 text-right">数量</th>
-                <th className="border border-slate-300 px-3 py-2 text-right">単価</th>
-                <th className="border border-slate-300 px-3 py-2 text-right">金額</th>
+                <th className="border border-slate-300 px-3 py-2 text-right">{invoice?.tax_display_mode ? priceLabel('単価', invoice.tax_display_mode) : '単価（保存時）'}</th>
+                <th className="border border-slate-300 px-3 py-2 text-right">{invoice?.tax_display_mode ? '金額（税抜・税対象外）' : '金額（保存時）'}</th>
                 <th className="border border-slate-300 px-3 py-2 text-center">税区分</th>
               </tr>
             </thead>
@@ -314,11 +314,11 @@ export default function StandaloneInvoicePreviewPage() {
               {items.map((item) => (
                 <tr key={item.id}>
                   <td className="border border-slate-300 px-3 py-2">{displayValue(item.name)}</td>
-                  <td className="border border-slate-300 px-3 py-2">-</td>
-                  <td className="border border-slate-300 px-3 py-2 text-right">1</td>
+                  <td className="border border-slate-300 px-3 py-2">{displayValue(item.note)}</td>
+                  <td className="border border-slate-300 px-3 py-2 text-right">{displayValue(item.quantity)}</td>
+                  <td className="border border-slate-300 px-3 py-2 text-right">{formatPrice(item.unit_price)} {!!item.line_discount_input_amount && <span className="block text-xs">行値引 {formatPrice(item.line_discount_input_amount)}</span>}</td>
                   <td className="border border-slate-300 px-3 py-2 text-right">{formatPrice(item.amount)}</td>
-                  <td className="border border-slate-300 px-3 py-2 text-right">{formatPrice(item.amount)}</td>
-                  <td className="border border-slate-300 px-3 py-2 text-center">対象外</td>
+                  <td className="border border-slate-300 px-3 py-2 text-center">{item.tax_category === 'exempt' ? '非課税' : item.tax_category === 'out_of_scope' ? '税対象外' : item.tax_rate != null ? `${item.tax_rate * 100}%` : '旧帳票'}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,0 +1,18 @@
+{
+  "source_candidate": "08",
+  "runtime_candidate": "09",
+  "compared_code_files": 936,
+  "changed": [],
+  "source_identical": true,
+  "public_environment_delta": {
+    "NEXT_PUBLIC_APP_URL": {
+      "before": "http://127.0.0.1:63001",
+      "after": "http://127.0.0.1:63002"
+    },
+    "NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN": {
+      "before": "UNSET",
+      "after": "http://127.0.0.1:63002"
+    }
+  },
+  "purpose": "isolated local signup/reset confirmation verification; not production deployment"
+}

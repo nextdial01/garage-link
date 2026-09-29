@@ -5,6 +5,9 @@ import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useRef, useState } from 'react';
+import MasterSelect from '@/components/business/MasterSelect';
+import { decimal, priceLabel, displayPriceToStored } from '@/lib/business/money';
+import { useBusinessSettings } from '@/lib/business/useBusinessSettings';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
 
@@ -34,6 +37,7 @@ const inputClass =
   'w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-100';
 
 export default function NewPartPage() {
+  const business = useBusinessSettings();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -97,13 +101,13 @@ export default function NewPartPage() {
         part_no: form.part_no.trim() || null,
         name: form.name.trim(),
         category: form.category.trim() || null,
-        stock: parseInt(form.stock, 10) || 0,
-        unit_price: form.unit_price.trim() ? parseFloat(form.unit_price) : null,
-        low_stock_threshold: parseInt(form.low_stock_threshold, 10) || 5,
-        reorder_point: parseInt(form.reorder_point, 10) || 0,
-        min_stock: parseInt(form.min_stock, 10) || 0,
+        stock: decimal(form.stock.trim() || '0'),
+        unit_price: form.unit_price.trim() ? displayPriceToStored(form.unit_price, business.mode) : null,
+        low_stock_threshold: decimal(form.low_stock_threshold.trim() || '5'),
+        reorder_point: decimal(form.reorder_point.trim() || '0'),
+        min_stock: decimal(form.min_stock.trim() || '0'),
         last_purchase_date: form.last_purchase_date || null,
-        last_purchase_price: form.last_purchase_price.trim() ? parseFloat(form.last_purchase_price) : null,
+        last_purchase_price: form.last_purchase_price.trim() ? displayPriceToStored(form.last_purchase_price, business.mode) : null,
         location_shelf: form.location_shelf.trim() || null,
         status: form.status,
         supplier_name: form.supplier_name.trim() || null,
@@ -150,15 +154,15 @@ export default function NewPartPage() {
               </label>
               <label className="block">
                 <span className="mb-1 block text-sm font-bold text-slate-700">カテゴリ</span>
-                <input type="text" className={inputClass} value={form.category} onChange={(e) => update('category', e.target.value)} placeholder="例: オイル類 / フィルター" />
+                <MasterSelect kind="part_category" className={inputClass} value={form.category} onChange={(value) => update('category', value)} />
               </label>
               <label className="block">
                 <span className="mb-1 block text-sm font-bold text-slate-700">仕入先</span>
-                <input type="text" className={inputClass} value={form.supplier_name} onChange={(e) => update('supplier_name', e.target.value)} placeholder="例: ○○商社" />
+                <MasterSelect kind="part_supplier" className={inputClass} value={form.supplier_name} onChange={(value) => update('supplier_name', value)} />
               </label>
               <label className="block">
-                <span className="mb-1 block text-sm font-bold text-slate-700">単価（円）</span>
-                <input type="number" min="0" step="1" className={inputClass} value={form.unit_price} onChange={(e) => update('unit_price', e.target.value)} placeholder="例: 1500" />
+                <span className="mb-1 block text-sm font-bold text-slate-700">{priceLabel('単価', business.mode)}</span>
+                <input type="number" min="0" step="0.0001" className={inputClass} value={form.unit_price} onChange={(e) => update('unit_price', e.target.value)} placeholder="例: 1500" />
               </label>
             </div>
           </section>
@@ -168,19 +172,19 @@ export default function NewPartPage() {
             <div className="grid gap-4 md:grid-cols-3">
               <label className="block">
                 <span className="mb-1 block text-sm font-bold text-slate-700">現在庫数</span>
-                <input type="number" min="0" step="1" className={inputClass} value={form.stock} onChange={(e) => update('stock', e.target.value)} />
+                <input type="number" min="0" step="0.001" className={inputClass} value={form.stock} onChange={(e) => update('stock', e.target.value)} />
               </label>
               <label className="block">
                 <span className="mb-1 block text-sm font-bold text-slate-700">在庫少アラート閾値</span>
-                <input type="number" min="0" step="1" className={inputClass} value={form.low_stock_threshold} onChange={(e) => update('low_stock_threshold', e.target.value)} placeholder="5" />
+                <input type="number" min="0" step="0.001" className={inputClass} value={form.low_stock_threshold} onChange={(e) => update('low_stock_threshold', e.target.value)} placeholder="5" />
               </label>
               <label className="block">
                 <span className="mb-1 block text-sm font-bold text-slate-700">発注点</span>
-                <input type="number" min="0" step="1" className={inputClass} value={form.reorder_point} onChange={(e) => update('reorder_point', e.target.value)} placeholder="0" />
+                <input type="number" min="0" step="0.001" className={inputClass} value={form.reorder_point} onChange={(e) => update('reorder_point', e.target.value)} placeholder="0" />
               </label>
               <label className="block">
                 <span className="mb-1 block text-sm font-bold text-slate-700">最低在庫数</span>
-                <input type="number" min="0" step="1" className={inputClass} value={form.min_stock} onChange={(e) => update('min_stock', e.target.value)} placeholder="0" />
+                <input type="number" min="0" step="0.001" className={inputClass} value={form.min_stock} onChange={(e) => update('min_stock', e.target.value)} placeholder="0" />
               </label>
               <label className="block">
                 <span className="mb-1 block text-sm font-bold text-slate-700">棚番・保管場所</span>
@@ -206,8 +210,8 @@ export default function NewPartPage() {
                 <input type="date" className={inputClass} value={form.last_purchase_date} onChange={(e) => update('last_purchase_date', e.target.value)} />
               </label>
               <label className="block">
-                <span className="mb-1 block text-sm font-bold text-slate-700">最終仕入単価（円）</span>
-                <input type="number" min="0" step="1" className={inputClass} value={form.last_purchase_price} onChange={(e) => update('last_purchase_price', e.target.value)} placeholder="0" />
+                <span className="mb-1 block text-sm font-bold text-slate-700">{priceLabel('最終仕入単価', business.mode)}</span>
+                <input type="number" min="0" step="0.0001" className={inputClass} value={form.last_purchase_price} onChange={(e) => update('last_purchase_price', e.target.value)} placeholder="0" />
               </label>
             </div>
           </section>
@@ -237,7 +241,7 @@ export default function NewPartPage() {
             </Link>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || business.loading || Boolean(business.error)}
               className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {isSubmitting ? '登録中...' : '登録する'}

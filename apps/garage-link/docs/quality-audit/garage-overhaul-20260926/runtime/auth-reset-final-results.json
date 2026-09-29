@@ -1,0 +1,18 @@
+[
+  {
+    "test": "reset_mail_submission",
+    "status": "PASS"
+  },
+  {
+    "test": "reset_link_arrival",
+    "status": "PASS"
+  },
+  {
+    "test": "reset_password_saved",
+    "status": "PASS"
+  },
+  {
+    "test": "password_reset_link_update_login",
+    "status": "PASS"
+  }
+]

@@ -1,0 +1,70 @@
+[
+  {
+    "suite": "mobile-typecheck",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-lint",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-api-origin.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-auth-lifecycle.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-auth-transport.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-captcha-contract.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-document-draft.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-document-html.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-japanese-font-contract.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-password-login.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-photo-upload.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-quality-api.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-quality-render.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-quality-state.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-quote-retry.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-trusted-device-contract.test",
+    "exit_code": 0
+  },
+  {
+    "suite": "mobile-trusted-device-key.test",
+    "exit_code": 0
+  }
+]

@@ -1,3 +1,4 @@
+import { vehicleDate } from '@/lib/business/vehicleFields';
 import { mobileReadPage, mobileReadResult, mobileReadHeaders } from '@/lib/mobile/pagination';
 import { getGarageMobileBearerContext } from '@/lib/mobile/bearerAuth';
 import { MOBILE_VEHICLE_FIELDS, mobileVehicle } from '@/lib/mobile/dto';
@@ -46,6 +47,11 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, code: 'invalid_vehicle', error: '車台番号・メーカー・車名・走行距離を確認してください。' }, { status: 400 });
   }
 
+  const inspectionDate = vehicleDate(body.inspectionExpiryDate);
+  const liabilityDate = vehicleDate(body.liabilityInsuranceExpiryDate);
+  if (inspectionDate === undefined || liabilityDate === undefined) return Response.json({ ok: false, error: '満了日はYYYY-MM-DD形式で入力してください。' }, { status: 400 });
+  const { data: makerEntry, error: makerError } = await context.service.from('store_master_entries').select('id').eq('store_id', context.member.storeId).eq('kind', 'vehicle_maker').eq('label', maker).eq('is_active', true).maybeSingle();
+  if (makerError || !makerEntry) return Response.json({ ok: false, error: '設定 ＞ マスター管理でメーカーを登録して選択してください。' }, { status: makerError ? 500 : 400 });
   try {
     await assertVehicleLimitAvailable(context.service as unknown as Parameters<typeof assertVehicleLimitAvailable>[0], context.member.storeId);
   } catch (error) {
@@ -65,6 +71,8 @@ export async function POST(request: Request) {
     model_name: modelName,
     registration_no: cleanText(body.registrationNo, 120),
     mileage_km: mileageKm,
+    inspection_expiry_date: inspectionDate,
+    liability_insurance_expiry_date: liabilityDate,
     color: cleanText(body.color, 100),
     location_name: cleanText(body.locationName, 120),
     status,

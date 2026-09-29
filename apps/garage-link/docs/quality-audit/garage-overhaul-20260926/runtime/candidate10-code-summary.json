@@ -1,0 +1,25 @@
+{
+  "candidate": "10",
+  "code_files": 936,
+  "digest_sha256": "f8b7ae5df5acf15b80216101a059c963da38f842ae58566f0554d6f6be0f1b55",
+  "changed_from08": [
+    "apps/garage-link-mobile/scripts/document-html.test.mjs",
+    "apps/garage-link-mobile/src/v2/GarageMobileV2.tsx",
+    "apps/garage-link-mobile/src/v2/documentHtml.ts"
+  ],
+  "expected_change_only": true,
+  "source_drift": [],
+  "source_head": "bee0d53cd6af08c873826af1f50e3e1ee01f31cc",
+  "web_db_dependencies_tests_except_mobile_three_unchanged": true,
+  "web_build_inherited": "08 and local-public-origin09",
+  "db_inherited": "06 through08",
+  "excluded_document_files": 218,
+  "canonical_serialization": "JSON sort_keys=true ensure_ascii=false separators=(comma,colon), UTF-8 no newline",
+  "last_freeze_adjustment": "Parent final NULL quantity/unit price display guard, previous manifest archived as superseded-prefinal",
+  "mobile_test_files": 15,
+  "mobile_lint": "PASS",
+  "mobile_typecheck": "PASS",
+  "mobile_tests": "PASS",
+  "ssr_cases": 144,
+  "review": "No new actionable P1/P2; only labels/display, no calculation/storage/auth changes. NULL quantity and unit price shown as unset."
+}

@@ -91,7 +91,7 @@ test.describe('GARAGE LINK LP real operations', () => {
     await expect(submit).toBeEnabled();
 
     await submit.click();
-    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: 'Operation blocked by end-to-end test' })).toBeVisible();
 
     const conversionEvents = await page.evaluate(() =>
       (window as typeof window & { __garageConversionEvents: string[] }).__garageConversionEvents,

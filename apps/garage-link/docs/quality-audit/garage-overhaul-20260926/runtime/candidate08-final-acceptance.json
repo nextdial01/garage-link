@@ -1,0 +1,61 @@
+{
+  "path": "/Users/ksk/kannagi/operations/audits/garage-overhaul-20260926/runtime/build-candidate-08",
+  "source_head": "bee0d53cd6af08c873826af1f50e3e1ee01f31cc",
+  "source_file_count": 1124,
+  "snapshot_sha256": "3da45e17d23538052b43cd43cc3afaf8beb14fa8a2669760e13ff525b8b58cf5",
+  "dependency_strategy": "installed node_modules symlinks; workspace package content fingerprint checked after build",
+  "environment_files_copied": false,
+  "candidate": "08",
+  "verification_status": "AUTOMATED_PASS_FINAL_OPERATION_ACCEPTANCE_BY_PARENT",
+  "build": "PASS",
+  "web_lint": {
+    "result": "PASS",
+    "errors": 0,
+    "warnings": 3
+  },
+  "web_typecheck": "PASS",
+  "security_tests": {
+    "passed": 390
+  },
+  "qa_tests": {
+    "passed": 99
+  },
+  "mobile": {
+    "test_files": 15,
+    "ssr_cases": 144,
+    "photo_converter_regressions": 4,
+    "lint": "PASS",
+    "typecheck": "PASS",
+    "result": "PASS"
+  },
+  "database": {
+    "result": "PASS_INHERITED",
+    "from": "06",
+    "compared_files": 265,
+    "changed": 0,
+    "contracts": 8,
+    "fresh_and_upgrade": true
+  },
+  "standard_e2e": {
+    "passed": 32,
+    "skipped": 2,
+    "failed": 0,
+    "evidence": "standard-e2e-results.json",
+    "performed_by": "auth_audit",
+    "source_confirmation": "auth_audit: latest after CAPTCHA repair; Web product code unchanged during execution"
+  },
+  "source_drift": 0,
+  "workspace_dependency_drift": 0,
+  "production_changed": false,
+  "main_changed": false,
+  "not_executed": [
+    "Stripe test registry: requires external Stripe test credentials",
+    "billing full E2E: externally side-effectful lane not invoked"
+  ],
+  "turnstile": {
+    "official_widget_real_network": "PASS",
+    "initial_relogin_client_navigation": "PASS",
+    "real_human_challenge": "UNVERIFIED",
+    "evidence": "turnstile-verification.json"
+  }
+}

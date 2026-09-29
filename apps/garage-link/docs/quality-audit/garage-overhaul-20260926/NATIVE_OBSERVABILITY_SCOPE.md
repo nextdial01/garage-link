@@ -1,0 +1,7 @@
+# Native追加確認の観測範囲
+
+実端末相当のiOS Simulator/Expo GoをMaestroで操作し、主操作・保存・戻る・再表示を確認しています。UIに出た写真uploadエラーは親が実converterで再現し、修正後の実画像デコード表示まで再検査しました。
+
+これをNative全console/全HTTPログ採取の証拠とはしません。現3001はstart-web.pyから起動したexec session67071でstdoutを安全な集計ファイルへ保存しておらず、next.config.tsのdevelopment incomingRequests:falseにより網羅的HTTP path/statusログもありません。callback token queryを記録しない既存設定を維持し、検証中にserverを再起動したり秘密を含むログを取得したりしていません。
+
+Web/React Native WebのPlaywright pageerror・console・response/requestfailed監視、およびNativeのUI保存・再表示、個別API/DB契約試験は、それぞれ別の証拠です。重大エラー0という値は監視できた範囲に限定します。Android実機・物理カメラ・実人間CAPTCHAも未確認です。

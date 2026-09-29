@@ -1,31 +1,21 @@
 import { expect, test } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
-import { extractAdminEmailOtpBearer } from '../../src/lib/security/adminEmailOtpTransport';
+import { POST as webRequest } from '../../src/app/api/auth/admin-email-otp/request/route';
+import { POST as webVerify } from '../../src/app/api/auth/admin-email-otp/verify/route';
+import { POST as mobileRequest } from '../../src/app/api/mobile/admin-email-otp/request/route';
+import { POST as mobileVerify } from '../../src/app/api/mobile/admin-email-otp/verify/route';
 
-test.describe('native administrator email OTP transport', () => {
-  test('accepts one syntactically valid bearer only when the route opts in', () => {
-    expect(extractAdminEmailOtpBearer('Bearer native-session-token', true)).toBe('native-session-token');
-    expect(extractAdminEmailOtpBearer('bearer native-session-token', true)).toBe('native-session-token');
-    expect(extractAdminEmailOtpBearer('Bearer token with spaces', true)).toBeUndefined();
-    expect(extractAdminEmailOtpBearer('Basic credentials', true)).toBeUndefined();
-    expect(extractAdminEmailOtpBearer(null, true)).toBeUndefined();
-    expect(extractAdminEmailOtpBearer('Bearer native-session-token', false)).toBeUndefined();
+for (const [name, handler] of Object.entries({ webRequest, webVerify, mobileRequest, mobileVerify })) {
+  test(`${name} is retired without network access or session issuance`, async () => {
+    const original = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = async () => { calls++; throw new Error('External access prohibited'); };
+    try {
+      const response = await handler();
+      expect(response.status).toBe(410);
+      expect(await response.json()).toEqual({ code: 'ROUTINE_EMAIL_OTP_RETIRED' });
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(response.headers.get('set-cookie')).toBeNull();
+      expect(calls).toBe(0);
+    } finally { globalThis.fetch = original; }
   });
-
-  test('both OTP routes opt in, and the server fails closed before the service RPC', async () => {
-    const [context, requestRoute, verifyRoute] = await Promise.all([
-      readFile('src/lib/security/adminEmailOtpServer.ts', 'utf8'),
-      readFile('src/app/api/auth/admin-email-otp/request/route.ts', 'utf8'),
-      readFile('src/app/api/auth/admin-email-otp/verify/route.ts', 'utf8'),
-    ]);
-
-    expect(requestRoute).toContain('allowBearer: true');
-    expect(verifyRoute).toContain('allowBearer: true');
-    expect(context).toContain('supabase.auth.getUser(bearer)');
-    expect(context).toContain('supabase.auth.getClaims(bearer)');
-    expect(context).toContain("service.rpc('admin_email_otp_bootstrap_context'");
-    expect(context).toContain("!['owner', 'admin', 'implementer'].includes(String(context.role))");
-    expect(context).toContain('context.user_id !== user.id');
-    expect(context).toContain('context.email !== user.email.toLowerCase()');
-  });
-});
+}

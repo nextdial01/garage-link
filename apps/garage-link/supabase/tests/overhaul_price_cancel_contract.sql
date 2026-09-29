@@ -1,0 +1,24 @@
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','50000000-0000-0000-0000-000000000001',true);
+do $$ declare v_id uuid; v jsonb; begin
+ if not exists(select 1 from public.vehicles where id='91000000-0000-0000-0000-000000000001' and purchase_price=100.12 and base_price=200.34) or not exists(select 1 from public.repair_parts where id='92000000-0000-0000-0000-000000000001' and unit_price=300.56 and last_purchase_price=400.78) then raise exception 'legacy prices changed'; end if;
+ update public.vehicles set purchase_price=1100.1357,base_price=2200.2468,direct_cost_special=330.1234 where id='91000000-0000-0000-0000-000000000001';
+ if not exists(select 1 from public.vehicles where id='91000000-0000-0000-0000-000000000001' and purchase_price=1100.1357 and base_price=2200.2468 and direct_cost_special=330.1234) then raise exception 'vehicle price rounded'; end if;
+ update public.repair_parts set unit_price=1100.1357,last_purchase_price=500.1234 where id='92000000-0000-0000-0000-000000000001';
+ if not exists(select 1 from public.repair_parts where id='92000000-0000-0000-0000-000000000001' and unit_price=1100.1357 and last_purchase_price=500.1234) then raise exception 'part price rounded'; end if;
+ insert into public.maintenance_job_parts(store_id,job_id,part_id,name,quantity,unit_price,cost_price) values('51100000-0000-0000-0000-000000000001','94000000-0000-0000-0000-000000000001','92000000-0000-0000-0000-000000000001','Cancel fractional',1.5,1100.1357,500.1234) returning id into v_id;
+ if not exists(select 1 from public.maintenance_job_parts where id=v_id and unit_price=1100.1357 and cost_price=500.1234) then raise exception 'job price rounded'; end if;
+ perform public.set_maintenance_part_stock('51100000-0000-0000-0000-000000000001',v_id,true);
+ if (select stock from public.repair_parts where id='92000000-0000-0000-0000-000000000001')<>8.5 then raise exception 'confirm failed'; end if;
+ v:=public.cancel_maintenance_job('94000000-0000-0000-0000-000000000001','Test cancellation','overhaul-cancel-decimal');
+ if (v->>'ok')::boolean is distinct from true then raise exception 'cancel failed %',v; end if;
+ perform public.cancel_maintenance_job('94000000-0000-0000-0000-000000000001','Retry','overhaul-cancel-decimal');
+ if (select stock from public.repair_parts where id='92000000-0000-0000-0000-000000000001')<>10 then raise exception 'cancel stock mismatch'; end if;
+ if not exists(select 1 from public.repair_part_stock_movements where source_id='94000000-0000-0000-0000-000000000001' and delta=1.5) then raise exception 'cancel ledger missing'; end if;
+ if (select stock_adjusted from public.maintenance_job_parts where id=v_id) then raise exception 'cancel stock state mismatch'; end if;
+ begin perform public.set_maintenance_part_stock('51100000-0000-0000-0000-000000000001',v_id,true); raise exception 'cancelled job confirm accepted'; exception when insufficient_privilege then null; end;
+end $$;
+rollback;
+select 'OVERHAUL_PRICE_CANCEL_PASS' result;

@@ -1,0 +1,31 @@
+begin;
+set local role authenticated;
+select set_config('request.jwt.claim.role','authenticated',true);
+select set_config('request.jwt.claim.sub','50000000-0000-0000-0000-000000000001',true);
+do $$ declare v_id uuid; v jsonb; begin
+ if not exists(select 1 from public.customers where id='93000000-0000-0000-0000-000000000001' and birth_date is null) then raise exception 'legacy null lost'; end if;
+ begin insert into public.customers(store_id,name) values('51100000-0000-0000-0000-000000000001','No DOB'); raise exception 'null birth insert accepted'; exception when invalid_parameter_value then null; end;
+ begin update public.customers set name='edited' where id='93000000-0000-0000-0000-000000000001'; raise exception 'null birth edit accepted'; exception when invalid_parameter_value then null; end;
+ update public.customers set name='completed',birth_date='1990-01-01' where id='93000000-0000-0000-0000-000000000001';
+ insert into public.maintenance_job_parts(store_id,job_id,part_id,name,quantity) values('51100000-0000-0000-0000-000000000001','94000000-0000-0000-0000-000000000001','92000000-0000-0000-0000-000000000001','Fraction',1.5) returning id into v_id;
+ v:=public.set_maintenance_part_stock('51100000-0000-0000-0000-000000000001',v_id,true);
+ if (v->>'ok')::boolean is distinct from true then raise exception 'confirm failed %',v; end if;
+ perform public.set_maintenance_part_stock('51100000-0000-0000-0000-000000000001',v_id,true);
+ if (select stock from public.repair_parts where id='92000000-0000-0000-0000-000000000001')<>8.5 then raise exception 'double deducted'; end if;
+ begin update public.maintenance_job_parts set quantity=2 where id=v_id; raise exception 'adjusted qty editable'; exception when insufficient_privilege then null; end;
+ begin update public.maintenance_job_parts set stock_adjusted=false where id=v_id; raise exception 'state bypass accepted'; exception when insufficient_privilege then null; end;
+ begin delete from public.maintenance_job_parts where id=v_id; raise exception 'adjusted delete accepted'; exception when insufficient_privilege then null; end;
+ perform public.set_maintenance_part_stock('51100000-0000-0000-0000-000000000001',v_id,false);
+ perform public.set_maintenance_part_stock('51100000-0000-0000-0000-000000000001',v_id,false);
+ if (select stock from public.repair_parts where id='92000000-0000-0000-0000-000000000001')<>10 then raise exception 'double returned'; end if;
+ update public.maintenance_job_parts set quantity=20 where id=v_id;
+ v:=public.set_maintenance_part_stock('51100000-0000-0000-0000-000000000001',v_id,true);
+ if (v->>'ok')::boolean is distinct from false or (select stock_adjusted from public.maintenance_job_parts where id=v_id) then raise exception 'shortage state mismatch'; end if;
+ delete from public.maintenance_job_parts where id=v_id;
+end $$;
+select set_config('request.jwt.claim.sub','50000000-0000-0000-0000-000000000005',true);
+do $$ begin
+ begin perform public.set_maintenance_part_stock('51100000-0000-0000-0000-000000000001',gen_random_uuid(),true); raise exception 'viewer accepted'; exception when insufficient_privilege then null; end;
+end $$;
+rollback;
+select 'OVERHAUL_BIRTH_JOB_STOCK_PASS' result;

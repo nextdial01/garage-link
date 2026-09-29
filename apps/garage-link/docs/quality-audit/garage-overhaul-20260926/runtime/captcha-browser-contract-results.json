@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "scope": "SYNTHETIC_WIDGET_CONTRACT_ONLY",
+  "checks": [
+    "configuration failure disables login",
+    "retry fetches enabled configuration",
+    "required widget blocks without token",
+    "expiry clears readiness",
+    "valid callback enables",
+    "token submitted to shared API",
+    "failed login resets widget and clears token"
+  ],
+  "issues": [],
+  "realHumanChallenge": "NOT_TESTED"
+}

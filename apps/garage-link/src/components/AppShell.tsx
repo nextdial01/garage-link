@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import AppSidebar from './AppSidebar';
 import ContextHelp from './ContextHelp';
@@ -29,6 +29,18 @@ type AccessibleStore = {
   isCurrent: boolean;
 };
 
+function subscribeToOwnerPreviewCookie() {
+  return () => undefined;
+}
+
+function getOwnerPreviewSnapshot() {
+  return document.cookie.split(';').some((cookie) => cookie.trim() === 'garage_owner_preview=1');
+}
+
+function getOwnerPreviewServerSnapshot() {
+  return false;
+}
+
 export default function AppShell({
   activeLabel,
   title,
@@ -44,7 +56,11 @@ export default function AppShell({
   const [storeContextState, setStoreContextState] = useState<'loading' | 'active' | 'selection_required' | 'no_access'>('loading');
   const [isSwitchingStore, setIsSwitchingStore] = useState(false);
   const [storeSwitchError, setStoreSwitchError] = useState('');
-  const [ownerPreview] = useState(() => typeof document !== 'undefined' && document.cookie.split(';').some((cookie) => cookie.trim() === 'garage_owner_preview=1'));
+  const ownerPreview = useSyncExternalStore(
+    subscribeToOwnerPreviewCookie,
+    getOwnerPreviewSnapshot,
+    getOwnerPreviewServerSnapshot,
+  );
   const shellBackground = 'bg-[#F6F8FC]';
   const headerBorderClass = 'border-blue-100';
 
