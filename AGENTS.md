@@ -10,7 +10,7 @@
 
 ## Google Play review credential gate
 
-- GARAGE LINK's canonical Google Play review login identifier is `app-review@kannagi-co.com`. Do not use any `@review.invalid` identity for review.
+- GARAGE LINK's canonical Google Play review login identifier is `app-review@kannagi-co.com`. Do not use legacy dummy review identities for review.
 - Before every Google Play submission or resubmission, read back Play Console > App content > Sign-in details from the actual UI after saving. Never infer the saved value from memory, a prior run, or local configuration.
 - The Play Console UI evidence must be fresh (maximum 24 hours), must contain the canonical identifier, English instructions, reusable credentials, no Owner-dependent OTP, and full review access. Never include the password in evidence, chat, logs, Git, screenshots, or reports.
 - Before submission, run `pnpm google-play:review-preflight -- --evidence <fresh-ui-evidence.json>` with the review password supplied only from the approved secure source. The command must prove a live login against GARAGE LINK Production.
