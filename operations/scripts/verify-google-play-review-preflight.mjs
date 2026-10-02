@@ -36,6 +36,7 @@ export function validatePolicy(policy) {
   if (policy?.requirements?.live_production_login_required !== true) fail('LIVE_LOGIN_NOT_REQUIRED');
   if (policy?.requirements?.english_instructions_required !== true) fail('ENGLISH_INSTRUCTIONS_NOT_REQUIRED');
   if (policy?.requirements?.reusable_credentials_required !== true) fail('REUSABLE_CREDENTIALS_NOT_REQUIRED');
+  if (policy?.requirements?.final_build_login_required !== true) fail('FINAL_BUILD_LOGIN_NOT_REQUIRED');
   if (policy?.requirements?.otp_required !== false) fail('OTP_POLICY_INVALID');
   const maxAge = Number(policy?.evidence_max_age_hours);
   if (!Number.isFinite(maxAge) || maxAge <= 0 || maxAge > 24) fail('EVIDENCE_MAX_AGE_INVALID');
@@ -80,6 +81,10 @@ export function validateEvidence(evidence, policy, nowMs = Date.now()) {
   if (evidence?.otp_required !== false) fail('PLAY_CONSOLE_OTP_REQUIREMENT_INVALID');
   if (evidence?.all_app_functions_accessible !== true) fail('PLAY_CONSOLE_FULL_ACCESS_UNPROVEN');
   if (evidence?.source !== 'play-console-ui-readback') fail('PLAY_CONSOLE_EVIDENCE_SOURCE_INVALID');
+  if (!Number.isInteger(evidence?.submitted_version_code) || evidence.submitted_version_code <= 0) fail('SUBMITTED_VERSION_CODE_INVALID');
+  if (!Number.isInteger(evidence?.tested_version_code) || evidence.tested_version_code <= 0) fail('TESTED_VERSION_CODE_INVALID');
+  if (evidence.tested_version_code !== evidence.submitted_version_code) fail('FINAL_BUILD_VERSION_MISMATCH');
+  if (evidence?.final_build_login_verified !== true) fail('FINAL_BUILD_LOGIN_UNPROVEN');
 
   const readbackAt = Date.parse(evidence?.readback_at ?? '');
   if (!Number.isFinite(readbackAt)) fail('PLAY_CONSOLE_READBACK_TIME_INVALID');
@@ -87,7 +92,18 @@ export function validateEvidence(evidence, policy, nowMs = Date.now()) {
   const ageMs = nowMs - readbackAt;
   const maxAgeMs = Number(policy.evidence_max_age_hours) * 60 * 60 * 1000;
   if (ageMs < 0 || ageMs > maxAgeMs) fail('PLAY_CONSOLE_READBACK_STALE');
-  return { age_minutes: Math.floor(ageMs / 60000) };
+
+  const finalBuildVerifiedAt = Date.parse(evidence?.final_build_verified_at ?? '');
+  if (!Number.isFinite(finalBuildVerifiedAt)) fail('FINAL_BUILD_VERIFIED_TIME_INVALID');
+  if (finalBuildVerifiedAt > nowMs + 5 * 60 * 1000) fail('FINAL_BUILD_VERIFIED_TIME_IN_FUTURE');
+  const buildAgeMs = nowMs - finalBuildVerifiedAt;
+  if (buildAgeMs < 0 || buildAgeMs > maxAgeMs) fail('FINAL_BUILD_LOGIN_PROOF_STALE');
+
+  return {
+    age_minutes: Math.floor(ageMs / 60000),
+    final_build_age_minutes: Math.floor(buildAgeMs / 60000),
+    submitted_version_code: evidence.submitted_version_code
+  };
 }
 
 async function verifyLiveProductionLogin(policy) {
@@ -157,6 +173,9 @@ export async function run({ mode = 'static', evidencePath = null, root = ROOT } 
     canonical_review_email: policy.canonical_review_email,
     play_console_readback: true,
     evidence_age_minutes: evidenceResult.age_minutes,
+    final_build_age_minutes: evidenceResult.final_build_age_minutes,
+    submitted_version_code: evidenceResult.submitted_version_code,
+    final_build_login_verified: true,
     ...live
   };
 }
