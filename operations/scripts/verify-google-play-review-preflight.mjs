@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -40,6 +41,10 @@ export function validatePolicy(policy) {
   if (policy?.requirements?.otp_required !== false) fail('OTP_POLICY_INVALID');
   const maxAge = Number(policy?.evidence_max_age_hours);
   if (!Number.isFinite(maxAge) || maxAge <= 0 || maxAge > 24) fail('EVIDENCE_MAX_AGE_INVALID');
+  if (policy.review_workspace?.user_id !== '14cbd9ff-779e-4893-8ca8-5a0ce73e66fb'
+      || policy.review_workspace?.tenant_id !== '4f2c6f87-524c-4b50-9b22-48928603c24c'
+      || policy.review_workspace?.store_id !== '45d624bb-37ca-4183-a5c4-8ed932a69616'
+      || policy.review_workspace?.name !== 'GARAGE LINK 審査・販促用店舗') fail('REVIEW_WORKSPACE_POLICY_INVALID');
   return policy;
 }
 
@@ -72,6 +77,52 @@ export function scanRepositoryForForbiddenIdentifiers(policy, root = ROOT) {
   return { scanned: true, forbidden_hits: 0 };
 }
 
+// This is a bounded-change guard, not permission to mutate Production.
+// Invoke against locked before/after snapshots inside the repair transaction.
+export function validateFixtureScopeChange(before, after) {
+  if (!before || !after || ['user_id', 'tenant_id', 'store_id'].some((key) => typeof before[key] !== 'string' || !before[key] || typeof after[key] !== 'string' || !after[key]) || before.user_id !== after.user_id) fail('FIXTURE_CHANGE_USER_MISMATCH');
+  const changed = before.tenant_id !== after.tenant_id || before.store_id !== after.store_id;
+  if (changed && after.proof_is_null !== true) fail('FIXTURE_SCOPE_CHANGE_PROOF_NOT_RESET');
+  return { scope_changed: changed };
+}
+
+export function validateReviewWorkspace(workspace, policy) {
+  const target = policy.review_workspace;
+  if (!target?.tenant_id || !target?.store_id || !target?.name) fail('REVIEW_WORKSPACE_POLICY_MISSING');
+  if (workspace?.source !== 'final-build-ui-api-and-db-readback') fail('REVIEW_WORKSPACE_EVIDENCE_MISSING');
+  if (workspace.scope_changed !== false) {
+    if (workspace.scope_changed !== true || !workspace.scope_change) fail('REVIEW_SCOPE_CHANGE_AUDIT_MISSING');
+    validateFixtureScopeChange(workspace.scope_change.before, workspace.scope_change.after);
+    if (workspace.scope_change.after.proof_is_null !== true) fail('FIXTURE_SCOPE_CHANGE_PROOF_NOT_RESET');
+  }
+  if (workspace.fixture?.user_id !== target.user_id) fail('REVIEW_FIXTURE_USER_INVALID');
+  if (workspace.fixture?.tenant_id !== target.tenant_id || workspace.fixture?.store_id !== target.store_id
+      || workspace.fixture?.revoked !== false) fail('REVIEW_FIXTURE_SCOPE_INVALID');
+  // A 64-character hash alone does not establish that it belongs to this scope.
+  if (workspace.fixture?.proof_length !== 64 || workspace.fixture?.current_scope_verified !== true)
+    fail('REVIEW_PROOF_CURRENT_SCOPE_UNPROVEN');
+  const stores = workspace.stores;
+  if (!Array.isArray(stores) || stores.length !== 1 || stores[0]?.id !== target.store_id
+      || stores[0]?.tenant_id !== target.tenant_id || stores[0]?.name !== target.name)
+    fail('REVIEW_STORE_NOT_EXCLUSIVE');
+  if (workspace.current_user_active_store_id !== target.store_id) fail('REVIEW_ACTIVE_STORE_MISMATCH');
+  const preferences = workspace.preferences;
+  if (!Array.isArray(preferences) || !preferences.length) fail('REVIEW_PREFERENCES_UNPROVEN');
+  if (preferences.some((p) => !Number.isFinite(Date.parse(p.updated_at)))) fail('REVIEW_PREFERENCE_TIME_INVALID');
+  const newest = [...preferences].sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at)
+    || String(a.id).localeCompare(String(b.id)))[0];
+  if (newest?.tenant_id !== target.tenant_id || newest?.active_store_id !== target.store_id)
+    fail('REVIEW_PREFERENCE_NOT_CURRENT');
+  if (workspace.store_selection_status !== 200) fail('REVIEW_STORE_SELECTION_FAILED');
+  if (workspace.store_selection_409_count !== 0) fail('REVIEW_STORE_SELECTION_CONFLICT');
+  if (workspace.today_status !== 200 || workspace.today_store_id !== target.store_id) fail('REVIEW_TODAY_SCOPE_FAILED');
+  if (['today', 'vehicles', 'customers', 'maintenance', 'quotes'].some((screen) => workspace.major_screens?.[screen] !== true)) fail('REVIEW_MAJOR_SCREENS_UNPROVEN');
+  if (workspace.relogin_verified !== true) fail('REVIEW_RELOGIN_UNPROVEN');
+  if (workspace.flower_store_visible !== false) fail('REVIEW_FOREIGN_STORE_VISIBLE');
+  if (workspace.unrelated_production_changes !== 0 || workspace.password_exposure !== 0) fail('REVIEW_SAFETY_GATE_FAILED');
+  return { review_workspace_verified: true };
+}
+
 export function validateEvidence(evidence, policy, nowMs = Date.now()) {
   if (evidence?.package_name !== policy.package_name) fail('EVIDENCE_PACKAGE_MISMATCH');
   if (evidence?.login_identifier !== policy.canonical_review_email) fail('PLAY_CONSOLE_IDENTIFIER_MISMATCH');
@@ -85,6 +136,7 @@ export function validateEvidence(evidence, policy, nowMs = Date.now()) {
   if (!Number.isInteger(evidence?.tested_version_code) || evidence.tested_version_code <= 0) fail('TESTED_VERSION_CODE_INVALID');
   if (evidence.tested_version_code !== evidence.submitted_version_code) fail('FINAL_BUILD_VERSION_MISMATCH');
   if (evidence?.final_build_login_verified !== true) fail('FINAL_BUILD_LOGIN_UNPROVEN');
+  validateReviewWorkspace(evidence?.review_workspace, policy);
 
   const readbackAt = Date.parse(evidence?.readback_at ?? '');
   if (!Number.isFinite(readbackAt)) fail('PLAY_CONSOLE_READBACK_TIME_INVALID');
@@ -109,12 +161,20 @@ export function validateEvidence(evidence, policy, nowMs = Date.now()) {
 async function verifyLiveProductionLogin(policy) {
   const baseUrl = process.env.GARAGE_PRODUCTION_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.GARAGE_PRODUCTION_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const password = process.env.GOOGLE_PLAY_REVIEW_PASSWORD;
+  if (!baseUrl) fail('GARAGE_PRODUCTION_SUPABASE_URL_MISSING');
+  if (!anonKey) fail('GARAGE_PRODUCTION_SUPABASE_ANON_KEY_MISSING');
+  if (baseUrl.replace(/\/$/, '') !== 'https://wmlpuzuskfiwdipluglz.supabase.co') fail('PRODUCTION_AUTH_DESTINATION_MISMATCH');
+  let password;
+  try {
+    password = execFileSync('/usr/bin/security',
+      ['find-generic-password', '-s', '全SaaS共通レビュー用パスワード', '-w'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).replace(/\r?\n$/, '');
+  } catch { fail('REVIEW_KEYCHAIN_UNAVAILABLE'); }
   const explicitEmail = process.env.GOOGLE_PLAY_REVIEW_EMAIL;
 
   if (!baseUrl) fail('GARAGE_PRODUCTION_SUPABASE_URL_MISSING');
   if (!anonKey) fail('GARAGE_PRODUCTION_SUPABASE_ANON_KEY_MISSING');
-  if (!password) fail('GOOGLE_PLAY_REVIEW_PASSWORD_MISSING');
+  if (!password) fail('REVIEW_KEYCHAIN_PASSWORD_MISSING');
   if (explicitEmail && explicitEmail !== policy.canonical_review_email) fail('REVIEW_EMAIL_ENV_MISMATCH');
 
   const tokenUrl = `${baseUrl.replace(/\/$/, '')}/auth/v1/token?grant_type=password`;
@@ -128,7 +188,7 @@ async function verifyLiveProductionLogin(policy) {
     body: JSON.stringify({ email: policy.canonical_review_email, password })
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) fail('LIVE_PRODUCTION_LOGIN_FAILED', String(payload?.error_code || payload?.error || response.status));
+  if (!response.ok) fail('LIVE_PRODUCTION_LOGIN_FAILED', String(response.status));
   if (payload?.user?.email !== policy.canonical_review_email) fail('LIVE_LOGIN_USER_MISMATCH');
   if (!payload?.access_token) fail('LIVE_LOGIN_TOKEN_MISSING');
 

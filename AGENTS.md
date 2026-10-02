@@ -24,3 +24,6 @@
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
+
+- Review sign-in alone is insufficient: the final-build gate must prove scope-bound proof regeneration, exactly one prepared review store, reviewer current active store equality, stores/active200, zero409, today200 in review scope, major-screen read access and full logout/process restart/relogin.
+- For multi-tenant reviewers, compare every accessible preference timestamp. Same-store selection currently does not refresh its timestamp; a newer foreign-tenant preference must fail the gate. Never fix this by deleting foreign memberships or preferences.

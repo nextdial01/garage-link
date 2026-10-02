@@ -14,5 +14,11 @@
     "reusable_credentials_required": true,
     "otp_required": false,
     "final_build_login_required": true
+  },
+  "review_workspace": {
+    "tenant_id": "4f2c6f87-524c-4b50-9b22-48928603c24c",
+    "store_id": "45d624bb-37ca-4183-a5c4-8ed932a69616",
+    "name": "GARAGE LINK 審査・販促用店舗",
+    "user_id": "14cbd9ff-779e-4893-8ca8-5a0ce73e66fb"
   }
 }
