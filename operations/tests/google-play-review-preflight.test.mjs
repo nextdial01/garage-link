@@ -22,6 +22,10 @@ function validEvidence(overrides = {}) {
     reusable_credentials: true,
     otp_required: false,
     all_app_functions_accessible: true,
+    submitted_version_code: 43,
+    tested_version_code: 43,
+    final_build_login_verified: true,
+    final_build_verified_at: '2026-10-02T03:10:00.000Z',
     source: 'play-console-ui-readback',
     readback_at: '2026-10-02T03:00:00.000Z',
     ...overrides
@@ -33,6 +37,7 @@ test('canonical GARAGE LINK reviewer policy is fixed', () => {
   assert.equal(repoPolicy.canonical_review_email, 'app-review@kannagi-co.com');
   assert.equal(repoPolicy.requirements.live_production_login_required, true);
   assert.equal(repoPolicy.requirements.play_console_readback_required, true);
+  assert.equal(repoPolicy.requirements.final_build_login_required, true);
 });
 
 test('fresh Play Console readback for the canonical reviewer passes', () => {
@@ -44,6 +49,20 @@ test('old reviewer identifier is rejected', () => {
   assert.throws(
     () => validateEvidence(validEvidence({ login_identifier: 'garage-link-reviewer-20260908@review.invalid' }), repoPolicy, Date.parse('2026-10-02T04:00:00.000Z')),
     /PLAY_CONSOLE_IDENTIFIER_MISMATCH/
+  );
+});
+
+test('a different tested build from the submitted build is rejected', () => {
+  assert.throws(
+    () => validateEvidence(validEvidence({ tested_version_code: 42 }), repoPolicy, Date.parse('2026-10-02T04:00:00.000Z')),
+    /FINAL_BUILD_VERSION_MISMATCH/
+  );
+});
+
+test('missing final build login proof is rejected', () => {
+  assert.throws(
+    () => validateEvidence(validEvidence({ final_build_login_verified: false }), repoPolicy, Date.parse('2026-10-02T04:00:00.000Z')),
+    /FINAL_BUILD_LOGIN_UNPROVEN/
   );
 });
 
