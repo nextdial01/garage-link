@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "app_name": "GARAGE LINK",
+  "package_name": "com.kannagi.garagelink",
+  "canonical_review_email": "app-review@kannagi-co.com",
+  "forbidden_identifier_fragments": ["@review.invalid"],
+  "evidence_max_age_hours": 24,
+  "requirements": {
+    "play_console_readback_required": true,
+    "live_production_login_required": true,
+    "english_instructions_required": true,
+    "reusable_credentials_required": true,
+    "otp_required": false
+  }
+}
