@@ -17,6 +17,7 @@
 - If the preflight does not return `GOOGLE_PLAY_REVIEW_PREFLIGHT_PASS`, submission/resubmission is prohibited.
 - After submitting, read back the Play Console review state. Do not report completion until Play Console shows the changes were sent for review.
 - Any future invalid-credential rejection must trigger a cross-check of Play Console saved identifier + live Production login before considering a new build. Do not create a new build unless a separate verified code issue requires it.
+- If `mobile_review_fixture_access.tenant_id` or `.store_id` is changed, `proof_hash` must be cleared to `NULL` in the same bounded change. A non-null proof hash is scope-bound; carrying it across a tenant/store change invalidates the review fixture and can fall back to ordinary store selection.
 
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
