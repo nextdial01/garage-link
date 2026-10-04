@@ -113,6 +113,14 @@ test.describe('GARAGE LINK rendered LP quality', () => {
 
       await expect(page.locator('h1 br')).toHaveCount(0);
 
+      // Full-page evidence should show every section even though production
+      // reveals them only when they enter the viewport.
+      await page.evaluate(() => {
+        document.querySelectorAll<HTMLElement>('[data-lp-reveal]').forEach((element) => {
+          element.dataset.revealed = 'true';
+        });
+      });
+
       await page.screenshot({
         path: `test-results/lp-${viewport.name}.png`,
         fullPage: true,
