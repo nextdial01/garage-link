@@ -72,7 +72,7 @@ function UsedCarBody() {
   ] as const;
   return <div className={styles.routeBody}>
     <section className={styles.vehicleHero}><div className={styles.shell}>
-      <p className={styles.eyebrow}>USED CAR — 車両を中心に追う</p><h1><span className={styles.headlineLine}>仕入れた日から、</span><span className={styles.headlineLine}>納車後の案内まで。</span></h1>
+      <p className={styles.eyebrow}>USED CAR — 中古車販売管理システム</p><h1><span className={styles.headlineLine}>中古車販売の在庫・商談・納車を、</span><span className={styles.headlineLine}>一台の車両で管理。</span></h1>
       <p className={styles.heroLead}>在庫日数だけでも、商談予定だけでもありません。一台の車両に、売れるまでの経過と次の対応を集めます。</p>
       <div className={styles.vehiclePipeline}>{stages.map(([no,title,body]) => <article key={no}><span>{no}</span><h2>{title}</h2><p>{body}</p></article>)}</div>
     </div></section>
@@ -108,7 +108,7 @@ function MaintenanceBody() {
   const slots = [["09:00","車検入庫","受付内容と代車を確認","受付待ち"],["10:30","法定点検","作業項目と使用部品を更新","作業中"],["13:00","一般整備","追加作業の見積を顧客へ確認","承認待ち"],["16:30","納車","請求と次回点検時期を記録","納車予定"]] as const;
   return <div className={styles.routeBody}>
     <section className={styles.scheduleHero}><div className={styles.shell}>
-      <p className={styles.eyebrow}>MAINTENANCE — 今日の入庫から見る</p><h1><span className={styles.headlineLine}>受付、作業、納車。</span><span className={styles.headlineLine}>一日の予定を、</span><span className={styles.headlineLine}>案件で追う。</span></h1>
+      <p className={styles.eyebrow}>MAINTENANCE — 整備工場向け管理システム</p><h1><span className={styles.headlineLine}>整備工場の受付・作業・納車を、</span><span className={styles.headlineLine}>一つの案件で管理。</span></h1>
       <p className={styles.heroLead}>整備工場で必要なのは抽象的な機能一覧ではなく、今日の入庫がどこまで進み、誰が次に動くかです。</p>
       <div className={styles.daySchedule}>{slots.map(([time,title,body,status]) => <article className={styles.slot} key={time}><time>{time}</time><strong>{title}</strong><p>{body}</p><span>{status}</span></article>)}</div>
     </div></section>
