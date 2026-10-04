@@ -50,6 +50,9 @@ export function TrackedSignupLink({ children, placement, className, source = 'la
         const attribution = currentAttribution(source, placement);
         saveSignupAttribution(attribution);
         trackConversion('lp_signup_cta_click', attribution);
+        if (source === 'demo' || placement.startsWith('demo_')) {
+          trackConversion('demo_signup_click', attribution);
+        }
       }}
     >
       {children}
