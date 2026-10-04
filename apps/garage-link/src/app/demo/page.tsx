@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import BrandLogo from '@/components/BrandLogo';
 import { AcquisitionPageTracker } from '@/components/analytics/AcquisitionPageTracker';
@@ -49,7 +50,9 @@ export default function DemoPage() {
       </section>
 
       <section className="px-3 py-8 sm:px-5 sm:py-12">
-        <GarageInteractiveDemo standalone />
+        <Suspense fallback={<div className="mx-auto min-h-[620px] max-w-[1500px] rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">デモを準備しています...</div>}>
+          <GarageInteractiveDemo standalone />
+        </Suspense>
       </section>
     </main>
   );
