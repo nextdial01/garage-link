@@ -350,8 +350,8 @@ export function GarageLandingPage() {
           <div className={styles.trustLayout}>
             <div className={styles.sectionIntro}>
               <p className={styles.sectionKicker}>TRUST</p>
-              <h2 id="trust-title">実績を大きく見せる代わりに、確認できる事実を出します。</h2>
-              <p>まだ大手SaaSのような導入社数や大量レビューはありません。だから製品画面、料金、データの扱い、運営会社を公開します。</p>
+              <h2 id="trust-title">導入判断に必要な情報を、登録前に確認できます。</h2>
+              <p>製品画面、料金、データの持ち出し方法、権限、運営会社、問い合わせ窓口まで公開しています。</p>
             </div>
             <div className={styles.trustGrid}>
               <article><span><FileText aria-hidden="true" /></span><strong>利用条件を公開</strong><p>料金、Free上限、利用規約、プライバシーポリシーを登録前に確認できます。</p></article>
