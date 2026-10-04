@@ -1,16 +1,25 @@
 # GARAGE LINK
 
-> 中古車・バイク販売店・整備工場向けの業務管理SaaS。在庫管理・商談・見積書/請求書発行・整備部品管理・棚卸し・LINE連携（L-Link）をクラウドで一元化する。株式会社かんなぎが運営。
+> 中古車販売店・バイク販売修理店・整備工場向けの店舗管理SaaS。車両在庫、顧客、商談、見積・請求、整備、次回期限を車両単位でまとめて管理する。株式会社かんなぎが開発・運営。
 
 ## サービス概要
-- 対象: 中古車・バイク販売店、整備工場
-- 主な機能: 車両在庫管理、顧客・商談管理、見積書/請求書発行、整備・部品管理、棚卸し、L-Link連携（Standard以上）
-- プラン: Free（0円/月・在庫5台）、Starter（7,480円/月）、Standard（16,280円/月）、Pro（32,780円/月）
+- 対象: 中古車販売店、バイク販売・修理店、整備工場、車検工場
+- 主な機能: 車両在庫管理、顧客・商談管理、見積書・請求書、整備・部品管理、棚卸し、来店・試乗予約、期限管理
+- Freeプラン: 0円/月、在庫5台、スタッフ1人、1店舗、見積・請求は月5件まで
+- 有料プラン: Starter 7,480円/月、Standard 16,280円/月、Pro 32,780円/月
 - 追加料金: スタッフ1人 1,100円/月、店舗1店 5,500円/月、ストレージ10GB 550円/月
-- 料金表示: すべて10%相当額を含む請求総額
+- 料金表示: 10%相当額を含む請求総額
+- L-LINK連携: Standard / Pro向け機能として提供準備中。提供開始前は利用可能機能として扱わない
 
 ## 主要ページ
-- [トップページ](https://garage-link.tech/): サービス概要・課題・機能・料金
+- [トップページ](https://garage-link.tech/): サービス概要
+- [機能](https://garage-link.tech/features): 実装済み機能と実際の画面
+- [実画面デモ](https://garage-link.tech/demo): 登録前に実際の管理画面を確認
+- [料金](https://garage-link.tech/pricing): FreeからProまでの料金と上限
+- [中古車販売](https://garage-link.tech/industries/used-car): 中古車販売の在庫・顧客・商談管理
+- [バイク販売・修理](https://garage-link.tech/industries/motorcycle): 販売車両と修理入庫の管理
+- [整備工場](https://garage-link.tech/industries/maintenance): 予約・整備・請求・車検期限管理
+- [FAQ](https://garage-link.tech/faq)
 - [新規登録](https://garage-link.tech/signup)
 - [利用規約](https://garage-link.tech/legal/terms)
 - [プライバシーポリシー](https://garage-link.tech/legal/privacy)
