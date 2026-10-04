@@ -32,6 +32,7 @@ const PUBLIC_PATHS = [
   '/.well-known/kannagi-release.json',
   '/manifest.webmanifest',
   '/features',
+  '/demo',
   '/pricing',
   '/faq',
 ];
