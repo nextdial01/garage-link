@@ -191,7 +191,7 @@ export default function OnboardingPage() {
     return true;
   }
 
-  async function completeOnboarding() {
+  async function completeOnboarding(nextPath = '/dashboard') {
     const saved = await saveStep();
     if (!saved || !storeId) return;
 
@@ -215,9 +215,9 @@ export default function OnboardingPage() {
     await recordReleaseQaCallback(
       qaRunId,
       'onboarding_completed',
-      releaseQaNextPath('/signup?resume=1', qaRunId),
+      releaseQaNextPath(nextPath, qaRunId),
     );
-    router.replace('/dashboard');
+    router.replace(nextPath);
   }
 
   function togglePrimaryTab(tab: PrimaryTabKey) {
@@ -277,7 +277,7 @@ export default function OnboardingPage() {
           </p>
           <h1 className="mt-2 text-2xl font-bold">はじめての設定</h1>
           <p className="mt-2 text-sm text-slate-500">
-            先に主タブと集計基準だけ決めておくと、あとから迷いにくくなります。
+            まず1台を登録して試せます。集計基準や主タブなどの詳細設定は後から変更できます。
           </p>
           <div className="mx-auto mt-4 h-2 max-w-md overflow-hidden rounded-full bg-slate-100">
             <div className="h-full rounded-full bg-blue-600 transition-all duration-300" style={{ width: `${progressPercent}%` }} />
@@ -378,12 +378,27 @@ export default function OnboardingPage() {
               </div>
             </div>
 
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+              <p className="text-sm font-black text-emerald-900">おすすめ：まず1台を登録して実際に使う</p>
+              <p className="mt-1 text-xs leading-5 text-emerald-800">
+                売上基準・仕入基準・主タブなどの詳細設定は初期値のまま開始でき、あとから設定画面で変更できます。
+              </p>
+              <button
+                type="button"
+                disabled={isSaving || !companyName.trim() || !storeName.trim()}
+                onClick={() => void completeOnboarding('/vehicles/new')}
+                className="mt-3 w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {isSaving ? '保存中...' : '1台登録して使い始める'}
+              </button>
+            </div>
+
             <button
               type="submit"
               disabled={isSaving || !companyName.trim() || !storeName.trim()}
-              className="w-full rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="w-full rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
             >
-              {isSaving ? '保存中...' : '保存して次へ'}
+              {isSaving ? '保存中...' : '詳細設定を続ける'}
             </button>
           </form>
         )}
