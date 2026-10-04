@@ -35,6 +35,17 @@ export function ProductShowcase() {
   const [activeKey, setActiveKey] = useState<(typeof screens)[number]['key']>('vehicle');
   const active = screens.find((screen) => screen.key === activeKey) ?? screens[0];
 
+  function moveTab(currentIndex: number, direction: 'next' | 'prev' | 'first' | 'last') {
+    const nextIndex =
+      direction === 'first' ? 0 :
+      direction === 'last' ? screens.length - 1 :
+      direction === 'next' ? (currentIndex + 1) % screens.length :
+      (currentIndex - 1 + screens.length) % screens.length;
+    const next = screens[nextIndex];
+    setActiveKey(next.key);
+    requestAnimationFrame(() => document.getElementById(`garage-product-tab-${next.key}`)?.focus());
+  }
+
   return (
     <div className={styles.productShowcase}>
       <div className={styles.browserBar} aria-hidden="true">
@@ -53,6 +64,22 @@ export function ProductShowcase() {
             tabIndex={active.key === screen.key ? 0 : -1}
             className={active.key === screen.key ? styles.productTabActive : styles.productTab}
             onClick={() => setActiveKey(screen.key)}
+            onKeyDown={(event) => {
+              const index = screens.findIndex((item) => item.key === screen.key);
+              if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                moveTab(index, 'next');
+              } else if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                moveTab(index, 'prev');
+              } else if (event.key === 'Home') {
+                event.preventDefault();
+                moveTab(index, 'first');
+              } else if (event.key === 'End') {
+                event.preventDefault();
+                moveTab(index, 'last');
+              }
+            }}
           >
             {screen.label}
           </button>
