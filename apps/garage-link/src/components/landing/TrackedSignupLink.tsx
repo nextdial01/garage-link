@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useSyncExternalStore, type ComponentProps, type MouseEventHandler } from 'react';
+import { useSyncExternalStore, type ComponentProps, type MouseEventHandler, type ReactNode } from 'react';
 import { BRAND } from '@/lib/brand';
 import { readSignupAttribution, saveSignupAttribution, trackConversion } from '@/lib/analytics/conversion';
 import { releaseQaRunId } from '@/lib/auth/releaseQaCallback';
@@ -14,7 +14,7 @@ type SignupProps = {
 };
 
 type InquiryProps = {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
   placement: string;
   source?: string;
