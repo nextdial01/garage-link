@@ -958,13 +958,13 @@
 
 .mobileStickyCta { display: none; }
 
-[data-lp-reveal] {
+.page [data-lp-reveal] {
   opacity: 0;
   transform: translateY(22px);
   transition: opacity .65s ease, transform .65s cubic-bezier(.22,1,.36,1);
 }
 
-[data-lp-reveal][data-revealed="true"] {
+.page [data-lp-reveal][data-revealed="true"] {
   opacity: 1;
   transform: translateY(0);
 }
@@ -1344,7 +1344,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-lp-reveal] {
+  .page [data-lp-reveal] {
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;
