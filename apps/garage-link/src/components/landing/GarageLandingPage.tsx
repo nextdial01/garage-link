@@ -21,6 +21,7 @@ import { AcquisitionPageTracker } from '@/components/analytics/AcquisitionPageTr
 import { GARAGE_PLANS } from '@/lib/billing/garagePlans';
 import { LandingMotion } from './LandingMotion';
 import { MobileNavigation } from './MobileNavigation';
+import { MobileStickyDemoCta } from './MobileStickyDemoCta';
 import { ProductShowcase } from './ProductShowcase';
 import { TrackedInquiryLink, TrackedLoginLink, TrackedSignupLink } from './TrackedSignupLink';
 import styles from './garage-landing.module.css';
@@ -145,13 +146,17 @@ export function GarageLandingPage() {
         </div>
       </header>
 
-      <section className={styles.hero}>
+      <section className={styles.hero} id="garage-hero">
         <div className={styles.heroBackdrop} aria-hidden="true" />
         <div className={styles.container}>
           <div className={styles.heroLayout}>
             <div className={styles.heroCopy} data-lp-reveal>
               <p className={styles.eyebrow}>中古車販売・整備工場・バイク店向け</p>
-              <h1>車屋の在庫・顧客・商談・整備を、1台の車両からひとつに。</h1>
+              <h1>
+                <span>在庫・顧客・商談を、</span>
+                <span>整備まで、</span>
+                <span>1台の車両につなぐ。</span>
+              </h1>
               <p className={styles.heroLead}>
                 Excel、紙、個人メモに散らばる情報をGARAGE LINKへ。
                 今日やる仕事と、その車両の履歴を同じ店舗台帳で確認できます。
@@ -394,7 +399,7 @@ export function GarageLandingPage() {
         </div>
       </footer>
 
-      <Link href="/demo" className={styles.mobileStickyCta}>実画面を見る</Link>
+      <MobileStickyDemoCta />
     </main>
   );
 }
