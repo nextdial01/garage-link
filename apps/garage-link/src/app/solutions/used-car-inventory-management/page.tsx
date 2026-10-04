@@ -14,7 +14,7 @@ export default function UsedCarInventoryManagementPage() {
       eyebrow="中古車 在庫管理システム"
       title="中古車の在庫管理を、Excelの車両台帳から一つの画面へ。"
       lead="仕入日・原価・在庫日数・掲載状態だけで終わらず、問い合わせ、商談、見積、納車まで同じ車両にひも付けて確認します。"
-      screen={{ src: '/product-screens/vehicle-entry.png', alt: 'GARAGE LINKの中古車車両登録画面', caption: '実際のGARAGE LINK車両登録画面。車両情報と仕入・販売に必要な項目を店舗台帳へ登録します。' }}
+      demoScenario={{ business: 'used-car', management: 'excel', goal: 'inventory' }}
       problems={[
         { title: '車両台帳と商談が別', body: '在庫表だけでは、その車両に誰から問い合わせがあり、次に誰へ連絡するかまで追えません。' },
         { title: '同じ車両情報を再入力', body: '見積・請求や整備で同じ車両情報を別管理すると、更新漏れや確認作業が増えます。' },
