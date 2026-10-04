@@ -84,7 +84,7 @@ function SignupForm() {
     }
 
     void detectResumeMode();
-  }, [isResumeMode, qaRunId]);
+  }, [isResumeMode, qaRunId, searchParams]);
 
   async function createStoreForUser(supabase: ReturnType<typeof createClient>) {
     const { error: onboardingError } = await supabase.rpc('create_store_for_current_user', {
