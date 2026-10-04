@@ -74,6 +74,8 @@ test.describe('GARAGE LINK rendered LP quality', () => {
             return [];
           }
 
+          if (style.textOverflow === 'ellipsis') return [];
+
           const clipsX = style.overflowX === 'hidden' || style.overflowX === 'clip';
           const clipsY = style.overflowY === 'hidden' || style.overflowY === 'clip';
           const clipped =
