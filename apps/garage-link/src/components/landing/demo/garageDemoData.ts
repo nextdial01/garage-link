@@ -188,21 +188,29 @@ export function generateGarageDemoData(scenario: DemoScenario, variant = 0): Dem
 export function scenarioFromQuery(searchParams: URLSearchParams): DemoScenario {
   const scenario = searchParams.get('scenario');
   const goal = searchParams.get('goal');
+  const source = (searchParams.get('source') ?? '').toLowerCase();
 
   const business: DemoBusiness =
     scenario === 'maintenance' ? 'maintenance' :
     scenario === 'motorcycle' ? 'motorcycle' :
+    scenario === 'used-car' ? 'used-car' :
+    source.includes('maintenance') || source.includes('seibi') ? 'maintenance' :
+    source.includes('motorcycle') || source.includes('bike') ? 'motorcycle' :
     'used-car';
 
   const management: DemoManagement =
     searchParams.get('management') === 'paper' ? 'paper' :
     searchParams.get('management') === 'mixed' ? 'mixed' :
+    source.includes('excel') ? 'excel' :
     'excel';
 
   const resolvedGoal: DemoGoal =
     goal === 'customers' ? 'customers' :
     goal === 'sales' ? 'sales' :
     goal === 'maintenance' ? 'maintenance' :
+    goal === 'inventory' ? 'inventory' :
+    source.includes('customer') ? 'customers' :
+    source.includes('deal') || source.includes('sales') ? 'sales' :
     business === 'maintenance' ? 'maintenance' :
     'inventory';
 
