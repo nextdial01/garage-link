@@ -82,11 +82,17 @@ function viewTitle(view: DemoView) {
   }
 }
 
-export function GarageInteractiveDemo({ standalone = false }: { standalone?: boolean }) {
+export function GarageInteractiveDemo({
+  standalone = false,
+  initialScenario: initialScenarioProp,
+}: {
+  standalone?: boolean;
+  initialScenario?: DemoScenario;
+}) {
   const searchParams = useSearchParams();
   const initialScenario = useMemo(
-    () => scenarioFromQuery(new URLSearchParams(searchParams.toString())),
-    [searchParams],
+    () => initialScenarioProp ?? scenarioFromQuery(new URLSearchParams(searchParams.toString())),
+    [initialScenarioProp, searchParams],
   );
   const [scenario, setScenario] = useState<DemoScenario>(initialScenario);
   const [draftScenario, setDraftScenario] = useState<DemoScenario>(initialScenario);
