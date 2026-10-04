@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
+import { AcquisitionPageTracker } from '@/components/analytics/AcquisitionPageTracker';
 import { MobileNavigation } from './MobileNavigation';
 import { TrackedInquiryLink, TrackedLoginLink, TrackedSignupLink } from './TrackedSignupLink';
 import { RELATED_SERVICES } from '@/lib/related-services';
@@ -62,7 +63,7 @@ const industryFlows = [
 ] as const;
 
 const startSteps = [
-  { number: '01', icon: 'account' as const, title: '無料アカウントを作る', detail: '店舗名とメールアドレスを入力' },
+  { number: '01', icon: 'account' as const, title: '無料アカウントを作る', detail: 'メールアドレスとパスワードを入力' },
   { number: '02', icon: 'vehicle' as const, title: '1台を登録する', detail: '在庫でも入庫中の車でも開始' },
   { number: '03', icon: 'check' as const, title: '今日の仕事を始める', detail: '次の予定を入れて確認' },
 ] as const;
@@ -104,6 +105,7 @@ export function GarageLandingPage() {
 
   return (
     <main className={styles.page}>
+      <AcquisitionPageTracker source="landing" placement="home" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
 
       <header className={styles.header}>
