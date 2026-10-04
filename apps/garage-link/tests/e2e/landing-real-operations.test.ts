@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const mobileDestinations = [
-  { label: '機能', url: /\/#features$/ },
+  { label: '使い方', url: /\/#product$/ },
   { label: '料金', url: /\/pricing$/ },
   { label: '業種別', url: /\/#industries$/ },
   { label: 'FAQ', url: /\/faq$/ },
@@ -23,7 +23,7 @@ test.describe('GARAGE LINK LP real operations', () => {
       await menu.getByRole('link', { name: destination.label }).click();
       await expect(page).toHaveURL(destination.url);
 
-      if (destination.label === '機能' || destination.label === '業種別') {
+      if (destination.label === '使い方' || destination.label === '業種別') {
         await expect(trigger).toHaveAttribute('aria-expanded', 'false');
         await expect(menu).toBeHidden();
       } else {
