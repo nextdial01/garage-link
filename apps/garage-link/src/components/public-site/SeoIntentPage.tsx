@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { TrackedInquiryLink, TrackedSignupLink } from '@/components/landing/TrackedSignupLink';
+import { AcquisitionPageTracker } from '@/components/analytics/AcquisitionPageTracker';
 
 export type SeoIntentPageProps = {
   source: string;
@@ -32,7 +33,7 @@ export function SeoIntentPage({
   faq,
 }: SeoIntentPageProps) {
   return (
-    <main className="min-h-screen bg-white text-slate-950">
+    <main className="min-h-screen bg-white text-slate-950">\n      <AcquisitionPageTracker source={source} placement="seo_intent" />
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex min-h-16 w-[min(1120px,calc(100%-32px))] items-center gap-4">
           <Link href="/" className="text-lg font-black tracking-tight text-slate-900">GARAGE LINK</Link>
