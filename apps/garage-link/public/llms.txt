@@ -19,6 +19,8 @@
 - [中古車販売](https://garage-link.tech/industries/used-car): 中古車販売の在庫・顧客・商談管理
 - [バイク販売・修理](https://garage-link.tech/industries/motorcycle): 販売車両と修理入庫の管理
 - [整備工場](https://garage-link.tech/industries/maintenance): 予約・整備・請求・車検期限管理
+- [中古車在庫管理](https://garage-link.tech/solutions/used-car-inventory-management): Excel台帳から車両・商談を一元管理
+- [整備工場の顧客管理](https://garage-link.tech/solutions/maintenance-customer-management): 顧客・車両・整備履歴・車検期限を一元管理
 - [FAQ](https://garage-link.tech/faq)
 - [新規登録](https://garage-link.tech/signup)
 - [利用規約](https://garage-link.tech/legal/terms)
