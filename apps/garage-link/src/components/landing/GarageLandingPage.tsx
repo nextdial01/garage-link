@@ -19,9 +19,8 @@ import {
 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { MobileNavigation } from './MobileNavigation';
-import { TrackedLoginLink, TrackedSignupLink } from './TrackedSignupLink';
+import { TrackedInquiryLink, TrackedLoginLink, TrackedSignupLink } from './TrackedSignupLink';
 import { RELATED_SERVICES } from '@/lib/related-services';
-import { BRAND } from '@/lib/brand';
 import styles from './garage-landing.module.css';
 
 type IconName =
@@ -110,7 +109,7 @@ export function GarageLandingPage() {
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <Link href="/" aria-label="GARAGE LINK トップページ" className={styles.brand}><BrandLogo className={styles.brandLogo} priority /></Link>
-          <nav className={styles.nav} aria-label="メインナビゲーション"><a href="#features">機能</a><Link href="/pricing">料金</Link><a href="#industries">業種別</a><Link href="/faq">FAQ</Link><a href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">お問い合わせ</a></nav>
+          <nav className={styles.nav} aria-label="メインナビゲーション"><a href="#features">機能</a><Link href="/pricing">料金</Link><a href="#industries">業種別</a><Link href="/faq">FAQ</Link><Link href="/demo">実画面</Link><TrackedInquiryLink placement="header_inquiry">お問い合わせ</TrackedInquiryLink></nav>
           <TrackedLoginLink className={styles.loginLink}>ログイン</TrackedLoginLink>
           <TrackedSignupLink placement="header" className={styles.headerCta}>無料で始める</TrackedSignupLink>
           <MobileNavigation />
@@ -125,7 +124,7 @@ export function GarageLandingPage() {
               <p className={styles.eyebrow}>車屋・バイク屋の店舗管理</p>
               <h1>1台の入庫から、<br />次の連絡まで。<br />仕事が途切れない。</h1>
               <p className={styles.heroLead}>在庫・顧客・商談・整備・期限を、<br className={styles.desktopBreak} />ひとつの店舗台帳へ。</p>
-              <TrackedSignupLink placement="hero" className={styles.primaryCta}>無料で始める <ArrowRight aria-hidden="true" /></TrackedSignupLink>
+              <div className={styles.heroActions}><TrackedSignupLink placement="hero" className={styles.primaryCta}>無料で始める <ArrowRight aria-hidden="true" /></TrackedSignupLink><Link href="/demo" className={styles.secondaryCta}>登録前に実画面を見る</Link></div>
               <ul className={styles.startTerms} aria-label="無料開始の条件">
                 <li><span><Icon name="yen" /></span><strong>月額0円</strong></li>
                 <li><span><Icon name="card" /></span><strong>カード登録不要</strong></li>
@@ -223,7 +222,7 @@ export function GarageLandingPage() {
             <div className={styles.startCopy}>
               <p className={styles.sectionKicker}>START FREE</p><h2 id="start-title">まず1台から、<br />無料で試す</h2><p>月額0円・カード登録不要</p>
               <TrackedSignupLink placement="final" className={styles.finalButton}>無料で始める <ArrowRight aria-hidden="true" /></TrackedSignupLink>
-              <a className={styles.inquiryLink} href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">導入前に問い合わせる</a>
+              <TrackedInquiryLink placement="final_inquiry" className={styles.inquiryLink}>導入前に問い合わせる</TrackedInquiryLink>
               <ul><li>在庫5台までずっと0円で使える</li><li>必要に応じて有料プランへ変更できる</li><li>はじめてでも、すぐに使えるシンプル設計</li></ul>
             </div>
             <div className={styles.startGuide}>
@@ -245,7 +244,7 @@ export function GarageLandingPage() {
       <footer className={styles.footer}>
         <div className={styles.container}>
           <BrandLogo className={styles.footerLogo} />
-          <nav aria-label="フッターナビゲーション"><a href="#features">機能</a><Link href="/pricing">料金</Link><a href="#industries">業種別</a><Link href="/faq">FAQ</Link><a href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">お問い合わせ</a><Link href="/help">ヘルプ</Link><Link href="/legal/terms">利用規約</Link><Link href="/legal/privacy">プライバシーポリシー</Link><Link href="/legal/tokusho">特定商取引法に基づく表記</Link></nav>
+          <nav aria-label="フッターナビゲーション"><a href="#features">機能</a><Link href="/pricing">料金</Link><a href="#industries">業種別</a><Link href="/faq">FAQ</Link><Link href="/demo">実画面</Link><TrackedInquiryLink placement="footer_inquiry">お問い合わせ</TrackedInquiryLink><Link href="/help">ヘルプ</Link><Link href="/legal/terms">利用規約</Link><Link href="/legal/privacy">プライバシーポリシー</Link><Link href="/legal/tokusho">特定商取引法に基づく表記</Link></nav>
           <p>© 株式会社かんなぎ</p>
         </div>
       </footer>
