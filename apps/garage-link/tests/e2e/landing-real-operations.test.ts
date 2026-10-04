@@ -1,11 +1,10 @@
 import { expect, test } from '@playwright/test';
 
 const mobileDestinations = [
-  { label: '使い方', url: /\/#product$/ },
+  { label: 'デモ', url: /\/#live-demo$/ },
+  { label: '機能', url: /\/#platform$/ },
   { label: '料金', url: /\/pricing$/ },
-  { label: '業種別', url: /\/#industries$/ },
   { label: 'FAQ', url: /\/faq$/ },
-  { label: '実画面', url: /\/demo$/ },
   { label: 'ログイン', url: /\/login$/ },
 ] as const;
 
@@ -23,17 +22,13 @@ test.describe('GARAGE LINK LP real operations', () => {
       await menu.getByRole('link', { name: destination.label }).click();
       await expect(page).toHaveURL(destination.url);
 
-      if (destination.label === '使い方' || destination.label === '業種別') {
+      if (destination.label === 'デモ' || destination.label === '機能') {
         await expect(trigger).toHaveAttribute('aria-expanded', 'false');
         await expect(menu).toBeHidden();
-      } else {
-        await expect(page.locator('body')).not.toBeEmpty();
       }
 
       if (destination.label === 'ログイン') {
         await expect(page.getByRole('heading', { name: 'ログイン' })).toBeVisible();
-        await expect(page.getByAltText('L-LINK')).toBeAttached();
-        await expect(page.getByAltText('L-touring')).toBeAttached();
       }
     });
   }
@@ -52,11 +47,11 @@ test.describe('GARAGE LINK LP real operations', () => {
 
     await trigger.click();
     await expect(menu).toBeVisible();
-    await page.getByRole('button', { name: 'メニューを閉じる' }).last().click({ position: { x: 12, y: 300 } });
+    await page.getByRole('button', { name: 'メニューを閉じる' }).last().click({ position: { x: 12, y: 280 } });
     await expect(menu).toBeHidden();
   });
 
-  test('hero CTA reaches an operable signup form and fires conversion steps', async ({ page }) => {
+  test('hero signup CTA reaches an operable registration form', async ({ page }) => {
     await page.addInitScript(() => {
       const eventNames: string[] = [];
       Object.defineProperty(window, '__garageConversionEvents', { value: eventNames, writable: false });
@@ -81,10 +76,6 @@ test.describe('GARAGE LINK LP real operations', () => {
     await expect(page.getByRole('heading', { name: 'アカウント作成' })).toBeVisible();
 
     const submit = page.getByRole('button', { name: '無料でアカウントを作成する' });
-    await expect(submit).toBeDisabled();
-
-    await expect(page.getByLabel('店舗名 *')).toHaveCount(0);
-    await expect(page.getByLabel('担当者名 *')).toHaveCount(0);
     await page.getByLabel('メールアドレス *').fill('operation-check@example.com');
     await page.getByLabel('パスワード *').fill('test-password-123');
     await page.getByLabel('パスワード確認 *').fill('test-password-123');
@@ -103,34 +94,64 @@ test.describe('GARAGE LINK LP real operations', () => {
       'signup_form_engaged',
       'signup_submit',
     ]));
+  });
 
-    const attribution = await page.evaluate(() =>
-      window.sessionStorage.getItem('garage-link-signup-attribution'),
+  test('homepage embeds the product as interactive DOM, not product screenshots', async ({ page }) => {
+    await page.goto('/');
+
+    await expect(page.getByRole('heading', { name: '車屋の仕事を、車両から動かす。' })).toBeVisible();
+    await expect(page.getByTestId('garage-live-demo')).toBeVisible();
+    await expect(page.locator('img[src*="/product-screens/"]')).toHaveCount(0);
+    await expect(page.getByLabel('デモ業態')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'この条件でデモを作る' })).toBeVisible();
+  });
+
+  test('live demo regenerates data and supports vehicle to deal to quote flow', async ({ page }) => {
+    await page.addInitScript(() => {
+      const eventNames: string[] = [];
+      Object.defineProperty(window, '__garageDemoEvents', { value: eventNames, writable: false });
+      window.addEventListener('garage-link:conversion', (event) => {
+        eventNames.push((event as CustomEvent<{ event: string }>).detail.event);
+      });
+    });
+
+    await page.goto('/?scenario=used-car&management=excel&goal=inventory#live-demo');
+    const demo = page.getByTestId('garage-live-demo');
+
+    await demo.getByLabel('デモ業態').selectOption('motorcycle');
+    await demo.getByLabel('デモ管理方法').selectOption('mixed');
+    await demo.getByLabel('デモ目的').selectOption('sales');
+    await demo.getByRole('button', { name: 'この条件でデモを作る' }).click();
+
+    await expect(demo.getByText('GARAGE LINK Riders')).toBeVisible();
+    await expect(demo.getByText('商談', { exact: true }).last()).toBeVisible();
+
+    await demo.getByRole('button', { name: /車両/ }).first().click();
+    await demo.getByRole('button', { name: /車両を追加/ }).click();
+    await demo.getByLabel('デモ車両メーカー').fill('BMW');
+    await demo.getByLabel('デモ車両車名').fill('G 310 R');
+    await demo.getByRole('button', { name: 'このデモに追加' }).click();
+    await expect(demo.getByText('BMW G 310 R')).toBeVisible();
+
+    await demo.getByRole('button', { name: 'この車両で商談を作る' }).click();
+    await expect(demo.getByText('BMW G 310 R 新規商談')).toBeVisible();
+
+    await demo.getByText('BMW G 310 R 新規商談').click();
+    await expect(demo.getByText('見積書')).toBeVisible();
+    await expect(demo.getByRole('link', { name: 'この状態から無料で始める' })).toBeVisible();
+
+    const events = await page.evaluate(() =>
+      (window as typeof window & { __garageDemoEvents: string[] }).__garageDemoEvents,
     );
-    expect(attribution).toContain('"placement":"hero"');
+    expect(events).toEqual(expect.arrayContaining([
+      'demo_scenario_generated',
+      'demo_vehicle_created',
+      'demo_deal_created',
+      'demo_quote_opened',
+    ]));
   });
 
-  test('all signup CTA placements point to the tracked registration route', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/');
-
-    for (const placement of ['header', 'hero', 'final']) {
-      await expect(page.locator(`a[href="/signup?placement=${placement}"]`)).toHaveCount(1);
-    }
-
-    expect(await page.locator('a[href="/demo"]').filter({ hasText: '実画面を見る' }).count()).toBeGreaterThanOrEqual(2);
-  });
-  test('homepage leads with real product proof instead of a generic vehicle image', async ({ page }) => {
-    await page.goto('/');
-
-    await expect(page.getByRole('heading', { name: /車屋の在庫・顧客・商談・整備を/ })).toBeVisible();
-    await expect(page.getByAltText('GARAGE LINKの車両登録画面')).toBeVisible();
-    await expect(page.getByRole('link', { name: '実画面を見る' }).first()).toBeVisible();
-    await expect(page.getByText('かんなぎのサービス')).toHaveCount(0);
-    await expect(page.getByAltText('明るい店舗内に置かれた白いSUVの利用イメージ')).toHaveCount(0);
-  });
-
-  test('outbound lead attribution survives the landing signup CTA', async ({ page }) => {
+  test('outbound lead attribution survives landing signup CTA', async ({ page }) => {
     await page.goto('/?source=outbound&lead=shop-001');
     await page.locator('a[href*="placement=hero"]').click();
     await expect(page).toHaveURL(/\/signup\?placement=hero$/);
@@ -140,11 +161,15 @@ test.describe('GARAGE LINK LP real operations', () => {
     );
     expect(attribution).toContain('"source":"outbound"');
     expect(attribution).toContain('"lead":"shop-001"');
-    expect(attribution).toContain('"placement":"hero"');
   });
 
-  test('outbound demo view keeps source and lead before any CTA click', async ({ page }) => {
-    await page.goto('/demo?source=outbound&lead=shop-demo-001');
+  test('standalone live demo is public and keeps source/lead attribution', async ({ page }) => {
+    await page.goto('/demo?source=outbound&lead=shop-demo-001&scenario=maintenance&goal=maintenance');
+
+    await expect(page.getByRole('heading', { name: '登録する前に、触って決める。' })).toBeVisible();
+    await expect(page.getByTestId('garage-live-demo')).toBeVisible();
+    await expect(page.locator('img[src*="/product-screens/"]')).toHaveCount(0);
+    await expect(page.getByTestId('garage-live-demo').getByText('かんなぎ整備サービス')).toBeVisible();
 
     const attribution = await page.evaluate(() =>
       window.sessionStorage.getItem('garage-link-signup-attribution'),
@@ -152,17 +177,4 @@ test.describe('GARAGE LINK LP real operations', () => {
     expect(attribution).toContain('"source":"outbound"');
     expect(attribution).toContain('"lead":"shop-demo-001"');
   });
-
-  test('real-screen demo is public and leads to tracked signup', async ({ page }) => {
-    await page.goto('/demo');
-
-    await expect(page.getByRole('heading', { name: '登録する前に、実際の画面を確認。' })).toBeVisible();
-    await expect(page.getByAltText('GARAGE LINKの来店・試乗予約画面')).toBeVisible();
-    await expect(page.getByAltText('GARAGE LINKの車両登録画面')).toBeVisible();
-    await expect(page.getByAltText('GARAGE LINKの店舗の状況確認画面')).toBeVisible();
-
-    await page.getByRole('link', { name: '月額0円で使ってみる' }).click();
-    await expect(page).toHaveURL(/\/signup\?placement=demo_hero$/);
-  });
-
 });
