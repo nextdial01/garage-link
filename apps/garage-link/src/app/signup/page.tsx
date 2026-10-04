@@ -44,7 +44,7 @@ function SignupForm() {
     if (isResumeMode && qaRunId) {
       void recordReleaseQaCallback(qaRunId, 'arrival', releaseQaNextPath('/signup?resume=1', qaRunId));
     }
-  }, [isResumeMode, qaRunId]);
+  }, [isResumeMode, qaRunId, searchParams]);
 
   useEffect(() => {
     async function detectResumeMode() {
@@ -59,6 +59,7 @@ function SignupForm() {
         return;
       }
 
+      readSignupAttribution(new URLSearchParams(searchParams.toString()));
       trackConversionOnce('email_confirmed');
 
       const { data: accessibleStoreIds } = await supabase.rpc('current_user_store_ids', {});
