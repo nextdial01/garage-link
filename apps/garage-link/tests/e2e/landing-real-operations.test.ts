@@ -114,10 +114,22 @@ test.describe('GARAGE LINK LP real operations', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
 
-    for (const placement of ['header', 'hero', 'final', 'mobile_sticky']) {
+    for (const placement of ['header', 'hero', 'final']) {
       await expect(page.locator(`a[href="/signup?placement=${placement}"]`)).toHaveCount(1);
     }
+
+    await expect(page.locator('a[href="/demo"]').filter({ hasText: '実画面を見る' })).toHaveCount(1);
   });
+  test('homepage leads with real product proof instead of a generic vehicle image', async ({ page }) => {
+    await page.goto('/');
+
+    await expect(page.getByRole('heading', { name: /車屋の在庫・顧客・商談・整備を/ })).toBeVisible();
+    await expect(page.getByAltText('GARAGE LINKの車両登録画面')).toBeVisible();
+    await expect(page.getByRole('link', { name: /実際の画面を60秒で見る/ })).toBeVisible();
+    await expect(page.getByText('かんなぎのサービス')).toHaveCount(0);
+    await expect(page.getByAltText('明るい店舗内に置かれた白いSUVの利用イメージ')).toHaveCount(0);
+  });
+
   test('outbound lead attribution survives the landing signup CTA', async ({ page }) => {
     await page.goto('/?source=outbound&lead=shop-001');
     await page.locator('a[href*="placement=hero"]').click();
