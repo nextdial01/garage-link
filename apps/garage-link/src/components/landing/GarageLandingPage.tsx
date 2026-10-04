@@ -116,10 +116,9 @@ export function GarageLandingPage() {
       </section>
 
       <section className={styles.demoSection} id="live-demo">
-        <div className={styles.demoIntro}>
-          <p>LIVE PRODUCT</p>
-          <h2>読む前に、自分の店に近い状態を作って触る。</h2>
-          <span>業態・今の管理方法・見たい業務を選ぶと、デモデータと最初の画面がその場で変わります。</span>
+        <div className={styles.demoRail}>
+          <span>LIVE PRODUCT</span>
+          <p>業態・今の管理・見たい業務を選ぶと、デモデータと最初の画面がその場で変わります。</p>
         </div>
         <div className={styles.demoContainer}>
           <Suspense fallback={<div className={styles.demoLoading}>デモを準備しています...</div>}>
