@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import { useHydrated } from '@/lib/browser/useHydrated';
-import { TrackedLoginLink } from './TrackedSignupLink';
-import { BRAND } from '@/lib/brand';
+import { TrackedInquiryLink, TrackedLoginLink } from './TrackedSignupLink';
 import { Menu, X } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import styles from './garage-landing.module.css';
@@ -58,7 +57,8 @@ export function MobileNavigation() {
         <Link href="/pricing" onClick={close}>料金</Link>
         <a href="#industries" onClick={close}>業種別</a>
         <Link href="/faq" onClick={close}>FAQ</Link>
-        <a href={BRAND.inquiryUrl} target="_blank" rel="noreferrer" onClick={close}>お問い合わせ</a>
+        <Link href="/demo" onClick={close}>実画面</Link>
+        <TrackedInquiryLink placement="mobile_menu_inquiry" onClick={close}>お問い合わせ</TrackedInquiryLink>
         <TrackedLoginLink onClick={close}>ログイン</TrackedLoginLink>
       </nav>
     </div>
