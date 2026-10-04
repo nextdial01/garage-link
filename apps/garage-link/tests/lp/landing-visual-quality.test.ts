@@ -38,6 +38,23 @@ test.describe('GARAGE LINK rendered LP quality', () => {
       }));
       expect(pageWidth.scrollWidth, 'document must not horizontally overflow').toBeLessThanOrEqual(pageWidth.innerWidth + 1);
 
+      if (viewport.width <= 1140) {
+        await expect(
+          page.getByRole('navigation', { name: 'スマホメニュー' }),
+          'collapsed mobile navigation must stay visually hidden',
+        ).toBeHidden();
+      }
+
+      const heroProductBox = await page.getByAltText('GARAGE LINKの車両登録画面').first().boundingBox();
+      expect(heroProductBox, 'hero real-UI screenshot must render').not.toBeNull();
+      if (heroProductBox) {
+        const minReadableWidth = viewport.width <= 620 ? 700 : 520;
+        expect(
+          heroProductBox.width,
+          'real UI must be shown at a readable scale instead of being miniaturized',
+        ).toBeGreaterThanOrEqual(minReadableWidth);
+      }
+
       const clippedText = await page.evaluate(() => {
         const nodes = Array.from(
           document.querySelectorAll<HTMLElement>('h1,h2,h3,p,a,button,span,strong,small,li,summary'),
