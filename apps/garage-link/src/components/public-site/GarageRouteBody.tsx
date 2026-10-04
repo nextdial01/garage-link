@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { TrackedSignupLink } from "@/components/landing/TrackedSignupLink";
 import styles from "./route-layouts.module.css";
 import { GARAGE_PLAN_ORDER, GARAGE_PLANS } from "@/lib/billing/garagePlans";
@@ -83,6 +84,10 @@ function UsedCarBody() {
         <article className={styles.actionPanel}><h3>今日確認する商談</h3><ol><li>次回連絡日が今日の顧客</li><li>見積送付後に止まった商談</li><li>長期在庫にひも付く問い合わせ</li><li>納車予定日が近い案件</li></ol></article>
       </div>
     </div></section>
+    <section className={styles.detailSection}><div className={styles.shell}>
+      <div className={styles.sectionHeader}><h2>在庫管理をExcelから見直す場合</h2><p>車両台帳だけでなく、商談・見積・納車まで同じ車両で確認する考え方をまとめています。</p></div>
+      <Link className={styles.inlineCta} href="/solutions/used-car-inventory-management">中古車の在庫管理を詳しく見る</Link>
+    </div></section>
   </div>;
 }
 
@@ -115,6 +120,10 @@ function MaintenanceBody() {
     <section className={styles.scheduleSection}><div className={styles.shell}>
       <div className={styles.sectionHeader}><h2>一つの案件に、次回期限まで残す</h2><p>目の前の作業が終わったあとも、請求と次回点検・車検の時期を顧客と車両へ残します。</p></div>
       <div className={styles.caseFlow}><article><span>01</span><h3>受付</h3><p>依頼内容、担当、代車、納車予定。</p></article><article><span>02</span><h3>作業</h3><p>進行状況、追加作業、使用部品。</p></article><article><span>03</span><h3>請求・納車</h3><p>金額、入金状況、納車日。</p></article><article><span>04</span><h3>次回案内</h3><p>点検・車検の満了日と案内時期。</p></article></div>
+    </div></section>
+    <section className={styles.detailSection}><div className={styles.shell}>
+      <div className={styles.sectionHeader}><h2>顧客・車両・整備履歴をまとめたい場合</h2><p>受付から整備履歴、次回車検までを顧客・車両にひも付ける管理方法をまとめています。</p></div>
+      <Link className={styles.inlineCta} href="/solutions/maintenance-customer-management">整備工場の顧客管理を詳しく見る</Link>
     </div></section>
   </div>;
 }
