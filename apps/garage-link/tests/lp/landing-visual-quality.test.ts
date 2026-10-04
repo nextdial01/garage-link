@@ -14,7 +14,23 @@ test.describe('GARAGE LINK rendered LP quality', () => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto('/');
       await page.evaluate(() => document.fonts.ready);
-      await page.waitForTimeout(250);
+
+      // Walk the real page to trigger lazy-loaded screenshots exactly as a
+      // visitor would, then return to the top for measurements.
+      await page.evaluate(async () => {
+        const step = Math.max(360, Math.floor(window.innerHeight * 0.7));
+        for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
+          window.scrollTo(0, y);
+          await new Promise((resolve) => setTimeout(resolve, 45));
+        }
+        window.scrollTo(0, 0);
+      });
+      await page.waitForFunction(() =>
+        Array.from(document.images)
+          .filter((image) => image.alt.startsWith('GARAGE LINKの'))
+          .every((image) => image.complete && image.naturalWidth > 0),
+      );
+      await page.waitForTimeout(150);
 
       const pageWidth = await page.evaluate(() => ({
         innerWidth: window.innerWidth,
