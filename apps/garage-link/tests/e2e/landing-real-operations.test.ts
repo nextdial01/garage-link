@@ -100,6 +100,7 @@ test.describe('GARAGE LINK LP real operations', () => {
     expect(conversionEvents).toEqual(expect.arrayContaining([
       'lp_signup_cta_click',
       'signup_start',
+      'signup_form_engaged',
       'signup_submit',
     ]));
 
@@ -128,6 +129,16 @@ test.describe('GARAGE LINK LP real operations', () => {
     expect(attribution).toContain('"source":"outbound"');
     expect(attribution).toContain('"lead":"shop-001"');
     expect(attribution).toContain('"placement":"hero"');
+  });
+
+  test('outbound demo view keeps source and lead before any CTA click', async ({ page }) => {
+    await page.goto('/demo?source=outbound&lead=shop-demo-001');
+
+    const attribution = await page.evaluate(() =>
+      window.sessionStorage.getItem('garage-link-signup-attribution'),
+    );
+    expect(attribution).toContain('"source":"outbound"');
+    expect(attribution).toContain('"lead":"shop-demo-001"');
   });
 
   test('real-screen demo is public and leads to tracked signup', async ({ page }) => {
