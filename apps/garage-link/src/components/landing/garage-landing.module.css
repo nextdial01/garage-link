@@ -321,6 +321,17 @@
   margin-inline: auto;
 }
 
+.demoLoading {
+  min-height: 620px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .platformSection {
   padding: 104px 24px 112px;
   background: #fff;
