@@ -59,7 +59,7 @@ const faqs = [
 
 const pages: Record<GaragePublicPageKey, { title: string; description: string; sections: PageSection[] }> = {
   features: {
-    title: "GARAGE LINKの機能",
+    title: "車屋向け店舗管理システムの機能",
     description: "中古車販売店、バイク販売・修理店、整備工場の車両、顧客、商談、整備、見積・請求を店舗全体で確認できる管理ツールです。",
     sections: [
       {
@@ -102,8 +102,8 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
     ],
   },
   "industries/used-car": {
-    title: "中古車販売店向け管理システム",
-    description: "仕入から掲載、問い合わせ、商談、見積、請求、納車後の案内までを、対象車両を起点に確認できます。",
+    title: "中古車販売管理システム｜在庫・顧客・商談を一元管理",
+    description: "中古車販売店向けの管理システム。仕入・在庫、顧客、問い合わせ、商談、見積・請求、納車後の次回連絡までを車両単位でまとめて管理できます。",
     sections: [
       {
         title: "在庫日数と、商談の次回予定を同じ車両で確認",
@@ -118,7 +118,7 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
     ],
   },
   "industries/motorcycle": {
-    title: "バイク販売・修理店向け管理システム",
+    title: "バイク販売・修理店向け店舗管理システム",
     description: "販売車両、修理・カスタム入庫、部品、見積、納車予定を、担当者と期限が分かる形で共有します。",
     sections: [
       {
@@ -134,8 +134,8 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
     ],
   },
   "industries/maintenance": {
-    title: "整備工場・車検工場向け管理システム",
-    description: "予約、入庫、作業、部品、見積、請求、納車、次回車検までを、受付と整備の両方から確認できます。",
+    title: "整備工場向け管理システム｜顧客・車両・整備・車検を一元管理",
+    description: "整備工場・車検工場向けの管理システム。予約、顧客・車両、入庫、作業、部品、見積・請求、納車、次回車検までを一つの案件で管理できます。",
     sections: [
       {
         title: "今日の入庫と、次回車検の期限を一続きに",
