@@ -1,14 +1,16 @@
-import Image from 'next/image';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { TrackedInquiryLink, TrackedSignupLink } from '@/components/landing/TrackedSignupLink';
 import { AcquisitionPageTracker } from '@/components/analytics/AcquisitionPageTracker';
+import { GarageInteractiveDemo } from '@/components/landing/demo/GarageInteractiveDemo';
+import type { DemoScenario } from '@/components/landing/demo/garageDemoData';
 
 export type SeoIntentPageProps = {
   source: string;
   eyebrow: string;
   title: string;
   lead: string;
-  screen: { src: string; alt: string; caption: string };
+  demoScenario: DemoScenario;
   problems: Array<{ title: string; body: string }>;
   capabilities: Array<{ title: string; body: string }>;
   fit: string[];
@@ -23,7 +25,7 @@ export function SeoIntentPage({
   eyebrow,
   title,
   lead,
-  screen,
+  demoScenario,
   problems,
   capabilities,
   fit,
@@ -49,26 +51,28 @@ export function SeoIntentPage({
         </div>
       </header>
 
-      <section className="border-b border-slate-200 bg-gradient-to-b from-slate-50 to-white px-4 py-14 sm:py-20">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1fr_0.95fr]">
-          <div>
-            <p className="text-xs font-black tracking-[0.16em] text-emerald-700">{eyebrow}</p>
-            <h1 className="mt-4 text-3xl font-black leading-tight sm:text-5xl">{title}</h1>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600">{lead}</p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <TrackedSignupLink source={source} placement="seo_hero" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-blue-700 px-6 text-sm font-black text-white">
-                月額0円で試す
-              </TrackedSignupLink>
-              <Link href="/demo" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-6 text-sm font-black text-slate-700">
-                登録前に実画面を見る
-              </Link>
-            </div>
-            <p className="mt-3 text-xs text-slate-500">Free：在庫5台・スタッフ1人・1店舗。登録時にカード情報は不要です。</p>
+      <section className="border-b border-slate-200 bg-white px-4 py-14 sm:py-20">
+        <div className="mx-auto max-w-5xl text-center">
+          <p className="text-[11px] font-semibold tracking-[0.14em] text-slate-400">{eyebrow}</p>
+          <h1 className="mx-auto mt-4 max-w-4xl text-4xl font-semibold leading-[1.12] tracking-[-0.045em] text-slate-950 sm:text-6xl">{title}</h1>
+          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-slate-500 sm:text-base">{lead}</p>
+          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+            <a href="#seo-live-demo" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-slate-950 px-5 text-sm font-semibold text-white">
+              その場で触る
+            </a>
+            <TrackedSignupLink source={source} placement="seo_hero" className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700">
+              月額0円で試す
+            </TrackedSignupLink>
           </div>
-          <figure className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-            <Image src={screen.src} alt={screen.alt} width={1015} height={650} className="h-auto w-full rounded-xl border border-slate-200" unoptimized priority />
-            <figcaption className="px-2 pb-1 pt-3 text-xs leading-5 text-slate-500">{screen.caption}</figcaption>
-          </figure>
+          <p className="mt-3 text-xs text-slate-500">Free：在庫5台・スタッフ1人・1店舗。登録時にカード情報は不要です。</p>
+        </div>
+      </section>
+
+      <section id="seo-live-demo" className="border-b border-slate-200 bg-slate-50 px-3 py-10 sm:px-5 sm:py-14">
+        <div className="mx-auto max-w-[1440px]">
+          <Suspense fallback={<div className="min-h-[620px] rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">デモを準備しています...</div>}>
+            <GarageInteractiveDemo initialScenario={demoScenario} />
+          </Suspense>
         </div>
       </section>
 
