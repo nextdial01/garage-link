@@ -165,7 +165,7 @@
 .mobileMenuPanel a:hover { background: var(--soft); }
 
 .hero {
-  padding: 92px 24px 74px;
+  padding: 86px 24px 58px;
   border-bottom: 1px solid var(--line);
   background: #fff;
 }
@@ -280,18 +280,35 @@
 }
 
 .demoSection {
-  padding: 86px 22px 112px;
+  padding: 30px 22px 108px;
   background: #fafafa;
   border-bottom: 1px solid var(--line);
 }
 
-.demoIntro {
-  width: min(900px, 100%);
-  margin: 0 auto 34px;
-  text-align: center;
+.demoRail {
+  width: min(1440px, 100%);
+  min-height: 48px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  color: #777d86;
 }
 
-.demoIntro h2,
+.demoRail > span {
+  font-size: 10px;
+  font-weight: 620;
+  letter-spacing: .14em;
+}
+
+.demoRail > p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: right;
+}
+
 .sectionHead h2,
 .migrationGrid h2,
 .pricingGrid h2,
@@ -305,15 +322,6 @@
   letter-spacing: -.038em;
   font-weight: 590;
   text-wrap: balance;
-}
-
-.demoIntro > span {
-  max-width: 700px;
-  margin: 16px auto 0;
-  display: block;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.75;
 }
 
 .demoContainer {
@@ -721,15 +729,22 @@
   }
 
   .demoSection {
-    padding: 66px 10px 78px;
+    padding: 20px 10px 72px;
   }
 
-  .demoIntro {
-    width: calc(100% - 20px);
-    margin-bottom: 24px;
+  .demoRail {
+    width: calc(100% - 12px);
+    min-height: 0;
+    margin-bottom: 12px;
+    display: grid;
+    gap: 4px;
   }
 
-  .demoIntro h2,
+  .demoRail > p {
+    font-size: 10px;
+    text-align: left;
+  }
+
   .sectionHead h2,
   .migrationGrid h2,
   .pricingGrid h2,
@@ -739,8 +754,6 @@
     font-size: 31px;
     line-height: 1.18;
   }
-
-  .demoIntro > span { font-size: 12px; }
 
   .platformSection,
   .migrationSection,
