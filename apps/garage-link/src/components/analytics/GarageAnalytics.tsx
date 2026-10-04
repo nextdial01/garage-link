@@ -3,12 +3,14 @@
 import { Analytics, type BeforeSendEvent } from '@vercel/analytics/next';
 import { FunnelMeasurement } from '@/components/analytics/FunnelMeasurement';
 
-const PUBLIC_PREFIXES = ['/industries/', '/legal/'];
+const PUBLIC_PREFIXES = ['/industries/', '/solutions/', '/legal/'];
 const PUBLIC_PATHS = new Set([
   '/',
   '/login',
   '/signup',
   '/onboarding',
+  '/features',
+  '/demo',
   '/pricing',
   '/faq',
   '/help',
