@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { readSignupAttribution, trackConversion } from '@/lib/analytics/conversion';
+import { readSignupAttribution, saveSignupAttribution, trackConversion } from '@/lib/analytics/conversion';
 
 export function AcquisitionPageTracker({
   source,
@@ -12,11 +12,13 @@ export function AcquisitionPageTracker({
 }) {
   useEffect(() => {
     const attribution = readSignupAttribution(new URLSearchParams(window.location.search));
-    trackConversion('acquisition_landing_view', {
+    const effective = {
       source: attribution.source === 'direct' ? source : attribution.source,
       placement,
       lead: attribution.lead,
-    });
+    };
+    saveSignupAttribution(effective);
+    trackConversion('acquisition_landing_view', effective);
   }, [placement, source]);
 
   return null;
