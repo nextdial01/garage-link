@@ -970,8 +970,8 @@
 }
 
 @keyframes productFade {
-  from { opacity: .35; transform: scale(.985); }
-  to { opacity: 1; transform: scale(1); }
+  from { opacity: .3; }
+  to { opacity: 1; }
 }
 
 @keyframes showcaseProgress {
