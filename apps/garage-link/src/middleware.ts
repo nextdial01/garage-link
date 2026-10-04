@@ -55,6 +55,7 @@ function isPublicPath(pathname: string) {
   if (process.env.VERCEL_ENV === 'preview' && /^\/[a-f0-9]{16}\/script\.js$/.test(pathname)) return true;
   if (pathname.startsWith('/legal/')) return true;
   if (pathname.startsWith('/industries/')) return true;
+  if (pathname.startsWith('/solutions/')) return true;
   // L-LINK からのサーバー間通信は各ルートで HMAC 署名・timestamp・nonce を検証する。
   // Supabase セッションを持たないため、ログイン画面へ転送せずルート自身の認証へ渡す。
   if (pathname.startsWith('/api/s2s/line-link/')) return true;
