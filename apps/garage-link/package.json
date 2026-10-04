@@ -35,7 +35,9 @@
     "test:g1c:static": "node scripts/check-g1c-service-scope.mjs",
     "test:api:g0b": "bash scripts/db/run-g0b-api-smoke.sh",
     "verify:g0b": "bash scripts/db/run-g0b-full-ci.sh",
-    "evidence:g7": "node scripts/generate-g7-high-remediation-evidence.mjs"
+    "evidence:g7": "node scripts/generate-g7-high-remediation-evidence.mjs",
+    "start:lp-qa": "next start -p 3011",
+    "test:lp:visual": "playwright test -c playwright.lp.config.ts"
   },
   "dependencies": {
     "@garage-link/auth": "workspace:*",
