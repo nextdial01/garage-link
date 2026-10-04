@@ -125,9 +125,30 @@ test.describe('GARAGE LINK rendered LP quality', () => {
           ? element.getBoundingClientRect().height / lineHeight
           : 0;
       });
-      expect(heroLineCount, 'hero headline should remain scannable').toBeLessThanOrEqual(4.2);
+      expect(heroLineCount, 'hero headline should remain scannable').toBeLessThanOrEqual(3.2);
 
       await expect(page.locator('h1 br')).toHaveCount(0);
+      await expect(page.locator('h1 > span')).toHaveCount(3);
+
+      const overflowingHeroSegments = await page.locator('h1 > span').evaluateAll((segments) =>
+        segments.flatMap((segment) =>
+          segment.scrollWidth > segment.clientWidth + 1
+            ? [{
+                text: segment.textContent ?? '',
+                clientWidth: segment.clientWidth,
+                scrollWidth: segment.scrollWidth,
+              }]
+            : [],
+        ),
+      );
+      expect(overflowingHeroSegments, 'intentional hero lines must fit without mid-word wrapping').toEqual([]);
+
+      if (viewport.width <= 620) {
+        const stickyDemo = page.locator('a[href="/demo"][aria-hidden="true"]');
+        await expect(stickyDemo, 'sticky demo CTA must stay hidden over the hero UI').toHaveCount(1);
+        await page.locator('#garage-hero').evaluate((element) => window.scrollTo(0, element.getBoundingClientRect().bottom + window.scrollY + 80));
+        await expect(page.locator('a[href="/demo"][aria-hidden="false"]')).toHaveCount(1);
+      }
 
       // Full-page evidence should show every section even though production
       // reveals them only when they enter the viewport.
