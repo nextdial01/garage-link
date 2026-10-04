@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import {
   ArrowRight,
   Check,
@@ -121,7 +122,9 @@ export function GarageLandingPage() {
           <span>業態・今の管理方法・見たい業務を選ぶと、デモデータと最初の画面がその場で変わります。</span>
         </div>
         <div className={styles.demoContainer}>
-          <GarageInteractiveDemo />
+          <Suspense fallback={<div className={styles.demoLoading}>デモを準備しています...</div>}>
+            <GarageInteractiveDemo />
+          </Suspense>
         </div>
       </section>
 
