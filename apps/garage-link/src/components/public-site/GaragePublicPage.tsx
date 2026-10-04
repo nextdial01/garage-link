@@ -8,6 +8,7 @@ import conversionStyles from "./conversion-section.module.css";
 import refreshStyles from "./brand-hero-refresh.module.css";
 import { GarageRouteBody } from "./GarageRouteBody";
 import { TrackedInquiryLink, TrackedSignupLink } from "@/components/landing/TrackedSignupLink";
+import { AcquisitionPageTracker } from "@/components/analytics/AcquisitionPageTracker";
 
 export type GaragePublicPageKey =
   | "features"
@@ -399,6 +400,7 @@ export function GaragePublicPage({ pageKey }: { pageKey: GaragePublicPageKey }) 
 
   return (
     <main className={styles.page} data-page={pageKey}>
+      <AcquisitionPageTracker source={pageKey} placement={`public_${pageKey.replace("/", "_")}`} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <header className={styles.header}>
         <div className={`${styles.headerInner} ${refreshStyles.headerInner}`}>
