@@ -72,7 +72,7 @@ export default function HelpPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-base font-black">お問い合わせ</h2>
           <p className="mt-2 text-sm leading-7 text-slate-600">
-            登録前のご相談、契約・個人情報に関するお問い合わせは、正式窓口へメールでお送りください。
+            登録前のご相談、契約・個人情報に関するお問い合わせは、正式なお問い合わせ窓口からお送りください。
           </p>
           <TrackedInquiryLink
             source="help"
