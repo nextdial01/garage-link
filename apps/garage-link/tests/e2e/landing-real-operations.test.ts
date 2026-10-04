@@ -131,12 +131,12 @@ test.describe('GARAGE LINK LP real operations', () => {
     await demo.getByLabel('デモ車両メーカー').fill('BMW');
     await demo.getByLabel('デモ車両車名').fill('G 310 R');
     await demo.getByRole('button', { name: 'このデモに追加' }).click();
-    await expect(demo.getByText('BMW G 310 R')).toBeVisible();
+    await expect(demo.getByText('BMW G 310 R').first()).toBeVisible();
 
     await demo.getByRole('button', { name: 'この車両で商談を作る' }).click();
-    await expect(demo.getByText('BMW G 310 R 新規商談')).toBeVisible();
+    await expect(demo.getByText('BMW G 310 R 新規商談').first()).toBeVisible();
 
-    await demo.getByText('BMW G 310 R 新規商談').click();
+    await demo.getByText('BMW G 310 R 新規商談').first().click();
     await expect(demo.getByText('見積書')).toBeVisible();
     await expect(demo.getByRole('link', { name: 'この状態から無料で始める' })).toBeVisible();
 
