@@ -3,11 +3,13 @@
 import { track } from '@vercel/analytics';
 
 export type ConversionEvent =
+  | 'acquisition_landing_view'
   | 'lp_signup_cta_click'
   | 'inquiry_click'
   | 'demo_view'
   | 'demo_signup_click'
   | 'signup_start'
+  | 'signup_form_engaged'
   | 'signup_submit'
   | 'account_created'
   | 'email_confirmed'
