@@ -165,6 +165,8 @@ test.describe('GARAGE LINK rendered LP quality', () => {
         await expect(stickyDemo, 'sticky demo CTA must stay hidden over the hero UI').toHaveCount(1);
         await page.locator('#garage-hero').evaluate((element) => window.scrollTo(0, element.getBoundingClientRect().bottom + window.scrollY + 80));
         await expect(page.locator('a[href="/demo"][aria-hidden="false"]')).toHaveCount(1);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(120);
       }
 
       // Full-page evidence should show every section even though production
