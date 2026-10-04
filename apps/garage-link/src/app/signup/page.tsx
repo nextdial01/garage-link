@@ -181,7 +181,7 @@ function SignupForm() {
       return;
     }
 
-    trackConversion('account_created');
+    if (authData.user?.id) trackConversion('account_created');
 
     if (!authData.user?.id || !authData.session) {
       setInfoMessage('確認メールを送信しました。メール内のリンクを開くと、店舗情報の入力を続けられます。');
@@ -291,7 +291,7 @@ function SignupForm() {
           <li>3. まず1台を登録して実際の操作を確認</li>
         </ol>
 
-        <form onSubmit={handleSignupSubmit} className="space-y-5">
+        <form onSubmit={handleSignupSubmit} onFocusCapture={() => trackConversionOnce('signup_form_engaged')} className="space-y-5">
           <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900">
             最初はメールアドレスとパスワードだけでアカウントを作成します。店舗名と担当者名はメール確認後に1回だけ入力します。
           </div>
