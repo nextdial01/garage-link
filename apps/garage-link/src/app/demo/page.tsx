@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import BrandLogo from '@/components/BrandLogo';
 import { DemoViewTracker } from '@/components/analytics/DemoViewTracker';
+import { AcquisitionPageTracker } from '@/components/analytics/AcquisitionPageTracker';
 import { TrackedInquiryLink, TrackedSignupLink } from '@/components/landing/TrackedSignupLink';
 
 export const metadata: Metadata = {
@@ -37,7 +38,7 @@ const screens = [
 export default function DemoPage() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
-      <DemoViewTracker />
+      <AcquisitionPageTracker source="demo" placement="demo" />\n      <DemoViewTracker />
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex min-h-20 w-[min(1180px,calc(100%-32px))] items-center gap-5">
           <Link href="/" aria-label="GARAGE LINK トップ">

@@ -3,11 +3,13 @@
 import { track } from '@vercel/analytics';
 
 export type ConversionEvent =
+  | 'acquisition_landing_view'
   | 'lp_signup_cta_click'
   | 'inquiry_click'
   | 'demo_view'
   | 'demo_signup_click'
   | 'signup_start'
+  | 'signup_form_engaged'
   | 'signup_submit'
   | 'account_created'
   | 'email_confirmed'
@@ -29,9 +31,11 @@ export type ConversionEvent =
 export type FirstBusinessRecordType = 'vehicle' | 'customer' | 'maintenance';
 
 type Attribution = { source: string; placement: string; lead: string };
+type StoredAttribution = Attribution & { at: number };
 type ConversionProperties = Partial<Attribution> & { value_type?: FirstBusinessRecordType };
 
 const ATTRIBUTION_KEY = 'garage-link-signup-attribution';
+const ATTRIBUTION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const ONCE_KEY_PREFIX = 'garage-link-conversion-once:';
 const FIRST_RECORD_AT_KEY_PREFIX = 'garage-link-first-business-record-at:';
 
@@ -43,7 +47,9 @@ function safeValue(value: string | null | undefined, fallback: string) {
 function parseStoredAttribution(raw: string | null): Attribution | null {
   if (!raw) return null;
   try {
-    const stored = JSON.parse(raw) as Partial<Attribution>;
+    const stored = JSON.parse(raw) as Partial<StoredAttribution>;
+    const at = Number(stored.at);
+    if (!Number.isFinite(at) || at <= 0 || Date.now() - at > ATTRIBUTION_TTL_MS) return null;
     return {
       source: safeValue(stored.source, 'direct'),
       placement: safeValue(stored.placement, 'direct'),
@@ -67,7 +73,7 @@ export function saveSignupAttribution(attribution: Partial<Attribution>) {
     placement: safeValue(attribution.placement, 'unknown'),
     lead: safeValue(attribution.lead, 'unknown'),
   };
-  const serialized = JSON.stringify(value);
+  const serialized = JSON.stringify({ ...value, at: Date.now() } satisfies StoredAttribution);
   window.sessionStorage.setItem(ATTRIBUTION_KEY, serialized);
   window.localStorage.setItem(ATTRIBUTION_KEY, serialized);
 }
