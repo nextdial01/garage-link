@@ -11,6 +11,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/industries/used-car`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${baseUrl}/industries/motorcycle`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${baseUrl}/industries/maintenance`, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${baseUrl}/solutions/used-car-inventory-management`, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${baseUrl}/solutions/maintenance-customer-management`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${baseUrl}/faq`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${baseUrl}/help`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${baseUrl}/legal/terms`, changeFrequency: "monthly", priority: 0.2 },
