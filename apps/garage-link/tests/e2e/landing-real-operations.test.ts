@@ -117,6 +117,19 @@ test.describe('GARAGE LINK LP real operations', () => {
       await expect(page.locator(`a[href="/signup?placement=${placement}"]`)).toHaveCount(1);
     }
   });
+  test('outbound lead attribution survives the landing signup CTA', async ({ page }) => {
+    await page.goto('/?source=outbound&lead=shop-001');
+    await page.locator('a[href*="placement=hero"]').click();
+    await expect(page).toHaveURL(/\/signup\?placement=hero$/);
+
+    const attribution = await page.evaluate(() =>
+      window.sessionStorage.getItem('garage-link-signup-attribution'),
+    );
+    expect(attribution).toContain('"source":"outbound"');
+    expect(attribution).toContain('"lead":"shop-001"');
+    expect(attribution).toContain('"placement":"hero"');
+  });
+
   test('real-screen demo is public and leads to tracked signup', async ({ page }) => {
     await page.goto('/demo');
 
