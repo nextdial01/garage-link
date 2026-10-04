@@ -8,7 +8,7 @@ import { isEmailConfirmationRequired, translateAuthError } from '@/lib/auth/auth
 import { hasMinimumPasswordLength, MIN_PASSWORD_LENGTH } from '@/lib/auth/password-policy';
 import { rememberReleaseQaRun, releaseQaNextPath, releaseQaRunId, recordReleaseQaCallback } from '@/lib/auth/releaseQaCallback';
 import { controlledEmailCallbackUrl, controlledEmailConfirmationRedirect } from '@/lib/auth/controlledEmailConfirmation';
-import { readSignupAttribution, trackConversion } from '@/lib/analytics/conversion';
+import { readSignupAttribution, trackConversion, trackConversionOnce } from '@/lib/analytics/conversion';
 import { createClient, createReleaseQaManualEmailClient, isStagingReleaseQaImplicitFlow } from '@/lib/supabase/client';
 
 const RELEASE_QA_MARKER = /^\[RELEASE QA \d{8}\]$/;
@@ -33,11 +33,11 @@ function SignupForm() {
   const [isResumeOnly, setIsResumeOnly] = useState(false);
 
   useEffect(() => {
-    if (hasTrackedSignupStart.current) return;
+    if (isResumeMode || hasTrackedSignupStart.current) return;
     hasTrackedSignupStart.current = true;
     const attribution = readSignupAttribution(new URLSearchParams(searchParams.toString()));
     trackConversion('signup_start', attribution);
-  }, [searchParams]);
+  }, [isResumeMode, searchParams]);
 
   useEffect(() => {
     rememberReleaseQaRun(qaRunId);
@@ -58,6 +58,8 @@ function SignupForm() {
         setIsBootstrapping(false);
         return;
       }
+
+      trackConversionOnce('email_confirmed');
 
       const { data: accessibleStoreIds } = await supabase.rpc('current_user_store_ids', {});
 
@@ -143,7 +145,14 @@ function SignupForm() {
     setIsSubmitting(true);
     const supabase = createReleaseQaManualEmailClient(qaRunId);
 
-    const nextPath = releaseQaNextPath('/signup?resume=1', qaRunId);
+    const attribution = readSignupAttribution(new URLSearchParams(searchParams.toString()));
+    const resumeParams = new URLSearchParams({
+      resume: '1',
+      source: attribution.source,
+      placement: attribution.placement,
+      lead: attribution.lead,
+    });
+    const nextPath = releaseQaNextPath(`/signup?${resumeParams.toString()}`, qaRunId);
     let emailRedirectTo: string;
     try {
       const confirmOrigin = process.env.NEXT_PUBLIC_AUTH_CONFIRM_ORIGIN ?? '';
@@ -179,14 +188,8 @@ function SignupForm() {
       return;
     }
 
-    const ok = await createStoreForUser(supabase);
     setIsSubmitting(false);
-
-    if (ok) {
-      await recordReleaseQaCallback(qaRunId, 'store_created', releaseQaNextPath('/signup?resume=1', qaRunId));
-      trackConversion('signup_complete');
-      router.replace('/onboarding');
-    }
+    router.replace(nextPath);
   }
 
   if (isBootstrapping) {
@@ -264,8 +267,6 @@ function SignupForm() {
 
   const canSubmit =
     acceptedTerms &&
-    storeName.trim() &&
-    displayName.trim() &&
     email.trim() &&
     hasMinimumPasswordLength(password) &&
     password === passwordConfirmation &&
@@ -279,47 +280,19 @@ function SignupForm() {
           <p className="mt-4 text-xs font-bold tracking-[0.2em] text-blue-600">STEP 1 / 2</p>
           <h1 className="mt-2 text-2xl font-bold">アカウント作成</h1>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            無料プランから始められます。入力後、初期設定（約3分）に進みます。
+            無料プランから始められます。アカウント作成後、店舗名を登録してすぐに1台目を試せます。
           </p>
         </div>
 
         <ol className="mb-6 space-y-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-          <li className="font-bold text-blue-700">1. この画面で登録</li>
-          <li>2. 店舗の基本情報を登録（オンボーディング）</li>
-          <li>3. ダッシュボードから在庫登録を開始</li>
+          <li className="font-bold text-blue-700">1. メールアドレスでアカウント作成</li>
+          <li>2. メール確認後に店舗名・担当者名を登録</li>
+          <li>3. まず1台を登録して実際の操作を確認</li>
         </ol>
 
         <form onSubmit={handleSignupSubmit} className="space-y-5">
-          <div>
-            <label htmlFor="storeName" className="mb-2 block text-sm font-bold text-slate-700">
-              店舗名 <span className="text-red-600">*</span>
-            </label>
-            <input
-              id="storeName"
-              type="text"
-              value={storeName}
-              onChange={(event) => setStoreName(event.target.value)}
-              required
-              placeholder="例: かんなぎモータース"
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-            />
-            <p className="mt-1 text-xs text-slate-500">見積書・請求書に表示される名称です</p>
-          </div>
-
-          <div>
-            <label htmlFor="displayName" className="mb-2 block text-sm font-bold text-slate-700">
-              担当者名 <span className="text-red-600">*</span>
-            </label>
-            <input
-              id="displayName"
-              type="text"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              required
-              placeholder="例: 田中 太郎"
-              className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-            />
-            <p className="mt-1 text-xs text-slate-500">後から変更できます</p>
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900">
+            最初はメールアドレスとパスワードだけでアカウントを作成します。店舗名と担当者名はメール確認後に1回だけ入力します。
           </div>
 
           <div>
