@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { TrackedSignupLink } from "@/components/landing/TrackedSignupLink";
 import styles from "./route-layouts.module.css";
 import { GARAGE_PLAN_ORDER, GARAGE_PLANS } from "@/lib/billing/garagePlans";
 
@@ -46,7 +46,7 @@ function PricingBody() {
               <span className={styles.planBadge}>{plan.note}</span><h2>{plan.name}</h2>
               <div className={styles.price}><strong>{plan.price}</strong><span>円／月・請求総額</span></div>
               <dl><div><dt>在庫</dt><dd>{plan.inventory}</dd></div><div><dt>スタッフ</dt><dd>{plan.staff}</dd></div><div><dt>店舗</dt><dd>{plan.stores}</dd></div><div><dt>見積・請求</dt><dd>{plan.quote}</dd></div></dl>
-              {plan.name === "Free" && <Link className={styles.inlineCta} href="/signup">無料で始める</Link>}
+              {plan.name === "Free" && <TrackedSignupLink source="pricing" placement="pricing_free_plan" className={styles.inlineCta}>無料で始める</TrackedSignupLink>}
             </article>)}
           </div>
           <p className={styles.taxNote}>
