@@ -1133,6 +1133,11 @@
   .sceneReverse .sceneMedia { order: initial; }
 
   .sceneCopy { max-width: 650px; }
+
+  .proofStripInner { grid-template-columns: repeat(2, 1fr); }
+  .proofStripInner span:nth-child(n+3) { border-top: 1px solid rgba(8,47,82,.09); }
+  .proofStripInner span:nth-child(even) { border-right: 1px solid rgba(8,47,82,.09); }
+
   .industryLinks { grid-template-columns: 1fr; }
   .industryLinks a { min-height: 90px; border-left: 0; border-bottom: 1px solid rgba(255,255,255,.13); }
   .industryLinks a:last-child { border-right: 0; border-bottom: 0; }
