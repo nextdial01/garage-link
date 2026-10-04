@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import styles from './garage-landing.module.css';
 
 const screens = [
@@ -33,7 +33,19 @@ const screens = [
 
 export function ProductShowcase() {
   const [activeKey, setActiveKey] = useState<(typeof screens)[number]['key']>('vehicle');
+  const [paused, setPaused] = useState(false);
   const active = screens.find((screen) => screen.key === activeKey) ?? screens[0];
+
+  useEffect(() => {
+    if (paused || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const timer = window.setInterval(() => {
+      setActiveKey((current) => {
+        const currentIndex = screens.findIndex((screen) => screen.key === current);
+        return screens[(currentIndex + 1) % screens.length].key;
+      });
+    }, 4600);
+    return () => window.clearInterval(timer);
+  }, [paused]);
 
   function moveTab(currentIndex: number, direction: 'next' | 'prev' | 'first' | 'last') {
     const nextIndex =
@@ -47,7 +59,15 @@ export function ProductShowcase() {
   }
 
   return (
-    <div className={styles.productShowcase}>
+    <div
+      className={styles.productShowcase}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false);
+      }}
+    >
       <div className={styles.browserBar} aria-hidden="true">
         <span /><span /><span />
         <div>garage-link.tech</div>
@@ -91,15 +111,18 @@ export function ProductShowcase() {
         role="tabpanel"
         aria-labelledby={`garage-product-tab-${active.key}`}
       >
-        <Image
-          key={active.src}
-          src={active.src}
-          alt={active.alt}
-          width={1015}
-          height={650}
-          priority={active.key === 'vehicle'}
-          sizes="(max-width: 960px) 100vw, 54vw"
-        />
+        <div className={styles.productScreenCanvas} data-screen={active.key}>
+          <Image
+            key={active.src}
+            src={active.src}
+            alt={active.alt}
+            width={1015}
+            height={650}
+            priority={active.key === 'vehicle'}
+            sizes="(max-width: 960px) 760px, 54vw"
+          />
+        </div>
+        {!paused && <span key={active.key} className={styles.showcaseProgress} aria-hidden="true" />}
       </div>
       <div className={styles.productCaption}>
         <strong>{active.title}</strong>

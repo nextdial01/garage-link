@@ -1,87 +1,94 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   ArrowRight,
-  Building2,
+  CalendarClock,
   CarFront,
   Check,
   CheckCircle2,
   FileSpreadsheet,
   FileText,
-  Gauge,
+  MessageSquareText,
+  ReceiptText,
   ShieldCheck,
+  StickyNote,
   Upload,
   UsersRound,
   Wrench,
-  X,
 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { AcquisitionPageTracker } from '@/components/analytics/AcquisitionPageTracker';
-import { GARAGE_PLAN_ORDER, GARAGE_PLANS } from '@/lib/billing/garagePlans';
+import { GARAGE_PLANS } from '@/lib/billing/garagePlans';
+import { LandingMotion } from './LandingMotion';
 import { MobileNavigation } from './MobileNavigation';
+import { MobileStickyDemoCta } from './MobileStickyDemoCta';
 import { ProductShowcase } from './ProductShowcase';
 import { TrackedInquiryLink, TrackedLoginLink, TrackedSignupLink } from './TrackedSignupLink';
 import styles from './garage-landing.module.css';
 
-const beforeAfter = [
-  {
-    before: '在庫はExcel、顧客は別台帳',
-    after: '車両・顧客・商談を同じ店舗台帳へ',
-  },
-  {
-    before: '見積・請求で同じ情報を再入力',
-    after: '登録済みの車両・顧客情報を業務へつなぐ',
-  },
-  {
-    before: '担当者しか次の連絡日を知らない',
-    after: '来店・連絡・納車・期限を店舗で共有',
-  },
-  {
-    before: '長期在庫や追客漏れを後から発見',
-    after: '今日確認する仕事を先に見つける',
-  },
+const flowSources = [
+  { label: 'Excel', icon: FileSpreadsheet },
+  { label: '紙の台帳', icon: FileText },
+  { label: '個人メモ', icon: StickyNote },
+  { label: '別々の連絡履歴', icon: MessageSquareText },
 ] as const;
 
-const workflow = [
-  ['01', '車両', '仕入・原価・在庫状態'],
-  ['02', '顧客', '問い合わせ・希望条件'],
-  ['03', '商談', '見積・次回連絡'],
-  ['04', '整備', '作業・部品・納車予定'],
-  ['05', '次回', '点検・車検の期限'],
+const flowOutputs = [
+  { label: '顧客', icon: UsersRound },
+  { label: '商談・見積', icon: ReceiptText },
+  { label: '整備', icon: Wrench },
+  { label: '次回期限', icon: CalendarClock },
+] as const;
+
+const productScenes = [
+  {
+    number: '01',
+    kicker: 'REGISTER',
+    title: 'まず、1台を登録する。',
+    body: '仕入・販売価格、車両情報、古物情報まで、販売中の1台から始められます。',
+    points: ['過去データを全部移さなくていい', '登録した車両を商談・見積へつなげる'],
+    src: '/product-screens/vehicle-entry.png',
+    alt: 'GARAGE LINKの車両登録画面',
+    scene: 'vehicle',
+  },
+  {
+    number: '02',
+    kicker: 'TODAY',
+    title: '次に動く仕事が見える。',
+    body: '来店・試乗・整備予約を、担当者と対象車両まで含めて確認します。',
+    points: ['今日の予約と未完了を確認', '顧客と車両へそのまま移動'],
+    src: '/product-screens/appointments.png',
+    alt: 'GARAGE LINKの来店・試乗予約画面',
+    scene: 'appointments',
+  },
+  {
+    number: '03',
+    kicker: 'CHECK',
+    title: '在庫と商談の詰まりを見落とさない。',
+    body: '登録したデータから、在庫・顧客・商談・整備の状況を店舗単位で確認します。',
+    points: ['長期在庫や商談状況を確認', '感覚ではなく同じデータから判断'],
+    src: '/product-screens/analytics.png',
+    alt: 'GARAGE LINKの分析画面',
+    scene: 'analytics',
+  },
 ] as const;
 
 const industries = [
-  {
-    title: '中古車販売',
-    description: '仕入、在庫、問い合わせ、商談、見積、納車までを車両単位で。',
-    href: '/industries/used-car',
-    icon: CarFront,
-  },
-  {
-    title: '整備工場・車検',
-    description: '予約、入庫、作業、部品、請求、次回車検までを一つの案件で。',
-    href: '/industries/maintenance',
-    icon: Wrench,
-  },
-  {
-    title: 'バイク販売・修理',
-    description: '販売車両と修理入庫を分けず、担当者と期限が見える形で共有。',
-    href: '/industries/motorcycle',
-    icon: Gauge,
-  },
+  { label: '中古車販売', href: '/industries/used-car', sub: '在庫 → 商談 → 納車' },
+  { label: '整備工場・車検', href: '/industries/maintenance', sub: '予約 → 作業 → 次回車検' },
+  { label: 'バイク販売・修理', href: '/industries/motorcycle', sub: '販売車両 + 修理入庫' },
 ] as const;
 
 const fitItems = [
-  'Excel・紙・複数の台帳に情報が分かれている',
-  '少人数の店舗で、在庫から商談・整備までまとめたい',
-  'まず少数の車両で試してから本格導入を判断したい',
-  '顧客・車両データをCSVで持ち出せる状態を保ちたい',
+  'Excel・紙・複数台帳に情報が分かれている',
+  '少人数で在庫・顧客・商談・整備を共有したい',
+  'まず少数の車両で試してから判断したい',
 ] as const;
 
 const notFitItems = [
-  '複数の中古車広告媒体へ自動で一括掲載することが最優先',
+  '広告媒体への自動一括掲載だけが最優先',
   'メーカー・FC指定の基幹システムを変更できない',
-  '検査ライン機器など専用ハードウェア連携が必須',
-  '大規模ディーラー向けDMS・基幹会計の置き換えが目的',
+  '専用ハードウェアや大規模DMS連携が必須',
 ] as const;
 
 const faqItems = [
@@ -90,31 +97,17 @@ const faqItems = [
     a: 'Freeプランは月額0円で、在庫5台、スタッフ1人、1店舗、見積・請求は月5件まで利用できます。登録時にカード情報は不要です。',
   },
   {
-    q: 'Excelのデータから始められますか？',
-    a: '顧客情報と車両情報はCSVの入出力に対応しています。最初から全件を移さず、販売中の車両1台から試すこともできます。',
+    q: 'Excelから始められますか？',
+    a: '顧客情報と車両情報はCSVの入出力に対応しています。まず1台だけ登録して試すこともできます。',
   },
   {
-    q: '登録後に細かい設定を全部決める必要がありますか？',
-    a: 'いいえ。最初は店舗名など最低限を登録し、1台目の車両登録へ進めます。集計基準や主タブなどは後から変更できます。',
-  },
-  {
-    q: 'スタッフごとに見られる範囲を分けられますか？',
-    a: 'はい。店舗内の役割に応じて閲覧・操作範囲を分けられます。',
+    q: '最初に細かい設定が必要ですか？',
+    a: 'いいえ。店舗名など最低限を登録したら、先に1台目の車両登録へ進めます。集計基準などは後から変更できます。',
   },
 ] as const;
 
-const plans = GARAGE_PLAN_ORDER.map((code) => {
-  const plan = GARAGE_PLANS[code];
-  return {
-    code,
-    name: plan.name,
-    price: plan.monthlyPrice,
-    inventory: plan.inventoryLimit,
-    staff: plan.includedStaffCount,
-    stores: plan.includedStoreCount,
-    documents: plan.quoteInvoiceLimit === null ? '上限なし' : `月${plan.quoteInvoiceLimit}件`,
-  };
-});
+const freePlan = GARAGE_PLANS.free;
+const paidPlans = [GARAGE_PLANS.starter, GARAGE_PLANS.standard, GARAGE_PLANS.pro];
 
 export function GarageLandingPage() {
   const structuredData = {
@@ -132,6 +125,7 @@ export function GarageLandingPage() {
   return (
     <main className={styles.page}>
       <AcquisitionPageTracker source="landing" placement="home" />
+      <LandingMotion />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
 
       <header className={styles.header}>
@@ -141,10 +135,9 @@ export function GarageLandingPage() {
           </Link>
           <nav className={styles.nav} aria-label="メインナビゲーション">
             <Link href="/demo">実画面</Link>
-            <a href="#features">機能</a>
+            <a href="#product">使い方</a>
             <a href="#industries">業種別</a>
             <Link href="/pricing">料金</Link>
-            <Link href="/faq">FAQ</Link>
             <TrackedInquiryLink placement="header_inquiry">お問い合わせ</TrackedInquiryLink>
           </nav>
           <TrackedLoginLink className={styles.loginLink}>ログイン</TrackedLoginLink>
@@ -153,21 +146,24 @@ export function GarageLandingPage() {
         </div>
       </header>
 
-      <section className={styles.hero}>
+      <section className={styles.hero} id="garage-hero">
         <div className={styles.heroBackdrop} aria-hidden="true" />
         <div className={styles.container}>
           <div className={styles.heroLayout}>
-            <div className={styles.heroCopy}>
+            <div className={styles.heroCopy} data-lp-reveal>
               <p className={styles.eyebrow}>中古車販売・整備工場・バイク店向け</p>
-              <h1>車屋の在庫・顧客・商談・整備を、<br />1台の車両からひとつに。</h1>
+              <h1>
+                <span>在庫・顧客・商談を、</span>
+                <span>整備まで、</span>
+                <span>1台の車両につなぐ。</span>
+              </h1>
               <p className={styles.heroLead}>
                 Excel、紙、個人メモに散らばる情報をGARAGE LINKへ。
-                <br className={styles.desktopBreak} />
                 今日やる仕事と、その車両の履歴を同じ店舗台帳で確認できます。
               </p>
               <div className={styles.heroActions}>
                 <Link href="/demo" className={styles.primaryCta}>
-                  実際の画面を60秒で見る <ArrowRight aria-hidden="true" />
+                  実画面を見る <ArrowRight aria-hidden="true" />
                 </Link>
                 <TrackedSignupLink placement="hero" className={styles.secondaryCta}>無料で試す</TrackedSignupLink>
               </div>
@@ -177,226 +173,203 @@ export function GarageLandingPage() {
                 <span><Check aria-hidden="true" /> 在庫5台まで</span>
               </div>
             </div>
-            <ProductShowcase />
-          </div>
-        </div>
-      </section>
-
-      <section className={styles.quickProof} aria-label="GARAGE LINKの要点">
-        <div className={styles.container}>
-          <div className={styles.quickProofGrid}>
-            <div><strong>実画面を公開</strong><span>登録前に製品UIを確認</span></div>
-            <div><strong>顧客・車両CSV</strong><span>入出力に対応</span></div>
-            <div><strong>役割別の権限</strong><span>スタッフごとに操作範囲を分離</span></div>
-            <div><strong>Freeから開始</strong><span>必要になってからプラン変更</span></div>
-          </div>
-        </div>
-      </section>
-
-      <section className={styles.problemSection} id="features" aria-labelledby="problem-title">
-        <div className={styles.container}>
-          <div className={styles.sectionIntro}>
-            <p className={styles.sectionKicker}>BEFORE / AFTER</p>
-            <h2 id="problem-title">「どこにある？」を減らすための店舗台帳。</h2>
-            <p>機能を増やすことより、車両に関する情報を探し直さない状態を作ることを優先しています。</p>
-          </div>
-          <div className={styles.compareGrid}>
-            <div className={styles.compareColumn}>
-              <span className={styles.compareLabel}>いま起きやすいこと</span>
-              {beforeAfter.map((item) => (
-                <div className={styles.compareRowMuted} key={item.before}>
-                  <X aria-hidden="true" />
-                  <span>{item.before}</span>
-                </div>
-              ))}
-            </div>
-            <div className={styles.compareColumnStrong}>
-              <span className={styles.compareLabel}>GARAGE LINK</span>
-              {beforeAfter.map((item) => (
-                <div className={styles.compareRowStrong} key={item.after}>
-                  <CheckCircle2 aria-hidden="true" />
-                  <span>{item.after}</span>
-                </div>
-              ))}
+            <div data-lp-reveal>
+              <ProductShowcase />
             </div>
           </div>
         </div>
       </section>
 
-      <section className={styles.workflowSection} aria-labelledby="workflow-title">
+      <section className={styles.proofStrip} aria-label="GARAGE LINKの要点">
         <div className={styles.container}>
-          <div className={styles.sectionIntro}>
-            <p className={styles.sectionKicker}>ONE VEHICLE, ONE FLOW</p>
-            <h2 id="workflow-title">1台の車両に、仕事の続きが残る。</h2>
-            <p>在庫だけ、顧客だけではなく、問い合わせから納車後の期限までを同じ流れで確認します。</p>
+          <div className={styles.proofStripInner}>
+            <span><strong>実UI</strong> 登録前に確認</span>
+            <span><strong>CSV</strong> 顧客・車両を入出力</span>
+            <span><strong>権限</strong> スタッフ別に管理</span>
+            <span><strong>Free</strong> 必要になるまで0円</span>
           </div>
-          <ol className={styles.workflowRail}>
-            {workflow.map(([number, title, body]) => (
-              <li key={number}>
-                <span>{number}</span>
-                <strong>{title}</strong>
-                <p>{body}</p>
-              </li>
+        </div>
+      </section>
+
+      <section className={styles.flowSection} id="product" aria-labelledby="flow-title">
+        <div className={styles.container}>
+          <div className={styles.flowIntro} data-lp-reveal>
+            <p className={styles.sectionKicker}>FROM SCATTERED TO ONE FLOW</p>
+            <h2 id="flow-title">バラバラの情報を、車両を中心に戻す。</h2>
+          </div>
+          <div className={styles.flowDiagram} data-lp-reveal>
+            <div className={styles.flowSources} aria-label="現在の管理場所">
+              {flowSources.map((item) => {
+                const Icon = item.icon;
+                return <span key={item.label}><Icon aria-hidden="true" />{item.label}</span>;
+              })}
+            </div>
+            <div className={styles.flowConnector} aria-hidden="true"><i /></div>
+            <div className={styles.flowHub}>
+              <span><CarFront aria-hidden="true" /></span>
+              <strong>1台の車両</strong>
+              <small>GARAGE LINK</small>
+            </div>
+            <div className={styles.flowConnector} aria-hidden="true"><i /></div>
+            <div className={styles.flowOutputs} aria-label="つながる業務">
+              {flowOutputs.map((item) => {
+                const Icon = item.icon;
+                return <span key={item.label}><Icon aria-hidden="true" />{item.label}</span>;
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.scenesSection} aria-label="GARAGE LINKの実画面で見る使い方">
+        <div className={styles.container}>
+          {productScenes.map((scene, index) => (
+            <article
+              className={[styles.scene, index % 2 === 1 ? styles.sceneReverse : ''].filter(Boolean).join(' ')}
+              key={scene.number}
+              data-lp-reveal
+            >
+              <div className={styles.sceneCopy}>
+                <span className={styles.sceneNumber}>{scene.number}</span>
+                <p className={styles.sectionKicker}>{scene.kicker}</p>
+                <h2>{scene.title}</h2>
+                <p>{scene.body}</p>
+                <ul>
+                  {scene.points.map((point) => <li key={point}><CheckCircle2 aria-hidden="true" />{point}</li>)}
+                </ul>
+              </div>
+              <div className={styles.sceneMedia}>
+                <div className={styles.sceneBrowser}>
+                  <div className={styles.sceneBrowserBar} aria-hidden="true"><span /><span /><span /></div>
+                  <div className={styles.sceneCanvas} data-scene={scene.scene}>
+                    <Image src={scene.src} alt={scene.alt} width={1015} height={650} sizes="(max-width: 720px) 760px, 56vw" />
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.industryBand} id="industries" aria-labelledby="industries-title">
+        <div className={styles.container}>
+          <div className={styles.industryBandHeader} data-lp-reveal>
+            <p className={styles.sectionKicker}>CHOOSE YOUR WORKFLOW</p>
+            <h2 id="industries-title">店の仕事に近い入口から見る。</h2>
+          </div>
+          <div className={styles.industryLinks} data-lp-reveal>
+            {industries.map((industry) => (
+              <Link href={industry.href} key={industry.label}>
+                <span>{industry.label}</span>
+                <small>{industry.sub}</small>
+                <ArrowRight aria-hidden="true" />
+              </Link>
             ))}
-          </ol>
-          <div className={styles.workflowCta}>
-            <Link href="/demo">3つの実画面を見る <ArrowRight aria-hidden="true" /></Link>
           </div>
         </div>
       </section>
 
-      <section className={styles.industrySection} id="industries" aria-labelledby="industry-title">
+      <section className={styles.startSmallSection} aria-labelledby="start-small-title">
         <div className={styles.container}>
-          <div className={styles.sectionIntro}>
-            <p className={styles.sectionKicker}>FOR YOUR BUSINESS</p>
-            <h2 id="industry-title">業態ごとに、最初に見る画面が違う。</h2>
-            <p>同じ機能一覧を押し付けず、店舗の仕事に近い入口から確認できます。</p>
-          </div>
-          <div className={styles.industryGrid}>
-            {industries.map((industry) => {
-              const Icon = industry.icon;
-              return (
-                <Link href={industry.href} className={styles.industryCard} key={industry.title}>
-                  <span className={styles.industryIcon}><Icon aria-hidden="true" /></span>
-                  <h3>{industry.title}</h3>
-                  <p>{industry.description}</p>
-                  <strong>詳しく見る <ArrowRight aria-hidden="true" /></strong>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <section className={styles.migrationSection} aria-labelledby="migration-title">
-        <div className={styles.container}>
-          <div className={styles.migrationLayout}>
-            <div className={styles.sectionIntro}>
+          <div className={styles.startSmallLayout}>
+            <div data-lp-reveal>
               <p className={styles.sectionKicker}>START SMALL</p>
-              <h2 id="migration-title">全部移してから試す必要はありません。</h2>
-              <p>まず1台。合わなければそこで止める。既存データがある場合は顧客・車両CSVを使えます。</p>
+              <h2 id="start-small-title">全部移してから試す必要はありません。</h2>
+              <p>まず1台。合うと分かってから、必要なデータだけ増やせます。</p>
             </div>
-            <div className={styles.migrationSteps}>
-              <article>
-                <span><FileSpreadsheet aria-hidden="true" /></span>
-                <div><strong>既存データがある</strong><p>顧客・車両CSVをプレビューしてから取り込み。CSV出力にも対応しています。</p></div>
-              </article>
-              <article>
-                <span><CarFront aria-hidden="true" /></span>
-                <div><strong>まず試したい</strong><p>販売中・入庫中の車両を1台だけ登録し、実際の操作で判断できます。</p></div>
-              </article>
-              <article>
-                <span><Upload aria-hidden="true" /></span>
-                <div><strong>細かい設定は後で</strong><p>集計基準や主タブなどは後から変更可能。最初の設定量を抑えています。</p></div>
-              </article>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className={styles.fitSection} aria-labelledby="fit-title">
-        <div className={styles.container}>
-          <div className={styles.sectionIntro}>
-            <p className={styles.sectionKicker}>FIT CHECK</p>
-            <h2 id="fit-title">向いている店も、向かない店も先に書きます。</h2>
-            <p>登録件数を増やすより、実際に使える店舗へ届くことを優先します。</p>
-          </div>
-          <div className={styles.fitGrid}>
-            <article className={styles.fitGood}>
-              <h3><CheckCircle2 aria-hidden="true" /> 向いている店舗</h3>
-              <ul>{fitItems.map((item) => <li key={item}>{item}</li>)}</ul>
-            </article>
-            <article className={styles.fitOther}>
-              <h3><ShieldCheck aria-hidden="true" /> 他サービスも比較した方がよい店舗</h3>
-              <ul>{notFitItems.map((item) => <li key={item}>{item}</li>)}</ul>
-            </article>
+            <ol className={styles.startSteps} data-lp-reveal>
+              <li><span><CarFront aria-hidden="true" /></span><strong>1台だけ登録</strong><small>販売中・入庫中の車から</small></li>
+              <li><span><FileSpreadsheet aria-hidden="true" /></span><strong>必要ならCSV</strong><small>顧客・車両をプレビューして取込</small></li>
+              <li><span><Upload aria-hidden="true" /></span><strong>設定は後から</strong><small>集計基準や主タブを後で調整</small></li>
+            </ol>
           </div>
         </div>
       </section>
 
       <section className={styles.pricingSection} aria-labelledby="pricing-title">
         <div className={styles.container}>
-          <div className={styles.pricingHeader}>
-            <div className={styles.sectionIntro}>
-              <p className={styles.sectionKicker}>PRICING</p>
-              <h2 id="pricing-title">月額0円から。規模が増えたら変更。</h2>
-              <p>最初から有料契約を前提にしません。Freeで店舗業務に合うか確認できます。</p>
+          <div className={styles.pricingLayout}>
+            <div className={styles.freePlan} data-lp-reveal>
+              <p className={styles.sectionKicker}>FREE PLAN</p>
+              <h2 id="pricing-title">まず0円で、実際の店の仕事に使う。</h2>
+              <p className={styles.freePrice}><strong>0</strong><span>円 / 月</span></p>
+              <ul>
+                <li><Check aria-hidden="true" /> 在庫 {freePlan.inventoryLimit}台</li>
+                <li><Check aria-hidden="true" /> スタッフ {freePlan.includedStaffCount}人</li>
+                <li><Check aria-hidden="true" /> 1店舗</li>
+                <li><Check aria-hidden="true" /> 見積・請求 月{freePlan.quoteInvoiceLimit}件</li>
+              </ul>
+              <TrackedSignupLink placement="pricing_free" className={styles.pricingCta}>Freeで試す <ArrowRight aria-hidden="true" /></TrackedSignupLink>
             </div>
-            <Link href="/pricing" className={styles.textLink}>料金の詳細を見る <ArrowRight aria-hidden="true" /></Link>
+            <div className={styles.paidPlanRail} data-lp-reveal>
+              <p>規模が増えたら変更</p>
+              {paidPlans.map((plan) => (
+                <Link href="/pricing" key={plan.code}>
+                  <div><strong>{plan.name}</strong><small>在庫 {plan.inventoryLimit}台 / スタッフ {plan.includedStaffCount}人</small></div>
+                  <span>{plan.monthlyPrice.toLocaleString('ja-JP')}円<small>/月</small></span>
+                </Link>
+              ))}
+              <small className={styles.taxNote}>表示額は10%相当額を含む請求総額です。</small>
+            </div>
           </div>
-          <div className={styles.planGrid}>
-            {plans.map((plan) => (
-              <article className={plan.code === 'free' ? styles.planFeatured : styles.planCard} key={plan.code}>
-                <div className={styles.planTop}>
-                  <span>{plan.name}</span>
-                  {plan.code === 'free' && <em>まず試す</em>}
-                </div>
-                <p className={styles.planPrice}><strong>{plan.price.toLocaleString('ja-JP')}</strong><span>円 / 月</span></p>
-                <ul>
-                  <li>在庫 {plan.inventory}台</li>
-                  <li>スタッフ {plan.staff}人</li>
-                  <li>{plan.stores}店舗</li>
-                  <li>見積・請求 {plan.documents}</li>
-                </ul>
-              </article>
-            ))}
-          </div>
-          <p className={styles.pricingNote}>有料プランの表示額は10%相当額を含む請求総額です。</p>
         </div>
       </section>
 
-      <section className={styles.trustSection} aria-labelledby="trust-title">
+      <section className={styles.fitTrustSection} aria-labelledby="fit-title">
         <div className={styles.container}>
-          <div className={styles.trustLayout}>
-            <div className={styles.sectionIntro}>
-              <p className={styles.sectionKicker}>TRUST</p>
-              <h2 id="trust-title">導入判断に必要な情報を、登録前に確認できます。</h2>
-              <p>製品画面、料金、データの持ち出し方法、権限、運営会社、問い合わせ窓口まで公開しています。</p>
+          <div className={styles.fitTrustGrid}>
+            <div className={styles.fitPanel} data-lp-reveal>
+              <p className={styles.sectionKicker}>FIT CHECK</p>
+              <h2 id="fit-title">こういう店に向いています。</h2>
+              <ul>{fitItems.map((item) => <li key={item}><CheckCircle2 aria-hidden="true" />{item}</li>)}</ul>
             </div>
-            <div className={styles.trustGrid}>
-              <article><span><FileText aria-hidden="true" /></span><strong>利用条件を公開</strong><p>料金、Free上限、利用規約、プライバシーポリシーを登録前に確認できます。</p></article>
-              <article><span><FileSpreadsheet aria-hidden="true" /></span><strong>CSVで持ち出せる</strong><p>顧客・車両情報はCSV出力に対応。データを閉じ込めない運用を選べます。</p></article>
-              <article><span><UsersRound aria-hidden="true" /></span><strong>権限を分ける</strong><p>店舗内の役割に応じて、スタッフの閲覧・操作範囲を分けられます。</p></article>
-              <article><span><Building2 aria-hidden="true" /></span><strong>株式会社かんなぎが運営</strong><p>問い合わせ窓口と法務情報を公開し、登録前でも確認できる状態にしています。</p></article>
+            <div className={styles.notFitPanel} data-lp-reveal>
+              <p className={styles.sectionKicker}>NOT FOR EVERYONE</p>
+              <h3>別の専用システムも比較した方がいい場合。</h3>
+              <ul>{notFitItems.map((item) => <li key={item}>{item}</li>)}</ul>
             </div>
-            <div className={styles.trustActions}>
-              <TrackedInquiryLink placement="trust_inquiry" className={styles.outlineButton}>登録前に問い合わせる</TrackedInquiryLink>
-              <Link href="/legal/privacy" className={styles.textLink}>プライバシーポリシー</Link>
-              <Link href="/legal/terms" className={styles.textLink}>利用規約</Link>
-            </div>
+          </div>
+          <div className={styles.trustLine} data-lp-reveal>
+            <span><ShieldCheck aria-hidden="true" /><strong>登録前に確認できる</strong></span>
+            <Link href="/legal/privacy">プライバシー</Link>
+            <Link href="/legal/terms">利用規約</Link>
+            <TrackedInquiryLink placement="trust_inquiry">お問い合わせ</TrackedInquiryLink>
+            <span className={styles.operator}>運営：株式会社かんなぎ</span>
           </div>
         </div>
       </section>
 
       <section className={styles.faqSection} aria-labelledby="faq-title">
         <div className={styles.container}>
-          <div className={styles.sectionIntro}>
-            <p className={styles.sectionKicker}>FAQ</p>
-            <h2 id="faq-title">登録前によく確認されること。</h2>
+          <div className={styles.faqLayout}>
+            <div data-lp-reveal>
+              <p className={styles.sectionKicker}>FAQ</p>
+              <h2 id="faq-title">登録前の3つだけ。</h2>
+              <Link href="/faq" className={styles.textLink}>FAQをすべて見る <ArrowRight aria-hidden="true" /></Link>
+            </div>
+            <div className={styles.faqList} data-lp-reveal>
+              {faqItems.map((item) => (
+                <details key={item.q}>
+                  <summary>{item.q}<span aria-hidden="true">＋</span></summary>
+                  <p>{item.a}</p>
+                </details>
+              ))}
+            </div>
           </div>
-          <div className={styles.faqList}>
-            {faqItems.map((item) => (
-              <details key={item.q}>
-                <summary>{item.q}<span aria-hidden="true">＋</span></summary>
-                <p>{item.a}</p>
-              </details>
-            ))}
-          </div>
-          <Link href="/faq" className={styles.textLink}>FAQをすべて見る <ArrowRight aria-hidden="true" /></Link>
         </div>
       </section>
 
       <section className={styles.finalSection} aria-labelledby="final-title">
         <div className={styles.finalGlow} aria-hidden="true" />
         <div className={styles.container}>
-          <div className={styles.finalLayout}>
+          <div className={styles.finalLayout} data-lp-reveal>
             <div>
-              <p className={styles.sectionKicker}>TRY THE PRODUCT</p>
-              <h2 id="final-title">まず画面を見る。合いそうなら1台だけ試す。</h2>
-              <p>月額0円・カード登録不要。在庫5台までFreeで利用できます。</p>
+              <p className={styles.sectionKicker}>SEE IT BEFORE SIGNUP</p>
+              <h2 id="final-title">文字を読むより、実際の画面を見る。</h2>
+              <p>合いそうなら、そのまま在庫5台まで月額0円で試せます。</p>
             </div>
             <div className={styles.finalActions}>
-              <Link href="/demo" className={styles.finalPrimary}>実際の画面を見る <ArrowRight aria-hidden="true" /></Link>
+              <Link href="/demo" className={styles.finalPrimary}>実画面を見る <ArrowRight aria-hidden="true" /></Link>
               <TrackedSignupLink placement="final" className={styles.finalSecondary}>無料で試す</TrackedSignupLink>
             </div>
           </div>
@@ -413,7 +386,6 @@ export function GarageLandingPage() {
               <Link href="/pricing">料金</Link>
               <Link href="/faq">FAQ</Link>
               <TrackedInquiryLink placement="footer_inquiry">お問い合わせ</TrackedInquiryLink>
-              <Link href="/help">ヘルプ</Link>
             </nav>
           </div>
           <div className={styles.footerBottom}>
@@ -427,7 +399,7 @@ export function GarageLandingPage() {
         </div>
       </footer>
 
-      <Link href="/demo" className={styles.mobileStickyCta}>実画面を見る</Link>
+      <MobileStickyDemoCta />
     </main>
   );
 }

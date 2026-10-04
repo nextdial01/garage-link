@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const mobileDestinations = [
-  { label: '機能', url: /\/#features$/ },
+  { label: '使い方', url: /\/#product$/ },
   { label: '料金', url: /\/pricing$/ },
   { label: '業種別', url: /\/#industries$/ },
   { label: 'FAQ', url: /\/faq$/ },
@@ -23,7 +23,7 @@ test.describe('GARAGE LINK LP real operations', () => {
       await menu.getByRole('link', { name: destination.label }).click();
       await expect(page).toHaveURL(destination.url);
 
-      if (destination.label === '機能' || destination.label === '業種別') {
+      if (destination.label === '使い方' || destination.label === '業種別') {
         await expect(trigger).toHaveAttribute('aria-expanded', 'false');
         await expect(menu).toBeHidden();
       } else {
@@ -118,14 +118,14 @@ test.describe('GARAGE LINK LP real operations', () => {
       await expect(page.locator(`a[href="/signup?placement=${placement}"]`)).toHaveCount(1);
     }
 
-    await expect(page.locator('a[href="/demo"]').filter({ hasText: '実画面を見る' })).toHaveCount(1);
+    expect(await page.locator('a[href="/demo"]').filter({ hasText: '実画面を見る' }).count()).toBeGreaterThanOrEqual(2);
   });
   test('homepage leads with real product proof instead of a generic vehicle image', async ({ page }) => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: /車屋の在庫・顧客・商談・整備を/ })).toBeVisible();
     await expect(page.getByAltText('GARAGE LINKの車両登録画面')).toBeVisible();
-    await expect(page.getByRole('link', { name: /実際の画面を60秒で見る/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: '実画面を見る' }).first()).toBeVisible();
     await expect(page.getByText('かんなぎのサービス')).toHaveCount(0);
     await expect(page.getByAltText('明るい店舗内に置かれた白いSUVの利用イメージ')).toHaveCount(0);
   });
