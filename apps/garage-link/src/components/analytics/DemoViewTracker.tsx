@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect } from 'react';
-import { trackConversionOnce } from '@/lib/analytics/conversion';
+import { readSignupAttribution, trackConversion } from '@/lib/analytics/conversion';
 
 export function DemoViewTracker() {
   useEffect(() => {
-    trackConversionOnce('demo_view');
+    const attribution = readSignupAttribution(new URLSearchParams(window.location.search));
+    trackConversion('demo_view', attribution);
   }, []);
 
   return null;
