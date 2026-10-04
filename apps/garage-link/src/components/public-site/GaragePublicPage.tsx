@@ -7,6 +7,7 @@ import headerStyles from "./header-cta.module.css";
 import conversionStyles from "./conversion-section.module.css";
 import refreshStyles from "./brand-hero-refresh.module.css";
 import { GarageRouteBody } from "./GarageRouteBody";
+import { BRAND } from "@/lib/brand";
 
 export type GaragePublicPageKey =
   | "features"
@@ -406,6 +407,7 @@ export function GaragePublicPage({ pageKey }: { pageKey: GaragePublicPageKey }) 
           </Link>
           <nav className={`${styles.nav} ${refreshStyles.desktopNav}`} aria-label="公開ページ">
             {navigation.map((item) => <Link aria-current={item.href === `/${pageKey}` ? "page" : undefined} key={item.href} href={item.href}>{item.label}</Link>)}
+            <a href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">お問い合わせ</a>
           </nav>
           <Link className={`${styles.login} ${refreshStyles.desktopLogin}`} href="/login">ログイン</Link>
           <Link className={`${headerStyles.headerCta} ${refreshStyles.mobileCta}`} href="/signup">無料で始める</Link>
@@ -413,6 +415,7 @@ export function GaragePublicPage({ pageKey }: { pageKey: GaragePublicPageKey }) 
             <summary aria-label="メニュー"><span aria-hidden="true">☰</span></summary>
             <nav aria-label="スマホ用公開ページ">
               {navigation.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}
+              <a href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">お問い合わせ</a>
               <Link href="/login">ログイン</Link>
             </nav>
           </details>
@@ -555,14 +558,14 @@ export function GaragePublicPage({ pageKey }: { pageKey: GaragePublicPageKey }) 
         <div className={styles.container}>
           <p>{final.eyebrow}</p>
           <h2>{final.title}</h2>
-          <div className={styles.actions}><Link className={styles.primary} href="/signup">無料アカウントを作る <span aria-hidden="true">→</span></Link><Link className={styles.ctaText} href={final.secondaryHref}>{final.secondary}</Link></div>
+          <div className={styles.actions}><Link className={styles.primary} href="/signup">無料アカウントを作る <span aria-hidden="true">→</span></Link><Link className={styles.ctaText} href={final.secondaryHref}>{final.secondary}</Link><a className={styles.ctaText} href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">導入前に問い合わせる</a></div>
         </div>
       </section>
 
       <footer className={styles.footer}>
         <Image src="/branding/garage-link-logo.png" width={144} height={61} alt="GARAGE LINK" />
         <span>© 株式会社かんなぎ　最終更新: 2026年7月18日</span>
-        <nav className={conversionStyles.footerLinks} aria-label="法務情報"><Link href="/legal/terms">利用規約</Link><Link href="/legal/privacy">プライバシー</Link><Link href="/legal/tokusho">特商法表記</Link></nav>
+        <nav className={conversionStyles.footerLinks} aria-label="法務情報"><a href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">お問い合わせ</a><Link href="/legal/terms">利用規約</Link><Link href="/legal/privacy">プライバシー</Link><Link href="/legal/tokusho">特商法表記</Link></nav>
       </footer>
     </main>
   );

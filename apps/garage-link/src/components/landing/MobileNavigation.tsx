@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useHydrated } from '@/lib/browser/useHydrated';
 import { TrackedLoginLink } from './TrackedSignupLink';
+import { BRAND } from '@/lib/brand';
 import { Menu, X } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import styles from './garage-landing.module.css';
@@ -57,6 +58,7 @@ export function MobileNavigation() {
         <Link href="/pricing" onClick={close}>料金</Link>
         <a href="#industries" onClick={close}>業種別</a>
         <Link href="/faq" onClick={close}>FAQ</Link>
+        <a href={BRAND.inquiryUrl} target="_blank" rel="noreferrer" onClick={close}>お問い合わせ</a>
         <TrackedLoginLink onClick={close}>ログイン</TrackedLoginLink>
       </nav>
     </div>
