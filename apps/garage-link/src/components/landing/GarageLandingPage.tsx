@@ -21,6 +21,7 @@ import BrandLogo from '@/components/BrandLogo';
 import { MobileNavigation } from './MobileNavigation';
 import { TrackedLoginLink, TrackedSignupLink } from './TrackedSignupLink';
 import { RELATED_SERVICES } from '@/lib/related-services';
+import { BRAND } from '@/lib/brand';
 import styles from './garage-landing.module.css';
 
 type IconName =
@@ -109,7 +110,7 @@ export function GarageLandingPage() {
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <Link href="/" aria-label="GARAGE LINK トップページ" className={styles.brand}><BrandLogo className={styles.brandLogo} priority /></Link>
-          <nav className={styles.nav} aria-label="メインナビゲーション"><a href="#features">機能</a><Link href="/pricing">料金</Link><a href="#industries">業種別</a><Link href="/faq">FAQ</Link></nav>
+          <nav className={styles.nav} aria-label="メインナビゲーション"><a href="#features">機能</a><Link href="/pricing">料金</Link><a href="#industries">業種別</a><Link href="/faq">FAQ</Link><a href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">お問い合わせ</a></nav>
           <TrackedLoginLink className={styles.loginLink}>ログイン</TrackedLoginLink>
           <TrackedSignupLink placement="header" className={styles.headerCta}>無料で始める</TrackedSignupLink>
           <MobileNavigation />
@@ -222,6 +223,7 @@ export function GarageLandingPage() {
             <div className={styles.startCopy}>
               <p className={styles.sectionKicker}>START FREE</p><h2 id="start-title">まず1台から、<br />無料で試す</h2><p>月額0円・カード登録不要</p>
               <TrackedSignupLink placement="final" className={styles.finalButton}>無料で始める <ArrowRight aria-hidden="true" /></TrackedSignupLink>
+              <a className={styles.inquiryLink} href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">導入前に問い合わせる</a>
               <ul><li>在庫5台までずっと0円で使える</li><li>必要に応じて有料プランへ変更できる</li><li>はじめてでも、すぐに使えるシンプル設計</li></ul>
             </div>
             <div className={styles.startGuide}>
@@ -243,7 +245,7 @@ export function GarageLandingPage() {
       <footer className={styles.footer}>
         <div className={styles.container}>
           <BrandLogo className={styles.footerLogo} />
-          <nav aria-label="フッターナビゲーション"><a href="#features">機能</a><Link href="/pricing">料金</Link><a href="#industries">業種別</a><Link href="/faq">FAQ</Link><Link href="/help">ヘルプ</Link><Link href="/legal/terms">利用規約</Link><Link href="/legal/privacy">プライバシーポリシー</Link><Link href="/legal/tokusho">特定商取引法に基づく表記</Link></nav>
+          <nav aria-label="フッターナビゲーション"><a href="#features">機能</a><Link href="/pricing">料金</Link><a href="#industries">業種別</a><Link href="/faq">FAQ</Link><a href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">お問い合わせ</a><Link href="/help">ヘルプ</Link><Link href="/legal/terms">利用規約</Link><Link href="/legal/privacy">プライバシーポリシー</Link><Link href="/legal/tokusho">特定商取引法に基づく表記</Link></nav>
           <p>© 株式会社かんなぎ</p>
         </div>
       </footer>
