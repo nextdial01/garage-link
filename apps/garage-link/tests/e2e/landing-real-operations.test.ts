@@ -5,6 +5,7 @@ const mobileDestinations = [
   { label: '料金', url: /\/pricing$/ },
   { label: '業種別', url: /\/#industries$/ },
   { label: 'FAQ', url: /\/faq$/ },
+  { label: '実画面', url: /\/demo$/ },
   { label: 'ログイン', url: /\/login$/ },
 ] as const;
 
@@ -76,14 +77,14 @@ test.describe('GARAGE LINK LP real operations', () => {
     await page.goto('/');
     await page.locator('a[href*="placement=hero"]').click();
 
-    await expect(page).toHaveURL(/\/signup\?source=landing&placement=hero$/);
+    await expect(page).toHaveURL(/\/signup\?placement=hero$/);
     await expect(page.getByRole('heading', { name: 'アカウント作成' })).toBeVisible();
 
     const submit = page.getByRole('button', { name: '無料でアカウントを作成する' });
     await expect(submit).toBeDisabled();
 
-    await page.getByLabel('店舗名 *').fill('操作確認テスト店舗');
-    await page.getByLabel('担当者名 *').fill('操作確認担当');
+    await expect(page.getByLabel('店舗名 *')).toHaveCount(0);
+    await expect(page.getByLabel('担当者名 *')).toHaveCount(0);
     await page.getByLabel('メールアドレス *').fill('operation-check@example.com');
     await page.getByLabel('パスワード *').fill('test-password-123');
     await page.getByLabel('パスワード確認 *').fill('test-password-123');
@@ -113,7 +114,19 @@ test.describe('GARAGE LINK LP real operations', () => {
     await page.goto('/');
 
     for (const placement of ['header', 'hero', 'final', 'mobile_sticky']) {
-      await expect(page.locator(`a[href="/signup?source=landing&placement=${placement}"]`)).toHaveCount(1);
+      await expect(page.locator(`a[href="/signup?placement=${placement}"]`)).toHaveCount(1);
     }
   });
+  test('real-screen demo is public and leads to tracked signup', async ({ page }) => {
+    await page.goto('/demo');
+
+    await expect(page.getByRole('heading', { name: '登録する前に、実際の画面を確認。' })).toBeVisible();
+    await expect(page.getByAltText('GARAGE LINKの来店・試乗予約画面')).toBeVisible();
+    await expect(page.getByAltText('GARAGE LINKの車両登録画面')).toBeVisible();
+    await expect(page.getByAltText('GARAGE LINKの店舗の状況確認画面')).toBeVisible();
+
+    await page.getByRole('link', { name: '月額0円で使ってみる' }).click();
+    await expect(page).toHaveURL(/\/signup\?placement=demo_hero$/);
+  });
+
 });
