@@ -46,8 +46,11 @@ export function ProductShowcase() {
           <button
             key={screen.key}
             type="button"
+            id={`garage-product-tab-${screen.key}`}
             role="tab"
             aria-selected={active.key === screen.key}
+            aria-controls="garage-product-panel"
+            tabIndex={active.key === screen.key ? 0 : -1}
             className={active.key === screen.key ? styles.productTabActive : styles.productTab}
             onClick={() => setActiveKey(screen.key)}
           >
@@ -55,7 +58,12 @@ export function ProductShowcase() {
           </button>
         ))}
       </div>
-      <div className={styles.productScreen}>
+      <div
+        id="garage-product-panel"
+        className={styles.productScreen}
+        role="tabpanel"
+        aria-labelledby={`garage-product-tab-${active.key}`}
+      >
         <Image
           key={active.src}
           src={active.src}
