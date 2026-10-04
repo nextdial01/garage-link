@@ -14,7 +14,7 @@ export default function MaintenanceCustomerManagementPage() {
       eyebrow="整備工場 顧客管理システム"
       title="整備工場の顧客・車両・整備履歴を、一つの案件で管理。"
       lead="誰の車が、何の作業で入庫し、どの部品を使い、いつ納車し、次の車検がいつか。顧客と車両を分けずに確認します。"
-      screen={{ src: '/product-screens/appointments.png', alt: 'GARAGE LINKの整備工場向け予約画面', caption: '実際のGARAGE LINK来店・試乗予約画面。予約日時、担当、対象車両、来店状況を確認します。' }}
+      demoScenario={{ business: 'maintenance', management: 'mixed', goal: 'maintenance' }}
       problems={[
         { title: '顧客台帳と整備履歴が別', body: '顧客名から車両や前回作業を探し直す運用では、受付時の確認に時間がかかります。' },
         { title: '受付と整備で情報が分断', body: '依頼内容、追加作業、使用部品、納車予定が担当者ごとに分かれると、次の対応が見えにくくなります。' },
