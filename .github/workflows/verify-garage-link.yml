@@ -37,7 +37,17 @@ jobs:
         run: pnpm test:qa:manifest
 
       - name: Prepare isolated Docker image
-        run: docker pull public.ecr.aws/supabase/postgres:17.6.1.136
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if docker pull public.ecr.aws/supabase/postgres:17.6.1.136; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 10))
+            fi
+          done
+          exit 1
 
       - name: Production isolated lane — QA DDL 0
         run: bash apps/garage-link/scripts/db/run-g0b-ci.sh
@@ -47,3 +57,15 @@ jobs:
 
       - name: Verify GARAGE LINK
         run: pnpm verify:garage-link
+
+      - name: LP rendered visual QA
+        run: pnpm --filter @apps/garage-link test:lp:visual
+
+      - name: Upload LP visual audit screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: garage-link-lp-visual-audit
+          path: apps/garage-link/test-results/**/*.png
+          if-no-files-found: ignore
+          retention-days: 7
