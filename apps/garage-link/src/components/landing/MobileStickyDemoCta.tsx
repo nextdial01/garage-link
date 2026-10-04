@@ -22,12 +22,12 @@ export function MobileStickyDemoCta() {
 
   return (
     <Link
-      href="/demo"
+      href="#live-demo"
       className={[styles.mobileStickyCta, visible ? styles.mobileStickyCtaVisible : ''].filter(Boolean).join(' ')}
       aria-hidden={!visible}
       tabIndex={visible ? 0 : -1}
     >
-      実画面を見る
+      デモを触る
     </Link>
   );
 }

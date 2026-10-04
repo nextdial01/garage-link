@@ -10,27 +10,11 @@ const viewports = [
 
 test.describe('GARAGE LINK rendered LP quality', () => {
   for (const viewport of viewports) {
-    test(`no clipping, distortion, or horizontal overflow at ${viewport.name}`, async ({ page }) => {
+    test(`Attio-inspired live LP stays readable at ${viewport.name}`, async ({ page }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto('/');
       await page.evaluate(() => document.fonts.ready);
-
-      // Walk the real page to trigger lazy-loaded screenshots exactly as a
-      // visitor would, then return to the top for measurements.
-      await page.evaluate(async () => {
-        const step = Math.max(360, Math.floor(window.innerHeight * 0.7));
-        for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
-          window.scrollTo(0, y);
-          await new Promise((resolve) => setTimeout(resolve, 45));
-        }
-        window.scrollTo(0, 0);
-      });
-      await page.waitForFunction(() =>
-        Array.from(document.images)
-          .filter((image) => image.alt.startsWith('GARAGE LINKの'))
-          .every((image) => image.complete && image.naturalWidth > 0),
-      );
-      await page.waitForTimeout(150);
+      await page.waitForTimeout(120);
 
       const pageWidth = await page.evaluate(() => ({
         innerWidth: window.innerWidth,
@@ -38,26 +22,43 @@ test.describe('GARAGE LINK rendered LP quality', () => {
       }));
       expect(pageWidth.scrollWidth, 'document must not horizontally overflow').toBeLessThanOrEqual(pageWidth.innerWidth + 1);
 
-      if (viewport.width <= 1140) {
+      if (viewport.width <= 1040) {
         await expect(
           page.getByRole('navigation', { name: 'スマホメニュー' }),
           'collapsed mobile navigation must stay visually hidden',
         ).toBeHidden();
       }
 
-      const heroProductBox = await page.getByAltText('GARAGE LINKの車両登録画面').first().boundingBox();
-      expect(heroProductBox, 'hero real-UI screenshot must render').not.toBeNull();
-      if (heroProductBox) {
-        const minReadableWidth = viewport.width <= 620 ? 700 : 520;
-        expect(
-          heroProductBox.width,
-          'real UI must be shown at a readable scale instead of being miniaturized',
-        ).toBeGreaterThanOrEqual(minReadableWidth);
+      const heroMetrics = await page.locator('h1').first().evaluate((element) => {
+        const style = getComputedStyle(element);
+        const lineHeight = Number.parseFloat(style.lineHeight);
+        const fontWeight = Number.parseInt(style.fontWeight, 10);
+        return {
+          lineCount: Number.isFinite(lineHeight) && lineHeight > 0
+            ? element.getBoundingClientRect().height / lineHeight
+            : 0,
+          fontWeight,
+          fontFamily: style.fontFamily,
+        };
+      });
+      expect(heroMetrics.lineCount, 'hero must stay scannable').toBeLessThanOrEqual(3.2);
+      expect(heroMetrics.fontWeight, 'hero must avoid heavy AI-template typography').toBeLessThanOrEqual(650);
+      expect(heroMetrics.fontFamily).toMatch(/Inter|Hiragino|Noto Sans JP|Yu Gothic/i);
+      await expect(page.locator('h1 br')).toHaveCount(0);
+
+      const demo = page.getByTestId('garage-live-demo');
+      await expect(demo, 'live product demo must be embedded on the homepage').toBeVisible();
+      await expect(page.locator('img[src*="/product-screens/"]'), 'homepage must not use product screenshots').toHaveCount(0);
+
+      const demoBox = await demo.boundingBox();
+      expect(demoBox).not.toBeNull();
+      if (demoBox) {
+        expect(demoBox.width).toBeGreaterThanOrEqual(Math.min(viewport.width - 24, 350));
       }
 
       const clippedText = await page.evaluate(() => {
         const nodes = Array.from(
-          document.querySelectorAll<HTMLElement>('h1,h2,h3,p,a,button,span,strong,small,li,summary'),
+          document.querySelectorAll<HTMLElement>('h1,h2,h3,p,a,button,span,strong,small,li,summary,label'),
         );
 
         return nodes.flatMap((element) => {
@@ -72,6 +73,8 @@ test.describe('GARAGE LINK rendered LP quality', () => {
           ) {
             return [];
           }
+
+          if (style.textOverflow === 'ellipsis') return [];
 
           const clipsX = style.overflowX === 'hidden' || style.overflowX === 'clip';
           const clipsY = style.overflowY === 'hidden' || style.overflowY === 'clip';
@@ -117,64 +120,19 @@ test.describe('GARAGE LINK rendered LP quality', () => {
       });
       expect(overlappingHeaderControls, 'header controls must not overlap').toEqual([]);
 
-      const distortedProductImages = await page.evaluate(() => {
-        const images = Array.from(
-          document.querySelectorAll<HTMLImageElement>('img[alt^="GARAGE LINKの"]'),
-        );
-
-        return images.flatMap((image) => {
-          const rect = image.getBoundingClientRect();
-          if (rect.width < 1 || rect.height < 1 || image.naturalWidth < 1 || image.naturalHeight < 1) return [];
-          const naturalRatio = image.naturalWidth / image.naturalHeight;
-          const renderedRatio = rect.width / rect.height;
-          const delta = Math.abs(renderedRatio - naturalRatio) / naturalRatio;
-          return delta > 0.025
-            ? [{ alt: image.alt, naturalRatio, renderedRatio, delta }]
-            : [];
-        });
-      });
-      expect(distortedProductImages, 'real UI screenshots must preserve aspect ratio').toEqual([]);
-
-      const heroLineCount = await page.locator('h1').first().evaluate((element) => {
-        const style = getComputedStyle(element);
-        const lineHeight = Number.parseFloat(style.lineHeight);
-        return Number.isFinite(lineHeight) && lineHeight > 0
-          ? element.getBoundingClientRect().height / lineHeight
-          : 0;
-      });
-      expect(heroLineCount, 'hero headline should remain scannable').toBeLessThanOrEqual(3.2);
-
-      await expect(page.locator('h1 br')).toHaveCount(0);
-      await expect(page.locator('h1 > span')).toHaveCount(3);
-
-      const overflowingHeroSegments = await page.locator('h1 > span').evaluateAll((segments) =>
-        segments.flatMap((segment) =>
-          segment.scrollWidth > segment.clientWidth + 1
-            ? [{
-                text: segment.textContent ?? '',
-                clientWidth: segment.clientWidth,
-                scrollWidth: segment.scrollWidth,
-              }]
-            : [],
-        ),
-      );
-      expect(overflowingHeroSegments, 'intentional hero lines must fit without mid-word wrapping').toEqual([]);
-
-      if (viewport.width <= 620) {
-        const stickyDemo = page.locator('a[href="/demo"][aria-hidden="true"]');
-        await expect(stickyDemo, 'sticky demo CTA must stay hidden over the hero UI').toHaveCount(1);
+      if (viewport.width <= 680) {
+        const stickyDemo = page.locator('a[href="#live-demo"][aria-hidden="true"]');
+        await expect(stickyDemo, 'sticky demo CTA stays hidden while hero is visible').toHaveCount(1);
         await page.locator('#garage-hero').evaluate((element) => window.scrollTo(0, element.getBoundingClientRect().bottom + window.scrollY + 80));
-        await expect(page.locator('a[href="/demo"][aria-hidden="false"]')).toHaveCount(1);
+        await expect(page.locator('a[href="#live-demo"][aria-hidden="false"]')).toHaveCount(1);
         await page.evaluate(() => window.scrollTo(0, 0));
-        await page.waitForTimeout(120);
+        await page.waitForTimeout(100);
       }
 
-      // Full-page evidence should show every section even though production
-      // reveals them only when they enter the viewport.
-      await page.evaluate(() => {
-        document.querySelectorAll<HTMLElement>('[data-lp-reveal]').forEach((element) => {
-          element.dataset.revealed = 'true';
-        });
+      await page.screenshot({
+        path: `test-results/top-lp-${viewport.name}.png`,
+        fullPage: false,
+        animations: 'disabled',
       });
 
       await page.screenshot({

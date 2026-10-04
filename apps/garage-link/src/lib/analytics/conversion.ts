@@ -7,6 +7,11 @@ export type ConversionEvent =
   | 'lp_signup_cta_click'
   | 'inquiry_click'
   | 'demo_view'
+  | 'demo_interaction'
+  | 'demo_scenario_generated'
+  | 'demo_vehicle_created'
+  | 'demo_deal_created'
+  | 'demo_quote_opened'
   | 'demo_signup_click'
   | 'signup_start'
   | 'signup_form_engaged'
@@ -32,7 +37,12 @@ export type FirstBusinessRecordType = 'vehicle' | 'customer' | 'maintenance';
 
 type Attribution = { source: string; placement: string; lead: string };
 type StoredAttribution = Attribution & { at: number };
-type ConversionProperties = Partial<Attribution> & { value_type?: FirstBusinessRecordType };
+type ConversionProperties = Partial<Attribution> & {
+  value_type?: FirstBusinessRecordType;
+  demo_action?: string;
+  demo_scenario?: string;
+  demo_view?: string;
+};
 
 const ATTRIBUTION_KEY = 'garage-link-signup-attribution';
 const ATTRIBUTION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -119,6 +129,9 @@ export function trackConversion(event: ConversionEvent, properties: ConversionPr
     placement: safeValue(properties.placement, current.placement),
     lead: safeValue(properties.lead, current.lead),
     ...(properties.value_type ? { value_type: properties.value_type } : {}),
+    ...(properties.demo_action ? { demo_action: safeValue(properties.demo_action, 'unknown') } : {}),
+    ...(properties.demo_scenario ? { demo_scenario: safeValue(properties.demo_scenario, 'unknown') } : {}),
+    ...(properties.demo_view ? { demo_view: safeValue(properties.demo_view, 'unknown') } : {}),
   };
 
   track(event, value);

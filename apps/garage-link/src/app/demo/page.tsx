@@ -1,109 +1,58 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import BrandLogo from '@/components/BrandLogo';
-import { DemoViewTracker } from '@/components/analytics/DemoViewTracker';
 import { AcquisitionPageTracker } from '@/components/analytics/AcquisitionPageTracker';
+import { GarageInteractiveDemo } from '@/components/landing/demo/GarageInteractiveDemo';
 import { TrackedInquiryLink, TrackedSignupLink } from '@/components/landing/TrackedSignupLink';
 
 export const metadata: Metadata = {
-  title: 'GARAGE LINK 実画面デモ｜登録前に管理画面を確認',
-  description: 'GARAGE LINKの実際の管理画面を登録前に確認できます。来店・試乗予約、車両登録、在庫・顧客・商談の分析画面を掲載しています。',
+  title: 'GARAGE LINK ライブデモ｜登録前にその場で操作',
+  description: 'GARAGE LINKを登録前にその場で操作できます。業態や見たい業務を選ぶと、デモデータを作り直して車両・顧客・商談・整備・見積を確認できます。',
   alternates: { canonical: '/demo' },
   openGraph: {
-    title: 'GARAGE LINK 実画面デモ',
-    description: '登録前に実際の管理画面を確認できます。',
+    title: 'GARAGE LINK ライブデモ',
+    description: '登録前にデモデータを作り、その場でGARAGE LINKを操作できます。',
     url: '/demo',
   },
 };
 
-const screens = [
-  {
-    src: '/product-screens/appointments.png',
-    title: '来店・試乗予約',
-    description: '予約日時、担当者、対象車両、来店状況を同じ画面で確認します。',
-  },
-  {
-    src: '/product-screens/vehicle-entry.png',
-    title: '車両登録',
-    description: '車両情報、仕入・販売価格、古物情報など、店舗で使う車両情報を登録します。',
-  },
-  {
-    src: '/product-screens/analytics.png',
-    title: '店舗の状況確認',
-    description: '在庫・顧客・商談など、登録した情報から確認が必要な項目をまとめて見ます。',
-  },
-] as const;
-
 export default function DemoPage() {
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-950">
-      <AcquisitionPageTracker source="demo" placement="demo" />\n      <DemoViewTracker />
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex min-h-20 w-[min(1180px,calc(100%-32px))] items-center gap-5">
+    <main className="min-h-screen bg-[#fafafa] text-[#111318]">
+      <AcquisitionPageTracker source="demo" placement="standalone_demo" />
+
+      <header className="border-b border-[#e7e9ed] bg-white">
+        <div className="mx-auto flex min-h-16 w-[min(1320px,calc(100%-32px))] items-center gap-4">
           <Link href="/" aria-label="GARAGE LINK トップ">
-            <BrandLogo className="h-14 w-44 object-contain" priority />
+            <BrandLogo className="h-10 w-36 object-contain" priority />
           </Link>
-          <div className="ml-auto flex items-center gap-3">
-            <TrackedInquiryLink placement="demo_header_inquiry" source="demo" className="hidden rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 sm:inline-flex">
+          <div className="ml-auto flex items-center gap-2">
+            <TrackedInquiryLink placement="demo_header_inquiry" source="demo" className="hidden min-h-9 items-center rounded-lg px-3 text-xs font-medium text-slate-600 sm:inline-flex">
               お問い合わせ
             </TrackedInquiryLink>
-            <TrackedSignupLink placement="demo_header" source="demo" className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-bold text-white">
+            <TrackedSignupLink placement="demo_header" source="demo" className="inline-flex min-h-9 items-center rounded-lg bg-[#111318] px-3 text-xs font-semibold text-white">
               無料で始める
             </TrackedSignupLink>
           </div>
         </div>
       </header>
 
-      <section className="border-b border-slate-200 bg-white px-4 py-14 sm:py-20">
+      <section className="border-b border-[#e7e9ed] bg-white px-4 py-12 sm:py-16">
         <div className="mx-auto max-w-4xl text-center">
-          <p className="text-xs font-black tracking-[0.18em] text-emerald-700">REAL PRODUCT SCREENS</p>
-          <h1 className="mt-4 text-3xl font-black leading-tight sm:text-5xl">登録する前に、実際の画面を確認。</h1>
-          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-            説明用のイメージではなく、GARAGE LINKで実際に使う管理画面です。まず画面と操作イメージを確認してから、Freeプランを始められます。
+          <p className="text-[11px] font-semibold tracking-[.14em] text-slate-400">LIVE PRODUCT DEMO</p>
+          <h1 className="mt-4 text-4xl font-semibold tracking-[-.045em] text-[#111318] sm:text-6xl">登録する前に、触って決める。</h1>
+          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-slate-500 sm:text-base">
+            業態・今の管理方法・見たい業務を選ぶと、その場でデモデータを作り直します。
+            車両追加、商談作成、見積確認までブラウザ内だけで操作できます。
           </p>
-          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
-            <TrackedSignupLink placement="demo_hero" source="demo" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-blue-700 px-6 text-sm font-black text-white">
-              月額0円で使ってみる
-            </TrackedSignupLink>
-            <TrackedInquiryLink placement="demo_hero_inquiry" source="demo" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-6 text-sm font-black text-slate-700">
-              導入前に問い合わせる
-            </TrackedInquiryLink>
-          </div>
-          <p className="mt-3 text-xs text-slate-500">Free：在庫5台・スタッフ1人・1店舗。カード登録不要。</p>
         </div>
       </section>
 
-      <section className="px-4 py-12 sm:py-16">
-        <div className="mx-auto grid max-w-6xl gap-10">
-          {screens.map((screen, index) => (
-            <article key={screen.src} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-200 px-5 py-4 sm:px-7">
-                <p className="text-xs font-black tracking-[0.14em] text-emerald-700">SCREEN {String(index + 1).padStart(2, '0')}</p>
-                <h2 className="mt-1 text-xl font-black sm:text-2xl">{screen.title}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{screen.description}</p>
-              </div>
-              <a href={screen.src} target="_blank" rel="noreferrer" className="block bg-slate-100 p-2 sm:p-4" aria-label={screen.title + 'を拡大表示'}>
-                <Image src={screen.src} alt={'GARAGE LINKの' + screen.title + '画面'} width={1015} height={650} className="h-auto w-full rounded-lg border border-slate-200" unoptimized />
-              </a>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="border-t border-slate-200 bg-slate-950 px-4 py-14 text-white">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm font-bold text-emerald-300">画面が店舗業務に合いそうなら、まず1台だけ。</p>
-          <h2 className="mt-3 text-2xl font-black sm:text-3xl">在庫5台まで、月額0円で実際に使えます。</h2>
-          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
-            <TrackedSignupLink placement="demo_final" source="demo" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-emerald-500 px-6 text-sm font-black text-slate-950">
-              無料で始める
-            </TrackedSignupLink>
-            <Link href="/pricing" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-600 px-6 text-sm font-black text-white">
-              料金を見る
-            </Link>
-          </div>
-        </div>
+      <section className="px-3 py-8 sm:px-5 sm:py-12">
+        <Suspense fallback={<div className="mx-auto min-h-[620px] max-w-[1500px] rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">デモを準備しています...</div>}>
+          <GarageInteractiveDemo standalone />
+        </Suspense>
       </section>
     </main>
   );
