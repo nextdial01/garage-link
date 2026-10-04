@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TrackedSignupLink } from "@/components/landing/TrackedSignupLink";
 import styles from "./route-layouts.module.css";
 import { GARAGE_PLAN_ORDER, GARAGE_PLANS } from "@/lib/billing/garagePlans";
 
@@ -46,7 +47,7 @@ function PricingBody() {
               <span className={styles.planBadge}>{plan.note}</span><h2>{plan.name}</h2>
               <div className={styles.price}><strong>{plan.price}</strong><span>円／月・請求総額</span></div>
               <dl><div><dt>在庫</dt><dd>{plan.inventory}</dd></div><div><dt>スタッフ</dt><dd>{plan.staff}</dd></div><div><dt>店舗</dt><dd>{plan.stores}</dd></div><div><dt>見積・請求</dt><dd>{plan.quote}</dd></div></dl>
-              {plan.name === "Free" && <Link className={styles.inlineCta} href="/signup">無料で始める</Link>}
+              {plan.name === "Free" && <TrackedSignupLink source="pricing" placement="pricing_free_plan" className={styles.inlineCta}>無料で始める</TrackedSignupLink>}
             </article>)}
           </div>
           <p className={styles.taxNote}>
@@ -72,7 +73,7 @@ function UsedCarBody() {
   ] as const;
   return <div className={styles.routeBody}>
     <section className={styles.vehicleHero}><div className={styles.shell}>
-      <p className={styles.eyebrow}>USED CAR — 車両を中心に追う</p><h1><span className={styles.headlineLine}>仕入れた日から、</span><span className={styles.headlineLine}>納車後の案内まで。</span></h1>
+      <p className={styles.eyebrow}>USED CAR — 中古車販売管理システム</p><h1><span className={styles.headlineLine}>中古車販売の在庫・商談・納車を、</span><span className={styles.headlineLine}>一台の車両で管理。</span></h1>
       <p className={styles.heroLead}>在庫日数だけでも、商談予定だけでもありません。一台の車両に、売れるまでの経過と次の対応を集めます。</p>
       <div className={styles.vehiclePipeline}>{stages.map(([no,title,body]) => <article key={no}><span>{no}</span><h2>{title}</h2><p>{body}</p></article>)}</div>
     </div></section>
@@ -82,6 +83,10 @@ function UsedCarBody() {
         <article className={styles.metricPanel}><h3>在庫の状態</h3><div className={styles.metrics}><div><strong>日数</strong><span>仕入からの経過</span></div><div><strong>原価</strong><span>車両ごとの金額</span></div><div><strong>掲載</strong><span>媒体ごとの状態</span></div><div><strong>商談</strong><span>問い合わせ件数</span></div></div></article>
         <article className={styles.actionPanel}><h3>今日確認する商談</h3><ol><li>次回連絡日が今日の顧客</li><li>見積送付後に止まった商談</li><li>長期在庫にひも付く問い合わせ</li><li>納車予定日が近い案件</li></ol></article>
       </div>
+    </div></section>
+    <section className={styles.detailSection}><div className={styles.shell}>
+      <div className={styles.sectionHeader}><h2>在庫管理をExcelから見直す場合</h2><p>車両台帳だけでなく、商談・見積・納車まで同じ車両で確認する考え方をまとめています。</p></div>
+      <Link className={styles.inlineCta} href="/solutions/used-car-inventory-management">中古車の在庫管理を詳しく見る</Link>
     </div></section>
   </div>;
 }
@@ -108,13 +113,17 @@ function MaintenanceBody() {
   const slots = [["09:00","車検入庫","受付内容と代車を確認","受付待ち"],["10:30","法定点検","作業項目と使用部品を更新","作業中"],["13:00","一般整備","追加作業の見積を顧客へ確認","承認待ち"],["16:30","納車","請求と次回点検時期を記録","納車予定"]] as const;
   return <div className={styles.routeBody}>
     <section className={styles.scheduleHero}><div className={styles.shell}>
-      <p className={styles.eyebrow}>MAINTENANCE — 今日の入庫から見る</p><h1><span className={styles.headlineLine}>受付、作業、納車。</span><span className={styles.headlineLine}>一日の予定を、</span><span className={styles.headlineLine}>案件で追う。</span></h1>
+      <p className={styles.eyebrow}>MAINTENANCE — 整備工場向け管理システム</p><h1><span className={styles.headlineLine}>整備工場の受付・作業・納車を、</span><span className={styles.headlineLine}>一つの案件で管理。</span></h1>
       <p className={styles.heroLead}>整備工場で必要なのは抽象的な機能一覧ではなく、今日の入庫がどこまで進み、誰が次に動くかです。</p>
       <div className={styles.daySchedule}>{slots.map(([time,title,body,status]) => <article className={styles.slot} key={time}><time>{time}</time><strong>{title}</strong><p>{body}</p><span>{status}</span></article>)}</div>
     </div></section>
     <section className={styles.scheduleSection}><div className={styles.shell}>
       <div className={styles.sectionHeader}><h2>一つの案件に、次回期限まで残す</h2><p>目の前の作業が終わったあとも、請求と次回点検・車検の時期を顧客と車両へ残します。</p></div>
       <div className={styles.caseFlow}><article><span>01</span><h3>受付</h3><p>依頼内容、担当、代車、納車予定。</p></article><article><span>02</span><h3>作業</h3><p>進行状況、追加作業、使用部品。</p></article><article><span>03</span><h3>請求・納車</h3><p>金額、入金状況、納車日。</p></article><article><span>04</span><h3>次回案内</h3><p>点検・車検の満了日と案内時期。</p></article></div>
+    </div></section>
+    <section className={styles.detailSection}><div className={styles.shell}>
+      <div className={styles.sectionHeader}><h2>顧客・車両・整備履歴をまとめたい場合</h2><p>受付から整備履歴、次回車検までを顧客・車両にひも付ける管理方法をまとめています。</p></div>
+      <Link className={styles.inlineCta} href="/solutions/maintenance-customer-management">整備工場の顧客管理を詳しく見る</Link>
     </div></section>
   </div>;
 }

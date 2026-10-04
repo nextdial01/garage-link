@@ -7,7 +7,7 @@ import headerStyles from "./header-cta.module.css";
 import conversionStyles from "./conversion-section.module.css";
 import refreshStyles from "./brand-hero-refresh.module.css";
 import { GarageRouteBody } from "./GarageRouteBody";
-import { BRAND } from "@/lib/brand";
+import { TrackedInquiryLink, TrackedSignupLink } from "@/components/landing/TrackedSignupLink";
 
 export type GaragePublicPageKey =
   | "features"
@@ -59,7 +59,7 @@ const faqs = [
 
 const pages: Record<GaragePublicPageKey, { title: string; description: string; sections: PageSection[] }> = {
   features: {
-    title: "GARAGE LINKの機能",
+    title: "車屋向け店舗管理システムの機能",
     description: "中古車販売店、バイク販売・修理店、整備工場の車両、顧客、商談、整備、見積・請求を店舗全体で確認できる管理ツールです。",
     sections: [
       {
@@ -102,8 +102,8 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
     ],
   },
   "industries/used-car": {
-    title: "中古車販売店向け管理システム",
-    description: "仕入から掲載、問い合わせ、商談、見積、請求、納車後の案内までを、対象車両を起点に確認できます。",
+    title: "中古車販売管理システム｜在庫・顧客・商談を一元管理",
+    description: "中古車販売店向けの管理システム。仕入・在庫、顧客、問い合わせ、商談、見積・請求、納車後の次回連絡までを車両単位でまとめて管理できます。",
     sections: [
       {
         title: "在庫日数と、商談の次回予定を同じ車両で確認",
@@ -118,7 +118,7 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
     ],
   },
   "industries/motorcycle": {
-    title: "バイク販売・修理店向け管理システム",
+    title: "バイク販売・修理店向け店舗管理システム",
     description: "販売車両、修理・カスタム入庫、部品、見積、納車予定を、担当者と期限が分かる形で共有します。",
     sections: [
       {
@@ -134,8 +134,8 @@ const pages: Record<GaragePublicPageKey, { title: string; description: string; s
     ],
   },
   "industries/maintenance": {
-    title: "整備工場・車検工場向け管理システム",
-    description: "予約、入庫、作業、部品、見積、請求、納車、次回車検までを、受付と整備の両方から確認できます。",
+    title: "整備工場向け管理システム｜顧客・車両・整備・車検を一元管理",
+    description: "整備工場・車検工場向けの管理システム。予約、顧客・車両、入庫、作業、部品、見積・請求、納車、次回車検までを一つの案件で管理できます。",
     sections: [
       {
         title: "今日の入庫と、次回車検の期限を一続きに",
@@ -377,7 +377,7 @@ export function GaragePublicPage({ pageKey }: { pageKey: GaragePublicPageKey }) 
         description: page.description,
         url: `https://garage-link.tech/${pageKey}`,
         isPartOf: { "@type": "WebSite", name: "GARAGE LINK", url: "https://garage-link.tech/" },
-        dateModified: "2026-07-18",
+        dateModified: "2026-10-04",
       },
       {
         "@type": "BreadcrumbList",
@@ -407,15 +407,17 @@ export function GaragePublicPage({ pageKey }: { pageKey: GaragePublicPageKey }) 
           </Link>
           <nav className={`${styles.nav} ${refreshStyles.desktopNav}`} aria-label="公開ページ">
             {navigation.map((item) => <Link aria-current={item.href === `/${pageKey}` ? "page" : undefined} key={item.href} href={item.href}>{item.label}</Link>)}
-            <a href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">お問い合わせ</a>
+            <Link href="/demo">実画面</Link>
+            <TrackedInquiryLink source={pageKey} placement="header_inquiry">お問い合わせ</TrackedInquiryLink>
           </nav>
           <Link className={`${styles.login} ${refreshStyles.desktopLogin}`} href="/login">ログイン</Link>
-          <Link className={`${headerStyles.headerCta} ${refreshStyles.mobileCta}`} href="/signup">無料で始める</Link>
+          <TrackedSignupLink source={pageKey} placement="header" className={`${headerStyles.headerCta} ${refreshStyles.mobileCta}`}>無料で始める</TrackedSignupLink>
           <details className={refreshStyles.mobileMenu}>
             <summary aria-label="メニュー"><span aria-hidden="true">☰</span></summary>
             <nav aria-label="スマホ用公開ページ">
               {navigation.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}
-              <a href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">お問い合わせ</a>
+              <Link href="/demo">実画面</Link>
+              <TrackedInquiryLink source={pageKey} placement="mobile_menu_inquiry">お問い合わせ</TrackedInquiryLink>
               <Link href="/login">ログイン</Link>
             </nav>
           </details>
@@ -432,7 +434,7 @@ export function GaragePublicPage({ pageKey }: { pageKey: GaragePublicPageKey }) 
             <h1>{hero.title.map((line) => <span className={styles.headlineLine} key={line}>{line}</span>)}</h1>
             <p className={styles.lead}>{hero.lead}</p>
             <div className={styles.actions}>
-              <Link className={styles.primary} href="/signup">無料アカウントを作る <span aria-hidden="true">→</span></Link>
+              <TrackedSignupLink source={pageKey} placement="hero" className={styles.primary}>無料アカウントを作る <span aria-hidden="true">→</span></TrackedSignupLink>
               <Link className={styles.secondary} href={isFeaturesPage ? "#product-screens" : "/features#product-screens"}>実際の画面を見る</Link>
             </div>
             <p className={styles.microcopy}>Freeプランは月額0円。登録時に決済情報の入力はありません。</p>
@@ -558,14 +560,14 @@ export function GaragePublicPage({ pageKey }: { pageKey: GaragePublicPageKey }) 
         <div className={styles.container}>
           <p>{final.eyebrow}</p>
           <h2>{final.title}</h2>
-          <div className={styles.actions}><Link className={styles.primary} href="/signup">無料アカウントを作る <span aria-hidden="true">→</span></Link><Link className={styles.ctaText} href={final.secondaryHref}>{final.secondary}</Link><a className={styles.ctaText} href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">導入前に問い合わせる</a></div>
+          <div className={styles.actions}><TrackedSignupLink source={pageKey} placement="final" className={styles.primary}>無料アカウントを作る <span aria-hidden="true">→</span></TrackedSignupLink><Link className={styles.ctaText} href="/demo">実画面を見る</Link><Link className={styles.ctaText} href={final.secondaryHref}>{final.secondary}</Link><TrackedInquiryLink source={pageKey} placement="final_inquiry" className={styles.ctaText}>導入前に問い合わせる</TrackedInquiryLink></div>
         </div>
       </section>
 
       <footer className={styles.footer}>
         <Image src="/branding/garage-link-logo.png" width={144} height={61} alt="GARAGE LINK" />
-        <span>© 株式会社かんなぎ　最終更新: 2026年7月18日</span>
-        <nav className={conversionStyles.footerLinks} aria-label="法務情報"><a href={BRAND.inquiryUrl} target="_blank" rel="noreferrer">お問い合わせ</a><Link href="/legal/terms">利用規約</Link><Link href="/legal/privacy">プライバシー</Link><Link href="/legal/tokusho">特商法表記</Link></nav>
+        <span>© 株式会社かんなぎ　最終更新: 2026年10月4日</span>
+        <nav className={conversionStyles.footerLinks} aria-label="法務情報"><TrackedInquiryLink source={pageKey} placement="footer_inquiry">お問い合わせ</TrackedInquiryLink><Link href="/legal/terms">利用規約</Link><Link href="/legal/privacy">プライバシー</Link><Link href="/legal/tokusho">特商法表記</Link></nav>
       </footer>
     </main>
   );

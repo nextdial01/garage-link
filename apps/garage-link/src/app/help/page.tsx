@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from "next";
-import { LEGAL_SELLER } from '@/lib/legal/constants';
+import { TrackedInquiryLink } from '@/components/landing/TrackedSignupLink';
 
 export const metadata: Metadata = {
   alternates: { canonical: "/help" },
@@ -72,14 +72,15 @@ export default function HelpPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-base font-black">お問い合わせ</h2>
           <p className="mt-2 text-sm leading-7 text-slate-600">
-            登録前のご相談、契約・個人情報に関するお問い合わせは、正式窓口へメールでお送りください。
+            登録前のご相談、契約・個人情報に関するお問い合わせは、正式なお問い合わせ窓口からお送りください。
           </p>
-          <a
-            href={`mailto:${LEGAL_SELLER.email}`}
+          <TrackedInquiryLink
+            source="help"
+            placement="help_inquiry"
             className="mt-3 inline-flex rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-bold text-blue-700"
           >
             正式窓口へ問い合わせる
-          </a>
+          </TrackedInquiryLink>
         </div>
       </section>
     </main>

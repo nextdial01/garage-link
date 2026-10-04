@@ -4,9 +4,13 @@ import { track } from '@vercel/analytics';
 
 export type ConversionEvent =
   | 'lp_signup_cta_click'
+  | 'inquiry_click'
+  | 'demo_view'
+  | 'demo_signup_click'
   | 'signup_start'
   | 'signup_submit'
   | 'account_created'
+  | 'email_confirmed'
   | 'signup_complete'
   | 'onboarding_start'
   | 'onboarding_step_1_complete'
@@ -69,6 +73,18 @@ export function saveSignupAttribution(attribution: Partial<Attribution>) {
 }
 
 export function readSignupAttribution(searchParams?: URLSearchParams): Attribution {
+  let stored: Attribution | null = null;
+
+  if (typeof window !== 'undefined') {
+    stored = parseStoredAttribution(window.sessionStorage.getItem(ATTRIBUTION_KEY));
+    if (!stored) {
+      stored = parseStoredAttribution(window.localStorage.getItem(ATTRIBUTION_KEY));
+      if (stored) {
+        window.sessionStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(stored));
+      }
+    }
+  }
+
   const queryAttribution = {
     source: searchParams?.get('source') ?? undefined,
     placement: searchParams?.get('placement') ?? undefined,
@@ -77,24 +93,15 @@ export function readSignupAttribution(searchParams?: URLSearchParams): Attributi
 
   if (queryAttribution.source || queryAttribution.placement || queryAttribution.lead) {
     const value = {
-      source: safeValue(queryAttribution.source, 'landing'),
-      placement: safeValue(queryAttribution.placement, 'unknown'),
-      lead: safeValue(queryAttribution.lead, 'unknown'),
+      source: safeValue(queryAttribution.source, stored?.source ?? 'landing'),
+      placement: safeValue(queryAttribution.placement, stored?.placement ?? 'unknown'),
+      lead: safeValue(queryAttribution.lead, stored?.lead ?? 'unknown'),
     };
     saveSignupAttribution(value);
     return value;
   }
 
-  if (typeof window !== 'undefined') {
-    const sessionValue = parseStoredAttribution(window.sessionStorage.getItem(ATTRIBUTION_KEY));
-    if (sessionValue) return sessionValue;
-
-    const persistentValue = parseStoredAttribution(window.localStorage.getItem(ATTRIBUTION_KEY));
-    if (persistentValue) {
-      window.sessionStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(persistentValue));
-      return persistentValue;
-    }
-  }
+  if (stored) return stored;
 
   return { source: 'direct', placement: 'direct', lead: 'direct' };
 }
