@@ -8,36 +8,42 @@ import styles from './garage-landing.module.css';
 const steps: Array<{
   view: DemoView;
   eyebrow: string;
+  compactLabel: string;
   title: string;
   body: string;
 }> = [
   {
     view: 'vehicles',
     eyebrow: '01 / VEHICLE',
+    compactLabel: '01 車両',
     title: '1台の車両から始める。',
     body: '仕入、在庫日数、価格、車検。まず車両の事実を一つにします。',
   },
   {
     view: 'customers',
     eyebrow: '02 / CUSTOMER',
+    compactLabel: '02 顧客',
     title: '顧客を車両から離さない。',
     body: '誰が、どの車を見ていて、次にいつ連絡するかまで同じ流れで確認します。',
   },
   {
     view: 'deals',
     eyebrow: '03 / DEAL',
+    compactLabel: '03 商談',
     title: '商談に「次」を残す。',
     body: '見積、担当、次回連絡。止まっている商談を、担当者の記憶から外へ出します。',
   },
   {
     view: 'quote',
     eyebrow: '04 / QUOTE',
+    compactLabel: '04 見積',
     title: '見積まで同じデータで。',
     body: '車両と顧客を選び直さず、商談から見積へつなげます。',
   },
   {
     view: 'maintenance',
     eyebrow: '05 / AFTER',
+    compactLabel: '05 整備',
     title: '納車後も、同じ車両が続く。',
     body: '整備、部品、納車予定、次回車検まで、履歴を切らさず残します。',
   },
@@ -92,6 +98,7 @@ export function GarageScrollStory() {
                 onClick={() => setActiveIndex(index)}
               >
                 <span>{step.eyebrow}</span>
+                <em className={styles.storyCompactLabel}>{step.compactLabel}</em>
                 <strong>{step.title}</strong>
                 <p>{step.body}</p>
               </button>
@@ -104,6 +111,7 @@ export function GarageScrollStory() {
             <div className={styles.storyStageHeader}>
               <span>{active.eyebrow}</span>
               <strong>{active.title}</strong>
+              <p>{active.body}</p>
             </div>
             <Suspense fallback={<div className={styles.storyLoading}>製品画面を準備しています...</div>}>
               <GarageInteractiveDemo
