@@ -45,10 +45,12 @@ test.describe('GARAGE LINK embedded live demo', () => {
 
     await steps.nth(2).scrollIntoViewIfNeeded();
     await page.waitForTimeout(260);
+    await expect(storyDemo).toBeInViewport({ ratio: 0.55 });
     await expect(storyDemo.getByRole('heading', { name: '商談', exact: true })).toBeVisible();
 
     await steps.nth(3).scrollIntoViewIfNeeded();
     await page.waitForTimeout(260);
+    await expect(storyDemo).toBeInViewport({ ratio: 0.55 });
     await expect(storyDemo.getByRole('heading', { name: '見積', exact: true })).toBeVisible();
   });
 
