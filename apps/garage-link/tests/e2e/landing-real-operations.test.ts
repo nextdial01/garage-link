@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const mobileDestinations = [
   { label: 'デモ', url: /\/#live-demo$/ },
-  { label: '機能', url: /\/#platform$/ },
+  { label: '体験', url: /\/#product-story$/ },
   { label: '料金', url: /\/pricing$/ },
   { label: 'FAQ', url: /\/faq$/ },
   { label: 'ログイン', url: /\/login$/ },
@@ -22,7 +22,7 @@ test.describe('GARAGE LINK LP real operations', () => {
       await menu.getByRole('link', { name: destination.label }).click();
       await expect(page).toHaveURL(destination.url);
 
-      if (destination.label === 'デモ' || destination.label === '機能') {
+      if (destination.label === 'デモ' || destination.label === '体験') {
         await expect(trigger).toHaveAttribute('aria-expanded', 'false');
         await expect(menu).toBeHidden();
       }
@@ -100,10 +100,29 @@ test.describe('GARAGE LINK LP real operations', () => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: '車屋の仕事を、車両から動かす。' })).toBeVisible();
-    await expect(page.getByTestId('garage-live-demo')).toBeVisible();
+    expect(await page.getByTestId('garage-live-demo').count()).toBeGreaterThanOrEqual(2);
+    await expect(page.getByTestId('garage-live-demo').last()).toBeVisible();
     await expect(page.locator('img[src*="/product-screens/"]')).toHaveCount(0);
     await expect(page.getByLabel('デモ業態')).toBeVisible();
     await expect(page.getByRole('button', { name: 'この条件でデモを作る' })).toBeVisible();
+  });
+
+  test('scroll story changes the embedded product state without counting as a user demo action', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/');
+
+    const story = page.locator('#product-story');
+    await expect(story).toBeVisible();
+    await expect(story.getByText('車両', { exact: true }).last()).toBeVisible();
+
+    const steps = story.locator('button[data-story-index]');
+    await steps.nth(2).scrollIntoViewIfNeeded();
+    await page.waitForTimeout(180);
+    await expect(story.getByText('商談', { exact: true }).last()).toBeVisible();
+
+    await steps.nth(3).scrollIntoViewIfNeeded();
+    await page.waitForTimeout(180);
+    await expect(story.getByText('見積', { exact: true }).last()).toBeVisible();
   });
 
   test('live demo regenerates data and supports vehicle to deal to quote flow', async ({ page }) => {
@@ -116,7 +135,7 @@ test.describe('GARAGE LINK LP real operations', () => {
     });
 
     await page.goto('/?scenario=used-car&management=excel&goal=inventory#live-demo');
-    const demo = page.getByTestId('garage-live-demo');
+    const demo = page.getByTestId('garage-live-demo').last();
 
     await demo.getByLabel('デモ業態').selectOption('motorcycle');
     await demo.getByLabel('デモ管理方法').selectOption('mixed');
