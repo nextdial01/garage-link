@@ -100,7 +100,7 @@ export function GarageScrollStory() {
         </div>
 
         <div className={styles.storyStage}>
-          <div className={styles.storySticky}>
+          <div className={styles.storySticky} data-testid="garage-scroll-story-stage">
             <div className={styles.storyStageHeader}>
               <span>{active.eyebrow}</span>
               <strong>{active.title}</strong>
