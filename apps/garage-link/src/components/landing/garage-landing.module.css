@@ -363,6 +363,8 @@
   letter-spacing: .12em;
 }
 
+.storyCompactLabel { display: none; font-style: normal; }
+
 .storyStep > strong,
 .storyStepActive > strong {
   max-width: 390px;
@@ -416,6 +418,11 @@
   font-size: 14px;
   font-weight: 500;
   text-align: right;
+}
+
+.storyStageHeader > p {
+  display: none;
+  margin: 0;
 }
 
 .storyLoading {
@@ -771,41 +778,65 @@
 
   .storyStep,
   .storyStepActive {
-    width: 230px;
-    min-height: 0;
-    flex: 0 0 230px;
-    padding: 17px 0 18px;
-    justify-content: flex-start;
-    border-top: 1px solid rgba(17,19,24,.12);
-    border-bottom: 1px solid rgba(17,19,24,.12);
-    opacity: .42;
+    width: auto;
+    min-width: 88px;
+    min-height: 42px;
+    flex: 0 0 auto;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(17,19,24,.12);
+    border-radius: 999px;
+    opacity: .48;
     transform: none;
   }
 
   .storyStepActive {
     opacity: 1;
-    border-top-color: #111318;
+    border-color: #111318;
+    background: #111318;
+    color: #fff;
   }
 
+  .storyStep > span,
+  .storyStepActive > span,
   .storyStep > strong,
-  .storyStepActive > strong {
-    margin-top: 9px;
-    font-size: 20px;
-  }
-
+  .storyStepActive > strong,
   .storyStep > p,
   .storyStepActive > p {
-    margin-top: 8px;
+    display: none;
+  }
+
+  .storyCompactLabel {
+    display: block;
+    color: inherit;
     font-size: 11px;
-    line-height: 1.7;
+    font-weight: 600;
+    white-space: nowrap;
   }
 
   .storyStage { padding: 26px 0 0; }
   .storySticky { position: relative; top: auto; }
 
   .storyStageHeader {
-    min-height: 46px;
-    align-items: center;
+    min-height: 76px;
+    display: block;
+  }
+
+  .storyStageHeader > strong {
+    margin-top: 5px;
+    display: block;
+    font-size: 18px;
+    text-align: left;
+  }
+
+  .storyStageHeader > p {
+    margin-top: 6px;
+    display: block;
+    color: #6c727c;
+    font-size: 11px;
+    line-height: 1.65;
   }
 }
 
@@ -837,20 +868,12 @@
 
   .storyStep,
   .storyStepActive {
-    width: 205px;
-    flex-basis: 205px;
-  }
-
-  .storyStageHeader {
-    min-height: 42px;
-    display: block;
+    min-width: 80px;
+    padding-inline: 12px;
   }
 
   .storyStageHeader > strong {
-    margin-top: 5px;
-    display: block;
-    font-size: 12px;
-    text-align: left;
+    font-size: 16px;
   }
 }
 
