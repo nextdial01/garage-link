@@ -40,15 +40,16 @@ test.describe('GARAGE LINK embedded live demo', () => {
     expect(await stage.evaluate((element) => getComputedStyle(element).position)).toBe('sticky');
 
     const steps = story.locator('button[data-story-index]');
-    await expect(story.getByText('車両', { exact: true }).last()).toBeVisible();
+    const storyDemo = page.getByTestId('garage-scroll-story-demo');
+    await expect(storyDemo.getByRole('heading', { name: '車両', exact: true })).toBeVisible();
 
     await steps.nth(2).scrollIntoViewIfNeeded();
     await page.waitForTimeout(260);
-    await expect(story.getByText('商談', { exact: true }).last()).toBeVisible();
+    await expect(storyDemo.getByRole('heading', { name: '商談', exact: true })).toBeVisible();
 
     await steps.nth(3).scrollIntoViewIfNeeded();
     await page.waitForTimeout(260);
-    await expect(story.getByText('見積', { exact: true }).last()).toBeVisible();
+    await expect(storyDemo.getByRole('heading', { name: '見積', exact: true })).toBeVisible();
   });
 
   test('compact scroll story uses direct tap switching instead of sticky scrolling', async ({ page }) => {
@@ -61,7 +62,7 @@ test.describe('GARAGE LINK embedded live demo', () => {
 
     const steps = story.locator('button[data-story-index]');
     await steps.nth(4).click();
-    await expect(story.getByText('整備', { exact: true }).last()).toBeVisible();
+    await expect(page.getByTestId('garage-scroll-story-demo').getByRole('heading', { name: '整備', exact: true })).toBeVisible();
     await expect(steps.nth(4)).toHaveAttribute('aria-current', 'step');
   });
 
