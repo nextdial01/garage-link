@@ -8,6 +8,7 @@ import {
 } from '@/lib/legal/constants';
 
 export const metadata: Metadata = {
+  title: '利用規約',
   alternates: { canonical: "/legal/terms" },
   openGraph: { url: "/legal/terms" },
 };

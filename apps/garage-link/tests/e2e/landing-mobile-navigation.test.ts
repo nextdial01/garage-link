@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.describe('GARAGE LINK LP mobile navigation', () => {
   for (const width of [360, 390, 430]) {
-    test(`opens, closes, and follows an in-page destination at ${width}px`, async ({ page }) => {
+    test(`opens, closes, and follows the demo destination at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 });
       await page.goto('/');
 
@@ -21,7 +21,7 @@ test.describe('GARAGE LINK LP mobile navigation', () => {
 
       await trigger.click();
       await page.getByRole('navigation', { name: 'スマホメニュー' }).getByRole('link', { name: 'デモ' }).click();
-      await expect(page).toHaveURL(/#live-demo$/);
+      await expect(page).toHaveURL(/\/demo$/);
       await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     });
   }

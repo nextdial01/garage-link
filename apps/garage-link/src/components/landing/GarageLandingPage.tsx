@@ -2,12 +2,11 @@ import Link from 'next/link';
 import {
   ArrowRight,
 } from 'lucide-react';
-import BrandLogo from '@/components/BrandLogo';
 import { AcquisitionPageTracker } from '@/components/analytics/AcquisitionPageTracker';
 import { GARAGE_PLANS } from '@/lib/billing/garagePlans';
-import { MobileNavigation } from './MobileNavigation';
+import { PublicSiteHeader, PublicSiteFooter } from '@/components/public-site/PublicSiteChrome';
 import { GarageScrollStory } from './GarageScrollStory';
-import { TrackedDemoLink, TrackedInquiryLink, TrackedLoginLink, TrackedSignupLink } from './TrackedSignupLink';
+import { TrackedDemoLink, TrackedSignupLink } from './TrackedSignupLink';
 import styles from './garage-landing.module.css';
 
 
@@ -47,22 +46,7 @@ export function GarageLandingPage() {
       <AcquisitionPageTracker source="landing" placement="home" />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
 
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <Link href="/" aria-label="GARAGE LINK トップページ" className={styles.brand}>
-            <BrandLogo className={styles.brandLogo} priority />
-          </Link>
-          <nav className={styles.nav} aria-label="メインナビゲーション">
-            <a href="#live-demo">デモ</a>
-            <a href="#product-story">体験</a>
-            <Link href="/pricing">料金</Link>
-            <Link href="/faq">FAQ</Link>
-            <TrackedInquiryLink placement="header_inquiry">お問い合わせ</TrackedInquiryLink>
-          </nav>
-          <TrackedLoginLink className={styles.loginLink}>ログイン</TrackedLoginLink>
-          <MobileNavigation />
-        </div>
-      </header>
+      <PublicSiteHeader />
 
       <section className={styles.hero} id="garage-hero">
         <div className={styles.heroInner}>
@@ -139,26 +123,7 @@ export function GarageLandingPage() {
         </div>
       </section>
 
-      <footer className={styles.footer}>
-        <div className={styles.footerTop}>
-          <BrandLogo className={styles.footerLogo} />
-          <nav aria-label="フッターナビゲーション">
-            <a href="#live-demo">デモ</a>
-            <Link href="/features">機能</Link>
-            <Link href="/pricing">料金</Link>
-            <Link href="/faq">FAQ</Link>
-            <TrackedInquiryLink placement="footer_inquiry">お問い合わせ</TrackedInquiryLink>
-          </nav>
-        </div>
-        <div className={styles.footerBottom}>
-          <p>© 株式会社かんなぎ</p>
-          <nav aria-label="法務情報">
-            <Link href="/legal/terms">利用規約</Link>
-            <Link href="/legal/privacy">プライバシーポリシー</Link>
-            <Link href="/legal/tokusho">特定商取引法に基づく表記</Link>
-          </nav>
-        </div>
-      </footer>
+      <PublicSiteFooter />
 
     </main>
   );

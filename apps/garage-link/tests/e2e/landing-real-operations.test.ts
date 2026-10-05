@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 const mobileDestinations = [
-  { label: 'デモ', url: /\/#live-demo$/ },
-  { label: '体験', url: /\/#product-story$/ },
+  { label: 'デモ', url: /\/demo$/ },
+  { label: '製品', url: /\/features$/ },
   { label: '料金', url: /\/pricing$/ },
   { label: 'FAQ', url: /\/faq$/ },
   { label: 'ログイン', url: /\/login$/ },
@@ -22,7 +22,7 @@ test.describe('GARAGE LINK LP real operations', () => {
       await menu.getByRole('link', { name: destination.label }).click();
       await expect(page).toHaveURL(destination.url);
 
-      if (destination.label === 'デモ' || destination.label === '体験') {
+      if (destination.label === 'デモ' || destination.label === '製品') {
         await expect(trigger).toHaveAttribute('aria-expanded', 'false');
         await expect(menu).toBeHidden();
       }
@@ -194,7 +194,7 @@ test.describe('GARAGE LINK LP real operations', () => {
   test('standalone live demo is public and keeps source/lead attribution', async ({ page }) => {
     await page.goto('/demo?source=outbound&lead=shop-demo-001&scenario=maintenance&goal=maintenance');
 
-    await expect(page.getByRole('heading', { name: '登録する前に、触って決める。' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '登録前に、触って確かめる。' })).toBeVisible();
     await expect(page.getByTestId('garage-live-demo')).toBeVisible();
     await expect(page.locator('img[src*="/product-screens/"]')).toHaveCount(0);
     await expect(page.getByTestId('garage-live-demo').getByText('かんなぎ整備サービス')).toBeVisible();

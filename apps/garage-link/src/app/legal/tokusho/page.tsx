@@ -8,6 +8,7 @@ import {
 } from '@/lib/legal/constants';
 
 export const metadata: Metadata = {
+  title: '特定商取引法に基づく表記',
   alternates: { canonical: "/legal/tokusho" },
   openGraph: { url: "/legal/tokusho" },
 };

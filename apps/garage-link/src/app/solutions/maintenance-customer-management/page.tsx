@@ -33,7 +33,7 @@ export default function MaintenanceCustomerManagementPage() {
       ]}
       notFit={[
         '検査ライン機器との専用ハードウェア連携が必須の場合',
-        'メーカー指定DMS・FC基幹システムの置き換えができない場合',
+        'メーカーや加盟店本部が指定する管理システムを置き換えられない場合',
         'LINE自動配信だけを単独で今すぐ導入することが目的の場合',
       ]}
       relatedHref="/industries/maintenance"

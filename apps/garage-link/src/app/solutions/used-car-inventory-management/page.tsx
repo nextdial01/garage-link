@@ -33,8 +33,8 @@ export default function UsedCarInventoryManagementPage() {
       ]}
       notFit={[
         '複数の中古車広告媒体へ車両情報を自動一括掲載することが最優先の場合',
-        'メーカー・FC指定の基幹システムを変更できない場合',
-        '大規模ディーラー向けの専用基幹会計・DMS連携が必須の場合',
+        'メーカーや加盟店本部が指定する管理システムを変更できない場合',
+        '大規模販売店で、既存の会計・店舗システムとの専用連携が必須の場合',
       ]}
       relatedHref="/industries/used-car"
       relatedLabel="中古車販売での使い方を見る"

@@ -1,0 +1,4536 @@
+[
+  {
+    "route": "/",
+    "width": 1440,
+    "status": 200,
+    "final": "/",
+    "title": "GARAGE LINK｜中古車販売・整備工場向け店舗管理システム",
+    "h1": "車両を中心に、仕事をひとつに。",
+    "canonical": "https://garage-link.tech",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める ",
+        "href": "/signup?placement=hero"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "無料で始める ",
+        "href": "/signup?placement=product_story"
+      },
+      {
+        "text": "触って確かめる ",
+        "href": "/demo"
+      },
+      {
+        "text": "無料で始める ",
+        "href": "/signup?placement=pricing_free"
+      },
+      {
+        "text": "全プランを見る",
+        "href": "/pricing"
+      },
+      {
+        "text": "無料で始める ",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/features",
+    "width": 1440,
+    "status": 200,
+    "final": "/features",
+    "title": "製品・機能 | GARAGE LINK",
+    "h1": "車両から、仕事がつながる。",
+    "canonical": "https://garage-link.tech/features",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/pricing",
+    "width": 1440,
+    "status": 200,
+    "final": "/pricing",
+    "title": "料金 | GARAGE LINK",
+    "h1": "月額0円から。",
+    "canonical": "https://garage-link.tech/pricing",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=pricing_free_plan"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/faq",
+    "width": 1440,
+    "status": 200,
+    "final": "/faq",
+    "title": "よくある質問 | GARAGE LINK",
+    "h1": "登録前の疑問を、ここで。",
+    "canonical": "https://garage-link.tech/faq",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "料金ページ",
+        "href": "/pricing"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/demo",
+    "width": 1440,
+    "status": 200,
+    "final": "/demo",
+    "title": "GARAGE LINK ライブデモ｜登録前にその場で操作 | GARAGE LINK",
+    "h1": "登録前に、触って確かめる。",
+    "canonical": "https://garage-link.tech/demo",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で使う",
+        "href": "/signup?placement=interactive_demo_header"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=demo_final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/industries/used-car",
+    "width": 1440,
+    "status": 200,
+    "final": "/industries/used-car",
+    "title": "在庫から納車まで、1台で。 | GARAGE LINK",
+    "h1": "在庫から納車まで、1台で。",
+    "canonical": "https://garage-link.tech/industries/used-car",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "Excelからの在庫管理を詳しく見る",
+        "href": "/solutions/used-car-inventory-management"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/industries/motorcycle",
+    "width": 1440,
+    "status": 200,
+    "final": "/industries/motorcycle",
+    "title": "販売も修理も、同じ台帳で。 | GARAGE LINK",
+    "h1": "販売も修理も、同じ台帳で。",
+    "canonical": "https://garage-link.tech/industries/motorcycle",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/industries/maintenance",
+    "width": 1440,
+    "status": 200,
+    "final": "/industries/maintenance",
+    "title": "入庫から納車まで、ひと続き。 | GARAGE LINK",
+    "h1": "入庫から納車まで、ひと続き。",
+    "canonical": "https://garage-link.tech/industries/maintenance",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "整備工場の顧客管理を詳しく見る",
+        "href": "/solutions/maintenance-customer-management"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/login",
+    "width": 1440,
+    "status": 200,
+    "final": "/login",
+    "title": "ログイン | GARAGE LINK",
+    "h1": "ログイン",
+    "canonical": "https://garage-link.tech/login",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "忘れた方はこちら",
+        "href": "/forgot-password"
+      },
+      {
+        "text": "新規登録",
+        "href": "/signup"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/signup",
+    "width": 1440,
+    "status": 200,
+    "final": "/signup",
+    "title": "無料で始める | GARAGE LINK",
+    "h1": "アカウント作成",
+    "canonical": "https://garage-link.tech/signup",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/legal/terms",
+    "width": 1440,
+    "status": 200,
+    "final": "/legal/terms",
+    "title": "利用規約 | GARAGE LINK",
+    "h1": "利用規約",
+    "canonical": "https://garage-link.tech/legal/terms",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/legal/privacy",
+    "width": 1440,
+    "status": 200,
+    "final": "/legal/privacy",
+    "title": "プライバシーポリシー | GARAGE LINK",
+    "h1": "プライバシーポリシー",
+    "canonical": "https://garage-link.tech/legal/privacy",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/legal/tokusho",
+    "width": 1440,
+    "status": 200,
+    "final": "/legal/tokusho",
+    "title": "特定商取引法に基づく表記 | GARAGE LINK",
+    "h1": "特定商取引法に基づく表記",
+    "canonical": "https://garage-link.tech/legal/tokusho",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/forgot-password",
+    "width": 1440,
+    "status": 200,
+    "final": "/forgot-password",
+    "title": "パスワード再設定 | GARAGE LINK",
+    "h1": "パスワード再設定",
+    "canonical": "https://garage-link.tech/forgot-password",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "ログインへ戻る",
+        "href": "/login"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/help",
+    "width": 1440,
+    "status": 200,
+    "final": "/help",
+    "title": "使い始め方 | GARAGE LINK",
+    "h1": "まず1台から、始める。",
+    "canonical": "https://garage-link.tech/help",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/solutions/used-car-inventory-management",
+    "width": 1440,
+    "status": 200,
+    "final": "/solutions/used-car-inventory-management",
+    "title": "中古車の在庫管理システム｜Excel台帳から車両・商談を一元管理 | GARAGE LINK",
+    "h1": "中古車の在庫管理を、Excelの車両台帳から一つの画面へ。",
+    "canonical": "https://garage-link.tech/solutions/used-car-inventory-management",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=seo_hero"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "中古車販売での使い方を見る",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=seo_final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/solutions/maintenance-customer-management",
+    "width": 1440,
+    "status": 200,
+    "final": "/solutions/maintenance-customer-management",
+    "title": "整備工場の顧客管理システム｜車両・整備履歴・車検期限を一元管理 | GARAGE LINK",
+    "h1": "整備工場の顧客・車両・整備履歴を、一つの案件で管理。",
+    "canonical": "https://garage-link.tech/solutions/maintenance-customer-management",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=seo_hero"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "整備工場での使い方を見る",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=seo_final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/",
+    "width": 390,
+    "status": 200,
+    "final": "/",
+    "title": "GARAGE LINK｜中古車販売・整備工場向け店舗管理システム",
+    "h1": "車両を中心に、仕事をひとつに。",
+    "canonical": "https://garage-link.tech",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める ",
+        "href": "/signup?placement=hero"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "無料で始める ",
+        "href": "/signup?placement=product_story"
+      },
+      {
+        "text": "触って確かめる ",
+        "href": "/demo"
+      },
+      {
+        "text": "無料で始める ",
+        "href": "/signup?placement=pricing_free"
+      },
+      {
+        "text": "全プランを見る",
+        "href": "/pricing"
+      },
+      {
+        "text": "無料で始める ",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/features",
+    "width": 390,
+    "status": 200,
+    "final": "/features",
+    "title": "製品・機能 | GARAGE LINK",
+    "h1": "車両から、仕事がつながる。",
+    "canonical": "https://garage-link.tech/features",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/pricing",
+    "width": 390,
+    "status": 200,
+    "final": "/pricing",
+    "title": "料金 | GARAGE LINK",
+    "h1": "月額0円から。",
+    "canonical": "https://garage-link.tech/pricing",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=pricing_free_plan"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/faq",
+    "width": 390,
+    "status": 200,
+    "final": "/faq",
+    "title": "よくある質問 | GARAGE LINK",
+    "h1": "登録前の疑問を、ここで。",
+    "canonical": "https://garage-link.tech/faq",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "料金ページ",
+        "href": "/pricing"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/demo",
+    "width": 390,
+    "status": 200,
+    "final": "/demo",
+    "title": "GARAGE LINK ライブデモ｜登録前にその場で操作 | GARAGE LINK",
+    "h1": "登録前に、触って確かめる。",
+    "canonical": "https://garage-link.tech/demo",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で使う",
+        "href": "/signup?placement=interactive_demo_header"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=demo_final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/industries/used-car",
+    "width": 390,
+    "status": 200,
+    "final": "/industries/used-car",
+    "title": "在庫から納車まで、1台で。 | GARAGE LINK",
+    "h1": "在庫から納車まで、1台で。",
+    "canonical": "https://garage-link.tech/industries/used-car",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "Excelからの在庫管理を詳しく見る",
+        "href": "/solutions/used-car-inventory-management"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/industries/motorcycle",
+    "width": 390,
+    "status": 200,
+    "final": "/industries/motorcycle",
+    "title": "販売も修理も、同じ台帳で。 | GARAGE LINK",
+    "h1": "販売も修理も、同じ台帳で。",
+    "canonical": "https://garage-link.tech/industries/motorcycle",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/industries/maintenance",
+    "width": 390,
+    "status": 200,
+    "final": "/industries/maintenance",
+    "title": "入庫から納車まで、ひと続き。 | GARAGE LINK",
+    "h1": "入庫から納車まで、ひと続き。",
+    "canonical": "https://garage-link.tech/industries/maintenance",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "整備工場の顧客管理を詳しく見る",
+        "href": "/solutions/maintenance-customer-management"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/login",
+    "width": 390,
+    "status": 200,
+    "final": "/login",
+    "title": "ログイン | GARAGE LINK",
+    "h1": "ログイン",
+    "canonical": "https://garage-link.tech/login",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "忘れた方はこちら",
+        "href": "/forgot-password"
+      },
+      {
+        "text": "新規登録",
+        "href": "/signup"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/signup",
+    "width": 390,
+    "status": 200,
+    "final": "/signup",
+    "title": "無料で始める | GARAGE LINK",
+    "h1": "アカウント作成",
+    "canonical": "https://garage-link.tech/signup",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/legal/terms",
+    "width": 390,
+    "status": 200,
+    "final": "/legal/terms",
+    "title": "利用規約 | GARAGE LINK",
+    "h1": "利用規約",
+    "canonical": "https://garage-link.tech/legal/terms",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/legal/privacy",
+    "width": 390,
+    "status": 200,
+    "final": "/legal/privacy",
+    "title": "プライバシーポリシー | GARAGE LINK",
+    "h1": "プライバシーポリシー",
+    "canonical": "https://garage-link.tech/legal/privacy",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/legal/tokusho",
+    "width": 390,
+    "status": 200,
+    "final": "/legal/tokusho",
+    "title": "特定商取引法に基づく表記 | GARAGE LINK",
+    "h1": "特定商取引法に基づく表記",
+    "canonical": "https://garage-link.tech/legal/tokusho",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/forgot-password",
+    "width": 390,
+    "status": 200,
+    "final": "/forgot-password",
+    "title": "パスワード再設定 | GARAGE LINK",
+    "h1": "パスワード再設定",
+    "canonical": "https://garage-link.tech/forgot-password",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "ログインへ戻る",
+        "href": "/login"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/help",
+    "width": 390,
+    "status": 200,
+    "final": "/help",
+    "title": "使い始め方 | GARAGE LINK",
+    "h1": "まず1台から、始める。",
+    "canonical": "https://garage-link.tech/help",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/solutions/used-car-inventory-management",
+    "width": 390,
+    "status": 200,
+    "final": "/solutions/used-car-inventory-management",
+    "title": "中古車の在庫管理システム｜Excel台帳から車両・商談を一元管理 | GARAGE LINK",
+    "h1": "中古車の在庫管理を、Excelの車両台帳から一つの画面へ。",
+    "canonical": "https://garage-link.tech/solutions/used-car-inventory-management",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=seo_hero"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "中古車販売での使い方を見る",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=seo_final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  },
+  {
+    "route": "/solutions/maintenance-customer-management",
+    "width": 390,
+    "status": 200,
+    "final": "/solutions/maintenance-customer-management",
+    "title": "整備工場の顧客管理システム｜車両・整備履歴・車検期限を一元管理 | GARAGE LINK",
+    "h1": "整備工場の顧客・車両・整備履歴を、一つの案件で管理。",
+    "canonical": "https://garage-link.tech/solutions/maintenance-customer-management",
+    "headers": 1,
+    "footers": 1,
+    "overflow": false,
+    "jargon": [],
+    "links": [
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=header"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "ログイン",
+        "href": "/login"
+      },
+      {
+        "text": "無料で始める",
+        "href": "/signup?placement=mobile_menu"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=seo_hero"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "整備工場での使い方を見る",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "無料で始める →",
+        "href": "/signup?placement=seo_final"
+      },
+      {
+        "text": "触って確かめる",
+        "href": "/demo"
+      },
+      {
+        "text": "",
+        "href": "/"
+      },
+      {
+        "text": "製品",
+        "href": "/features"
+      },
+      {
+        "text": "料金",
+        "href": "/pricing"
+      },
+      {
+        "text": "デモ",
+        "href": "/demo"
+      },
+      {
+        "text": "FAQ",
+        "href": "/faq"
+      },
+      {
+        "text": "使い始め方",
+        "href": "/help"
+      },
+      {
+        "text": "お問い合わせ",
+        "href": "https://llink.tech/r/fc9c4a7cd45041588d9b5bf344971709"
+      },
+      {
+        "text": "中古車販売店",
+        "href": "/industries/used-car"
+      },
+      {
+        "text": "バイク販売・修理店",
+        "href": "/industries/motorcycle"
+      },
+      {
+        "text": "整備工場",
+        "href": "/industries/maintenance"
+      },
+      {
+        "text": "利用規約",
+        "href": "/legal/terms"
+      },
+      {
+        "text": "プライバシーポリシー",
+        "href": "/legal/privacy"
+      },
+      {
+        "text": "特定商取引法に基づく表記",
+        "href": "/legal/tokusho"
+      }
+    ]
+  }
+]

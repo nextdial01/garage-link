@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useEffect, useRef, useState } from 'react';
-import BrandLogo from '@/components/BrandLogo';
 import { isEmailConfirmationRequired, translateAuthError } from '@/lib/auth/auth-errors';
 import { hasMinimumPasswordLength, MIN_PASSWORD_LENGTH } from '@/lib/auth/password-policy';
 import { rememberReleaseQaRun, releaseQaNextPath, releaseQaRunId, recordReleaseQaCallback } from '@/lib/auth/releaseQaCallback';
@@ -206,7 +205,6 @@ function SignupForm() {
       <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-12 text-slate-950">
         <section className="w-full max-w-lg rounded-2xl border border-amber-200 bg-white p-6 shadow-sm">
           <div className="mb-6 text-center">
-            <BrandLogo className="mx-auto h-16 w-64 max-w-full sm:h-20" priority />
             <p className="mt-4 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">
               続きから再開
             </p>
@@ -277,8 +275,7 @@ function SignupForm() {
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-12 text-slate-950">
       <section className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-6 text-center">
-          <BrandLogo className="mx-auto h-16 w-64 max-w-full sm:h-20" priority />
-          <p className="mt-4 text-xs font-bold tracking-[0.2em] text-blue-600">STEP 1 / 2</p>
+          <p className="mt-4 text-xs font-bold tracking-[0.2em] text-blue-600">無料で始める</p>
           <h1 className="mt-2 text-2xl font-bold">アカウント作成</h1>
           <p className="mt-2 text-sm leading-6 text-slate-500">
             無料プランから始められます。アカウント作成後、店舗名を登録してすぐに1台目を試せます。

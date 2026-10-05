@@ -99,9 +99,9 @@ export function TrackedLoginLink({ children, className, onClick }: {
   return <Link className={className} onClick={onClick} href={href}>{children}</Link>;
 }
 
-export function TrackedDemoLink({ children, placement, className }: SignupProps) {
+export function TrackedDemoLink({ children, placement, className, source = 'landing' }: SignupProps) {
   return <Link href="/demo" className={className} onClick={() => {
-    const attribution = currentAttribution('landing', placement);
+    const attribution = currentAttribution(source, placement);
     saveSignupAttribution(attribution);
     trackConversion('demo_interaction', { ...attribution, demo_action: 'demo_open' });
   }}>{children}</Link>;

@@ -7,6 +7,7 @@ import {
 } from '@/lib/legal/constants';
 
 export const metadata: Metadata = {
+  title: 'プライバシーポリシー',
   alternates: { canonical: "/legal/privacy" },
   openGraph: { url: "/legal/privacy" },
 };

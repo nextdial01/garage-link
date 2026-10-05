@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { useHydrated } from '@/lib/browser/useHydrated';
-import { TrackedInquiryLink, TrackedLoginLink } from './TrackedSignupLink';
+import { TrackedLoginLink, TrackedSignupLink } from './TrackedSignupLink';
 import { Menu, X } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import styles from './garage-landing.module.css';
 
-export function MobileNavigation() {
+export function MobileNavigation({ source = 'landing' }: { source?: string }) {
   const isHydrated = useHydrated();
   const [open, setOpen] = useState(false);
   const navigationId = useId();
@@ -53,12 +53,12 @@ export function MobileNavigation() {
         aria-label="スマホメニュー"
         aria-hidden={!open}
       >
-        <a href="#live-demo" onClick={close}>デモ</a>
-        <a href="#product-story" onClick={close}>体験</a>
+        <Link href="/features" onClick={close}>製品</Link>
         <Link href="/pricing" onClick={close}>料金</Link>
+        <Link href="/demo" onClick={close}>デモ</Link>
         <Link href="/faq" onClick={close}>FAQ</Link>
-        <TrackedInquiryLink placement="mobile_menu_inquiry" onClick={close}>お問い合わせ</TrackedInquiryLink>
         <TrackedLoginLink onClick={close}>ログイン</TrackedLoginLink>
+        <TrackedSignupLink source={source} placement="mobile_menu">無料で始める</TrackedSignupLink>
       </nav>
     </div>
   );

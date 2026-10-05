@@ -3,6 +3,7 @@ import { LoginTopPage } from '@/components/login-top/LoginTopPage';
 
 export const metadata: Metadata = {
   title: 'ログイン',
+  alternates: { canonical: '/login' },
   description: 'GARAGE LINKへログインします。',
   robots: { index: false, follow: false },
 };
