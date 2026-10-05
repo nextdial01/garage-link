@@ -113,16 +113,17 @@ test.describe('GARAGE LINK LP real operations', () => {
 
     const story = page.locator('#product-story');
     await expect(story).toBeVisible();
-    await expect(story.getByText('車両', { exact: true }).last()).toBeVisible();
+    const storyDemo = page.getByTestId('garage-scroll-story-demo');
+    await expect(storyDemo.getByRole('heading', { name: '車両', exact: true })).toBeVisible();
 
     const steps = story.locator('button[data-story-index]');
     await steps.nth(2).scrollIntoViewIfNeeded();
     await page.waitForTimeout(180);
-    await expect(story.getByText('商談', { exact: true }).last()).toBeVisible();
+    await expect(storyDemo.getByRole('heading', { name: '商談', exact: true })).toBeVisible();
 
     await steps.nth(3).scrollIntoViewIfNeeded();
     await page.waitForTimeout(180);
-    await expect(story.getByText('見積', { exact: true }).last()).toBeVisible();
+    await expect(storyDemo.getByRole('heading', { name: '見積', exact: true })).toBeVisible();
   });
 
   test('live demo regenerates data and supports vehicle to deal to quote flow', async ({ page }) => {
