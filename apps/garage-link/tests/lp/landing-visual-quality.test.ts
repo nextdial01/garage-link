@@ -129,10 +129,27 @@ test.describe('GARAGE LINK rendered LP quality', () => {
       expect(overlappingHeaderControls, 'header controls must not overlap').toEqual([]);
 
       if (viewport.width <= 680) {
-        const stickyDemo = page.locator('a[href="#live-demo"][aria-hidden="true"]');
-        await expect(stickyDemo, 'sticky demo CTA stays hidden while hero is visible').toHaveCount(1);
-        await page.locator('#garage-hero').evaluate((element) => window.scrollTo(0, element.getBoundingClientRect().bottom + window.scrollY + 80));
-        await expect(page.locator('a[href="#live-demo"][aria-hidden="false"]')).toHaveCount(1);
+        const stickyHidden = page.locator('a[href="#live-demo"][aria-hidden="true"]');
+        const stickyVisible = page.locator('a[href="#live-demo"][aria-hidden="false"]');
+
+        await expect(stickyHidden, 'sticky CTA stays hidden while hero is visible').toHaveCount(1);
+
+        await page.locator('#product-story').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(120);
+        await expect(stickyHidden, 'sticky CTA must not cover the scroll product story').toHaveCount(1);
+
+        await page.locator('#live-demo').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(120);
+        await expect(stickyHidden, 'sticky CTA must not cover the free live demo').toHaveCount(1);
+
+        await page.locator('#migration').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(120);
+        await expect(stickyVisible, 'sticky CTA appears only in explanatory sections').toHaveCount(1);
+
+        await page.locator('#final-cta').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(120);
+        await expect(stickyHidden, 'sticky CTA must not cover the final conversion block').toHaveCount(1);
+
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.waitForTimeout(100);
       }
