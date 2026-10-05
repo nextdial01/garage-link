@@ -108,6 +108,13 @@ test.describe('GARAGE LINK LP real operations', () => {
   });
 
   test('Product Platform tabs change the embedded product state without counting as a user demo action', async ({ page }) => {
+    await page.addInitScript(() => {
+      const events: string[] = [];
+      Object.defineProperty(window, '__platformEvents', { value: events });
+      window.addEventListener('garage-link:conversion', (event) => {
+        events.push((event as CustomEvent<{ event: string }>).detail.event);
+      });
+    });
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto('/');
 
@@ -122,6 +129,10 @@ test.describe('GARAGE LINK LP real operations', () => {
 
     await tabs.nth(3).click();
     await expect(storyDemo.getByRole('heading', { name: '見積', exact: true })).toBeVisible();
+    const events = await page.evaluate(() =>
+      (window as typeof window & { __platformEvents: string[] }).__platformEvents,
+    );
+    expect(events.filter((event) => event.startsWith('demo_') && event !== 'demo_view')).toEqual([]);
   });
 
   test('live demo regenerates data and supports vehicle to deal to quote flow', async ({ page }) => {

@@ -1,162 +1,98 @@
 {
-  "schema_version": 1,
-  "task": "GARAGE LINK LP rebuild from current Attio public HTML/CSS",
-  "primary_goal": "Rebuild GARAGE LINK landing page on an isolated branch from current public Attio HTML/CSS without Attio browser-side measurement, and complete local visual and behavior QA.",
-  "primary_kpi": "Minimize Owner revision rounds with measurable criteria, a durable contract, and retained local screenshots.",
-  "started_at": "2026-10-05T06:56:32Z",
-  "completed_at": "2026-10-05T08:38:17Z",
-  "state": "complete",
-  "revision": {
-    "number": 3,
-    "reason": "Qwen gate completed on the retained branch; Codex reviewed the independent audit, fixed two test-only false gates, and reran final local verification.",
-    "owner_action_required": false
-  },
-  "baseline": {
-    "sha": "6ea2e8b4b8b6b1ca910e49ec024e454b5072ca4a",
-    "sha_verified": true,
-    "branch": "nextdial01/garage-link-attio-lp-20261005",
-    "worktree": "/Users/ksk/orca/workspaces/main/garage-link-attio-lp-20261005",
-    "parent_worktree_preexisting_changes": "left untouched"
-  },
-  "evidence": {
-    "live_public_html": "HTTP 200, 1,105,688 bytes, SHA-256 in attio-live-source-evidence.json",
-    "live_public_stylesheets": "9 CSS responses HTTP 200; byte sizes and SHA-256 in attio-live-source-evidence.json",
-    "source_method": "Ordinary public HTTP GET only; no browser-side Attio measurement script used.",
-    "responsive_css": "Breakpoints and layout rules extracted from live linked CSS.",
-    "computed_styles_and_bounding_boxes_for_attio": "not measured, per revised instruction",
-    "prior_570x1430_capture": "not locally available; screenshot-only ratios are inferred and non-gating",
-    "attio_comparison_image": "not saved; no browser retry or screenshot workaround used",
-    "visual_contract": "ATTIO_VISUAL_CONTRACT.json contains value/source/confidence for every item; screenshot-derived ratios are excluded from gates",
-    "garage_screenshots": "20 local Playwright images in screenshots/ with a viewport and coverage manifest",
-    "diff_audit_and_counterarguments": "GARAGE_DIFF_AUDIT.md"
-  },
+  "task_id": "garage-link-visual-first-20261005",
+  "status": "IN_PROGRESS",
+  "PRIMARY_GOAL": "Visual-first GARAGE LINK LP and public Preview",
+  "PRIMARY_KPI": "Real UI width 70-90% viewport; marketing copy <=50% baseline; no document-like repeated structure",
+  "DONE_CONDITION": "Qwen diff reviewed, build and functional QA, 1440/390 screenshots independently accepted, public Preview verified",
+  "baseline": "1d32b21bd6cf8bebf3954d7e642226f28b081dcc",
+  "prior_acceptance": "Superseded by latest Owner request",
+  "TOTAL": 5,
+  "PASS": 4,
+  "FAIL": 0,
+  "BLOCKED": 0,
+  "REMAINING": 1,
+  "CURRENT_CRITICAL_PATH": "Preview deploy and read-back",
+  "updated_at": "2026-10-05T12:57:13.057741+00:00",
+  "attio_source": "2026-10-05 public HTML/CSS evidence reused; fresh HTTP GET returned 403, not retried or bypassed",
   "delegation": {
-    "qwen_assigned_scope": "Independent audit of the current LP diff, ATTIO_VISUAL_CONTRACT.json, and GARAGE_DIFF_AUDIT.md across the requested visual, conversion, responsive, and regression dimensions.",
-    "qwen_dispatched": true,
-    "qwen_failure_or_rework_reason": "The approved local runner roots do not include the Orca-created branch path; policy scope was not widened.",
-    "qwen_time_seconds": 555,
-    "codex_additional_time_seconds": 6105,
-    "total_elapsed_time_seconds": 6105,
-    "time_note": "Elapsed time from ledger start to completion; active compute time was not separately instrumented.",
-    "next_qwen_scope": "Use Qwen for an independently verifiable component or test task when the approved runner supports this repository/worktree path; keep final review and visual acceptance with Codex.",
-    "qwen_task_id": "garage-link-attio-lp-qwen-audit-v2-20261005",
-    "qwen_result": "/Users/ksk/kannagi/delegation-runs/garage-link-attio-lp-qwen-audit-v2-20261005-20261005-190503-f05cd9a0/result.json",
-    "qwen_review": "/Users/ksk/kannagi/delegation-runs/garage-link-attio-lp-qwen-audit-v2-20261005-20261005-190503-f05cd9a0/review.json",
-    "qwen_source_changes": [],
-    "qwen_standalone_completion": "partial: the independent audit completed with zero source changes and no P0/P1 findings; Codex later corrected two test-only gates Qwen did not identify.",
-    "qwen_findings_codex_disposition": "No P0/P1. P2-1 was a false positive because the cited migration grid is not the Product Platform; P2-2 was non-actionable.",
-    "codex_additional_fixes": [
-      "Wait for the mobile sticky CTA to be aria-hidden and transparent before final-CTA screenshots; wait for the page to settle before full-page capture.",
-      "Replace the arbitrary inline SVG count threshold with semantic assertions that the icon system is present and hand-drawn inline SVGs are absent."
-    ]
+    "route": "MIXED_RISK",
+    "qwen": "three existing landing source files",
+    "codex": "integration, QA, Preview",
+    "input_validation_correction": "required git test path separator corrected before model start; same child ID"
   },
-  "changes": {
-    "changed_files": [
-      "apps/garage-link/src/components/landing/GarageLandingPage.tsx",
-      "apps/garage-link/src/components/landing/GarageScrollStory.tsx",
-      "apps/garage-link/src/components/landing/demo/GarageInteractiveDemo.tsx",
-      "apps/garage-link/src/components/landing/garage-landing.module.css",
-      "apps/garage-link/tests/e2e/landing-mobile-navigation.test.ts",
-      "apps/garage-link/tests/e2e/landing-real-operations.test.ts",
-      "apps/garage-link/tests/lp/landing-interactive-demo.test.ts",
-      "apps/garage-link/tests/lp/landing-visual-quality.test.ts",
-      "apps/garage-link/docs/lp/attio-reference-20261005/"
-    ],
-    "source_changes_are_limited_to_landing": true,
-    "production_changes": 0,
-    "push_or_deploy": 0,
-    "new_android_build_created": false,
-    "local_web_production_build_created": true
+  "qa_scope": "Local unauthenticated LP only. Staging lifecycle writes DB and targets authenticated flows; inapplicable, not claimed. No production fixture.",
+  "architecture_candidates": [
+    "Immediate real UI + tabs (selected)",
+    "Pinned scroll (long scroll)",
+    "Five full screens (repetitive)",
+    "Two-column (forbidden)",
+    "Screenshot carousel (less functional)",
+    "Video (extra runtime)",
+    "Card mosaic (forbidden)",
+    "Phone mockups (fake UI risk)",
+    "Only free demo (workflow unclear)",
+    "Accordion (UI hidden)"
+  ],
+  "preview_authorization": "Owner explicitly requests public Preview; no Production change",
+  "baseline_marketing_copy": {
+    "characters": 752,
+    "text": "中古車販売店・バイク店・整備工場のための店舗管理車両を中心に、仕事をひとつに。在庫、顧客、商談、見積、整備。1台の車両に関わる仕事を、ひと続きの流れで管理します。無料で始める 製品を見る車両から整備まで、店の仕事をひと続きに。一つの製品画面を切り替えて、車両・顧客・商談・見積・整備のつながりを確かめられます。車両顧客商談見積整備自由操作デモ自分の業務に合わせて試す。業態や管理方法を選び、デモデータを作って操作できます。全部移してから試す必要はありません。まず1台。必要になったらCSV。合わなければ止める。導入判断の前に大仕事を作りません。011台だけ登録販売中・入庫中の車から02必要ならCSV顧客・車両を入出力03設定は後から集計基準や表示を調整まず実際の業務で使ってから判断。登録時にカード情報は不要です。0円 / 月在庫 5台スタッフ 1人1店舗見積・請求 月5件Freeで始める 全プランを見るデータを閉じ込めない。顧客・車両はCSVで入出力できます。利用条件、運営会社、問い合わせ窓口も登録前に確認できます。 CSV入出力 役割別の権限プライバシー利用規約お問い合わせ登録前に確認したいこと。無料でどこまで使えますか？＋Freeプランは在庫5台、スタッフ1人、1店舗、見積・請求は月5件まで。登録時にカード情報は不要です。Excelから移せますか？＋顧客・車両はCSVの入出力に対応しています。最初から全件を移さず、1台だけ登録して試すこともできます。デモで作ったデータは保存されますか？＋保存されません。LP上のデモはブラウザ内だけで動きます。無料登録後に実データの利用へ切り替わります。FAQをすべて見る 無料から、実際の業務でまず触る。合えば、そのまま無料で始める。無料で始める デモを操作するデモを触る"
   },
-  "verification": {
-    "acceptance_gates_total": 13,
-    "acceptance_gates_pass": 13,
-    "acceptance_gates_fail": 0,
-    "attio_live_html_css": "PASS",
-    "attio_visual_contract": "PASS",
-    "garage_diff_audit": "PASS",
-    "old_false_gate_removed": "PASS",
-    "desktop_1440": "PASS",
-    "laptop_1024": "PASS",
-    "tablet_768": "PASS",
-    "mobile_430": "PASS",
-    "mobile_390": "PASS",
-    "product_demo": "PASS",
-    "conversion_path": "PASS",
-    "build": "PASS",
-    "typecheck": "PASS",
-    "lint": "PASS",
-    "playwright_visual_and_platform": "11 passed",
-    "playwright_navigation_and_conversion": "17 passed",
-    "counterarguments": "PASS",
-    "independent_qa": {
-      "result": "PASS",
-      "remaining_p0": 0,
-      "remaining_p1": 0,
-      "read_only": true,
-      "findings": "Contract source/confidence valid; the inferred screenshot ratio is non-gating and not used by tests; five viewport screenshots and diff audit match; visual review found no clipping/overflow or CTA/product-stage failure; pricing, legal, SEO, analytics, navigation, and demo checks are consistent.",
-      "p2_evidence_limit": "No raw durable Playwright stdout bundle; per-run commands, pass counts, and screenshots are recorded in this ledger and evidence manifest.",
-      "attio_image": "Not present by design; no prohibited browser capture was retried."
+  "preview_preflight": {
+    "project": "garage-link",
+    "target": "preview",
+    "project_id": "prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64",
+    "team": "altos-projects-fa55063c",
+    "identity_verified": true,
+    "upload_dry_run_files": 1266,
+    "secret_files_in_upload": 0,
+    "public_access": "23-hour share URL supported; preserve protection",
+    "config_discrepancy": "Remote project legacy build command references deleted script; existing tracked vercel.json next build --webpack takes precedence; no config edits required."
+  },
+  "QWEN_STANDALONE_COMPLETION": false,
+  "qwen_result": "600 second timeout, zero changes, canonical handoff review recorded",
+  "codex_changes": [
+    "LP markup/CSS recomposition",
+    "five-view stage scroll reset",
+    "mobile final CTA visibility",
+    "new visual-first test gates and analytics regression"
+  ],
+  "independent_QA": {
+    "P0": 0,
+    "P1": 0,
+    "document_like": false,
+    "fixed": "mobile tab switch retained old scrollTop; independently verified reset on click/keyboard",
+    "P2": "initial vehicle view repeated for interactive demo; different purpose accepted"
+  },
+  "runtime_metrics": {
+    "1440": {
+      "stage_top": 397.6875,
+      "stage_width_ratio": 0.88
     },
-    "remaining_p0": 0,
-    "remaining_p1": 0,
-    "run_records": [
-      {
-        "command": "pnpm --filter @apps/garage-link exec playwright test -c playwright.lp.config.ts tests/lp/landing-visual-quality.test.ts tests/lp/landing-interactive-demo.test.ts",
-        "result": "11 passed; 5 viewport visual QA + platform switching + reduced motion + interactive demo."
-      },
-      {
-        "command": "PLAYWRIGHT_BASE_URL=http://127.0.0.1:3001 pnpm --filter @apps/garage-link exec playwright test -c playwright.config.ts tests/e2e/landing-mobile-navigation.test.ts tests/e2e/landing-real-operations.test.ts",
-        "result": "17 passed; signup CTA/form, analytics events, attribution, demo journey, mobile navigation. Local dev server used inert Supabase placeholders and intercepted signup response."
-      },
-      {
-        "command": "pnpm --filter @apps/garage-link typecheck",
-        "result": "PASS"
-      },
-      {
-        "command": "pnpm --filter @apps/garage-link exec eslint <changed TypeScript and test files>",
-        "result": "PASS"
-      },
-      {
-        "command": "NEXT_PUBLIC_SUPABASE_URL=https://garage-link-build.invalid NEXT_PUBLIC_SUPABASE_ANON_KEY=local-build-placeholder pnpm --filter @apps/garage-link build",
-        "result": "PASS; local optimized web build only, no production deployment."
-      }
-    ],
-    "latest_qwen_gate": {
-      "completed_at": "2026-10-05 10:46:14 UTC",
-      "qwen_dispatch": "PASS",
-      "qwen_standalone_completion": "PARTIAL",
-      "build": "PASS",
-      "typecheck": "PASS",
-      "lint": "PASS",
-      "playwright_navigation_and_conversion": "17 passed",
-      "playwright_visual_platform_demo": "11 passed",
-      "viewports": [
-        "1440x1000",
-        "1024x900",
-        "768x1024",
-        "430x932",
-        "390x844"
-      ],
-      "independent_visual_qa": {
-        "result": "PASS",
-        "remaining_p0": 0,
-        "remaining_p1": 0
-      },
-      "production_changed": false,
-      "branch": "nextdial01/garage-link-attio-lp-20261005",
-      "head": "6ea2e8b4b8b6b1ca910e49ec024e454b5072ca4a"
+    "390": {
+      "stage_top": 375.4375,
+      "stage_width_ratio": 0.88
     }
   },
-  "security_and_boundary": {
-    "attio_browser_measurement_retry": false,
-    "github_actions_used": false,
-    "main_updated": false,
-    "remote_push": false,
-    "production_deploy": false,
-    "production_data_changed": false,
-    "owner_action_required": false,
-    "qwen_source_changes": 0
+  "verification": {
+    "build": "PASS",
+    "typecheck": "PASS",
+    "lint": "PASS (changed TSX/tests)",
+    "LP": "11/11",
+    "conversion_navigation": "17/17",
+    "viewports": [
+      1440,
+      1024,
+      768,
+      430,
+      390
+    ],
+    "marketing_characters": 329,
+    "baseline_characters": 752,
+    "ratio": 0.4375,
+    "secret_hits": 0,
+    "P0": 0,
+    "P1": 0
   },
-  "latest_revision_completed_at": "2026-10-05 10:46:14 UTC"
+  "evidence_directory": "../visual-first-20261005"
 }

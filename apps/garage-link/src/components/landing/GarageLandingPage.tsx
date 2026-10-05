@@ -2,8 +2,6 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import {
   ArrowRight,
-  FileSpreadsheet,
-  ShieldCheck,
 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { AcquisitionPageTracker } from '@/components/analytics/AcquisitionPageTracker';
@@ -20,15 +18,15 @@ import styles from './garage-landing.module.css';
 const faqItems = [
   {
     q: '無料でどこまで使えますか？',
-    a: 'Freeプランは在庫5台、スタッフ1人、1店舗、見積・請求は月5件まで。登録時にカード情報は不要です。',
+    a: '在庫5台、1人・1店舗、見積・請求は月5件まで。',
   },
   {
     q: 'Excelから移せますか？',
-    a: '顧客・車両はCSVの入出力に対応しています。最初から全件を移さず、1台だけ登録して試すこともできます。',
+    a: '顧客・車両をCSVで移せます。',
   },
   {
     q: 'デモで作ったデータは保存されますか？',
-    a: '保存されません。LP上のデモはブラウザ内だけで動きます。無料登録後に実データの利用へ切り替わります。',
+    a: '保存されません。実データは無料登録後に。',
   },
 ] as const;
 
@@ -72,10 +70,10 @@ export function GarageLandingPage() {
 
       <section className={styles.hero} id="garage-hero">
         <div className={styles.heroInner}>
-          <p className={styles.heroEyebrow}>中古車販売店・バイク店・整備工場のための店舗管理</p>
+          <p className={styles.heroEyebrow}>中古車・バイク販売店・整備工場の店舗管理</p>
           <h1><span>車両を中心に、</span><span>仕事をひとつに。</span></h1>
           <p className={styles.heroLead}>
-            在庫、顧客、商談、見積、整備。1台の車両に関わる仕事を、ひと続きの流れで管理します。
+            在庫から整備まで、この画面で。
           </p>
           <div className={styles.heroActions}>
             <TrackedSignupLink placement="hero" className={styles.primaryCta}>無料で始める <ArrowRight aria-hidden="true" /></TrackedSignupLink>
@@ -89,10 +87,9 @@ export function GarageLandingPage() {
       <section className={styles.demoSection} id="live-demo">
         <div className={styles.demoRail}>
           <div>
-            <p>自由操作デモ</p>
-            <h2>自分の業務に合わせて試す。</h2>
+            <h2>次は、あなたが動かす。</h2>
           </div>
-          <span>業態や管理方法を選び、デモデータを作って操作できます。</span>
+          <a href="/demo" className={styles.demoOpen}>デモを広く開く ↗</a>
         </div>
         <div className={styles.demoContainer}>
           <Suspense fallback={<div className={styles.demoLoading}>デモを準備しています...</div>}>
@@ -101,34 +98,15 @@ export function GarageLandingPage() {
         </div>
       </section>
 
-      <section className={styles.migrationSection} id="migration">
-        <div className={styles.migrationGrid}>
-          <div>
-            <h2>全部移してから試す必要はありません。</h2>
-            <p>まず1台。必要になったらCSV。合わなければ止める。導入判断の前に大仕事を作りません。</p>
-          </div>
-          <div className={styles.migrationSteps}>
-            <div><span>01</span><strong>1台だけ登録</strong><small>販売中・入庫中の車から</small></div>
-            <div><span>02</span><strong>必要ならCSV</strong><small>顧客・車両を入出力</small></div>
-            <div><span>03</span><strong>設定は後から</strong><small>集計基準や表示を調整</small></div>
-          </div>
-        </div>
-      </section>
-
       <section className={styles.pricingSection} id="pricing">
         <div className={styles.pricingGrid}>
-          <div>
-            <h2>まず実際の業務で使ってから判断。</h2>
-            <p>登録時にカード情報は不要です。</p>
-          </div>
+          <h2>Freeで始める。</h2>
           <div className={styles.freePricePanel}>
-            <div>
-              <strong>0</strong><span>円 / 月</span>
-            </div>
+            <div><strong>0</strong><span>円 / 月</span></div>
+            <p>カード不要</p>
             <ul>
               <li>在庫 {freePlan.inventoryLimit}台</li>
-              <li>スタッフ {freePlan.includedStaffCount}人</li>
-              <li>1店舗</li>
+              <li>{freePlan.includedStaffCount}人・1店舗</li>
               <li>見積・請求 月{freePlan.quoteInvoiceLimit}件</li>
             </ul>
             <TrackedSignupLink placement="pricing_free" className={styles.pricingCta}>Freeで始める <ArrowRight aria-hidden="true" /></TrackedSignupLink>
@@ -137,26 +115,17 @@ export function GarageLandingPage() {
         </div>
       </section>
 
-      <section className={styles.trustSection}>
-        <div className={styles.trustGrid}>
-          <div>
-            <h2>データを閉じ込めない。</h2>
-            <p>顧客・車両はCSVで入出力できます。利用条件、運営会社、問い合わせ窓口も登録前に確認できます。</p>
-          </div>
-          <div className={styles.trustLinks}>
-            <span><FileSpreadsheet aria-hidden="true" /> CSV入出力</span>
-            <span><ShieldCheck aria-hidden="true" /> 役割別の権限</span>
-            <Link href="/legal/privacy">プライバシー</Link>
-            <Link href="/legal/terms">利用規約</Link>
-            <TrackedInquiryLink placement="trust_inquiry">お問い合わせ</TrackedInquiryLink>
-          </div>
+      <section className={styles.migrationSection} id="migration">
+        <div className={styles.migrationGrid}>
+          <h2>まず1台。移行はCSVで。</h2>
+          <p>顧客・車両の入出力に対応。</p>
         </div>
       </section>
 
       <section className={styles.faqSection} id="faq">
         <div className={styles.faqGrid}>
           <div>
-            <h2>登録前に確認したいこと。</h2>
+            <h2>よくある質問</h2>
           </div>
           <div className={styles.faqList}>
             {faqItems.map((item) => (
@@ -172,8 +141,7 @@ export function GarageLandingPage() {
 
       <section className={styles.finalSection} id="final-cta">
         <div>
-          <p>無料から、実際の業務で</p>
-          <h2>まず触る。合えば、そのまま無料で始める。</h2>
+          <h2>店の仕事を、ひとつに。</h2>
         </div>
         <div className={styles.finalActions}>
           <TrackedSignupLink placement="final" className={styles.finalPrimary}>無料で始める <ArrowRight aria-hidden="true" /></TrackedSignupLink>

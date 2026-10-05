@@ -27,7 +27,9 @@ export function MobileStickyDemoCta() {
       const rect = target.getBoundingClientRect();
       visibility.set(
         target,
-        rect.bottom > centerBandTop && rect.top < centerBandBottom,
+        target.id === 'final-cta'
+          ? rect.bottom > 0 && rect.top < window.innerHeight
+          : rect.bottom > centerBandTop && rect.top < centerBandBottom,
       );
     }
     recompute();
@@ -43,8 +45,15 @@ export function MobileStickyDemoCta() {
       },
     );
 
-    targets.forEach((target) => observer.observe(target));
-    return () => observer.disconnect();
+    const finalObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) visibility.set(entry.target, entry.isIntersecting);
+      recompute();
+    });
+    targets.forEach((target) => {
+      if (target.id === 'final-cta') finalObserver.observe(target);
+      else observer.observe(target);
+    });
+    return () => { observer.disconnect(); finalObserver.disconnect(); };
   }, []);
 
   return (

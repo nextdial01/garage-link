@@ -62,7 +62,9 @@ test.describe('GARAGE LINK embedded live demo', () => {
 
     const tabs = story.getByRole('tab');
     await expect(tabs).toHaveCount(5);
+    await stage.evaluate((element) => { element.scrollTop = 700; });
     await tabs.nth(4).click();
+    expect(await stage.evaluate((element) => element.scrollTop)).toBe(0);
     await expect(page.getByTestId('garage-scroll-story-demo').getByRole('heading', { name: '整備', exact: true })).toBeVisible();
     await expect(tabs.nth(4)).toHaveAttribute('aria-selected', 'true');
     await expect(story.getByRole('tabpanel')).toHaveAttribute('data-active-view', 'maintenance');

@@ -20,10 +20,16 @@ export function GarageScrollStory() {
   const [activeIndex, setActiveIndex] = useState(0);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const active = steps[activeIndex];
+  const stageRef = useRef<HTMLDivElement | null>(null);
+
+  function selectTab(index: number) {
+    setActiveIndex(index);
+    if (stageRef.current) stageRef.current.scrollTop = 0;
+  }
 
   function focusTab(index: number) {
     const nextIndex = (index + steps.length) % steps.length;
-    setActiveIndex(nextIndex);
+    selectTab(nextIndex);
     tabRefs.current[nextIndex]?.focus();
   }
 
@@ -46,11 +52,7 @@ export function GarageScrollStory() {
   return (
     <section className={styles.storySection} id="product-story" aria-labelledby="product-story-title">
       <div className={styles.storyShell}>
-        <div className={styles.storyIntro}>
-          <h2 id="product-story-title">車両から整備まで、店の仕事をひと続きに。</h2>
-          <p>一つの製品画面を切り替えて、車両・顧客・商談・見積・整備のつながりを確かめられます。</p>
-        </div>
-
+        <h2 id="product-story-title" className={styles.visuallyHidden}>車両から整備まで</h2>
         <div className={styles.storySteps} role="tablist" aria-label="業務画面">
           {steps.map((step, index) => (
             <button
@@ -64,15 +66,17 @@ export function GarageScrollStory() {
               aria-controls="garage-story-panel"
               tabIndex={activeIndex === index ? 0 : -1}
               className={activeIndex === index ? styles.storyStepActive : styles.storyStep}
-              onClick={() => setActiveIndex(index)}
+              onClick={() => selectTab(index)}
               onKeyDown={(event) => onTabKeyDown(event, index)}
             >
               {step.label}
+              {index < steps.length - 1 && <span className={styles.storyArrow} aria-hidden="true">›</span>}
             </button>
           ))}
         </div>
 
         <div
+          ref={stageRef}
           className={styles.storyStage}
           id="garage-story-panel"
           role="tabpanel"

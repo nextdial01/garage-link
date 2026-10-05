@@ -1,0 +1,26 @@
+[
+  {
+    "width": 1440,
+    "stage": {
+      "x": 86.40625,
+      "y": 397.6875,
+      "width": 1267.1875,
+      "height": 622
+    },
+    "marketingCharacters": 329,
+    "baseline": 752,
+    "ratio": 0.4375
+  },
+  {
+    "width": 390,
+    "stage": {
+      "x": 23.40625,
+      "y": 375.4375,
+      "width": 343.1875,
+      "height": 607.671875
+    },
+    "marketingCharacters": 329,
+    "baseline": 752,
+    "ratio": 0.4375
+  }
+]
