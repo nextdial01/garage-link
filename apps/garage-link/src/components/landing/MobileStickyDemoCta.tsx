@@ -17,26 +17,30 @@ export function MobileStickyDemoCta() {
 
     const visibility = new Map<Element, boolean>();
     const recompute = () => {
-      const anyProtectedSectionVisible = targets.some((target) => visibility.get(target));
-      setVisible(!anyProtectedSectionVisible);
+      const protectedSectionOccupiesCenter = targets.some((target) => visibility.get(target));
+      setVisible(!protectedSectionOccupiesCenter);
     };
 
+    const centerBandTop = window.innerHeight * 0.3;
+    const centerBandBottom = window.innerHeight * 0.7;
     for (const target of targets) {
       const rect = target.getBoundingClientRect();
-      const overlap = Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0));
-      const ratio = rect.height > 0 ? overlap / rect.height : 0;
-      visibility.set(target, ratio >= 0.08);
+      visibility.set(
+        target,
+        rect.bottom > centerBandTop && rect.top < centerBandBottom,
+      );
     }
     recompute();
 
     const observer = new IntersectionObserver(
       (entries) => {
-        for (const entry of entries) {
-          visibility.set(entry.target, entry.isIntersecting && entry.intersectionRatio >= 0.08);
-        }
+        for (const entry of entries) visibility.set(entry.target, entry.isIntersecting);
         recompute();
       },
-      { threshold: [0, 0.08] },
+      {
+        rootMargin: '-30% 0px -30% 0px',
+        threshold: 0,
+      },
     );
 
     targets.forEach((target) => observer.observe(target));
