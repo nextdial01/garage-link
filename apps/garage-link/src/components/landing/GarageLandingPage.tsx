@@ -74,10 +74,9 @@ export function GarageLandingPage() {
       <section className={styles.hero} id="garage-hero">
         <div className={styles.heroInner}>
           <p className={styles.heroEyebrow}>中古車販売・整備工場・バイク店向け</p>
-          <h1>在庫・顧客・商談・整備を、1台の車両から。</h1>
+          <h1><span>車両を中心に、</span><span>仕事をひとつに。</span></h1>
           <p className={styles.heroLead}>
-            在庫、顧客、商談、見積、整備。別々に管理するのをやめて、
-            1台の車両から次の仕事までつなげます。
+            在庫、顧客、商談、見積、整備。別々に管理している仕事を、1台の車両からつなげます。
           </p>
           <div className={styles.heroActions}>
             <a href="#product-story" className={styles.primaryCta}>1台の流れを見る <ArrowRight aria-hidden="true" /></a>
