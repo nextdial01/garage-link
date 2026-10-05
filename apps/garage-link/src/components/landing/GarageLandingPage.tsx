@@ -12,35 +12,11 @@ import { GARAGE_PLANS } from '@/lib/billing/garagePlans';
 import { MobileNavigation } from './MobileNavigation';
 import { MobileStickyDemoCta } from './MobileStickyDemoCta';
 import { GarageInteractiveDemo } from './demo/GarageInteractiveDemo';
+import { GarageScrollStory } from './GarageScrollStory';
 import { TrackedInquiryLink, TrackedLoginLink, TrackedSignupLink } from './TrackedSignupLink';
 import styles from './garage-landing.module.css';
 
-const productRows = [
-  {
-    label: 'Vehicle',
-    title: '車両が、すべての起点。',
-    body: '在庫、仕入、価格、車検、保管場所を1台ごとに持ち、顧客・商談・整備へつなげます。',
-    meta: '在庫 / 仕入 / 価格 / 車検',
-  },
-  {
-    label: 'Customer',
-    title: '顧客と車両を分けない。',
-    body: '問い合わせ、希望条件、次回連絡を、対象車両と一緒に確認できます。',
-    meta: '顧客 / 問い合わせ / 次回連絡',
-  },
-  {
-    label: 'Deal',
-    title: '次にやることが残る商談。',
-    body: '商談状況、担当者、見積、次回アクションを1本の流れで持ちます。',
-    meta: '商談 / 見積 / 追客',
-  },
-  {
-    label: 'Maintenance',
-    title: '販売後も同じ台帳で続く。',
-    body: '受付、作業、部品、納車、次回車検まで、顧客と車両の履歴として残します。',
-    meta: '整備 / 部品 / 納車 / 次回期限',
-  },
-] as const;
+
 
 const faqItems = [
   {
@@ -84,7 +60,7 @@ export function GarageLandingPage() {
           </Link>
           <nav className={styles.nav} aria-label="メインナビゲーション">
             <a href="#live-demo">デモ</a>
-            <a href="#platform">機能</a>
+            <a href="#product-story">体験</a>
             <Link href="/pricing">料金</Link>
             <Link href="/faq">FAQ</Link>
             <TrackedInquiryLink placement="header_inquiry">お問い合わせ</TrackedInquiryLink>
@@ -104,7 +80,7 @@ export function GarageLandingPage() {
             1台の車両から次の仕事までつなげます。
           </p>
           <div className={styles.heroActions}>
-            <a href="#live-demo" className={styles.primaryCta}>その場で触る <ArrowRight aria-hidden="true" /></a>
+            <a href="#product-story" className={styles.primaryCta}>スクロールで見る <ArrowRight aria-hidden="true" /></a>
             <TrackedSignupLink placement="hero" className={styles.secondaryCta}>無料で始める</TrackedSignupLink>
           </div>
           <div className={styles.heroFacts}>
@@ -115,35 +91,17 @@ export function GarageLandingPage() {
         </div>
       </section>
 
+      <GarageScrollStory />
+
       <section className={styles.demoSection} id="live-demo">
         <div className={styles.demoRail}>
-          <span>LIVE PRODUCT</span>
-          <p>業態・今の管理・見たい業務を選ぶと、デモデータと最初の画面がその場で変わります。</p>
+          <span>TRY IT YOURSELF</span>
+          <p>ここからは自由操作。業態・今の管理・見たい業務を選んで、自分でデモデータを作れます。</p>
         </div>
         <div className={styles.demoContainer}>
           <Suspense fallback={<div className={styles.demoLoading}>デモを準備しています...</div>}>
             <GarageInteractiveDemo />
           </Suspense>
-        </div>
-      </section>
-
-      <section className={styles.platformSection} id="platform">
-        <div className={styles.sectionHead}>
-          <p>PLATFORM</p>
-          <h2>1つのデータを、次の業務へ渡す。</h2>
-        </div>
-        <div className={styles.productRows}>
-          {productRows.map((row, index) => (
-            <article className={styles.productRow} key={row.label}>
-              <span className={styles.productIndex}>{String(index + 1).padStart(2, '0')}</span>
-              <div className={styles.productCopy}>
-                <small>{row.label}</small>
-                <h3>{row.title}</h3>
-                <p>{row.body}</p>
-              </div>
-              <div className={styles.productMeta}>{row.meta}</div>
-            </article>
-          ))}
         </div>
       </section>
 
