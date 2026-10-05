@@ -30,6 +30,44 @@ test.describe('GARAGE LINK embedded live demo', () => {
     await expect(demo.getByRole('link', { name: 'この状態から無料で始める' })).toBeVisible();
   });
 
+  test('desktop scroll story advances the pinned product state', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/');
+
+    const story = page.locator('#product-story');
+    const stage = page.getByTestId('garage-scroll-story-stage');
+    await expect(stage).toBeVisible();
+    expect(await stage.evaluate((element) => getComputedStyle(element).position)).toBe('sticky');
+
+    const steps = story.locator('button[data-story-index]');
+    const storyDemo = page.getByTestId('garage-scroll-story-demo');
+    await expect(storyDemo.getByRole('heading', { name: '車両', exact: true })).toBeVisible();
+
+    await steps.nth(2).scrollIntoViewIfNeeded();
+    await page.waitForTimeout(260);
+    await expect(storyDemo).toBeInViewport({ ratio: 0.55 });
+    await expect(storyDemo.getByRole('heading', { name: '商談', exact: true })).toBeVisible();
+
+    await steps.nth(3).scrollIntoViewIfNeeded();
+    await page.waitForTimeout(260);
+    await expect(storyDemo).toBeInViewport({ ratio: 0.55 });
+    await expect(storyDemo.getByRole('heading', { name: '見積', exact: true })).toBeVisible();
+  });
+
+  test('compact scroll story uses direct tap switching instead of sticky scrolling', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    const story = page.locator('#product-story');
+    const stage = page.getByTestId('garage-scroll-story-stage');
+    expect(await stage.evaluate((element) => getComputedStyle(element).position)).not.toBe('sticky');
+
+    const steps = story.locator('button[data-story-index]');
+    await steps.nth(4).click();
+    await expect(page.getByTestId('garage-scroll-story-demo').getByRole('heading', { name: '整備', exact: true })).toBeVisible();
+    await expect(steps.nth(4)).toHaveAttribute('aria-current', 'step');
+  });
+
   test('standalone demo honors conversion scenario parameters', async ({ page }) => {
     await page.goto('/demo?source=outbound&lead=qa-shop&scenario=maintenance&management=mixed&goal=maintenance');
 

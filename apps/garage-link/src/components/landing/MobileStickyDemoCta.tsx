@@ -8,15 +8,42 @@ export function MobileStickyDemoCta() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const hero = document.getElementById('garage-hero');
-    if (!hero) return;
+    const ids = ['garage-hero', 'product-story', 'live-demo', 'final-cta'];
+    const targets = ids
+      .map((id) => document.getElementById(id))
+      .filter((element): element is HTMLElement => Boolean(element));
+
+    if (targets.length === 0) return;
+
+    const visibility = new Map<Element, boolean>();
+    const recompute = () => {
+      const protectedSectionOccupiesCenter = targets.some((target) => visibility.get(target));
+      setVisible(!protectedSectionOccupiesCenter);
+    };
+
+    const centerBandTop = window.innerHeight * 0.3;
+    const centerBandBottom = window.innerHeight * 0.7;
+    for (const target of targets) {
+      const rect = target.getBoundingClientRect();
+      visibility.set(
+        target,
+        rect.bottom > centerBandTop && rect.top < centerBandBottom,
+      );
+    }
+    recompute();
 
     const observer = new IntersectionObserver(
-      ([entry]) => setVisible(!entry.isIntersecting),
-      { threshold: 0.08 },
+      (entries) => {
+        for (const entry of entries) visibility.set(entry.target, entry.isIntersecting);
+        recompute();
+      },
+      {
+        rootMargin: '-30% 0px -30% 0px',
+        threshold: 0,
+      },
     );
 
-    observer.observe(hero);
+    targets.forEach((target) => observer.observe(target));
     return () => observer.disconnect();
   }, []);
 

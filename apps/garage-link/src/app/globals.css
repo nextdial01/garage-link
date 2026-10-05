@@ -30,3 +30,25 @@ select,
 textarea {
   letter-spacing: 0;
 }
+
+
+@keyframes garageDemoStoryIn {
+  from {
+    opacity: .45;
+    transform: translateY(10px) scale(.994);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.garage-demo-view-transition {
+  animation: garageDemoStoryIn 420ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .garage-demo-view-transition {
+    animation: none;
+  }
+}

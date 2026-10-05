@@ -3,13 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  BarChart3,
   CalendarDays,
   CarFront,
   ChevronRight,
-  CircleDollarSign,
   ClipboardList,
-  FileText,
   Plus,
   Search,
   UsersRound,
@@ -85,9 +82,15 @@ function viewTitle(view: DemoView) {
 export function GarageInteractiveDemo({
   standalone = false,
   initialScenario: initialScenarioProp,
+  forcedView,
+  hideConfigurator = false,
+  storyMode = false,
 }: {
   standalone?: boolean;
   initialScenario?: DemoScenario;
+  forcedView?: DemoView;
+  hideConfigurator?: boolean;
+  storyMode?: boolean;
 }) {
   const searchParams = useSearchParams();
   const initialScenario = useMemo(
@@ -99,6 +102,7 @@ export function GarageInteractiveDemo({
   const [variant, setVariant] = useState(0);
   const [data, setData] = useState(() => generateGarageDemoData(initialScenario));
   const [view, setView] = useState<DemoView>(() => defaultViewForGoal(initialScenario.goal));
+  const currentView = forcedView ?? view;
   const [selectedVehicleId, setSelectedVehicleId] = useState(data.vehicles[0]?.id ?? '');
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [draftMaker, setDraftMaker] = useState('');
@@ -493,8 +497,12 @@ export function GarageInteractiveDemo({
   }
 
   return (
-    <section data-testid="garage-live-demo" className={standalone ? 'mx-auto w-full max-w-[1500px]' : 'w-full'}>
-      <div className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:grid-cols-[1fr_1fr_1fr_auto]">
+    <section
+      data-testid={storyMode ? 'garage-scroll-story-demo' : 'garage-live-demo'}
+      data-story-mode={storyMode ? 'true' : undefined}
+      className={`${standalone ? 'mx-auto w-full max-w-[1500px]' : 'w-full'} ${storyMode ? 'pointer-events-none select-none' : ''}`}
+    >
+      {!hideConfigurator && <div className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:grid-cols-[1fr_1fr_1fr_auto]">
         <label className="grid gap-1.5">
           <span className="text-[11px] font-medium text-slate-500">業態</span>
           <select aria-label="デモ業態" value={draftScenario.business} onChange={(event) => setDraftScenario((current) => ({ ...current, business: event.target.value as DemoBusiness }))} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none focus:border-blue-500">
@@ -514,11 +522,11 @@ export function GarageInteractiveDemo({
           </select>
         </label>
         <button type="button" onClick={generateScenario} className="min-h-10 self-end rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800">この条件でデモを作る</button>
-      </div>
+      </div>}
 
-      <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-[#f7f8fa] shadow-[0_22px_70px_rgba(15,23,42,.10)]">
+      <div className={storyMode ? "overflow-hidden rounded-[18px] border border-slate-200 bg-[#f7f8fa] shadow-[0_30px_90px_rgba(15,23,42,.12)]" : "overflow-hidden rounded-[22px] border border-slate-200 bg-[#f7f8fa] shadow-[0_22px_70px_rgba(15,23,42,.10)]"}>
         <div className="flex min-h-[620px]">
-          <aside className="hidden w-[176px] shrink-0 border-r border-slate-200 bg-white p-3 md:block">
+          <aside className={`${storyMode ? 'w-[164px]' : 'w-[176px]'} hidden shrink-0 border-r border-slate-200 bg-white p-3 md:block`}>
             <div className="mb-4 rounded-xl border border-slate-200 px-3 py-3">
               <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-slate-400">Demo workspace</p>
               <p className="mt-1 truncate text-xs font-semibold text-slate-950">{data.storeName}</p>
@@ -526,7 +534,7 @@ export function GarageInteractiveDemo({
             <nav className="space-y-1" aria-label="デモ画面">
               {viewItems.map((item) => {
                 const Icon = item.icon;
-                const active = view === item.view;
+                const active = currentView === item.view;
                 return (
                   <button key={item.view} type="button" onClick={() => selectView(item.view)} className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium transition ${active ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
                     <Icon className="h-4 w-4" />
@@ -546,34 +554,36 @@ export function GarageInteractiveDemo({
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[10px] font-medium uppercase tracking-[.14em] text-slate-400">GARAGE LINK / LIVE DEMO</p>
-                  <h3 className="mt-0.5 truncate text-base font-semibold tracking-tight text-slate-950">{viewTitle(view)}</h3>
+                  <h3 className="mt-0.5 truncate text-base font-semibold tracking-tight text-slate-950">{viewTitle(currentView)}</h3>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="hidden rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 sm:inline-flex">保存されないデモデータ</span>
-                  <TrackedSignupLink placement="interactive_demo_header" source="interactive_demo" className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white">
-                    無料で使う
-                  </TrackedSignupLink>
+                  {!storyMode && (
+                    <TrackedSignupLink placement="interactive_demo_header" source="interactive_demo" className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white">
+                      無料で使う
+                    </TrackedSignupLink>
+                  )}
                 </div>
               </div>
-              <nav className="mt-3 flex gap-1 overflow-x-auto md:hidden" aria-label="デモ画面モバイル">
+              {!storyMode && <nav className="mt-3 flex gap-1 overflow-x-auto md:hidden" aria-label="デモ画面モバイル">
                 {viewItems.map((item) => {
-                  const active = view === item.view;
+                  const active = currentView === item.view;
                   return (
                     <button key={item.view} type="button" onClick={() => selectView(item.view)} className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-medium ${active ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-600'}`}>
                       {item.label}
                     </button>
                   );
                 })}
-              </nav>
+              </nav>}
             </header>
 
-            <div className="p-3 sm:p-5">
-              {view === 'today' && renderToday()}
-              {view === 'vehicles' && renderVehicles()}
-              {view === 'customers' && renderCustomers()}
-              {view === 'deals' && renderDeals()}
-              {view === 'maintenance' && renderMaintenance()}
-              {view === 'quote' && renderQuote()}
+            <div key={currentView} className={`${storyMode ? 'garage-demo-view-transition ' : ''}p-3 sm:p-5`}>
+              {currentView === 'today' && renderToday()}
+              {currentView === 'vehicles' && renderVehicles()}
+              {currentView === 'customers' && renderCustomers()}
+              {currentView === 'deals' && renderDeals()}
+              {currentView === 'maintenance' && renderMaintenance()}
+              {currentView === 'quote' && renderQuote()}
             </div>
           </div>
         </div>

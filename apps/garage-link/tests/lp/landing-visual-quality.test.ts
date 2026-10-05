@@ -42,13 +42,21 @@ test.describe('GARAGE LINK rendered LP quality', () => {
         };
       });
       expect(heroMetrics.lineCount, 'hero must stay scannable').toBeLessThanOrEqual(3.2);
-      expect(heroMetrics.fontWeight, 'hero must avoid heavy AI-template typography').toBeLessThanOrEqual(650);
-      expect(heroMetrics.fontFamily).toMatch(/Inter|Hiragino|Noto Sans JP|Yu Gothic/i);
+      expect(heroMetrics.fontWeight, 'hero must avoid heavy AI-template typography').toBeLessThanOrEqual(550);
+      expect(heroMetrics.fontFamily).toMatch(/apple-system|Helvetica Neue|Hiragino|Noto Sans JP|Yu Gothic/i);
       await expect(page.locator('h1 br')).toHaveCount(0);
 
+      const storyDemo = page.getByTestId('garage-scroll-story-demo');
       const demo = page.getByTestId('garage-live-demo');
-      await expect(demo, 'live product demo must be embedded on the homepage').toBeVisible();
+      await expect(storyDemo, 'scroll-controlled product story must be embedded').toBeVisible();
+      await expect(demo, 'free live product demo must remain embedded').toBeVisible();
       await expect(page.locator('img[src*="/product-screens/"]'), 'homepage must not use product screenshots').toHaveCount(0);
+
+      if (viewport.width > 1040) {
+        const stickyStage = page.getByTestId('garage-scroll-story-stage');
+        const stickyPosition = await stickyStage.evaluate((element) => getComputedStyle(element).position);
+        expect(stickyPosition, 'desktop product story must pin the UI while copy scrolls').toBe('sticky');
+      }
 
       const demoBox = await demo.boundingBox();
       expect(demoBox).not.toBeNull();
@@ -121,10 +129,27 @@ test.describe('GARAGE LINK rendered LP quality', () => {
       expect(overlappingHeaderControls, 'header controls must not overlap').toEqual([]);
 
       if (viewport.width <= 680) {
-        const stickyDemo = page.locator('a[href="#live-demo"][aria-hidden="true"]');
-        await expect(stickyDemo, 'sticky demo CTA stays hidden while hero is visible').toHaveCount(1);
-        await page.locator('#garage-hero').evaluate((element) => window.scrollTo(0, element.getBoundingClientRect().bottom + window.scrollY + 80));
-        await expect(page.locator('a[href="#live-demo"][aria-hidden="false"]')).toHaveCount(1);
+        const stickyHidden = page.locator('a[href="#live-demo"][aria-hidden="true"]');
+        const stickyVisible = page.locator('a[href="#live-demo"][aria-hidden="false"]');
+
+        await expect(stickyHidden, 'sticky CTA stays hidden while hero is visible').toHaveCount(1);
+
+        await page.locator('#product-story').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(120);
+        await expect(stickyHidden, 'sticky CTA must not cover the scroll product story').toHaveCount(1);
+
+        await page.locator('#live-demo').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(120);
+        await expect(stickyHidden, 'sticky CTA must not cover the free live demo').toHaveCount(1);
+
+        await page.locator('#migration').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(120);
+        await expect(stickyVisible, 'sticky CTA appears only in explanatory sections').toHaveCount(1);
+
+        await page.locator('#final-cta').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(120);
+        await expect(stickyHidden, 'sticky CTA must not cover the final conversion block').toHaveCount(1);
+
         await page.evaluate(() => window.scrollTo(0, 0));
         await page.waitForTimeout(100);
       }
@@ -134,6 +159,38 @@ test.describe('GARAGE LINK rendered LP quality', () => {
         fullPage: false,
         animations: 'disabled',
       });
+
+      const story = page.locator('#product-story');
+      const storySteps = story.locator('button[data-story-index]');
+
+      if (viewport.width > 1040) {
+        await storySteps.nth(2).scrollIntoViewIfNeeded();
+        await page.waitForTimeout(260);
+        await page.screenshot({
+          path: `test-results/story-deal-${viewport.name}.png`,
+          fullPage: false,
+          animations: 'disabled',
+        });
+
+        await storySteps.nth(3).scrollIntoViewIfNeeded();
+        await page.waitForTimeout(260);
+        await page.screenshot({
+          path: `test-results/story-quote-${viewport.name}.png`,
+          fullPage: false,
+          animations: 'disabled',
+        });
+      } else {
+        await storySteps.nth(4).click();
+        await page.getByTestId('garage-scroll-story-stage').scrollIntoViewIfNeeded();
+        await page.screenshot({
+          path: `test-results/story-compact-${viewport.name}.png`,
+          fullPage: false,
+          animations: 'disabled',
+        });
+      }
+
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(80);
 
       await page.screenshot({
         path: `test-results/lp-${viewport.name}.png`,

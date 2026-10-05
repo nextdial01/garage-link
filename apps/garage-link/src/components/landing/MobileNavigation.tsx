@@ -54,7 +54,7 @@ export function MobileNavigation() {
         aria-hidden={!open}
       >
         <a href="#live-demo" onClick={close}>デモ</a>
-        <a href="#platform" onClick={close}>機能</a>
+        <a href="#product-story" onClick={close}>体験</a>
         <Link href="/pricing" onClick={close}>料金</Link>
         <Link href="/faq" onClick={close}>FAQ</Link>
         <TrackedInquiryLink placement="mobile_menu_inquiry" onClick={close}>お問い合わせ</TrackedInquiryLink>

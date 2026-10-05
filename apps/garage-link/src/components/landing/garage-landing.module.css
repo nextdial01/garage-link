@@ -9,7 +9,7 @@
   overflow-x: clip;
   background: #fff;
   color: var(--ink);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic Medium", "Yu Gothic", "Noto Sans JP", sans-serif;
   font-feature-settings: "palt" 1;
   -webkit-font-smoothing: antialiased;
 }
@@ -178,8 +178,6 @@
 
 .heroEyebrow,
 .sectionLabel,
-.demoIntro > p,
-.sectionHead > p,
 .finalSection > div:first-child > p {
   margin: 0;
   color: #7a808a;
@@ -192,11 +190,15 @@
 .hero h1 {
   max-width: 900px;
   margin: 18px auto 0;
-  font-size: clamp(46px, 6.1vw, 78px);
-  line-height: 1.05;
-  letter-spacing: -.052em;
-  font-weight: 600;
+  font-size: clamp(44px, 5.6vw, 72px);
+  line-height: 1.08;
+  letter-spacing: -.042em;
+  font-weight: 500;
   text-wrap: balance;
+}
+
+.hero h1 span {
+  display: block;
 }
 
 .heroLead {
@@ -205,7 +207,7 @@
   color: var(--muted);
   font-size: 16px;
   line-height: 1.8;
-  font-weight: 430;
+  font-weight: 400;
   text-wrap: pretty;
 }
 
@@ -279,6 +281,160 @@
   stroke-width: 2.4;
 }
 
+
+.storySection {
+  position: relative;
+  border-bottom: 1px solid var(--line);
+  background: #f5f5f7;
+}
+
+.storyShell {
+  width: min(1460px, calc(100% - 44px));
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(300px, .68fr) minmax(700px, 1.32fr);
+  gap: 58px;
+  align-items: stretch;
+}
+
+.storyRail {
+  min-width: 0;
+  padding: 108px 0 140px;
+}
+
+.storyIntro {
+  max-width: 420px;
+  margin-bottom: 24px;
+}
+
+.storyIntro > p {
+  margin: 0;
+  color: #8a8f98;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .14em;
+}
+
+.storyIntro h2 {
+  margin: 13px 0 0;
+  font-size: clamp(30px, 3vw, 44px);
+  line-height: 1.18;
+  letter-spacing: -.034em;
+  font-weight: 500;
+  text-wrap: balance;
+}
+
+.storySteps {
+  border-top: 1px solid rgba(17,19,24,.10);
+}
+
+.storyStep,
+.storyStepActive {
+  width: 100%;
+  min-height: 70vh;
+  padding: 78px 18px 78px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border: 0;
+  border-bottom: 1px solid rgba(17,19,24,.10);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: opacity .32s ease, transform .32s cubic-bezier(.22,1,.36,1);
+}
+
+.storyStep {
+  opacity: .26;
+  transform: translateX(0);
+}
+
+.storyStepActive {
+  opacity: 1;
+  transform: translateX(8px);
+}
+
+.storyStep > span,
+.storyStepActive > span {
+  color: #8b9098;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+}
+
+.storyCompactLabel { display: none; font-style: normal; }
+
+.storyStep > strong,
+.storyStepActive > strong {
+  max-width: 390px;
+  margin-top: 13px;
+  font-size: clamp(26px, 2.5vw, 36px);
+  line-height: 1.2;
+  letter-spacing: -.03em;
+  font-weight: 500;
+}
+
+.storyStep > p,
+.storyStepActive > p {
+  max-width: 390px;
+  margin: 13px 0 0;
+  color: #686e77;
+  font-size: 13px;
+  line-height: 1.85;
+}
+
+.storyStage {
+  position: relative;
+  min-width: 0;
+  min-height: 100%;
+  align-self: stretch;
+  padding: 86px 0 130px;
+}
+
+.storySticky {
+  position: sticky;
+  top: 82px;
+  min-width: 0;
+}
+
+.storyStageHeader {
+  min-height: 54px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  color: #717780;
+}
+
+.storyStageHeader > span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+}
+
+.storyStageHeader > strong {
+  max-width: 560px;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.storyStageHeader > p {
+  display: none;
+  margin: 0;
+}
+
+.storyLoading {
+  min-height: 620px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: #8a8f97;
+  font-size: 12px;
+}
+
 .demoSection {
   padding: 30px 22px 108px;
   background: #fafafa;
@@ -309,7 +465,6 @@
   text-align: right;
 }
 
-.sectionHead h2,
 .migrationGrid h2,
 .pricingGrid h2,
 .trustGrid h2,
@@ -320,7 +475,7 @@
   font-size: clamp(34px, 4vw, 54px);
   line-height: 1.15;
   letter-spacing: -.038em;
-  font-weight: 590;
+  font-weight: 500;
   text-wrap: balance;
 }
 
@@ -338,70 +493,6 @@
   background: #fff;
   color: var(--muted);
   font-size: 13px;
-}
-
-.platformSection {
-  padding: 104px 24px 112px;
-  background: #fff;
-}
-
-.sectionHead {
-  width: min(1160px, 100%);
-  margin-inline: auto;
-}
-
-.sectionHead h2 { max-width: 760px; }
-
-.productRows {
-  width: min(1160px, 100%);
-  margin: 52px auto 0;
-  border-top: 1px solid var(--line);
-}
-
-.productRow {
-  min-height: 188px;
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 260px;
-  align-items: center;
-  gap: 24px;
-  border-bottom: 1px solid var(--line);
-}
-
-.productIndex {
-  color: #a2a7af;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.productCopy small {
-  color: #8a9099;
-  font-size: 10px;
-  font-weight: 620;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-
-.productCopy h3 {
-  margin: 8px 0 0;
-  font-size: clamp(24px, 2.5vw, 36px);
-  line-height: 1.2;
-  letter-spacing: -.03em;
-  font-weight: 580;
-}
-
-.productCopy p {
-  max-width: 650px;
-  margin: 12px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.75;
-}
-
-.productMeta {
-  color: #757b84;
-  font-size: 11px;
-  line-height: 1.8;
-  text-align: right;
 }
 
 .migrationSection,
@@ -659,6 +750,96 @@
 
 .mobileStickyCta { display: none; }
 
+
+@media (max-width: 1040px) {
+  .storySection { padding: 72px 14px 80px; }
+
+  .storyShell {
+    width: min(900px, 100%);
+    display: block;
+  }
+
+  .storyRail { padding: 0; }
+
+  .storyIntro {
+    max-width: 680px;
+    margin-bottom: 28px;
+  }
+
+  .storySteps {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    border-top: 0;
+    scrollbar-width: none;
+  }
+
+  .storySteps::-webkit-scrollbar { display: none; }
+
+  .storyStep,
+  .storyStepActive {
+    width: auto;
+    min-width: 88px;
+    min-height: 42px;
+    flex: 0 0 auto;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(17,19,24,.12);
+    border-radius: 999px;
+    opacity: .48;
+    transform: none;
+  }
+
+  .storyStepActive {
+    opacity: 1;
+    border-color: #111318;
+    background: #111318;
+    color: #fff;
+  }
+
+  .storyStep > span,
+  .storyStepActive > span,
+  .storyStep > strong,
+  .storyStepActive > strong,
+  .storyStep > p,
+  .storyStepActive > p {
+    display: none;
+  }
+
+  .storyCompactLabel {
+    display: block;
+    color: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .storyStage { padding: 26px 0 0; }
+  .storySticky { position: relative; top: auto; }
+
+  .storyStageHeader {
+    min-height: 76px;
+    display: block;
+  }
+
+  .storyStageHeader > strong {
+    margin-top: 5px;
+    display: block;
+    font-size: 18px;
+    text-align: left;
+  }
+
+  .storyStageHeader > p {
+    margin-top: 6px;
+    display: block;
+    color: #6c727c;
+    font-size: 11px;
+    line-height: 1.65;
+  }
+}
+
 @media (max-width: 1040px) {
   .nav { display: none; }
   .loginLink { margin-left: auto; }
@@ -672,14 +853,27 @@
     gap: 38px;
   }
 
-  .productRow {
-    grid-template-columns: 52px minmax(0,1fr);
+}
+
+
+@media (max-width: 680px) {
+  .storySection { padding: 58px 10px 64px; }
+
+  .storyIntro h2 {
+    font-size: 30px;
+    line-height: 1.2;
   }
 
-  .productMeta {
-    grid-column: 2;
-    padding-bottom: 22px;
-    text-align: left;
+  .storySteps { gap: 10px; }
+
+  .storyStep,
+  .storyStepActive {
+    min-width: 80px;
+    padding-inline: 12px;
+  }
+
+  .storyStageHeader > strong {
+    font-size: 16px;
   }
 }
 
@@ -745,7 +939,6 @@
     text-align: left;
   }
 
-  .sectionHead h2,
   .migrationGrid h2,
   .pricingGrid h2,
   .trustGrid h2,
@@ -755,24 +948,11 @@
     line-height: 1.18;
   }
 
-  .platformSection,
   .migrationSection,
   .pricingSection,
   .trustSection,
   .faqSection { padding: 72px 18px; }
 
-  .productRows { margin-top: 36px; }
-
-  .productRow {
-    min-height: 0;
-    padding: 26px 0;
-    grid-template-columns: 38px 1fr;
-    gap: 12px;
-  }
-
-  .productCopy h3 { font-size: 24px; }
-  .productCopy p { font-size: 12px; }
-  .productMeta { font-size: 10px; }
 
   .migrationSteps > div { min-height: 88px; }
   .freePricePanel { padding: 22px; }
