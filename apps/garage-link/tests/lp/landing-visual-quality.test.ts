@@ -143,6 +143,38 @@ test.describe('GARAGE LINK rendered LP quality', () => {
         animations: 'disabled',
       });
 
+      const story = page.locator('#product-story');
+      const storySteps = story.locator('button[data-story-index]');
+
+      if (viewport.width > 1040) {
+        await storySteps.nth(2).scrollIntoViewIfNeeded();
+        await page.waitForTimeout(260);
+        await page.screenshot({
+          path: `test-results/story-deal-${viewport.name}.png`,
+          fullPage: false,
+          animations: 'disabled',
+        });
+
+        await storySteps.nth(3).scrollIntoViewIfNeeded();
+        await page.waitForTimeout(260);
+        await page.screenshot({
+          path: `test-results/story-quote-${viewport.name}.png`,
+          fullPage: false,
+          animations: 'disabled',
+        });
+      } else {
+        await storySteps.nth(4).click();
+        await page.getByTestId('garage-scroll-story-stage').scrollIntoViewIfNeeded();
+        await page.screenshot({
+          path: `test-results/story-compact-${viewport.name}.png`,
+          fullPage: false,
+          animations: 'disabled',
+        });
+      }
+
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(80);
+
       await page.screenshot({
         path: `test-results/lp-${viewport.name}.png`,
         fullPage: true,
