@@ -503,7 +503,7 @@ export function GarageInteractiveDemo({
   }
 
   return (
-    <section data-testid="garage-live-demo" className={standalone ? 'mx-auto w-full max-w-[1500px]' : 'w-full'}>
+    <section data-testid={storyMode ? 'garage-scroll-story-demo' : 'garage-live-demo'} className={standalone ? 'mx-auto w-full max-w-[1500px]' : 'w-full'}>
       {!hideConfigurator && <div className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:grid-cols-[1fr_1fr_1fr_auto]">
         <label className="grid gap-1.5">
           <span className="text-[11px] font-medium text-slate-500">業態</span>
