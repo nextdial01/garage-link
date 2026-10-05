@@ -1,18 +1,18 @@
 {
   "task_id": "garage-link-visual-first-20261005",
-  "status": "IN_PROGRESS",
+  "status": "COMPLETE",
   "PRIMARY_GOAL": "Visual-first GARAGE LINK LP and public Preview",
   "PRIMARY_KPI": "Real UI width 70-90% viewport; marketing copy <=50% baseline; no document-like repeated structure",
   "DONE_CONDITION": "Qwen diff reviewed, build and functional QA, 1440/390 screenshots independently accepted, public Preview verified",
   "baseline": "1d32b21bd6cf8bebf3954d7e642226f28b081dcc",
   "prior_acceptance": "Superseded by latest Owner request",
   "TOTAL": 5,
-  "PASS": 4,
+  "PASS": 5,
   "FAIL": 0,
   "BLOCKED": 0,
-  "REMAINING": 1,
-  "CURRENT_CRITICAL_PATH": "Preview deploy and read-back",
-  "updated_at": "2026-10-05T12:57:13.057741+00:00",
+  "REMAINING": 0,
+  "CURRENT_CRITICAL_PATH": null,
+  "updated_at": "2026-10-05T13:00:22.423949+00:00",
   "attio_source": "2026-10-05 public HTML/CSS evidence reused; fresh HTTP GET returned 403, not retried or bypassed",
   "delegation": {
     "route": "MIXED_RISK",
@@ -94,5 +94,28 @@
     "P0": 0,
     "P1": 0
   },
-  "evidence_directory": "../visual-first-20261005"
+  "evidence_directory": "../visual-first-20261005",
+  "preview": {
+    "url": "https://garage-link-2mm6h6goi-altos-projects-fa55063c.vercel.app",
+    "deployment_id": "dpl_Bp39XncPYGRhURDfazi3nxUBcnjc",
+    "state": "READY",
+    "candidate_sha": "0ec7296b111399afce59dc941a41782463974265",
+    "public_share_verified": true,
+    "share_lifetime_hours": 23,
+    "runtime_readback": "1440/390 actual Preview screenshots; five tabs work; no horizontal overflow",
+    "build_command": "next build --webpack"
+  },
+  "cleanup": "Local servers/browser contexts stopped; clean zero-diff Qwen child removed by official Orca after result collection; CLI-created env and generated app AGENTS/CLAUDE removed. Preview retained for Owner.",
+  "Production_changed": false,
+  "main_changed": false,
+  "git_push": false,
+  "Qwen_seconds": 600.017482,
+  "Codex_additional_time": "Unmeasured; canonical task timeline available",
+  "next_Qwen_scope": "Try a bounded small markup/CSS change with shorter total input/output; whole-file rewrite exceeded600s. No extra retry in this run.",
+  "artifact_hashes": {
+    "garage-1440.png": "4086aa5de0a3710b0dca8f4b7904acfeb29ae61267dd44161b22e7b40821cac7",
+    "hero-390.png": "80d18ba675f2922682755f8a4ad3a26f13f64dfa07d7c45890f0690c2ded2665",
+    "hero-1440.png": "89708ac77a0caab32a286a061b6ac4366b03e34bf14e7460b783211e521108ed",
+    "garage-390.png": "8c8423909eb995ede22ba8f8aca045572a4d4f75072c46fad31a755a0741f64a"
+  }
 }

@@ -12,4 +12,4 @@ Baseline: 1d32b21bd6cf8bebf3954d7e642226f28b081dcc. Owner replaced the previous 
 - Scope: local unauthenticated LP only. Staging QA lifecycle targets authenticated DB-backed fixtures; not invoked and no claim of staging cleanup or Production validation.
 - No Production, main, remote Git, dependency, backend, auth, database or billing changes.
 
-Screenshots are actual local production-build browser captures, not generated images. Final public Preview read-back is recorded in CURRENT_MASTER_STATUS.json.
+Screenshots are actual public Preview browser captures, not generated images. Final public Preview read-back is recorded in CURRENT_MASTER_STATUS.json.
