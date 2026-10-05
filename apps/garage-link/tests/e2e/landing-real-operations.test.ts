@@ -100,8 +100,8 @@ test.describe('GARAGE LINK LP real operations', () => {
     await page.goto('/');
 
     await expect(page.getByRole('heading', { name: '車屋の仕事を、車両から動かす。' })).toBeVisible();
-    expect(await page.getByTestId('garage-live-demo').count()).toBeGreaterThanOrEqual(2);
-    await expect(page.getByTestId('garage-live-demo').last()).toBeVisible();
+    await expect(page.getByTestId('garage-scroll-story-demo')).toBeVisible();
+    await expect(page.getByTestId('garage-live-demo')).toBeVisible();
     await expect(page.locator('img[src*="/product-screens/"]')).toHaveCount(0);
     await expect(page.getByLabel('デモ業態')).toBeVisible();
     await expect(page.getByRole('button', { name: 'この条件でデモを作る' })).toBeVisible();
@@ -135,7 +135,7 @@ test.describe('GARAGE LINK LP real operations', () => {
     });
 
     await page.goto('/?scenario=used-car&management=excel&goal=inventory#live-demo');
-    const demo = page.getByTestId('garage-live-demo').last();
+    const demo = page.getByTestId('garage-live-demo');
 
     await demo.getByLabel('デモ業態').selectOption('motorcycle');
     await demo.getByLabel('デモ管理方法').selectOption('mixed');
