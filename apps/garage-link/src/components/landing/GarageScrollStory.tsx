@@ -48,6 +48,8 @@ export function GarageScrollStory() {
   const stepRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
+    if (!window.matchMedia('(min-width: 1041px)').matches) return;
+
     const nodes = stepRefs.current.filter(Boolean) as HTMLButtonElement[];
     if (nodes.length === 0) return;
 
