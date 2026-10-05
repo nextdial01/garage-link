@@ -77,7 +77,7 @@ export function GarageScrollStory() {
         <div className={styles.storyRail}>
           <div className={styles.storyIntro}>
             <p>ONE VEHICLE, ONE CONTEXT</p>
-            <h2 id="product-story-title">スクロールすると、仕事の続きを追えます。</h2>
+            <h2 id="product-story-title">1台の車両に、仕事の続きを。</h2>
           </div>
 
           <div className={styles.storySteps}>
