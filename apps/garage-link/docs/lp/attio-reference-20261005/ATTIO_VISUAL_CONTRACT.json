@@ -1,0 +1,240 @@
+{
+  "schema_version": 1,
+  "name": "ATTIO_VISUAL_CONTRACT",
+  "source_of_truth": "Current public https://attio.com/ HTML and linked CSS retrieved 2026-10-05; the prior 570x1430 image is only used for inferred ratios.",
+  "source_order": ["live_html", "live_css", "live_570_capture", "secondary_css_reference"],
+  "source_artifact": "attio-live-source-evidence.json",
+  "items": {
+    "hero_heading_desktop": {
+      "value": {
+        "font_family": "Inter Display via font-display / --font-inter-display",
+        "font_size_css": "clamp(64px, calc(16px + 5.333svh), 80px)",
+        "font_weight": 600,
+        "line_height": 0.95,
+        "letter_spacing_css": "clamp(-2.4px, calc(2.08px - 0.3733svh), -1.28px)",
+        "color_token": "--internal-color-primary-foreground"
+      },
+      "source": "live_html",
+      "confidence": "measured",
+      "source_detail": "H1 class and inline size/tracking from current page HTML; class utilities resolve in linked CSS."
+    },
+    "hero_heading_mobile": {
+      "value": {
+        "font_family": "Inter Display",
+        "base_font_size_px": 40,
+        "base_weight": 600,
+        "base_line_height_px": 44,
+        "base_letter_spacing": "-0.01em",
+        "sm_font_size_px": 56,
+        "sm_line_height_px": 60,
+        "sm_letter_spacing": "-0.02em"
+      },
+      "source": "live_css",
+      "confidence": "derived",
+      "source_detail": "Mobile alternate H1 classes text-heading-md and sm:text-heading-lg plus --text-heading-* tokens. The desktop H1 becomes visible at the md breakpoint."
+    },
+    "section_heading": {
+      "value": {
+        "font_family": "Inter Display",
+        "font_size_px": { "below_992px": 32, "from_992px": 40 },
+        "font_weight": 500,
+        "line_height_px": { "below_992px": 36, "from_992px": 44 },
+        "letter_spacing": "-0.01em"
+      },
+      "source": "live_css",
+      "confidence": "derived",
+      "source_detail": "text-heading-responsive-md + font-medium; responsive rule at min-width 992px."
+    },
+    "final_cta_heading": {
+      "value": {
+        "font_family": "Inter Display",
+        "font_size_css": "clamp(36px, calc(26px + 2.5vw), 56px)",
+        "font_weight": 500,
+        "line_height": 1,
+        "letter_spacing_css": "clamp(-0.84px, calc(-0.12px - 0.06vw), -0.36px)"
+      },
+      "source": "live_html",
+      "confidence": "measured",
+      "source_detail": "Final CTA H2 classes and inline style in the current page HTML."
+    },
+    "body_typography": {
+      "value": {
+        "font_family": "Inter",
+        "font_size_px": 16,
+        "font_weight": 500,
+        "line_height_px": 22,
+        "letter_spacing": "-0.01em (-0.16px at 16px)",
+        "font_feature_settings": "Global default resolves to normal; current CSS does not contain ss03. Overline utility enables calt."
+      },
+      "source": "live_css",
+      "confidence": "measured",
+      "source_detail": "html uses font-sans text-base; linked CSS declares the font and --text-base tokens."
+    },
+    "font_files": {
+      "value": {
+        "body": "Inter 400/500/600/700",
+        "heading": "Inter Display 500/600/700",
+        "font_display": "swap"
+      },
+      "source": "live_css",
+      "confidence": "measured",
+      "source_detail": "Public @font-face declarations in 002k2pnwynkdl.css. Japanese rendering is not forced into Inter; use a Japanese system/Noto Sans JP stack with comparable weight."
+    },
+    "hero_spacing": {
+      "value": {
+        "top_padding_css": "max(96px, 10svh)",
+        "content_gap_px": 24,
+        "minimum_height_css": "clamp(320px, calc(40svh - var(--site-header-height)), 520px)",
+        "negative_bottom_overlap_css": "min(calc(8px + 20svh), calc(50svh - 261px))",
+        "mobile_alternate_top_padding_px": 64
+      },
+      "source": "live_html",
+      "confidence": "measured",
+      "source_detail": "Current hero shell and mobile alternate hero classes. The negative margin supports Attio's scroll-reveal choreography; it is not required for GARAGE LINK."
+    },
+    "content_width": {
+      "value": {
+        "container_max_width_px": 1440,
+        "container_gutter_css": "24px below 768px; 56px from 768px unless locally overridden; 58px at lg hero",
+        "global_container_width": "100%"
+      },
+      "source": "live_css",
+      "confidence": "derived",
+      "source_detail": "Container utility rules and actual hero classes; 360 spacing units at 992px equal 1440px."
+    },
+    "platform_grid": {
+      "value": {
+        "columns": 24,
+        "desktop_selector_columns": 6,
+        "desktop_content_columns": 18,
+        "section_intro_max_width_px": 896,
+        "section_intro_top_padding_px": { "below_992px": 88, "992_to_1199px": 112, "from_1200px": 152 },
+        "section_intro_bottom_padding_px": { "below_992px": 64, "992_to_1199px": 72, "from_1200px": 80 }
+      },
+      "source": "live_html",
+      "confidence": "derived",
+      "source_detail": "24-column grid, 1/7 and remaining-column navigation placement, max-w-[896px], pt-22/28/38 and pb-16/18/20 classes."
+    },
+    "feature_copy_to_product_stage": {
+      "value": {
+        "feature_copy_padding_css": "px: calc(100% / 24), lg: calc(100% / 18); top: 64px / 80px / 112px at base/lg/xl; bottom: 44px / 56px / 80px",
+        "product_ui_width": "fills the remaining content columns up to the 1440px container cap",
+        "product_ui_appears": "after the hero and before the long feature explanation"
+      },
+      "source": "live_html",
+      "confidence": "derived",
+      "source_detail": "First platform article wrapper classes; the UI itself is live HTML, not a marketing screenshot."
+    },
+    "cta_geometry": {
+      "value": {
+        "header_button": { "height_px": 36, "horizontal_padding_px": 12, "border_radius_px": 10, "font_size_px": 14 },
+        "hero_primary_button": { "height_px": 46, "horizontal_padding_px": 14, "border_radius_px": 12, "font_size_px": 16 },
+        "button_hierarchy": "one filled primary action and subdued/outlined secondary action"
+      },
+      "source": "live_html",
+      "confidence": "derived",
+      "source_detail": "Header CTA h-9 px-3 rounded-[10px] text-sm; hero/email CTA h-11.5 px-3.5 rounded-xl text-base."
+    },
+    "surface_and_color": {
+      "value": {
+        "primary_background": "#ffffff",
+        "secondary_background": "#fafafb",
+        "primary_foreground": "#1c1d1f",
+        "subtle_border": "#e4e7ec",
+        "surface_hierarchy": "background and thin borders lead; near-black type; blue is reserved for semantic accents/links rather than broad decorative surfaces"
+      },
+      "source": "live_css",
+      "confidence": "derived",
+      "source_detail": "Light theme internal color tokens in the public CSS resolve through white/black palette tokens."
+    },
+    "border_radius": {
+      "value": {
+        "header_cta_px": 10,
+        "hero_cta_px": 12,
+        "content_sections": "mostly square/border-defined; radius is used where the actual control/UI requires it"
+      },
+      "source": "live_css",
+      "confidence": "measured",
+      "source_detail": "rounded-[10px] and --radius-xl:.75rem utilities in the linked CSS."
+    },
+    "border_and_shadow": {
+      "value": {
+        "border_width_px": 1,
+        "default_surface_shadow": "none",
+        "small_sticky_navigation_shadow": ["0px 1px 3px 0px #00000003", "0px 2px 4px -1px #00000005"],
+        "shadow_policy": "selective, low-alpha; primary hierarchy is expressed with borders"
+      },
+      "source": "live_css",
+      "confidence": "derived",
+      "source_detail": "Border utility rules, shadow tokens, and max-lg:shadow-attio-2 on the compact platform navigation."
+    },
+    "header": {
+      "value": {
+        "height_px": 52,
+        "position": "sticky top:0 wrapper; header itself is a bordered surface inside it",
+        "background": "primary background at 95% opacity, opaque in dark mode",
+        "transition_duration_ms": 250
+      },
+      "source": "live_css",
+      "confidence": "derived",
+      "source_detail": "--site-header-nav-height:52px, sticky wrapper class, and header duration-250 utility."
+    },
+    "responsive_structure": {
+      "value": {
+        "css_breakpoints_px": [375, 576, 600, 768, 992, 1200, 1536],
+        "small_heading_to_large_heading_px": 600,
+        "alternate_mobile_hero_until_px": 767,
+        "platform_nav_horizontal_below_px": 992,
+        "platform_nav_desktop_grid_from_px": 992,
+        "container_caps_px": [375, 576, 768, 992, 1200, 1536]
+      },
+      "source": "live_css",
+      "confidence": "measured",
+      "source_detail": "Unique min-width rules, responsive H1 visibility/classes, and max-lg/lg platform-navigation classes in current HTML/CSS."
+    },
+    "sticky_and_fixed": {
+      "value": {
+        "site_header": "sticky at top:0",
+        "platform_navigation": "sticky below site header; side grid at lg, compact horizontal bar below lg",
+        "product_ui_stage": "not a persistent fixed overlay; product content remains in the document flow",
+        "fixed_marketing_cta": "none observed in current page HTML shell"
+      },
+      "source": "live_html",
+      "confidence": "derived",
+      "source_detail": "Position-bearing wrapper and navigation classes; no fixed CTA element in the page shell."
+    },
+    "transitions_and_motion": {
+      "value": {
+        "global_default_transition_ms": 150,
+        "header_color_transition_ms": 250,
+        "primary_cta_transition_targets": ["color", "border-color", "background token values"],
+        "observed_reveal_targets": ["opacity", "filter", "transform"],
+        "reduced_motion": "linked CSS has prefers-reduced-motion:reduce overrides; avoid adding motion that cannot be disabled"
+      },
+      "source": "live_css",
+      "confidence": "derived",
+      "source_detail": "Tailwind transition tokens, button component CSS, hero's reveal-state markup, and reduced-motion media queries."
+    },
+    "570_capture_ratios_non_gating": {
+      "value": {
+        "hero_copy_width_fraction": { "approximate_range": [0.8, 0.95], "unit": "viewport width" },
+        "product_ui_width_fraction": { "approximate_range": [0.88, 1.0], "unit": "viewport width" },
+        "side_margin_fraction": { "approximate_range": [0.02, 0.06], "unit": "each side / viewport width" },
+        "copy_to_visible_product_area_fraction": { "approximate_range": [1.2, 2.0], "unit": "hero copy height / first visible product height" },
+        "first_product_ui_top_fraction": { "upper_bound": 1.0, "unit": "viewport height; appears in the 570x1430 image" }
+      },
+      "source": "live_570_capture",
+      "confidence": "inferred",
+      "source_detail": "Approximate relative ranges only. The screenshot is not available as a local image artifact; these values are descriptive and are not acceptance gates or a basis for structural decisions."
+    }
+  },
+  "implementation_rules": {
+    "transplant": ["typography hierarchy", "narrow white/near-black palette", "border-first surfaces", "short hero followed immediately by real product UI", "responsive structure driven by explicit breakpoints", "small restrained motion with reduced-motion support"],
+    "do_not_copy": ["Attio assets or page text", "CRM-specific IA", "exact English font glyph shapes for Japanese", "decorative gradients, broad brand color panels, or unnecessary sticky choreography"],
+    "acceptance_tolerance": {
+      "continuous_values_percent": 8,
+      "japanese_text_block_height_percent": 12,
+      "discrete_properties": "exact structural match to the selected contract values"
+    }
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "retrieved_at": "2026-10-05T07:49:39Z",
+  "page": {
+    "url": "https://attio.com/",
+    "final_url": "https://attio.com/",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "bytes": 1105688,
+    "sha256": "5e031c1105cfb44fe8eb8804142fbc8d05290ac16e44e857868a9eda73d3f96c"
+  },
+  "stylesheet_method": "Ordinary unauthenticated HTTP GET of the public stylesheet links in the page HTML; no browser script or browser-side style measurement was used.",
+  "stylesheets": [
+    {
+      "url": "https://attio.com/_next/static/immutable/chunks/2h8eq-_npw11u.css",
+      "status": 200,
+      "bytes": 11441,
+      "sha256": "8b9c94117fd8d5aea16ddd63402416d50cb41583718846b263c6eee1f3bcc287"
+    },
+    {
+      "url": "https://attio.com/_next/static/immutable/chunks/2i9pge5y_zlr5.css",
+      "status": 200,
+      "bytes": 1092,
+      "sha256": "c9f9c65921f2630763e16abff28c563d6a77cabc7d2d6c3b7d15b44fda4cef70"
+    },
+    {
+      "url": "https://attio.com/_next/static/immutable/chunks/3b0nh55-lyi1r.css",
+      "status": 200,
+      "bytes": 2592,
+      "sha256": "3e5b1c60d725c38710627fe19a0357a410bfe1ec5e11f31d90190cc523bad6bc"
+    },
+    {
+      "url": "https://attio.com/_next/static/immutable/chunks/02xyn5f_8tmz5.css",
+      "status": 200,
+      "bytes": 588,
+      "sha256": "e82ed53b9eb4b432784dae32567611ef06cdefac6f6458afeebf5d0504e8f13c"
+    },
+    {
+      "url": "https://attio.com/_next/static/immutable/chunks/271cqbyh6w88p.css",
+      "status": 200,
+      "bytes": 15277,
+      "sha256": "bb14347677e39da092d2c9c5a75e7c0094415acfc7257a588fc5b3621bce19ea"
+    },
+    {
+      "url": "https://attio.com/_next/static/immutable/chunks/0ac_omfeqjtez.css",
+      "status": 200,
+      "bytes": 11858,
+      "sha256": "c68d0dd7d9b50e4e70fef3425839df2a987a8603fa69928a87d3e09aad029c75"
+    },
+    {
+      "url": "https://attio.com/_next/static/immutable/chunks/002k2pnwynkdl.css",
+      "status": 200,
+      "bytes": 4506,
+      "sha256": "f0b9f4ae3c759d6d3bd48733a327d364d2f5ae592a4fbf6e5511827f5b8eafe5"
+    },
+    {
+      "url": "https://attio.com/_next/static/immutable/chunks/26k8cxjc-8-ub.css",
+      "status": 200,
+      "bytes": 463313,
+      "sha256": "49e9fce2110c36fe6fe587ed8c8280197375b3116f18e47f5530fd80472dcff4"
+    },
+    {
+      "url": "https://attio.com/_next/static/immutable/chunks/31dm-rrirdb7m.css",
+      "status": 200,
+      "bytes": 1473,
+      "sha256": "7c3000b867ea4c2672c0ea7c9310fc27e0f8b18e5bda9fde78bf6a2120f12232"
+    }
+  ],
+  "html_observations": {
+    "hero_heading_classes": "text-balance font-display font-semibold text-primary-foreground leading-[0.95]",
+    "hero_heading_inline_size": "clamp(64px, calc(16px + 5.333svh), 80px)",
+    "hero_heading_inline_tracking": "clamp(-2.4px, calc(2.08px - 0.3733svh), -1.28px)",
+    "hero_shell_classes": "sticky top-(--site-header-height) -mb-[min(calc(8px+20svh),calc(50svh-261px))] flex min-h-[clamp(320px,calc(40svh-var(--site-header-height)),520px)] flex-col items-center justify-center gap-6 px-6 pt-[max(96px,10svh)] text-center md:px-14 lg:mb-[max(min(calc(120px-20svh),calc(550px-53svh)),calc(max(389px,min(calc(82px+20vw),466px))-50svh))] lg:px-[58px]",
+    "header_shell_classes": "sticky top-0 z-(--site-header-z-index)",
+    "platform_selector_classes": "sticky top-(--site-header-height) ... lg:grid lg:h-[calc(100vh-var(--site-header-height))] ...",
+    "first_product_ui_order": "The first product-stage markup follows the hero and precedes the longer platform explanation; the existing 570x1430 browser screenshot showed product UI entering directly after the hero."
+  },
+  "limitations": {
+    "browser_side_script": "Not used, in accordance with the revised instruction.",
+    "absolute_computed_boxes": "Not claimed. Contract values come from public HTML/CSS declarations and CSS custom properties.",
+    "570_screenshot": "The 570x1430 screenshot was observed earlier in the task but was not saved as a local image artifact. Screenshot-only ratios are marked inferred and are not used as structural acceptance gates.",
+    "secondary_css_reference": "Not used; first-party live HTML/CSS was sufficient."
+  }
+}

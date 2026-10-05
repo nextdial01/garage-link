@@ -1,127 +1,94 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useRef, useState, type KeyboardEvent } from 'react';
 import { GarageInteractiveDemo } from './demo/GarageInteractiveDemo';
 import type { DemoView } from './demo/garageDemoData';
 import styles from './garage-landing.module.css';
 
 const steps: Array<{
   view: DemoView;
-  eyebrow: string;
-  compactLabel: string;
-  title: string;
-  body: string;
+  label: string;
 }> = [
-  {
-    view: 'vehicles',
-    eyebrow: '01 / VEHICLE',
-    compactLabel: '01 車両',
-    title: '1台の車両から始める。',
-    body: '仕入、在庫日数、価格、車検。まず車両の事実を一つにします。',
-  },
-  {
-    view: 'customers',
-    eyebrow: '02 / CUSTOMER',
-    compactLabel: '02 顧客',
-    title: '顧客を車両から離さない。',
-    body: '誰が、どの車を見ていて、次にいつ連絡するかまで同じ流れで確認します。',
-  },
-  {
-    view: 'deals',
-    eyebrow: '03 / DEAL',
-    compactLabel: '03 商談',
-    title: '商談に「次」を残す。',
-    body: '見積、担当、次回連絡。止まっている商談を、担当者の記憶から外へ出します。',
-  },
-  {
-    view: 'quote',
-    eyebrow: '04 / QUOTE',
-    compactLabel: '04 見積',
-    title: '見積まで同じデータで。',
-    body: '車両と顧客を選び直さず、商談から見積へつなげます。',
-  },
-  {
-    view: 'maintenance',
-    eyebrow: '05 / AFTER',
-    compactLabel: '05 整備',
-    title: '納車後も、同じ車両が続く。',
-    body: '整備、部品、納車予定、次回車検まで、履歴を切らさず残します。',
-  },
+  { view: 'vehicles', label: '車両' },
+  { view: 'customers', label: '顧客' },
+  { view: 'deals', label: '商談' },
+  { view: 'quote', label: '見積' },
+  { view: 'maintenance', label: '整備' },
 ];
 
 export function GarageScrollStory() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const stepRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  useEffect(() => {
-    if (!window.matchMedia('(min-width: 1041px)').matches) return;
-
-    const nodes = stepRefs.current.filter(Boolean) as HTMLButtonElement[];
-    if (nodes.length === 0) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (!visible) return;
-        const index = Number((visible.target as HTMLElement).dataset.storyIndex);
-        if (Number.isFinite(index)) setActiveIndex(index);
-      },
-      { rootMargin: '-32% 0px -46% 0px', threshold: [0.12, 0.35, 0.6] },
-    );
-
-    nodes.forEach((node) => observer.observe(node));
-    return () => observer.disconnect();
-  }, []);
-
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const active = steps[activeIndex];
+
+  function focusTab(index: number) {
+    const nextIndex = (index + steps.length) % steps.length;
+    setActiveIndex(nextIndex);
+    tabRefs.current[nextIndex]?.focus();
+  }
+
+  function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      focusTab(index + 1);
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      focusTab(index - 1);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      focusTab(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      focusTab(steps.length - 1);
+    }
+  }
 
   return (
     <section className={styles.storySection} id="product-story" aria-labelledby="product-story-title">
       <div className={styles.storyShell}>
-        <div className={styles.storyRail}>
-          <div className={styles.storyIntro}>
-            <p>ONE VEHICLE, ONE CONTEXT</p>
-            <h2 id="product-story-title">1台の車両に、仕事の続きを。</h2>
-          </div>
-
-          <div className={styles.storySteps}>
-            {steps.map((step, index) => (
-              <button
-                key={step.view}
-                type="button"
-                ref={(node) => { stepRefs.current[index] = node; }}
-                data-story-index={index}
-                aria-current={activeIndex === index ? 'step' : undefined}
-                className={activeIndex === index ? styles.storyStepActive : styles.storyStep}
-                onClick={() => setActiveIndex(index)}
-              >
-                <span>{step.eyebrow}</span>
-                <em className={styles.storyCompactLabel}>{step.compactLabel}</em>
-                <strong>{step.title}</strong>
-                <p>{step.body}</p>
-              </button>
-            ))}
-          </div>
+        <div className={styles.storyIntro}>
+          <h2 id="product-story-title">車両から整備まで、店の仕事をひと続きに。</h2>
+          <p>一つの製品画面を切り替えて、車両・顧客・商談・見積・整備のつながりを確かめられます。</p>
         </div>
 
-        <div className={styles.storyStage}>
-          <div className={styles.storySticky} data-testid="garage-scroll-story-stage">
-            <div className={styles.storyStageHeader}>
-              <span>{active.eyebrow}</span>
-              <strong>{active.title}</strong>
-              <p>{active.body}</p>
-            </div>
-            <Suspense fallback={<div className={styles.storyLoading}>製品画面を準備しています...</div>}>
-              <GarageInteractiveDemo
-                initialScenario={{ business: 'used-car', management: 'excel', goal: 'inventory' }}
-                forcedView={active.view}
-                hideConfigurator
-                storyMode
-              />
-            </Suspense>
-          </div>
+        <div className={styles.storySteps} role="tablist" aria-label="業務画面">
+          {steps.map((step, index) => (
+            <button
+              key={step.view}
+              id={`garage-story-tab-${step.view}`}
+              type="button"
+              role="tab"
+              ref={(node) => { tabRefs.current[index] = node; }}
+              data-story-index={index}
+              aria-selected={activeIndex === index}
+              aria-controls="garage-story-panel"
+              tabIndex={activeIndex === index ? 0 : -1}
+              className={activeIndex === index ? styles.storyStepActive : styles.storyStep}
+              onClick={() => setActiveIndex(index)}
+              onKeyDown={(event) => onTabKeyDown(event, index)}
+            >
+              {step.label}
+            </button>
+          ))}
+        </div>
+
+        <div
+          className={styles.storyStage}
+          id="garage-story-panel"
+          role="tabpanel"
+          aria-labelledby={`garage-story-tab-${active.view}`}
+          tabIndex={0}
+          data-active-view={active.view}
+          data-testid="garage-scroll-story-stage"
+        >
+          <Suspense fallback={<div className={styles.storyLoading}>製品画面を準備しています...</div>}>
+            <GarageInteractiveDemo
+              initialScenario={{ business: 'used-car', management: 'excel', goal: 'inventory' }}
+              forcedView={active.view}
+              hideConfigurator
+              storyMode
+            />
+          </Suspense>
         </div>
       </div>
     </section>

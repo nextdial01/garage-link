@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import {
   ArrowRight,
-  Check,
   FileSpreadsheet,
   ShieldCheck,
 } from 'lucide-react';
@@ -73,19 +72,14 @@ export function GarageLandingPage() {
 
       <section className={styles.hero} id="garage-hero">
         <div className={styles.heroInner}>
-          <p className={styles.heroEyebrow}>中古車販売・整備工場・バイク店向け</p>
+          <p className={styles.heroEyebrow}>中古車販売店・バイク店・整備工場のための店舗管理</p>
           <h1><span>車両を中心に、</span><span>仕事をひとつに。</span></h1>
           <p className={styles.heroLead}>
-            在庫、顧客、商談、見積、整備。別々に管理している仕事を、1台の車両からつなげます。
+            在庫、顧客、商談、見積、整備。1台の車両に関わる仕事を、ひと続きの流れで管理します。
           </p>
           <div className={styles.heroActions}>
-            <a href="#product-story" className={styles.primaryCta}>1台の流れを見る <ArrowRight aria-hidden="true" /></a>
-            <TrackedSignupLink placement="hero" className={styles.secondaryCta}>無料で始める</TrackedSignupLink>
-          </div>
-          <div className={styles.heroFacts}>
-            <span><Check aria-hidden="true" /> 月額0円から</span>
-            <span><Check aria-hidden="true" /> カード登録不要</span>
-            <span><Check aria-hidden="true" /> 在庫5台までFree</span>
+            <TrackedSignupLink placement="hero" className={styles.primaryCta}>無料で始める <ArrowRight aria-hidden="true" /></TrackedSignupLink>
+            <a href="#product-story" className={styles.secondaryCta}>製品を見る</a>
           </div>
         </div>
       </section>
@@ -94,8 +88,11 @@ export function GarageLandingPage() {
 
       <section className={styles.demoSection} id="live-demo">
         <div className={styles.demoRail}>
-          <span>TRY IT YOURSELF</span>
-          <p>ここからは自由操作。業態・今の管理・見たい業務を選んで、自分でデモデータを作れます。</p>
+          <div>
+            <p>自由操作デモ</p>
+            <h2>自分の業務に合わせて試す。</h2>
+          </div>
+          <span>業態や管理方法を選び、デモデータを作って操作できます。</span>
         </div>
         <div className={styles.demoContainer}>
           <Suspense fallback={<div className={styles.demoLoading}>デモを準備しています...</div>}>
@@ -107,7 +104,6 @@ export function GarageLandingPage() {
       <section className={styles.migrationSection} id="migration">
         <div className={styles.migrationGrid}>
           <div>
-            <p className={styles.sectionLabel}>MIGRATION</p>
             <h2>全部移してから試す必要はありません。</h2>
             <p>まず1台。必要になったらCSV。合わなければ止める。導入判断の前に大仕事を作りません。</p>
           </div>
@@ -119,10 +115,9 @@ export function GarageLandingPage() {
         </div>
       </section>
 
-      <section className={styles.pricingSection}>
+      <section className={styles.pricingSection} id="pricing">
         <div className={styles.pricingGrid}>
           <div>
-            <p className={styles.sectionLabel}>START FREE</p>
             <h2>まず実際の業務で使ってから判断。</h2>
             <p>登録時にカード情報は不要です。</p>
           </div>
@@ -145,7 +140,6 @@ export function GarageLandingPage() {
       <section className={styles.trustSection}>
         <div className={styles.trustGrid}>
           <div>
-            <p className={styles.sectionLabel}>CONTROL YOUR DATA</p>
             <h2>データを閉じ込めない。</h2>
             <p>顧客・車両はCSVで入出力できます。利用条件、運営会社、問い合わせ窓口も登録前に確認できます。</p>
           </div>
@@ -159,10 +153,9 @@ export function GarageLandingPage() {
         </div>
       </section>
 
-      <section className={styles.faqSection}>
+      <section className={styles.faqSection} id="faq">
         <div className={styles.faqGrid}>
           <div>
-            <p className={styles.sectionLabel}>FAQ</p>
             <h2>登録前に確認したいこと。</h2>
           </div>
           <div className={styles.faqList}>
@@ -179,12 +172,12 @@ export function GarageLandingPage() {
 
       <section className={styles.finalSection} id="final-cta">
         <div>
-          <p>START WITH THE PRODUCT</p>
+          <p>無料から、実際の業務で</p>
           <h2>まず触る。合えば、そのまま無料で始める。</h2>
         </div>
         <div className={styles.finalActions}>
-          <a href="#live-demo" className={styles.finalPrimary}>もう一度デモを触る</a>
-          <TrackedSignupLink placement="final" className={styles.finalSecondary}>無料で始める</TrackedSignupLink>
+          <TrackedSignupLink placement="final" className={styles.finalPrimary}>無料で始める <ArrowRight aria-hidden="true" /></TrackedSignupLink>
+          <a href="#live-demo" className={styles.finalSecondary}>デモを操作する</a>
         </div>
       </section>
 

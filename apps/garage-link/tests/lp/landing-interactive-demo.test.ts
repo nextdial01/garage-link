@@ -30,42 +30,42 @@ test.describe('GARAGE LINK embedded live demo', () => {
     await expect(demo.getByRole('link', { name: 'この状態から無料で始める' })).toBeVisible();
   });
 
-  test('desktop scroll story advances the pinned product state', async ({ page }) => {
+  test('desktop Product Platform tabs change the actual product state without a sticky stage', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto('/');
 
     const story = page.locator('#product-story');
     const stage = page.getByTestId('garage-scroll-story-stage');
     await expect(stage).toBeVisible();
-    expect(await stage.evaluate((element) => getComputedStyle(element).position)).toBe('sticky');
+    expect(await stage.evaluate((element) => getComputedStyle(element).position)).not.toMatch(/sticky|fixed/);
 
-    const steps = story.locator('button[data-story-index]');
+    const tabs = story.getByRole('tab');
     const storyDemo = page.getByTestId('garage-scroll-story-demo');
     await expect(storyDemo.getByRole('heading', { name: '車両', exact: true })).toBeVisible();
 
-    await steps.nth(2).scrollIntoViewIfNeeded();
-    await page.waitForTimeout(260);
-    await expect(storyDemo).toBeInViewport({ ratio: 0.55 });
+    await tabs.nth(2).click();
+    await expect(tabs.nth(2)).toHaveAttribute('aria-selected', 'true');
     await expect(storyDemo.getByRole('heading', { name: '商談', exact: true })).toBeVisible();
 
-    await steps.nth(3).scrollIntoViewIfNeeded();
-    await page.waitForTimeout(260);
-    await expect(storyDemo).toBeInViewport({ ratio: 0.55 });
+    await tabs.nth(3).click();
+    await expect(tabs.nth(3)).toHaveAttribute('aria-selected', 'true');
     await expect(storyDemo.getByRole('heading', { name: '見積', exact: true })).toBeVisible();
   });
 
-  test('compact scroll story uses direct tap switching instead of sticky scrolling', async ({ page }) => {
+  test('mobile Product Platform exposes all five tap targets and keeps the selected state', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
 
     const story = page.locator('#product-story');
     const stage = page.getByTestId('garage-scroll-story-stage');
-    expect(await stage.evaluate((element) => getComputedStyle(element).position)).not.toBe('sticky');
+    expect(await stage.evaluate((element) => getComputedStyle(element).position)).not.toMatch(/sticky|fixed/);
 
-    const steps = story.locator('button[data-story-index]');
-    await steps.nth(4).click();
+    const tabs = story.getByRole('tab');
+    await expect(tabs).toHaveCount(5);
+    await tabs.nth(4).click();
     await expect(page.getByTestId('garage-scroll-story-demo').getByRole('heading', { name: '整備', exact: true })).toBeVisible();
-    await expect(steps.nth(4)).toHaveAttribute('aria-current', 'step');
+    await expect(tabs.nth(4)).toHaveAttribute('aria-selected', 'true');
+    await expect(story.getByRole('tabpanel')).toHaveAttribute('data-active-view', 'maintenance');
   });
 
   test('standalone demo honors conversion scenario parameters', async ({ page }) => {

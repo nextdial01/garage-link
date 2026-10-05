@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "capture_method": "Local GARAGE LINK Playwright screenshots from the locally built application; no Attio browser script or new Attio screenshot was captured.",
+  "attio_comparison_image": null,
+  "attio_comparison_image_reason": "The previously observed 570x1430 image was not saved to the workspace. The revised instruction prohibits retrying or circumventing browser measurement, so no new Attio screenshot was taken.",
+  "screenshots": [
+    {
+      "file": "full-desktop-1440.png",
+      "viewport": "1440x1000",
+      "coverage": "full page",
+      "sha256": "11bd339d7ab849aca93aa19d692fd09dab8fd91123ceaf8e84f5d3221aef2926"
+    },
+    {
+      "file": "full-laptop-1024.png",
+      "viewport": "1024x900",
+      "coverage": "full page",
+      "sha256": "934381acef6ba299bf71d55f066e0981cc52403981daa0feac13cc263778a957"
+    },
+    {
+      "file": "full-tablet-768.png",
+      "viewport": "768x1024",
+      "coverage": "full page",
+      "sha256": "9e8218bae470bc3999975e5e288cda5c8e77c66de47e615c86c96747892e4c36"
+    },
+    {
+      "file": "full-mobile-430.png",
+      "viewport": "430x932",
+      "coverage": "full page",
+      "sha256": "9a873e29f0575eae999d4905e0c3e15e0c6806f56fdcf9df0eaa01cf8979616f"
+    },
+    {
+      "file": "full-mobile-390.png",
+      "viewport": "390x844",
+      "coverage": "full page",
+      "sha256": "676a66f49f27975f236e98aeac42b94a45c27c14256ddeae57860bcbf4279db1"
+    },
+    {
+      "file": "hero-desktop-1440.png",
+      "viewport": "1440x1000",
+      "coverage": "Hero",
+      "sha256": "57defb96122ba12e3bec9a78df043a3c783aac8147c8457b243bcf8cde3bdf74"
+    },
+    {
+      "file": "platform-desktop-1440.png",
+      "viewport": "1440x1000",
+      "coverage": "Product Platform",
+      "sha256": "7030c9f803a60480e9481b825e71096608117047b335eac0844f9930c9b4d908"
+    },
+    {
+      "file": "interactive-demo-desktop-1440.png",
+      "viewport": "1440x1000",
+      "coverage": "free-operation demo",
+      "sha256": "9ea253e4ea2349f2edef300d35bd64c51d5ef342380c601353f36f21a5c4d124"
+    },
+    {
+      "file": "migration-desktop-1440.png",
+      "viewport": "1440x1000",
+      "coverage": "CSV migration",
+      "sha256": "318c37dee2ba82c39f3d2399b047636d73bb7a701cc45b46396a097c7f2025f9"
+    },
+    {
+      "file": "pricing-desktop-1440.png",
+      "viewport": "1440x1000",
+      "coverage": "pricing",
+      "sha256": "b3cdb55f8b69e662ee0b9ee6294f2e449b44182bc8a43739940ad399a105742e"
+    },
+    {
+      "file": "faq-desktop-1440.png",
+      "viewport": "1440x1000",
+      "coverage": "FAQ",
+      "sha256": "3c8ed7dbd28d6b8ce668d78cac148f9660bc56cb9fa0dd980968be89f88b8a96"
+    },
+    {
+      "file": "final-cta-desktop-1440.png",
+      "viewport": "1440x1000",
+      "coverage": "final CTA",
+      "sha256": "1308c6bfd6877b5427f7d368071cf06184e2fd587d4b41b7185827dd74a778b2"
+    },
+    {
+      "file": "hero-mobile-390.png",
+      "viewport": "390x844",
+      "coverage": "Hero",
+      "sha256": "d2b835c4b8e2ce3dcd6c25a6ed9336a03feab611bb0eff389d534510027a5e73"
+    },
+    {
+      "file": "platform-mobile-390.png",
+      "viewport": "390x844",
+      "coverage": "Product Platform",
+      "sha256": "83370abb6160f81cf5c0fa19386afb8da408ac3a8a6cdd9ae5276fc516f5d20a"
+    },
+    {
+      "file": "interactive-demo-mobile-390.png",
+      "viewport": "390x844",
+      "coverage": "free-operation demo",
+      "sha256": "121d136deacf08d8ada1877d4a750e15f8b185cd26fb5fe1a38d6f4ffedef89a"
+    },
+    {
+      "file": "migration-mobile-390.png",
+      "viewport": "390x844",
+      "coverage": "CSV migration",
+      "sha256": "07f39da1d202d56745057d4ae0efbf2bf6ebbbec6abb9c81e69bb59c8b792153"
+    },
+    {
+      "file": "pricing-mobile-390.png",
+      "viewport": "390x844",
+      "coverage": "pricing",
+      "sha256": "e0158b75332249b7a86f2b0dbcec983554c667963fa4803c8a23abecc56030c1"
+    },
+    {
+      "file": "faq-mobile-390.png",
+      "viewport": "390x844",
+      "coverage": "FAQ",
+      "sha256": "c62429a78e72479180102268976b8e8977a15a2c24c557215dd4051a99895d34"
+    },
+    {
+      "file": "final-cta-mobile-390.png",
+      "viewport": "390x844",
+      "coverage": "final CTA",
+      "sha256": "bae53cc91e7e38fe27d9fe0ae59669b2dfe7b77bfca16f779b053eef550554e9"
+    },
+    {
+      "file": "platform-deals-desktop-1440.png",
+      "viewport": "1440x1000",
+      "coverage": "Product Platform in the deals state",
+      "sha256": "839db61362be5e463974ccd2ed2bdead12acab2e2ec0845fed23b8b912a2665e"
+    }
+  ],
+  "latest_capture_at": "2026-10-05 10:46:14 UTC",
+  "latest_capture_source": "Final post-Codex Playwright run; screenshots copied from apps/garage-link/test-results/attio-contract-visuals."
+}

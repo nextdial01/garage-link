@@ -502,7 +502,7 @@ export function GarageInteractiveDemo({
       data-story-mode={storyMode ? 'true' : undefined}
       className={`${standalone ? 'mx-auto w-full max-w-[1500px]' : 'w-full'} ${storyMode ? 'pointer-events-none select-none' : ''}`}
     >
-      {!hideConfigurator && <div className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:grid-cols-[1fr_1fr_1fr_auto]">
+      {!hideConfigurator && <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
         <label className="grid gap-1.5">
           <span className="text-[11px] font-medium text-slate-500">業態</span>
           <select aria-label="デモ業態" value={draftScenario.business} onChange={(event) => setDraftScenario((current) => ({ ...current, business: event.target.value as DemoBusiness }))} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none focus:border-blue-500">
@@ -524,7 +524,7 @@ export function GarageInteractiveDemo({
         <button type="button" onClick={generateScenario} className="min-h-10 self-end rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800">この条件でデモを作る</button>
       </div>}
 
-      <div className={storyMode ? "overflow-hidden rounded-[18px] border border-slate-200 bg-[#f7f8fa] shadow-[0_30px_90px_rgba(15,23,42,.12)]" : "overflow-hidden rounded-[22px] border border-slate-200 bg-[#f7f8fa] shadow-[0_22px_70px_rgba(15,23,42,.10)]"}>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-[#f7f8fa]">
         <div className="flex min-h-[620px]">
           <aside className={`${storyMode ? 'w-[164px]' : 'w-[176px]'} hidden shrink-0 border-r border-slate-200 bg-white p-3 md:block`}>
             <div className="mb-4 rounded-xl border border-slate-200 px-3 py-3">

@@ -20,8 +20,8 @@ test.describe('GARAGE LINK LP mobile navigation', () => {
       await expect(page.getByRole('navigation', { name: 'スマホメニュー' })).toBeHidden();
 
       await trigger.click();
-      await page.getByRole('navigation', { name: 'スマホメニュー' }).getByRole('link', { name: '機能' }).click();
-      await expect(page).toHaveURL(/#features$/);
+      await page.getByRole('navigation', { name: 'スマホメニュー' }).getByRole('link', { name: 'デモ' }).click();
+      await expect(page).toHaveURL(/#live-demo$/);
       await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     });
   }
@@ -38,6 +38,7 @@ test.describe('GARAGE LINK LP mobile navigation', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
 
-    expect(await page.locator('main svg.lucide').count()).toBeGreaterThanOrEqual(10);
+    await expect(page.locator('main svg.lucide').first()).toBeAttached();
+    await expect(page.locator('main svg:not(.lucide)')).toHaveCount(0);
   });
 });

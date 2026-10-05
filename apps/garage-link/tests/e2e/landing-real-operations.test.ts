@@ -99,7 +99,7 @@ test.describe('GARAGE LINK LP real operations', () => {
   test('homepage embeds the product as interactive DOM, not product screenshots', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: '車屋の仕事を、車両から動かす。' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /車両を中心に、\s*仕事をひとつに。/ })).toBeVisible();
     await expect(page.getByTestId('garage-scroll-story-demo')).toBeVisible();
     await expect(page.getByTestId('garage-live-demo')).toBeVisible();
     await expect(page.locator('img[src*="/product-screens/"]')).toHaveCount(0);
@@ -107,7 +107,7 @@ test.describe('GARAGE LINK LP real operations', () => {
     await expect(page.getByRole('button', { name: 'この条件でデモを作る' })).toBeVisible();
   });
 
-  test('scroll story changes the embedded product state without counting as a user demo action', async ({ page }) => {
+  test('Product Platform tabs change the embedded product state without counting as a user demo action', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto('/');
 
@@ -116,13 +116,11 @@ test.describe('GARAGE LINK LP real operations', () => {
     const storyDemo = page.getByTestId('garage-scroll-story-demo');
     await expect(storyDemo.getByRole('heading', { name: '車両', exact: true })).toBeVisible();
 
-    const steps = story.locator('button[data-story-index]');
-    await steps.nth(2).scrollIntoViewIfNeeded();
-    await page.waitForTimeout(180);
+    const tabs = story.getByRole('tab');
+    await tabs.nth(2).click();
     await expect(storyDemo.getByRole('heading', { name: '商談', exact: true })).toBeVisible();
 
-    await steps.nth(3).scrollIntoViewIfNeeded();
-    await page.waitForTimeout(180);
+    await tabs.nth(3).click();
     await expect(storyDemo.getByRole('heading', { name: '見積', exact: true })).toBeVisible();
   });
 
