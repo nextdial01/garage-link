@@ -3,13 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  BarChart3,
   CalendarDays,
   CarFront,
   ChevronRight,
-  CircleDollarSign,
   ClipboardList,
-  FileText,
   Plus,
   Search,
   UsersRound,
@@ -105,6 +102,7 @@ export function GarageInteractiveDemo({
   const [variant, setVariant] = useState(0);
   const [data, setData] = useState(() => generateGarageDemoData(initialScenario));
   const [view, setView] = useState<DemoView>(() => defaultViewForGoal(initialScenario.goal));
+  const currentView = forcedView ?? view;
   const [selectedVehicleId, setSelectedVehicleId] = useState(data.vehicles[0]?.id ?? '');
   const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [draftMaker, setDraftMaker] = useState('');
@@ -121,10 +119,6 @@ export function GarageInteractiveDemo({
       demo_view: defaultViewForGoal(initialScenario.goal),
     });
   }, [initialScenario]);
-
-  useEffect(() => {
-    if (forcedView) setView(forcedView);
-  }, [forcedView]);
 
   const inventoryAgeData = useMemo<ChartDatum[]>(() => {
     const ranges = [
@@ -536,7 +530,7 @@ export function GarageInteractiveDemo({
             <nav className="space-y-1" aria-label="デモ画面">
               {viewItems.map((item) => {
                 const Icon = item.icon;
-                const active = view === item.view;
+                const active = currentView === item.view;
                 return (
                   <button key={item.view} type="button" onClick={() => selectView(item.view)} className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium transition ${active ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
                     <Icon className="h-4 w-4" />
@@ -556,7 +550,7 @@ export function GarageInteractiveDemo({
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[10px] font-medium uppercase tracking-[.14em] text-slate-400">GARAGE LINK / LIVE DEMO</p>
-                  <h3 className="mt-0.5 truncate text-base font-semibold tracking-tight text-slate-950">{viewTitle(view)}</h3>
+                  <h3 className="mt-0.5 truncate text-base font-semibold tracking-tight text-slate-950">{viewTitle(currentView)}</h3>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="hidden rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 sm:inline-flex">保存されないデモデータ</span>
@@ -569,7 +563,7 @@ export function GarageInteractiveDemo({
               </div>
               {!storyMode && <nav className="mt-3 flex gap-1 overflow-x-auto md:hidden" aria-label="デモ画面モバイル">
                 {viewItems.map((item) => {
-                  const active = view === item.view;
+                  const active = currentView === item.view;
                   return (
                     <button key={item.view} type="button" onClick={() => selectView(item.view)} className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-medium ${active ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-600'}`}>
                       {item.label}
@@ -579,13 +573,13 @@ export function GarageInteractiveDemo({
               </nav>}
             </header>
 
-            <div key={view} className={`${storyMode ? 'garage-demo-view-transition ' : ''}p-3 sm:p-5`}>
-              {view === 'today' && renderToday()}
-              {view === 'vehicles' && renderVehicles()}
-              {view === 'customers' && renderCustomers()}
-              {view === 'deals' && renderDeals()}
-              {view === 'maintenance' && renderMaintenance()}
-              {view === 'quote' && renderQuote()}
+            <div key={currentView} className={`${storyMode ? 'garage-demo-view-transition ' : ''}p-3 sm:p-5`}>
+              {currentView === 'today' && renderToday()}
+              {currentView === 'vehicles' && renderVehicles()}
+              {currentView === 'customers' && renderCustomers()}
+              {currentView === 'deals' && renderDeals()}
+              {currentView === 'maintenance' && renderMaintenance()}
+              {currentView === 'quote' && renderQuote()}
             </div>
           </div>
         </div>
