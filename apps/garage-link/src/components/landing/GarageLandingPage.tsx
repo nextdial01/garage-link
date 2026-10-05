@@ -104,7 +104,7 @@ export function GarageLandingPage() {
         </div>
       </section>
 
-      <section className={styles.migrationSection}>
+      <section className={styles.migrationSection} id="migration">
         <div className={styles.migrationGrid}>
           <div>
             <p className={styles.sectionLabel}>MIGRATION</p>
@@ -177,7 +177,7 @@ export function GarageLandingPage() {
         </div>
       </section>
 
-      <section className={styles.finalSection}>
+      <section className={styles.finalSection} id="final-cta">
         <div>
           <p>START WITH THE PRODUCT</p>
           <h2>まず触る。合えば、そのまま無料で始める。</h2>
