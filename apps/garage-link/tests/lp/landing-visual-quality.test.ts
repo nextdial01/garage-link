@@ -42,13 +42,21 @@ test.describe('GARAGE LINK rendered LP quality', () => {
         };
       });
       expect(heroMetrics.lineCount, 'hero must stay scannable').toBeLessThanOrEqual(3.2);
-      expect(heroMetrics.fontWeight, 'hero must avoid heavy AI-template typography').toBeLessThanOrEqual(650);
-      expect(heroMetrics.fontFamily).toMatch(/Inter|Hiragino|Noto Sans JP|Yu Gothic/i);
+      expect(heroMetrics.fontWeight, 'hero must avoid heavy AI-template typography').toBeLessThanOrEqual(550);
+      expect(heroMetrics.fontFamily).toMatch(/apple-system|Helvetica Neue|Hiragino|Noto Sans JP|Yu Gothic/i);
       await expect(page.locator('h1 br')).toHaveCount(0);
 
+      const storyDemo = page.getByTestId('garage-scroll-story-demo');
       const demo = page.getByTestId('garage-live-demo');
-      await expect(demo, 'live product demo must be embedded on the homepage').toBeVisible();
+      await expect(storyDemo, 'scroll-controlled product story must be embedded').toBeVisible();
+      await expect(demo, 'free live product demo must remain embedded').toBeVisible();
       await expect(page.locator('img[src*="/product-screens/"]'), 'homepage must not use product screenshots').toHaveCount(0);
+
+      if (viewport.width > 1040) {
+        const stickyStage = page.getByTestId('garage-scroll-story-stage');
+        const stickyPosition = await stickyStage.evaluate((element) => getComputedStyle(element).position);
+        expect(stickyPosition, 'desktop product story must pin the UI while copy scrolls').toBe('sticky');
+      }
 
       const demoBox = await demo.boundingBox();
       expect(demoBox).not.toBeNull();
