@@ -8,15 +8,34 @@ export function MobileStickyDemoCta() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const hero = document.getElementById('garage-hero');
-    if (!hero) return;
+    const ids = ['garage-hero', 'product-story', 'live-demo', 'final-cta'];
+    const targets = ids
+      .map((id) => document.getElementById(id))
+      .filter((element): element is HTMLElement => Boolean(element));
+
+    if (targets.length === 0) return;
+
+    const visibility = new Map<Element, boolean>();
+    const recompute = () => {
+      const anyProtectedSectionVisible = targets.some((target) => visibility.get(target));
+      setVisible(!anyProtectedSectionVisible);
+    };
+
+    for (const target of targets) {
+      const rect = target.getBoundingClientRect();
+      visibility.set(target, rect.bottom > 0 && rect.top < window.innerHeight);
+    }
+    recompute();
 
     const observer = new IntersectionObserver(
-      ([entry]) => setVisible(!entry.isIntersecting),
-      { threshold: 0.08 },
+      (entries) => {
+        for (const entry of entries) visibility.set(entry.target, entry.isIntersecting);
+        recompute();
+      },
+      { threshold: 0.04 },
     );
 
-    observer.observe(hero);
+    targets.forEach((target) => observer.observe(target));
     return () => observer.disconnect();
   }, []);
 
