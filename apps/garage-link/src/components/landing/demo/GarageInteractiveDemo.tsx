@@ -85,9 +85,15 @@ function viewTitle(view: DemoView) {
 export function GarageInteractiveDemo({
   standalone = false,
   initialScenario: initialScenarioProp,
+  forcedView,
+  hideConfigurator = false,
+  storyMode = false,
 }: {
   standalone?: boolean;
   initialScenario?: DemoScenario;
+  forcedView?: DemoView;
+  hideConfigurator?: boolean;
+  storyMode?: boolean;
 }) {
   const searchParams = useSearchParams();
   const initialScenario = useMemo(
@@ -115,6 +121,10 @@ export function GarageInteractiveDemo({
       demo_view: defaultViewForGoal(initialScenario.goal),
     });
   }, [initialScenario]);
+
+  useEffect(() => {
+    if (forcedView) setView(forcedView);
+  }, [forcedView]);
 
   const inventoryAgeData = useMemo<ChartDatum[]>(() => {
     const ranges = [
@@ -494,7 +504,7 @@ export function GarageInteractiveDemo({
 
   return (
     <section data-testid="garage-live-demo" className={standalone ? 'mx-auto w-full max-w-[1500px]' : 'w-full'}>
-      <div className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:grid-cols-[1fr_1fr_1fr_auto]">
+      {!hideConfigurator && <div className="mb-4 grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:grid-cols-[1fr_1fr_1fr_auto]">
         <label className="grid gap-1.5">
           <span className="text-[11px] font-medium text-slate-500">業態</span>
           <select aria-label="デモ業態" value={draftScenario.business} onChange={(event) => setDraftScenario((current) => ({ ...current, business: event.target.value as DemoBusiness }))} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none focus:border-blue-500">
@@ -514,11 +524,11 @@ export function GarageInteractiveDemo({
           </select>
         </label>
         <button type="button" onClick={generateScenario} className="min-h-10 self-end rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800">この条件でデモを作る</button>
-      </div>
+      </div>}
 
-      <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-[#f7f8fa] shadow-[0_22px_70px_rgba(15,23,42,.10)]">
+      <div className={storyMode ? "overflow-hidden rounded-[18px] border border-slate-200 bg-[#f7f8fa] shadow-[0_30px_90px_rgba(15,23,42,.12)]" : "overflow-hidden rounded-[22px] border border-slate-200 bg-[#f7f8fa] shadow-[0_22px_70px_rgba(15,23,42,.10)]"}>
         <div className="flex min-h-[620px]">
-          <aside className="hidden w-[176px] shrink-0 border-r border-slate-200 bg-white p-3 md:block">
+          <aside className={`${storyMode ? 'w-[164px]' : 'w-[176px]'} hidden shrink-0 border-r border-slate-200 bg-white p-3 md:block`}>
             <div className="mb-4 rounded-xl border border-slate-200 px-3 py-3">
               <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-slate-400">Demo workspace</p>
               <p className="mt-1 truncate text-xs font-semibold text-slate-950">{data.storeName}</p>
@@ -550,12 +560,14 @@ export function GarageInteractiveDemo({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="hidden rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 sm:inline-flex">保存されないデモデータ</span>
-                  <TrackedSignupLink placement="interactive_demo_header" source="interactive_demo" className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white">
-                    無料で使う
-                  </TrackedSignupLink>
+                  {!storyMode && (
+                    <TrackedSignupLink placement="interactive_demo_header" source="interactive_demo" className="inline-flex h-9 items-center rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white">
+                      無料で使う
+                    </TrackedSignupLink>
+                  )}
                 </div>
               </div>
-              <nav className="mt-3 flex gap-1 overflow-x-auto md:hidden" aria-label="デモ画面モバイル">
+              {!storyMode && <nav className="mt-3 flex gap-1 overflow-x-auto md:hidden" aria-label="デモ画面モバイル">
                 {viewItems.map((item) => {
                   const active = view === item.view;
                   return (
@@ -564,10 +576,10 @@ export function GarageInteractiveDemo({
                     </button>
                   );
                 })}
-              </nav>
+              </nav>}
             </header>
 
-            <div className="p-3 sm:p-5">
+            <div key={view} className={`${storyMode ? 'garage-demo-view-transition ' : ''}p-3 sm:p-5`}>
               {view === 'today' && renderToday()}
               {view === 'vehicles' && renderVehicles()}
               {view === 'customers' && renderCustomers()}
