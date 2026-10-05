@@ -23,16 +23,20 @@ export function MobileStickyDemoCta() {
 
     for (const target of targets) {
       const rect = target.getBoundingClientRect();
-      visibility.set(target, rect.bottom > 0 && rect.top < window.innerHeight);
+      const overlap = Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0));
+      const ratio = rect.height > 0 ? overlap / rect.height : 0;
+      visibility.set(target, ratio >= 0.08);
     }
     recompute();
 
     const observer = new IntersectionObserver(
       (entries) => {
-        for (const entry of entries) visibility.set(entry.target, entry.isIntersecting);
+        for (const entry of entries) {
+          visibility.set(entry.target, entry.isIntersecting && entry.intersectionRatio >= 0.08);
+        }
         recompute();
       },
-      { threshold: 0.04 },
+      { threshold: [0, 0.08] },
     );
 
     targets.forEach((target) => observer.observe(target));
