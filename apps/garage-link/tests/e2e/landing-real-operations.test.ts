@@ -101,13 +101,12 @@ test.describe('GARAGE LINK LP real operations', () => {
 
     await expect(page.getByRole('heading', { name: /車両を中心に、\s*仕事をひとつに。/ })).toBeVisible();
     await expect(page.getByTestId('garage-scroll-story-demo')).toBeVisible();
-    await expect(page.getByTestId('garage-live-demo')).toBeVisible();
+    await expect(page.getByTestId('garage-live-demo')).toHaveCount(0);
     await expect(page.locator('img[src*="/product-screens/"]')).toHaveCount(0);
-    await expect(page.getByLabel('デモ業態')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'この条件でデモを作る' })).toBeVisible();
+    await expect(page.locator('a[href="/demo"]').first()).toBeVisible();
   });
 
-  test('Product Platform tabs change the embedded product state without counting as a user demo action', async ({ page }) => {
+  test('Product Theatre tabs change the product state and record story interaction', async ({ page }) => {
     await page.addInitScript(() => {
       const events: string[] = [];
       Object.defineProperty(window, '__platformEvents', { value: events });
@@ -132,7 +131,7 @@ test.describe('GARAGE LINK LP real operations', () => {
     const events = await page.evaluate(() =>
       (window as typeof window & { __platformEvents: string[] }).__platformEvents,
     );
-    expect(events.filter((event) => event.startsWith('demo_') && event !== 'demo_view')).toEqual([]);
+    expect(events.filter((event) => event === 'demo_interaction')).toHaveLength(2);
   });
 
   test('live demo regenerates data and supports vehicle to deal to quote flow', async ({ page }) => {
@@ -144,7 +143,7 @@ test.describe('GARAGE LINK LP real operations', () => {
       });
     });
 
-    await page.goto('/?scenario=used-car&management=excel&goal=inventory#live-demo');
+    await page.goto('/demo?scenario=used-car&management=excel&goal=inventory');
     const demo = page.getByTestId('garage-live-demo');
 
     await demo.getByLabel('デモ業態').selectOption('motorcycle');
@@ -206,4 +205,31 @@ test.describe('GARAGE LINK LP real operations', () => {
     expect(attribution).toContain('"source":"outbound"');
     expect(attribution).toContain('"lead":"shop-demo-001"');
   });
+});
+
+test('product story and demo open are separately attributed from four signup placements', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.addEventListener('garage-link:conversion', (event) => {
+      const records = JSON.parse(sessionStorage.getItem('qa-conversion-records') ?? '[]');
+      records.push((event as CustomEvent).detail);
+      sessionStorage.setItem('qa-conversion-records', JSON.stringify(records));
+    });
+  });
+  for (const placement of ['hero', 'product_story', 'pricing_free', 'final']) {
+    await page.goto('/');
+    await page.locator(`a[href="/signup?placement=${placement}"]`).click();
+    await expect(page).toHaveURL(new RegExp(`/signup\\?placement=${placement}$`));
+    await expect(page.getByRole('heading', { name: 'アカウント作成' })).toBeVisible();
+    const records = await page.evaluate(() => JSON.parse(sessionStorage.getItem('qa-conversion-records') ?? '[]'));
+    expect(records).toEqual(expect.arrayContaining([expect.objectContaining({ event: 'lp_signup_cta_click', placement })]));
+  }
+  await page.goto('/');
+  await page.getByRole('tab', { name: '商談', exact: true }).click();
+  let records = await page.evaluate(() => JSON.parse(sessionStorage.getItem('qa-conversion-records') ?? '[]'));
+  expect(records).toEqual(expect.arrayContaining([expect.objectContaining({ event: 'demo_interaction', placement: 'product_story', demo_action: 'product_story_switch', demo_view: 'deals' })]));
+  await page.locator('#live-demo').getByRole('link', { name: '触って確かめる' }).click();
+  await expect(page).toHaveURL(/\/demo$/);
+  await expect(page.getByTestId('garage-live-demo')).toBeVisible();
+  records = await page.evaluate(() => JSON.parse(sessionStorage.getItem('qa-conversion-records') ?? '[]'));
+  expect(records).toEqual(expect.arrayContaining([expect.objectContaining({ event: 'demo_interaction', placement: 'product_demo', demo_action: 'demo_open' })]));
 });

@@ -500,6 +500,7 @@ export function GarageInteractiveDemo({
     <section
       data-testid={storyMode ? 'garage-scroll-story-demo' : 'garage-live-demo'}
       data-story-mode={storyMode ? 'true' : undefined}
+      data-product-view={currentView}
       className={`${standalone ? 'mx-auto w-full max-w-[1500px]' : 'w-full'} ${storyMode ? 'pointer-events-none select-none' : ''}`}
     >
       {!hideConfigurator && <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-3 lg:grid-cols-[1fr_1fr_1fr_auto]">

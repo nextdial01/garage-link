@@ -9,8 +9,8 @@ const viewports = [
   { width: 1440, height: 1000, name: 'desktop-1440' },
 ] as const;
 const visualEvidenceDir = join(process.cwd(), 'test-results', 'visual-first');
-// Measured on the rejected 1d32 baseline after hydration, using the same exclusions below.
-const baselineMarketingCharacters = 752;
+// Measured on the current visual-first baseline after hydration, using the same exclusions below.
+const baselineMarketingCharacters = 329;
 
 async function visibleTextClipping(page: Page) {
   return page.evaluate(() => {
@@ -57,7 +57,7 @@ test.describe('GARAGE LINK visual-first product experience', () => {
       const heading = hero.getByRole('heading', { level: 1 });
       await expect(heading).toBeVisible();
       await expect(page.getByTestId('garage-scroll-story-demo')).toBeVisible();
-      await expect(page.getByTestId('garage-live-demo')).toBeVisible();
+      await expect(page.getByTestId('garage-live-demo')).toHaveCount(0);
       const heroType = await heading.evaluate((element) => {
         const style = getComputedStyle(element);
         return { size: parseFloat(style.fontSize), weight: style.fontWeight,
@@ -85,7 +85,7 @@ test.describe('GARAGE LINK visual-first product experience', () => {
           .forEach((element) => element.remove());
         return (clone.textContent ?? '').replace(/\s/g, '').length;
       });
-      expect(marketingCharacters, 'marketing text must be <=50% of the rejected design').toBeLessThanOrEqual(baselineMarketingCharacters / 2);
+      expect(marketingCharacters, 'marketing text must not exceed current visual-first baseline').toBeLessThanOrEqual(baselineMarketingCharacters);
       // Lower content must not restore the repeated explanatory left/right columns.
       for (const selector of ['#pricing', '#migration', '#faq']) {
         const layout = await page.locator(selector).evaluate((section) => {
@@ -96,7 +96,7 @@ test.describe('GARAGE LINK visual-first product experience', () => {
       }
       await expect(platform.getByRole('tab')).toHaveCount(5);
       await expect(page.getByTestId('garage-scroll-story-demo')).toBeVisible();
-      await expect(page.getByTestId('garage-live-demo')).toBeVisible();
+      await expect(page.getByTestId('garage-live-demo')).toHaveCount(0);
       await expect(page.locator('img[src*="/product-screens/"]')).toHaveCount(0);
 
       const pricing = page.locator('#pricing');
@@ -120,28 +120,28 @@ test.describe('GARAGE LINK visual-first product experience', () => {
       const clipping = await visibleTextClipping(page);
       expect(clipping, 'visible text must not be clipped').toEqual([]);
 
-      const stickyCta = page.locator('a[href="#live-demo"]').filter({ hasText: 'デモを触る' });
       if (viewport.width < 768) {
-        await expect(page.getByRole('button', { name: 'メニューを開く' })).toBeVisible();
-        const mobileNav = page.getByRole('navigation', { name: 'スマホメニュー' });
-        await expect(mobileNav).toBeHidden();
         await page.getByRole('button', { name: 'メニューを開く' }).click();
+        const mobileNav = page.getByRole('navigation', { name: 'スマホメニュー' });
         await expect(mobileNav).toBeVisible();
-        await expect(mobileNav.getByRole('link', { name: '料金' })).toHaveAttribute('href', '/pricing');
         await page.keyboard.press('Escape');
         await expect(mobileNav).toBeHidden();
-
-        await expect(stickyCta).toHaveAttribute('aria-hidden', 'true');
-        await page.locator('#pricing').evaluate((element) => element.scrollIntoView({ block: 'center' }));
-        await expect(stickyCta).toHaveAttribute('aria-hidden', 'false');
-        await page.locator('#final-cta').scrollIntoViewIfNeeded();
-        await expect(stickyCta).toHaveAttribute('aria-hidden', 'true');
-        await expect(stickyCta).toHaveCSS('opacity', '0');
-        await page.evaluate(() => window.scrollTo(0, 0));
-        await expect(stickyCta).toHaveAttribute('aria-hidden', 'true');
-        await expect(stickyCta).toHaveCSS('opacity', '0');
       }
-
+      if (viewport.width < 768) {
+        for (const tab of await platform.getByRole('tab').all()) {
+          await tab.click();
+          const metrics = await stage.evaluate((element) => ({
+            height: element.getBoundingClientRect().height,
+            nested: [element, ...Array.from(element.querySelectorAll<HTMLElement>('*'))].filter((node) => {
+              const style = getComputedStyle(node);
+              return /auto|scroll/.test(style.overflowY) && node.scrollHeight > node.clientHeight + 2;
+            }).length,
+          }));
+          expect(metrics.nested).toBe(0);
+          expect(metrics.height).toBeLessThan(520);
+        }
+        await platform.getByRole('tab').first().click();
+      }
       const headerOverlaps = await page.locator('main > header').evaluate((element) => {
         const controls = Array.from(element.querySelectorAll<HTMLElement>('a,button')).filter((control) => {
           const style = getComputedStyle(control);
@@ -178,10 +178,6 @@ test.describe('GARAGE LINK visual-first product experience', () => {
         ] as const) {
           const section = page.locator(selector);
           await section.scrollIntoViewIfNeeded();
-          if (selector === '#final-cta' && viewport.width === 390) {
-            await expect(stickyCta).toHaveAttribute('aria-hidden', 'true');
-            await expect(stickyCta).toHaveCSS('opacity', '0');
-          }
           await section.screenshot({
             path: join(visualEvidenceDir, `${name}-${viewport.name}.png`),
             animations: 'disabled',

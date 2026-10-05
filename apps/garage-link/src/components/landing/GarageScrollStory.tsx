@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useRef, useState, type KeyboardEvent } from 'react';
+import { trackConversion } from '@/lib/analytics/conversion';
 import { GarageInteractiveDemo } from './demo/GarageInteractiveDemo';
 import type { DemoView } from './demo/garageDemoData';
 import styles from './garage-landing.module.css';
@@ -8,23 +9,23 @@ import styles from './garage-landing.module.css';
 const steps: Array<{
   view: DemoView;
   label: string;
+  caption: string;
 }> = [
-  { view: 'vehicles', label: '車両' },
-  { view: 'customers', label: '顧客' },
-  { view: 'deals', label: '商談' },
-  { view: 'quote', label: '見積' },
-  { view: 'maintenance', label: '整備' },
+  { view: 'vehicles', caption: '在庫と状態がひと目で', label: '車両' },
+  { view: 'customers', caption: '車両と顧客をつなぐ', label: '顧客' },
+  { view: 'deals', caption: '商談の次の一手まで', label: '商談' },
+  { view: 'quote', caption: 'その車両から、見積へ', label: '見積' },
+  { view: 'maintenance', caption: '整備から納車まで', label: '整備' },
 ];
 
 export function GarageScrollStory() {
   const [activeIndex, setActiveIndex] = useState(0);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const active = steps[activeIndex];
-  const stageRef = useRef<HTMLDivElement | null>(null);
 
   function selectTab(index: number) {
     setActiveIndex(index);
-    if (stageRef.current) stageRef.current.scrollTop = 0;
+    trackConversion('demo_interaction', { source: 'landing', placement: 'product_story', demo_action: 'product_story_switch', demo_view: steps[index].view });
   }
 
   function focusTab(index: number) {
@@ -76,7 +77,6 @@ export function GarageScrollStory() {
         </div>
 
         <div
-          ref={stageRef}
           className={styles.storyStage}
           id="garage-story-panel"
           role="tabpanel"
@@ -94,6 +94,7 @@ export function GarageScrollStory() {
             />
           </Suspense>
         </div>
+        <p className={styles.storyIntro} aria-live="polite">{active.caption}</p>
       </div>
     </section>
   );

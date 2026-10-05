@@ -1,0 +1,50 @@
+{
+  "baseline": "de431d87fe018ebadc121377b53034f1d71205e0",
+  "source_sha256": {
+    "apps/garage-link/src/components/landing/GarageLandingPage.tsx": "897c86558260878d16aa66a24f2711a135113dc026007a347ddc5c6bb37c9ee6",
+    "apps/garage-link/src/components/landing/GarageScrollStory.tsx": "f449b6becdfa6f139e2d0ccc4bae4f985497019c3464c87002fc8d793e841119",
+    "apps/garage-link/src/components/landing/TrackedSignupLink.tsx": "4f440c60d20b45d2d293805ad0b6adac1da8c5e92405f6fd1d87a86584c29222",
+    "apps/garage-link/src/components/landing/demo/GarageInteractiveDemo.tsx": "b6aa2025eaff13cc314e1910a2c338a60d903dfd3761567eda950f222aecfc93",
+    "apps/garage-link/src/components/landing/garage-landing.module.css": "67812df881e0c4198795703a32952a198154fb7abf0fa209b3406bf91fd18ae0",
+    "apps/garage-link/tests/e2e/landing-real-operations.test.ts": "730cfd725acfea331c4ad49ecb3c2275813b7d3b6699ceaab8044e54782c3136",
+    "apps/garage-link/tests/lp/landing-interactive-demo.test.ts": "7d30c5dadf1eda24ca8820de0e5d946c5ad665fcada2808385e3c0840596f4b8",
+    "apps/garage-link/tests/lp/landing-visual-quality.test.ts": "1970a1c344a96961401f9ba3b33144b8d9323d1367edc0cafcf649abfa77ecb3"
+  },
+  "secret_hits": 0,
+  "build": "PASS",
+  "typecheck": "PASS",
+  "focused_lint": "PASS",
+  "lp_tests": "11/11 PASS",
+  "functional_e2e": "18/18 PASS",
+  "viewports": [
+    1440,
+    1024,
+    768,
+    430,
+    390
+  ],
+  "full_ui_duplication": 0,
+  "mobile_nested_product_scroll": 0,
+  "marketing_characters": 329,
+  "independent_qa": "cv_independent_qa final public Preview images PASS; P0/P1=0",
+  "qwen": {
+    "standalone_completion": false,
+    "seconds": 44.758028,
+    "failure": "trusted_test_executable_mismatch",
+    "adopted_files": 0,
+    "review": "handoff"
+  },
+  "codex_additions": "Single actual UI theatre; focused mobile excerpts; remove second full demo; preserve standalone /demo logic; four signup placements and distinct story/demo events",
+  "production_changed": false,
+  "main_changed": false,
+  "preview": "https://garage-link-7ruclv3fn-altos-projects-fa55063c.vercel.app",
+  "deployment_id": "dpl_32u6SKvSAjdppmLPDFKB1VVcUvz7",
+  "next_qwen_scope": "Same one-file scoped task only after canonical executable fingerprint preflight succeeds",
+  "final_images": {
+    "garage-1440.png": "a195defb25576213eea9f8c7975e6f23f6dcfaa0a962a78fef37dd21115ebf3d",
+    "garage-390.png": "20d62a80eef46e92bc0c4606567854fe4d4f778677b7da16e46f1eeae5ae1eef"
+  },
+  "elapsed_wall_seconds": 1057.99,
+  "codex_after_runner_wall_seconds": 1013.23,
+  "time_definition": "Wall elapsed since task start; remaining time includes Codex integration, independent QA and Preview wait, not CPU or agent billable time."
+}

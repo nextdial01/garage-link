@@ -1,121 +1,39 @@
 {
-  "task_id": "garage-link-visual-first-20261005",
-  "status": "COMPLETE",
-  "PRIMARY_GOAL": "Visual-first GARAGE LINK LP and public Preview",
-  "PRIMARY_KPI": "Real UI width 70-90% viewport; marketing copy <=50% baseline; no document-like repeated structure",
-  "DONE_CONDITION": "Qwen diff reviewed, build and functional QA, 1440/390 screenshots independently accepted, public Preview verified",
-  "baseline": "1d32b21bd6cf8bebf3954d7e642226f28b081dcc",
-  "prior_acceptance": "Superseded by latest Owner request",
+  "task_id": "garage-link-cv-theatre-20261005",
+  "status": "COMPLETED",
+  "baseline": "de431d87fe018ebadc121377b53034f1d71205e0",
+  "PRIMARY_GOAL": "Single visual product story leading naturally to free signup",
+  "PRIMARY_KPI": "Full UI duplication0 / mobile nested scroll0 / five distinguishable views / CTA attribution preserved",
+  "DONE_CONDITION": "Independent30-second visual review1440/390, build and functional tests, public Preview read-back",
   "TOTAL": 5,
   "PASS": 5,
+  "REMAINING": 0,
   "FAIL": 0,
   "BLOCKED": 0,
-  "REMAINING": 0,
-  "CURRENT_CRITICAL_PATH": null,
-  "updated_at": "2026-10-05T13:00:22.423949+00:00",
-  "attio_source": "2026-10-05 public HTML/CSS evidence reused; fresh HTTP GET returned 403, not retried or bypassed",
-  "delegation": {
-    "route": "MIXED_RISK",
-    "qwen": "three existing landing source files",
-    "codex": "integration, QA, Preview",
-    "input_validation_correction": "required git test path separator corrected before model start; same child ID"
-  },
-  "qa_scope": "Local unauthenticated LP only. Staging lifecycle writes DB and targets authenticated flows; inapplicable, not claimed. No production fixture.",
+  "CURRENT_CRITICAL_PATH": "Owner Preview review only",
   "architecture_candidates": [
-    "Immediate real UI + tabs (selected)",
-    "Pinned scroll (long scroll)",
-    "Five full screens (repetitive)",
-    "Two-column (forbidden)",
-    "Screenshot carousel (less functional)",
-    "Video (extra runtime)",
-    "Card mosaic (forbidden)",
-    "Phone mockups (fake UI risk)",
-    "Only free demo (workflow unclear)",
-    "Accordion (UI hidden)"
+    "Single focused real UI theatre (selected)",
+    "Two full demos (forbidden)",
+    "Internal scroll (forbidden)",
+    "Five full app screenshots (repetition)",
+    "Autoplay (distraction)",
+    "Video (no operation)",
+    "Cards (template)",
+    "Screenshots only (noninteractive)",
+    "Scroll pinning (length)",
+    "Fullscreen iframe (mobile unwieldy)"
   ],
-  "preview_authorization": "Owner explicitly requests public Preview; no Production change",
-  "baseline_marketing_copy": {
-    "characters": 752,
-    "text": "中古車販売店・バイク店・整備工場のための店舗管理車両を中心に、仕事をひとつに。在庫、顧客、商談、見積、整備。1台の車両に関わる仕事を、ひと続きの流れで管理します。無料で始める 製品を見る車両から整備まで、店の仕事をひと続きに。一つの製品画面を切り替えて、車両・顧客・商談・見積・整備のつながりを確かめられます。車両顧客商談見積整備自由操作デモ自分の業務に合わせて試す。業態や管理方法を選び、デモデータを作って操作できます。全部移してから試す必要はありません。まず1台。必要になったらCSV。合わなければ止める。導入判断の前に大仕事を作りません。011台だけ登録販売中・入庫中の車から02必要ならCSV顧客・車両を入出力03設定は後から集計基準や表示を調整まず実際の業務で使ってから判断。登録時にカード情報は不要です。0円 / 月在庫 5台スタッフ 1人1店舗見積・請求 月5件Freeで始める 全プランを見るデータを閉じ込めない。顧客・車両はCSVで入出力できます。利用条件、運営会社、問い合わせ窓口も登録前に確認できます。 CSV入出力 役割別の権限プライバシー利用規約お問い合わせ登録前に確認したいこと。無料でどこまで使えますか？＋Freeプランは在庫5台、スタッフ1人、1店舗、見積・請求は月5件まで。登録時にカード情報は不要です。Excelから移せますか？＋顧客・車両はCSVの入出力に対応しています。最初から全件を移さず、1台だけ登録して試すこともできます。デモで作ったデータは保存されますか？＋保存されません。LP上のデモはブラウザ内だけで動きます。無料登録後に実データの利用へ切り替わります。FAQをすべて見る 無料から、実際の業務でまず触る。合えば、そのまま無料で始める。無料で始める デモを操作するデモを触る"
+  "preview_authorization": "Explicit current Owner request; no production/main/push",
+  "workers": {
+    "Qwen": "only GarageScrollStory.tsx in isolated checkout",
+    "Codex": "other landing presentation/test/integration/Preview",
+    "independent_QA": "detection only"
   },
-  "preview_preflight": {
-    "project": "garage-link",
-    "target": "preview",
-    "project_id": "prj_OOUdmGaVBHaVPMxPHTiPXLw3Tq64",
-    "team": "altos-projects-fa55063c",
-    "identity_verified": true,
-    "upload_dry_run_files": 1266,
-    "secret_files_in_upload": 0,
-    "public_access": "23-hour share URL supported; preserve protection",
-    "config_discrepancy": "Remote project legacy build command references deleted script; existing tracked vercel.json next build --webpack takes precedence; no config edits required."
-  },
-  "QWEN_STANDALONE_COMPLETION": false,
-  "qwen_result": "600 second timeout, zero changes, canonical handoff review recorded",
-  "codex_changes": [
-    "LP markup/CSS recomposition",
-    "five-view stage scroll reset",
-    "mobile final CTA visibility",
-    "new visual-first test gates and analytics regression"
-  ],
-  "independent_QA": {
-    "P0": 0,
-    "P1": 0,
-    "document_like": false,
-    "fixed": "mobile tab switch retained old scrollTop; independently verified reset on click/keyboard",
-    "P2": "initial vehicle view repeated for interactive demo; different purpose accepted"
-  },
-  "runtime_metrics": {
-    "1440": {
-      "stage_top": 397.6875,
-      "stage_width_ratio": 0.88
-    },
-    "390": {
-      "stage_top": 375.4375,
-      "stage_width_ratio": 0.88
-    }
-  },
-  "verification": {
-    "build": "PASS",
-    "typecheck": "PASS",
-    "lint": "PASS (changed TSX/tests)",
-    "LP": "11/11",
-    "conversion_navigation": "17/17",
-    "viewports": [
-      1440,
-      1024,
-      768,
-      430,
-      390
-    ],
-    "marketing_characters": 329,
-    "baseline_characters": 752,
-    "ratio": 0.4375,
-    "secret_hits": 0,
-    "P0": 0,
-    "P1": 0
-  },
-  "evidence_directory": "../visual-first-20261005",
-  "preview": {
-    "url": "https://garage-link-2mm6h6goi-altos-projects-fa55063c.vercel.app",
-    "deployment_id": "dpl_Bp39XncPYGRhURDfazi3nxUBcnjc",
-    "state": "READY",
-    "candidate_sha": "0ec7296b111399afce59dc941a41782463974265",
-    "public_share_verified": true,
-    "share_lifetime_hours": 23,
-    "runtime_readback": "1440/390 actual Preview screenshots; five tabs work; no horizontal overflow",
-    "build_command": "next build --webpack"
-  },
-  "cleanup": "Local servers/browser contexts stopped; clean zero-diff Qwen child removed by official Orca after result collection; CLI-created env and generated app AGENTS/CLAUDE removed. Preview retained for Owner.",
-  "Production_changed": false,
-  "main_changed": false,
-  "git_push": false,
-  "Qwen_seconds": 600.017482,
-  "Codex_additional_time": "Unmeasured; canonical task timeline available",
-  "next_Qwen_scope": "Try a bounded small markup/CSS change with shorter total input/output; whole-file rewrite exceeded600s. No extra retry in this run.",
-  "artifact_hashes": {
-    "garage-1440.png": "4086aa5de0a3710b0dca8f4b7904acfeb29ae61267dd44161b22e7b40821cac7",
-    "hero-390.png": "80d18ba675f2922682755f8a4ad3a26f13f64dfa07d7c45890f0690c2ded2665",
-    "hero-1440.png": "89708ac77a0caab32a286a061b6ac4366b03e34bf14e7460b783211e521108ed",
-    "garage-390.png": "8c8423909eb995ede22ba8f8aca045572a4d4f75072c46fad31a755a0741f64a"
-  }
+  "qa_scope": "Local unauthenticated LP and /demo; staging DB lifecycle does not cover this scope. No backend fixture or Production mutation.",
+  "updated_at": "2026-10-05T14:06:59.714860+00:00",
+  "final_evidence": "apps/garage-link/docs/lp/cv-theatre-20261005",
+  "preview": "https://garage-link-7ruclv3fn-altos-projects-fa55063c.vercel.app",
+  "P0": 0,
+  "P1": 0,
+  "production_changed": false
 }

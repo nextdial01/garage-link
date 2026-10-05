@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('GARAGE LINK embedded live demo', () => {
-  test('homepage has no product screenshots and can build a tailored demo', async ({ page }) => {
-    await page.goto('/?scenario=used-car&management=excel&goal=inventory');
+  test('dedicated demo has no product screenshots and can build a tailored demo', async ({ page }) => {
+    await page.goto('/demo?scenario=used-car&management=excel&goal=inventory');
 
     const demo = page.getByTestId('garage-live-demo');
     await expect(demo).toBeVisible();
@@ -62,7 +62,6 @@ test.describe('GARAGE LINK embedded live demo', () => {
 
     const tabs = story.getByRole('tab');
     await expect(tabs).toHaveCount(5);
-    await stage.evaluate((element) => { element.scrollTop = 700; });
     await tabs.nth(4).click();
     expect(await stage.evaluate((element) => element.scrollTop)).toBe(0);
     await expect(page.getByTestId('garage-scroll-story-demo').getByRole('heading', { name: '整備', exact: true })).toBeVisible();

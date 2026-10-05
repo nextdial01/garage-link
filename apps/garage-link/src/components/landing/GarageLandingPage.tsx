@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { Suspense } from 'react';
 import {
   ArrowRight,
 } from 'lucide-react';
@@ -7,17 +6,15 @@ import BrandLogo from '@/components/BrandLogo';
 import { AcquisitionPageTracker } from '@/components/analytics/AcquisitionPageTracker';
 import { GARAGE_PLANS } from '@/lib/billing/garagePlans';
 import { MobileNavigation } from './MobileNavigation';
-import { MobileStickyDemoCta } from './MobileStickyDemoCta';
-import { GarageInteractiveDemo } from './demo/GarageInteractiveDemo';
 import { GarageScrollStory } from './GarageScrollStory';
-import { TrackedInquiryLink, TrackedLoginLink, TrackedSignupLink } from './TrackedSignupLink';
+import { TrackedDemoLink, TrackedInquiryLink, TrackedLoginLink, TrackedSignupLink } from './TrackedSignupLink';
 import styles from './garage-landing.module.css';
 
 
 
 const faqItems = [
   {
-    q: '無料でどこまで使えますか？',
+    q: '無料の範囲は？',
     a: '在庫5台、1人・1店舗、見積・請求は月5件まで。',
   },
   {
@@ -25,7 +22,7 @@ const faqItems = [
     a: '顧客・車両をCSVで移せます。',
   },
   {
-    q: 'デモで作ったデータは保存されますか？',
+    q: 'デモは保存されますか？',
     a: '保存されません。実データは無料登録後に。',
   },
 ] as const;
@@ -63,7 +60,6 @@ export function GarageLandingPage() {
             <TrackedInquiryLink placement="header_inquiry">お問い合わせ</TrackedInquiryLink>
           </nav>
           <TrackedLoginLink className={styles.loginLink}>ログイン</TrackedLoginLink>
-          <TrackedSignupLink placement="header" className={styles.headerCta}>無料で始める</TrackedSignupLink>
           <MobileNavigation />
         </div>
       </header>
@@ -77,7 +73,7 @@ export function GarageLandingPage() {
           </p>
           <div className={styles.heroActions}>
             <TrackedSignupLink placement="hero" className={styles.primaryCta}>無料で始める <ArrowRight aria-hidden="true" /></TrackedSignupLink>
-            <a href="#product-story" className={styles.secondaryCta}>製品を見る</a>
+            <TrackedDemoLink placement="hero_demo" className={styles.secondaryCta}>触って確かめる</TrackedDemoLink>
           </div>
         </div>
       </section>
@@ -85,17 +81,12 @@ export function GarageLandingPage() {
       <GarageScrollStory />
 
       <section className={styles.demoSection} id="live-demo">
-        <div className={styles.demoRail}>
-          <div>
-            <h2>次は、あなたが動かす。</h2>
-          </div>
-          <a href="/demo" className={styles.demoOpen}>デモを広く開く ↗</a>
+        <h2>自分の店で始める</h2>
+        <div className={styles.heroActions}>
+          <TrackedSignupLink placement="product_story" className={styles.primaryCta}>無料で始める <ArrowRight aria-hidden="true" /></TrackedSignupLink>
+          <TrackedDemoLink placement="product_demo" className={styles.secondaryCta}>触って確かめる <ArrowRight aria-hidden="true" /></TrackedDemoLink>
         </div>
-        <div className={styles.demoContainer}>
-          <Suspense fallback={<div className={styles.demoLoading}>デモを準備しています...</div>}>
-            <GarageInteractiveDemo />
-          </Suspense>
-        </div>
+        <p>デモのデータは保存されません。</p>
       </section>
 
       <section className={styles.pricingSection} id="pricing">
@@ -109,7 +100,7 @@ export function GarageLandingPage() {
               <li>{freePlan.includedStaffCount}人・1店舗</li>
               <li>見積・請求 月{freePlan.quoteInvoiceLimit}件</li>
             </ul>
-            <TrackedSignupLink placement="pricing_free" className={styles.pricingCta}>Freeで始める <ArrowRight aria-hidden="true" /></TrackedSignupLink>
+            <TrackedSignupLink placement="pricing_free" className={styles.pricingCta}>無料で始める <ArrowRight aria-hidden="true" /></TrackedSignupLink>
             <Link href="/pricing" className={styles.pricingDetail}>全プランを見る</Link>
           </div>
         </div>
@@ -134,7 +125,6 @@ export function GarageLandingPage() {
                 <p>{item.a}</p>
               </details>
             ))}
-            <Link href="/faq" className={styles.faqMore}>FAQをすべて見る <ArrowRight aria-hidden="true" /></Link>
           </div>
         </div>
       </section>
@@ -145,7 +135,7 @@ export function GarageLandingPage() {
         </div>
         <div className={styles.finalActions}>
           <TrackedSignupLink placement="final" className={styles.finalPrimary}>無料で始める <ArrowRight aria-hidden="true" /></TrackedSignupLink>
-          <a href="#live-demo" className={styles.finalSecondary}>デモを操作する</a>
+          <TrackedDemoLink placement="final_demo" className={styles.finalSecondary}>触って確かめる</TrackedDemoLink>
         </div>
       </section>
 
@@ -170,7 +160,6 @@ export function GarageLandingPage() {
         </div>
       </footer>
 
-      <MobileStickyDemoCta />
     </main>
   );
 }

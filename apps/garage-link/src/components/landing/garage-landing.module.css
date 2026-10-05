@@ -259,7 +259,7 @@
   .storySection { padding-bottom: 40px; }
   .storySteps { margin-bottom: 12px; }
   .storyStep, .storyStepActive { font-size: 13px; }
-  .storyStage { max-height: 72svh; overflow: auto; scrollbar-width: thin; border-bottom: 1px solid var(--line); }
+  .storyStage { max-height: none; overflow: visible; }
   .demoSection { padding: 44px 6vw; }
   .demoRail { display: block; margin-bottom: 24px; }
   .demoRail h2 { font-size: 28px; }
@@ -282,7 +282,7 @@
 }
 
 @media (max-width: 680px) {
-  .page { padding-bottom: 66px; }
+
 
   .mobileStickyCta {
     position: fixed;
@@ -319,4 +319,49 @@
   .storyStepActive,
   .mobileStickyCta,
   .faqList summary span { transition: none !important; }
+}
+
+/* A single theatre: focus existing product content, never a second app shell. */
+.storyStage { border: 1px solid var(--line); background: #f6f7f8; }
+.storyStage :global([data-story-mode]) > div { border: 0; border-radius: 0; }
+.storyStage :global([data-story-mode]) > div > div { min-height: 0; }
+.storyStage :global([data-story-mode]) > div > div > aside { display: none; }
+.storyStage :global([data-story-mode]) header p { display: none; }
+.storyStage :global([data-story-mode]) header { padding: 16px 24px; }
+.storyStage :global([data-story-mode]) header h3 { margin: 0; font-size: 20px; }
+.storyStage :global(.garage-demo-view-transition) { padding: 24px; min-height: 360px; }
+.storyStage :global(.garage-demo-view-transition) > section,
+.storyStage :global(.garage-demo-view-transition) > div > section,
+.storyStage :global(.garage-demo-view-transition) > div > aside { border-radius: 4px; }
+.storyStage :global([data-product-view="quote"]) :global(.garage-demo-view-transition) > div { max-width: 820px; margin: auto; grid-template-columns: 1fr; }
+.storyStage :global([data-product-view="quote"]) :global(.garage-demo-view-transition) > div > aside { display: none; }
+.storyStage :global([data-product-view="customers"]) :global(.garage-demo-view-transition) > section { max-width: 1040px; margin: auto; }
+.storyStage :global([data-product-view="maintenance"]) :global(.garage-demo-view-transition) > section { max-width: 980px; margin: auto; }
+.storyIntro { margin: 18px auto 0; text-align: center; font-size: 18px; font-weight: 500; }
+.storyIntro p { margin: 0; }
+.demoSection { padding: 28px 24px 44px; background: #fff; border: 0; text-align: center; }
+.demoSection h2 { margin: 0; font-size: 28px; font-weight: 500; letter-spacing: -.02em; }
+.demoSection > p { margin: 14px 0 0; font-size: 12px; color: var(--muted); }
+.storySection { padding-bottom: 28px; }
+.hero h1, .finalSection h2, .migrationGrid h2 { word-break: keep-all; overflow-wrap: normal; }
+@media (max-width: 767px) {
+  .mobileMenuRoot { margin-left: auto; }
+  .hero { padding-top: 24px; }
+  .storyStage :global([data-story-mode]) header { padding: 12px 16px; }
+  .storyStage :global([data-story-mode]) header h3 { font-size: 17px; }
+  .storyStage :global(.garage-demo-view-transition) { min-height: 0; padding: 12px; }
+  .storyStage :global(.garage-demo-view-transition) > div { display: block; }
+  .storyStage :global(.garage-demo-view-transition) > div > aside { display: none; }
+  .storyStage :global(.divide-y) > button:nth-child(n+3) { display: none; }
+  .storyStage :global(.divide-y) > button { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px 12px; padding: 12px; }
+  .storyStage :global(.divide-y) > button > span:first-child { grid-column: 1 / -1; }
+  .storyStage :global(.divide-y) > button > span:nth-child(3) { text-align: right; }
+  .storyStage :global(.divide-y) > button > span:nth-child(4) { grid-column: 1 / -1; }
+  .storyStage :global(.garage-demo-view-transition) section > div:first-child { padding: 12px; }
+  .storyStage :global(.garage-demo-view-transition) section > div:first-child > button { display: none; }
+  .storyStage :global(.garage-demo-view-transition) section > div:first-child { flex-direction: row; }
+  .storyStage :global([data-product-view="vehicles"]) :global(.garage-demo-view-transition) section > div:first-child > div:last-child { display: none; }
+  .storyIntro { font-size: 15px; margin-top: 14px; }
+  .demoSection { padding: 22px 6vw 36px; }
+  .demoSection h2 { font-size: 23px; word-break: keep-all; }
 }
