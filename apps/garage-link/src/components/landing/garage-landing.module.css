@@ -924,18 +924,6 @@
   .trustSection,
   .faqSection { padding: 72px 18px; }
 
-  .productRows { margin-top: 36px; }
-
-  .productRow {
-    min-height: 0;
-    padding: 26px 0;
-    grid-template-columns: 38px 1fr;
-    gap: 12px;
-  }
-
-  .productCopy h3 { font-size: 24px; }
-  .productCopy p { font-size: 12px; }
-  .productMeta { font-size: 10px; }
 
   .migrationSteps > div { min-height: 88px; }
   .freePricePanel { padding: 22px; }
