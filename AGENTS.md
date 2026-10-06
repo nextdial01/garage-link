@@ -1,12 +1,12 @@
-## KANNAGI main / Production safety guard
+## KANNAGI main / Production approval policy
 
 - Agent work must use a dedicated branch. Do not push an agent work branch directly to `main`.
 - Advancing remote `main` requires explicit Owner approval quoting the exact 40-character commit SHA being advanced.
-- Production deployment requires a clean worktree at that exact approved SHA and must pass `--build-env KANNAGI_RELEASE_SHA=<same exact SHA>`.
-- Never guess, reuse, shorten, or substitute a branch name for `KANNAGI_RELEASE_SHA`.
-- Do not remove, weaken, bypass, rename, or skip `apps/garage-link/scripts/verify-production-approval.mjs` or the `buildCommand` that invokes it from `apps/garage-link/vercel.json`.
+- Reflecting that Owner-approved SHA on `main` also authorizes Production publication of the same exact SHA, consistent with merged PR #37. Do not require a second approval through `KANNAGI_RELEASE_SHA`.
+- Production deployment must use only that exact Owner-approved SHA. Before deploying, verify that the worktree is clean and HEAD exactly matches the approved SHA.
+- If a different SHA becomes necessary, stop; never reuse approval for a previous SHA.
 - Preview and local builds remain allowed without Owner Production approval.
-- If exact Owner approval is absent or SHA identity is ambiguous, stop before remote `main` write or Production deploy.
+- If exact Owner approval is absent, SHA identity is ambiguous, or remote `main` has advanced unexpectedly, stop before remote `main` write or Production deploy.
 
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
