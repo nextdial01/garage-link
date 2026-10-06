@@ -1,6 +1,6 @@
 {
   "task_id": "garage-link-llink-facts-20261006",
-  "status": "ACCEPTED_READY_TO_COMMIT",
+  "status": "COMPLETED",
   "baseline": "3ee4f87ff86934d9e6f920627e942456e46e1e63",
   "PRIMARY_GOAL": "Preserve accepted CV design; correct only confirmed L-LINK facts and publish accepted branch",
   "PRIMARY_KPI": "Unproven plan claims0,17route audit, clean local/remote SHA match",
@@ -10,17 +10,19 @@
   "FAIL": 0,
   "BLOCKED": 0,
   "REMAINING": 0,
-  "CURRENT_CRITICAL_PATH": "Authorized dedicated branch commit/push; final readback",
+  "CURRENT_CRITICAL_PATH": "None",
   "workers": {
     "Codex": "Commercial facts, coupled tests, preview and authorized branch publication",
     "Independent QA": "Read-only fact/design/public-route audit",
     "Qwen": "No eligible work: current task commercial/cross-service + remote operations; evidenced exception"
   },
-  "updated_at": "2026-10-06T09:56:56.751386+00:00",
+  "updated_at": "2026-10-06T09:57:29.074970+00:00",
   "preview_url": "https://garage-link-9ysoci8l9-altos-projects-fa55063c.vercel.app",
   "P0": 0,
   "P1": 0,
   "production_changed": false,
-  "commit_push": "Owner-authorized; pending final audit",
-  "final_evidence": "apps/garage-link/docs/lp/llink-facts-20261006"
+  "commit_push": true,
+  "final_evidence": "apps/garage-link/docs/lp/llink-facts-20261006",
+  "upstream_set": true,
+  "publication_readback": "Dedicated branch local/remote matched after accepted source commit; final ledger-only commit is verified in task_state completion receipt"
 }
