@@ -12,8 +12,8 @@ export default function MaintenanceCustomerManagementPage() {
     <SeoIntentPage
       source="seo_maintenance_customer"
       eyebrow="整備工場 顧客管理システム"
-      title="整備工場の顧客・車両・整備履歴を、一つの案件で管理。"
-      lead="誰の車が、何の作業で入庫し、どの部品を使い、いつ納車し、次の車検がいつか。顧客と車両を分けずに確認します。"
+      title="名前を探せば、車両も整備も。"
+      lead="受付で聞いた依頼から、前回の整備・次の車検まで。顧客と車両を一緒に確認できます。"
       demoScenario={{ business: 'maintenance', management: 'mixed', goal: 'maintenance' }}
       problems={[
         { title: '顧客台帳と整備履歴が別', body: '顧客名から車両や前回作業を探し直す運用では、受付時の確認に時間がかかります。' },
@@ -24,7 +24,7 @@ export default function MaintenanceCustomerManagementPage() {
         { title: '予約・入庫', body: '受付日時、依頼内容、担当者、対象車両、納車予定を案件として確認します。' },
         { title: '整備履歴・部品', body: '作業内容、使用部品、数量、工賃を記録し、見積・請求へつなげます。' },
         { title: '顧客・車両', body: '顧客情報と対象車両をひも付け、過去の案件と次回対応を探しやすくします。' },
-        { title: '次回車検・点検', body: '満了日と次回案内時期を記録できます。L-LINKによる自動連携は現在提供準備中です。' },
+        { title: '次回車検・点検', body: '次の車検・点検の期限を、顧客と車両に残せます。' },
       ]}
       fit={[
         '顧客・車両・整備案件を別々の台帳から探している',
@@ -41,7 +41,7 @@ export default function MaintenanceCustomerManagementPage() {
       faq={[
         { q: '顧客と複数車両を管理できますか？', a: '顧客情報と車両情報を登録し、整備・見積などの業務とひも付けて確認できます。' },
         { q: '見積・請求も使えますか？', a: 'はい。Freeプランでは見積・請求を月5件まで利用できます。' },
-        { q: '車検案内をLINEで自動送信できますか？', a: '次回車検などの期限は記録できます。L-LINK連携は現在提供準備中で、提供開始前は利用可能機能として案内していません。' },
+        { q: '車検案内をLINEで自動送信できますか？', a: '次回車検の期限は記録できます。LINEへの自動連携は提供準備中です。StandardにはL-LINK Basicが追加料金なしで含まれますが、自動連携とは別の内容です。' },
       ]}
     />
   );

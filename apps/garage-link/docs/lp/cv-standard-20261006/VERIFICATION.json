@@ -1,0 +1,21 @@
+{
+  "baseline": "3ee4f87ff86934d9e6f920627e942456e46e1e63",
+  "source_drift": [],
+  "build": "PASS optimizedwebpack local + VercelPreview",
+  "typecheck": "PASS finaltests",
+  "lint": "PASS fullapp 0errors/3preexistingwarnings; focused changedfiles0",
+  "lp": "11/11 PASS all5viewports+interactive4",
+  "related_e2e": "Publicroutes/navigation/paid-facts PASS optimizedlocal;13/13 actualoperations PASS dev3001 (debugconversionevents intentionally disabled in optimizedbuild)",
+  "optimized_analytics": "PASS4signup placements, storyswitch anddemoopen using actualVercel track queue; no externalanalytics sends",
+  "initial_test_failures": [
+    "LP strict locator incorrectly selected2plan nodes; fixed eachplanindividual negative assertion, gates unchanged",
+    "Optimizedbuild diagnosticCustomEvents disabled and local-auth-origin forbidden by existing policy; actualoperations correctly run documenteddev3001; separateactualVercelqueueproof optimizedbuildPASS"
+  ],
+  "independent_CV": "10counterarguments + actual1440/390 finalPASS P0/P1=0",
+  "preview_id": "dpl_85kth84jpAJP2FtSbfhYmKgxNGAN",
+  "target": null,
+  "aliases": [],
+  "production_changed": false,
+  "commit_push": false,
+  "updated_at": "2026-10-06T08:41:11.806357+00:00"
+}

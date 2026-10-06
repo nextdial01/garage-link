@@ -1,0 +1,5 @@
+# 整理
+
+前回Qwen無変更childは新taskで旧採用gate依存が終了した後、公式OrcaでHEAD・clean・unique commit0・terminal0を確認し削除。公式read-backはselector_not_found。前回成果は親cv-standard証跡へ集約済み。現taskはcommercial/no_eligible_work例外でstatus正常。
+
+公開監査ブラウザは終了、ローカル検査サーバーは完了後停止。秘密・share cookie/tokenは成果物へ保存しない。生成物・一時検査program/logはcommit対象外。

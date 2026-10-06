@@ -11,11 +11,11 @@ const steps: Array<{
   label: string;
   caption: string;
 }> = [
-  { view: 'vehicles', caption: '在庫と状態がひと目で', label: '車両' },
-  { view: 'customers', caption: '車両と顧客をつなぐ', label: '顧客' },
-  { view: 'deals', caption: '商談の次の一手まで', label: '商談' },
-  { view: 'quote', caption: 'その車両から、見積へ', label: '見積' },
-  { view: 'maintenance', caption: '整備から納車まで', label: '整備' },
+  { view: 'vehicles', caption: '売れる車両が、ひと目で', label: '車両' },
+  { view: 'customers', caption: 'この車両を探している人へ', label: '顧客' },
+  { view: 'deals', caption: '次に、誰へ連絡するか', label: '商談' },
+  { view: 'quote', caption: '車両の情報から、見積へ', label: '見積' },
+  { view: 'maintenance', caption: '今日の作業と、納車予定', label: '整備' },
 ];
 
 export function GarageScrollStory() {
@@ -53,7 +53,7 @@ export function GarageScrollStory() {
   return (
     <section className={styles.storySection} id="product-story" aria-labelledby="product-story-title">
       <div className={styles.storyShell}>
-        <h2 id="product-story-title" className={styles.visuallyHidden}>車両から整備まで</h2>
+        <h2 id="product-story-title" className={styles.visuallyHidden}>車両を開けば、次にやることが見える。</h2>
         <div className={styles.storySteps} role="tablist" aria-label="業務画面">
           {steps.map((step, index) => (
             <button
@@ -82,6 +82,7 @@ export function GarageScrollStory() {
           role="tabpanel"
           aria-labelledby={`garage-story-tab-${active.view}`}
           tabIndex={0}
+          aria-describedby="garage-story-caption garage-story-hint"
           data-active-view={active.view}
           data-testid="garage-scroll-story-stage"
         >
@@ -94,7 +95,8 @@ export function GarageScrollStory() {
             />
           </Suspense>
         </div>
-        <p className={styles.storyIntro} aria-live="polite">{active.caption}</p>
+        <p id="garage-story-caption" className={styles.storyIntro} aria-live="polite">{active.caption}</p>
+        <p id="garage-story-hint" className={styles.storyHint}>画面は上のタブで切り替え。自由な操作はデモへ。</p>
       </div>
     </section>
   );

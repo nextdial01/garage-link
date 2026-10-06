@@ -42,9 +42,9 @@ export const LEGAL_TAX_NOTE =
 
 /** B2B SaaS で一般的に列挙する委託先（利用状況に応じてリーガルチェックで確定） */
 export const LEGAL_SUBPROCESSORS = [
-  { name: 'Supabase Inc.', purpose: '認証・データベース・ファイルストレージ' },
-  { name: 'Vercel Inc.', purpose: 'アプリケーションのホスティング' },
-  { name: 'Stripe, Inc.', purpose: '決済処理（導入後）' },
+  { name: 'Supabase Inc.', purpose: 'ログイン、店舗情報・ファイルの保管' },
+  { name: 'Vercel Inc.', purpose: 'サービスの配信・運営' },
+  { name: 'Stripe, Inc.', purpose: 'クレジットカード決済の処理' },
 ] as const;
 
 export const LEGAL_LAST_UPDATED = formatTermsVersionJa();

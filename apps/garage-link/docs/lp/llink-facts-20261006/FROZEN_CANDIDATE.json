@@ -1,0 +1,28 @@
+{
+  "source_sha256": {
+    "apps/garage-link/src/app/demo/page.tsx": "592c0c452c6df9e84c3f011d61a1e227702e386bfcb8eaf5b99e8540e2dbb53e",
+    "apps/garage-link/src/app/help/page.tsx": "f01a0718d590cec56fdb5c9062ea340c649e4142e68f5be4cddb10c8314fe4bf",
+    "apps/garage-link/src/app/legal/privacy/page.tsx": "a8633ee117a8d1aaffa2a146ea8fdeac3869d5e45ca65f0e3dd904fe1fe66856",
+    "apps/garage-link/src/app/legal/terms/page.tsx": "d91296b07d1c4a86bda7d207c0baef83f6a96f7a90ef64a1db910b7824114eae",
+    "apps/garage-link/src/app/legal/tokusho/page.tsx": "478b46aa18b5892dc212497d744e021a64e4bd7178b809b4cf05cfc4436b61a4",
+    "apps/garage-link/src/app/signup/page.tsx": "3607b69892f7b2eee2bfad2572f8058df42b4ee124e7a843983d3e90c0b4fd82",
+    "apps/garage-link/src/app/solutions/maintenance-customer-management/page.tsx": "1caf01e474484ee5e21b1b6204bb64b33149d051db9db6fd2d78ba991783883e",
+    "apps/garage-link/src/app/solutions/used-car-inventory-management/page.tsx": "4f96e215376e1315ba3f0361dd6096c5dc2458d13feb41c246859efe18e2c44e",
+    "apps/garage-link/src/components/landing/GarageLandingPage.tsx": "6e6a39cc424af46f42f63e73a6b80b1e562a56b8e7c01013fbc4b48c1e59f5cb",
+    "apps/garage-link/src/components/landing/GarageScrollStory.tsx": "89651d8b2b09e72e060aed770189619a753f103ecb3ca367ec5771378ca00c82",
+    "apps/garage-link/src/components/landing/demo/GarageInteractiveDemo.tsx": "fd559cb554b50410f7a5ba16812c7634b5332337d31ea7d455842f0e5c2c3f89",
+    "apps/garage-link/src/components/landing/garage-landing.module.css": "df0cb688dc87ba7333da926060d1ac7ce8a7b193fa0a15bad3f10e1e12d0f4bd",
+    "apps/garage-link/src/components/public-site/GaragePublicPage.tsx": "bdf09e7599f85aa7177cc29d5b91a73d6602c7f834a56efe822e327220e268d4",
+    "apps/garage-link/src/components/public-site/SeoIntentPage.tsx": "144936a638fa626bde55638057d22a6590ab15e67d9d36df941cae61f61dcd57",
+    "apps/garage-link/src/components/public-site/public-cv.module.css": "8fd997c1b7dc934db7406e6e65675d15c25f24a173673d022456388c413683ce",
+    "apps/garage-link/src/lib/legal/constants.ts": "6156bd07caa02db9b29aa0bc8a51c823d7a6001701cc3d04d188a53725c53e80",
+    "apps/garage-link/tests/e2e/landing-real-operations.test.ts": "6e7f86325e47b5cd9dfd1ebad8da140a9d8df8ce5c154bc68c136394e6b56988",
+    "apps/garage-link/tests/e2e/public-site-journey.test.ts": "9c59beb079140cab12109b8180730901c701a376605eec18b61296265053670d",
+    "apps/garage-link/tests/lp/landing-interactive-demo.test.ts": "cda92d6b64ac21878d679af2a8370633dd18b4c98a5440b427c1493da987c798",
+    "apps/garage-link/tests/lp/landing-visual-quality.test.ts": "a7a717c18066013981c9e0e7f10c9beec9b87b82763423413adad05ec449aa54",
+    "apps/garage-link/src/components/public-site/PublicPlanSummary.tsx": "059bdbeb2758af88293a229af6f0b0ddfa37f1e645eb5b2c43291b021b881ba3"
+  },
+  "prior_candidate": "../cv-standard-20261006/FROZEN_CANDIDATE.json",
+  "content_changes": 4,
+  "design_changes": 0
+}

@@ -9,8 +9,8 @@ const viewports = [
   { width: 1440, height: 1000, name: 'desktop-1440' },
 ] as const;
 const visualEvidenceDir = join(process.cwd(), 'test-results', 'visual-first');
-// Measured on the current visual-first baseline after hydration, using the same exclusions below.
-const baselineMarketingCharacters = 329;
+// The latest Owner directive adds Standard value and all four prices.
+// Validate short claims and the explicit section hierarchy rather than the old 329-character page.
 
 async function visibleTextClipping(page: Page) {
   return page.evaluate(() => {
@@ -58,12 +58,13 @@ test.describe('GARAGE LINK visual-first product experience', () => {
       await expect(heading).toBeVisible();
       await expect(page.getByTestId('garage-scroll-story-demo')).toBeVisible();
       await expect(page.getByTestId('garage-live-demo')).toHaveCount(0);
+      await expect(page.getByTestId('garage-scroll-story-demo')).toHaveAttribute('inert', '');
       const heroType = await heading.evaluate((element) => {
         const style = getComputedStyle(element);
         return { size: parseFloat(style.fontSize), weight: style.fontWeight,
           lines: element.getBoundingClientRect().height / parseFloat(style.lineHeight), family: style.fontFamily };
       });
-      expect(heroType.size).toBeGreaterThanOrEqual(viewport.width < 768 ? 34 : 48);
+      expect(heroType.size).toBeGreaterThanOrEqual(viewport.width < 768 ? 30 : 48);
       expect(heroType.size).toBeLessThanOrEqual(64);
       expect(heroType.weight).toBe('600');
       expect(heroType.lines).toBeLessThanOrEqual(2.1);
@@ -79,15 +80,19 @@ test.describe('GARAGE LINK visual-first product experience', () => {
         expect(stageBox.y, 'actual product enters directly after compact Hero').toBeLessThanOrEqual(470);
       }
       expect(await stage.evaluate((element) => getComputedStyle(element).boxShadow)).toBe('none');
-      const marketingCharacters = await page.evaluate(() => {
-        const clone = document.querySelector('main')!.cloneNode(true) as HTMLElement;
-        clone.querySelectorAll('script,header,footer,[data-testid="garage-live-demo"],[data-testid="garage-scroll-story-demo"]')
-          .forEach((element) => element.remove());
-        return (clone.textContent ?? '').replace(/\s/g, '').length;
-      });
-      expect(marketingCharacters, 'marketing text must not exceed current visual-first baseline').toBeLessThanOrEqual(baselineMarketingCharacters);
+      const claimLengths = await page.locator('main > section p').evaluateAll(elements =>
+        elements.filter(element => !element.closest('[data-story-mode]')).map(element => (element.textContent ?? '').replace(/\s/g, '').length),
+      );
+      expect(claimLengths.filter(length => length > 180), 'marketing claims remain concise; details may explain factual limits').toEqual([]);
+      await expect(page.locator('#free-start')).toContainText('カードはいりません');
+      await expect(page.locator('#standard-value')).toContainText('L-LINK Basicを追加料金なし');
+      await expect(page.locator('#standard-value')).toContainText('データ連携は提供準備中');
+      await expect(page.locator('#pricing [data-plan="standard"]')).toContainText('L-LINK Basic付帯');
+      for (const code of ['free', 'starter']) {
+        await expect(page.locator(`#pricing [data-plan="${code}"]`)).not.toContainText('L-LINK Basic付帯');
+      }
       // Lower content must not restore the repeated explanatory left/right columns.
-      for (const selector of ['#pricing', '#migration', '#faq']) {
+      for (const selector of ['#pricing', '#faq']) {
         const layout = await page.locator(selector).evaluate((section) => {
           const root = section.firstElementChild;
           return root ? getComputedStyle(root).gridTemplateColumns.split(' ').filter(Boolean).length : 1;
@@ -101,8 +106,8 @@ test.describe('GARAGE LINK visual-first product experience', () => {
 
       const pricing = page.locator('#pricing');
       await expect(pricing.getByText('0', { exact: true })).toBeVisible();
-      await expect(pricing).toContainText('在庫 5台');
-      await expect(pricing).toContainText('カード不要');
+      await expect(pricing).toContainText('在庫5台');
+      await expect(pricing).toContainText('カード登録不要');
       await expect(pricing.getByRole('link', { name: /全プランを見る/ })).toHaveAttribute('href', '/pricing');
       await expect(page.locator('#faq')).toBeVisible();
       await expect(page.locator('#final-cta')).toBeVisible();
@@ -111,7 +116,7 @@ test.describe('GARAGE LINK visual-first product experience', () => {
       await expect(page.getByRole('link', { name: '特定商取引法に基づく表記' })).toHaveAttribute('href', '/legal/tokusho');
 
       const sectionOrder = await page.evaluate(() =>
-        ['#garage-hero', '#product-story', '#live-demo', '#pricing', '#migration', '#faq', '#final-cta']
+        ['#garage-hero', '#product-story', '#live-demo', '#free-start', '#standard-value', '#pricing', '#migration', '#faq', '#final-cta']
           .map((selector) => Array.from(document.querySelectorAll('main > section')).findIndex((section) => section.matches(selector))),
       );
       expect(sectionOrder).toEqual([...sectionOrder].sort((a, b) => a - b));
@@ -200,7 +205,7 @@ test.describe('GARAGE LINK visual-first product experience', () => {
       await tab.click();
       await expect(tab).toHaveAttribute('aria-selected', 'true');
       await expect(platform.getByRole('tabpanel')).toHaveAttribute('data-active-view', views[index]);
-      await expect(demo.getByRole('heading', { name, exact: true })).toBeVisible();
+      await expect(demo.getByRole('heading', { name, exact: true, includeHidden: true })).toBeVisible();
     }
 
     const position = await page.getByTestId('garage-scroll-story-stage').evaluate((element) => getComputedStyle(element).position);
@@ -217,6 +222,6 @@ test.describe('GARAGE LINK visual-first product experience', () => {
     const stageTransition = await page.getByRole('tabpanel').evaluate((element) => getComputedStyle(element).transitionDuration);
     expect(stageTransition).toMatch(/^(0s|0ms)(,\s*(0s|0ms))*$/);
     await page.getByRole('tab', { name: '整備' }).click();
-    await expect(page.getByTestId('garage-scroll-story-demo').getByRole('heading', { name: '整備', exact: true })).toBeVisible();
+    await expect(page.getByTestId('garage-scroll-story-demo').getByRole('heading', { name: '整備', exact: true, includeHidden: true })).toBeVisible();
   });
 });

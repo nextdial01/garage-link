@@ -12,8 +12,8 @@ export default function UsedCarInventoryManagementPage() {
     <SeoIntentPage
       source="seo_used_car_inventory"
       eyebrow="中古車 在庫管理システム"
-      title="中古車の在庫管理を、Excelの車両台帳から一つの画面へ。"
-      lead="仕入日・原価・在庫日数・掲載状態だけで終わらず、問い合わせ、商談、見積、納車まで同じ車両にひも付けて確認します。"
+      title="Excelの在庫表から、次の商談へ。"
+      lead="在庫を見るだけで終わらない。顧客・商談・見積まで、同じ車両から確認できます。"
       demoScenario={{ business: 'used-car', management: 'excel', goal: 'inventory' }}
       problems={[
         { title: '車両台帳と商談が別', body: '在庫表だけでは、その車両に誰から問い合わせがあり、次に誰へ連絡するかまで追えません。' },
@@ -41,7 +41,7 @@ export default function UsedCarInventoryManagementPage() {
       faq={[
         { q: 'Excelから始めてもいいですか？', a: 'はい。過去データをすべて移す前に、販売中の車両を1台だけ登録して操作を確認できます。' },
         { q: '無料で何台まで登録できますか？', a: 'Freeプランは在庫5台、スタッフ1人、1店舗まで月額0円で利用できます。' },
-        { q: '広告媒体へ自動掲載できますか？', a: '現在は媒体掲載状況を車両へ記録できますが、複数広告媒体への自動一括掲載を主機能とはしていません。その用途が最優先なら専用サービスも比較してください。' },
+        { q: '広告媒体へ自動掲載できますか？', a: '掲載状況は記録できます。広告媒体への自動一括掲載には対応していません。' },
       ]}
     />
   );

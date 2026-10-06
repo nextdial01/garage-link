@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 const routes = ['/', '/features', '/pricing', '/faq', '/demo', '/industries/used-car', '/industries/motorcycle', '/industries/maintenance', '/login', '/signup', '/legal/terms', '/legal/privacy', '/legal/tokusho', '/forgot-password', '/help', '/solutions/used-car-inventory-management', '/solutions/maintenance-customer-management'];
-const jargon = /\b(E2E|S2S|Production|staging|QA|webhook|internal|test gate|release gate)\b/i;
+const jargon = /\b(E2E|S2S|Production|staging|QA|webhook|internal|test gate|release gate|API)\b|内部テスト|リリース条件|実装|技術構成|開発事情|ローンチ初期|導入後|未導入|設計とします/i;
 for (const width of [1440, 390]) {
   test(`all reachable public pages use one beginner-safe conversion shell at ${width}`, async ({ page }) => {
     test.setTimeout(120_000);
@@ -68,7 +68,33 @@ test('features is a distinct canonical feature page, and FAQ describes availabil
   for (const name of ['車両', '顧客', '商談', '見積・請求', '整備']) await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   await page.goto('/faq');
   await page.getByText('L-LINKとの連携は使えますか？', { exact: true }).click();
-  await expect(page.locator('details[open]')).toContainText('現在提供準備中');
+  await expect(page.locator('details[open]')).toContainText('提供準備中');
   expect(await page.locator('details[open]').innerText()).not.toMatch(jargon);
   expect(await page.locator('script[type="application/ld+json"]').textContent()).not.toMatch(jargon);
+});
+
+
+test('confirmed Basic inclusion is separate from preparing Standard/Pro integration', async ({ page }) => {
+  await page.goto('/pricing');
+  for (const plan of ['free', 'starter', 'pro']) {
+    await expect(page.locator(`[data-plan="${plan}"]`)).not.toContainText('L-LINK付帯なし');
+    await expect(page.locator(`[data-plan="${plan}"]`)).not.toContainText('Basic付帯');
+  }
+  await expect(page.locator('[data-plan="standard"]')).toContainText('L-LINK Basic付帯 · 追加料金なし');
+  await expect(page.locator('[data-plan="pro"]')).not.toContainText('Basic付帯');
+  await expect(page.locator('main')).toContainText('データ連携は提供準備中');
+  await expect(page.locator('main')).toContainText('連携対象はStandard・Proです');
+  for (const route of ['/', '/faq', '/solutions/maintenance-customer-management']) {
+    await page.goto(route);
+    await expect(page.locator('main')).not.toContainText('Free・Starterには付帯しません');
+    await expect(page.locator('main')).not.toContainText('L-LINK付帯なし');
+    await expect(page.locator('main')).toContainText('追加料金なし');
+    await expect(page.locator('main')).toContainText('提供準備中');
+  }
+  await page.goto('/pricing');
+  await expect(page.locator('main')).toContainText('オプション購入は、現在受け付けていません');
+  await page.goto('/legal/tokusho');
+  await expect(page.locator('main')).toContainText('クレジットカード決済');
+  await expect(page.locator('main')).toContainText('有料プランの利用終了日から1年間');
+  await expect(page.locator('main')).not.toContainText('導入後');
 });

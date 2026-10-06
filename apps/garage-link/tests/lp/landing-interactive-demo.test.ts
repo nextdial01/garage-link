@@ -15,7 +15,7 @@ test.describe('GARAGE LINK embedded live demo', () => {
 
     await expect(demo.getByText('GARAGE LINK Riders')).toBeVisible();
 
-    await demo.getByRole('button', { name: '車両', exact: true }).first().click();
+    await demo.getByRole('button', { name: '車両', exact: true, includeHidden: true }).first().click();
     await demo.getByRole('button', { name: /車両を追加/ }).click();
     await demo.getByLabel('デモ車両メーカー').fill('BMW');
     await demo.getByLabel('デモ車両車名').fill('G 310 R');
@@ -41,15 +41,15 @@ test.describe('GARAGE LINK embedded live demo', () => {
 
     const tabs = story.getByRole('tab');
     const storyDemo = page.getByTestId('garage-scroll-story-demo');
-    await expect(storyDemo.getByRole('heading', { name: '車両', exact: true })).toBeVisible();
+    await expect(storyDemo.getByRole('heading', { name: '車両', exact: true, includeHidden: true })).toBeVisible();
 
     await tabs.nth(2).click();
     await expect(tabs.nth(2)).toHaveAttribute('aria-selected', 'true');
-    await expect(storyDemo.getByRole('heading', { name: '商談', exact: true })).toBeVisible();
+    await expect(storyDemo.getByRole('heading', { name: '商談', exact: true, includeHidden: true })).toBeVisible();
 
     await tabs.nth(3).click();
     await expect(tabs.nth(3)).toHaveAttribute('aria-selected', 'true');
-    await expect(storyDemo.getByRole('heading', { name: '見積', exact: true })).toBeVisible();
+    await expect(storyDemo.getByRole('heading', { name: '見積', exact: true, includeHidden: true })).toBeVisible();
   });
 
   test('mobile Product Platform exposes all five tap targets and keeps the selected state', async ({ page }) => {
@@ -64,7 +64,7 @@ test.describe('GARAGE LINK embedded live demo', () => {
     await expect(tabs).toHaveCount(5);
     await tabs.nth(4).click();
     expect(await stage.evaluate((element) => element.scrollTop)).toBe(0);
-    await expect(page.getByTestId('garage-scroll-story-demo').getByRole('heading', { name: '整備', exact: true })).toBeVisible();
+    await expect(page.getByTestId('garage-scroll-story-demo').getByRole('heading', { name: '整備', exact: true, includeHidden: true })).toBeVisible();
     await expect(tabs.nth(4)).toHaveAttribute('aria-selected', 'true');
     await expect(story.getByRole('tabpanel')).toHaveAttribute('data-active-view', 'maintenance');
   });

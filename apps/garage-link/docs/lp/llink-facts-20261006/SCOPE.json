@@ -1,0 +1,26 @@
+{
+  "changed_since_accepted_candidate": [
+    "apps/garage-link/src/components/landing/GarageLandingPage.tsx",
+    "apps/garage-link/src/components/public-site/GaragePublicPage.tsx",
+    "apps/garage-link/tests/e2e/public-site-journey.test.ts",
+    "apps/garage-link/src/components/public-site/PublicPlanSummary.tsx"
+  ],
+  "design_css_and_product_logic_unchanged": true,
+  "routing": "commercial facts and coupled tests Codex-only; evidenced no-eligible exception",
+  "confirmed": {
+    "standard_basic": "included, no additional charge",
+    "integration_target": [
+      "Standard",
+      "Pro"
+    ],
+    "integration_status": "提供準備中",
+    "separate_services": true
+  },
+  "unknown_basic_entitlements": [
+    "Free",
+    "Starter",
+    "Pro"
+  ],
+  "prior_evidence": "../cv-standard-20261006",
+  "prior_tests_reused": "unchanged product operations / analytics; other necessary checks rerun"
+}

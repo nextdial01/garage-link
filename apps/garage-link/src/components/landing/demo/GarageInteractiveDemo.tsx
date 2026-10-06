@@ -500,6 +500,7 @@ export function GarageInteractiveDemo({
     <section
       data-testid={storyMode ? 'garage-scroll-story-demo' : 'garage-live-demo'}
       data-story-mode={storyMode ? 'true' : undefined}
+      inert={storyMode || undefined}
       data-product-view={currentView}
       className={`${standalone ? 'mx-auto w-full max-w-[1500px]' : 'w-full'} ${storyMode ? 'pointer-events-none select-none' : ''}`}
     >

@@ -1,0 +1,115 @@
+{
+  "runtime": "local optimized build3012",
+  "result": "PASS",
+  "records": [
+    {
+      "name": "acquisition_landing_view",
+      "data": {
+        "source": "landing",
+        "placement": "home",
+        "lead": "direct"
+      }
+    },
+    {
+      "name": "demo_view",
+      "data": {
+        "source": "landing",
+        "placement": "home",
+        "lead": "direct",
+        "demo_scenario": "used-car:excel:inventory",
+        "demo_view": "vehicles"
+      }
+    },
+    {
+      "name": "lp_signup_cta_click",
+      "data": {
+        "source": "landing",
+        "placement": "hero",
+        "lead": "unknown"
+      }
+    },
+    {
+      "name": "acquisition_landing_view",
+      "data": {
+        "source": "landing",
+        "placement": "home",
+        "lead": "unknown"
+      }
+    },
+    {
+      "name": "lp_signup_cta_click",
+      "data": {
+        "source": "landing",
+        "placement": "product_story",
+        "lead": "unknown"
+      }
+    },
+    {
+      "name": "acquisition_landing_view",
+      "data": {
+        "source": "landing",
+        "placement": "home",
+        "lead": "unknown"
+      }
+    },
+    {
+      "name": "lp_signup_cta_click",
+      "data": {
+        "source": "landing",
+        "placement": "pricing_free",
+        "lead": "unknown"
+      }
+    },
+    {
+      "name": "acquisition_landing_view",
+      "data": {
+        "source": "landing",
+        "placement": "home",
+        "lead": "unknown"
+      }
+    },
+    {
+      "name": "lp_signup_cta_click",
+      "data": {
+        "source": "landing",
+        "placement": "final",
+        "lead": "unknown"
+      }
+    },
+    {
+      "name": "acquisition_landing_view",
+      "data": {
+        "source": "landing",
+        "placement": "home",
+        "lead": "unknown"
+      }
+    },
+    {
+      "name": "demo_interaction",
+      "data": {
+        "source": "landing",
+        "placement": "product_story",
+        "lead": "unknown",
+        "demo_action": "product_story_switch",
+        "demo_view": "deals"
+      }
+    },
+    {
+      "name": "demo_interaction",
+      "data": {
+        "source": "landing",
+        "placement": "product_demo",
+        "lead": "unknown",
+        "demo_action": "demo_open"
+      }
+    },
+    {
+      "name": "acquisition_landing_view",
+      "data": {
+        "source": "landing",
+        "placement": "standalone_demo",
+        "lead": "unknown"
+      }
+    }
+  ]
+}

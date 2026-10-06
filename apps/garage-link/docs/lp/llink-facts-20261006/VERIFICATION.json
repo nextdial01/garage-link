@@ -1,0 +1,37 @@
+{
+  "build": "PASS",
+  "typecheck": "PASS after sequential build",
+  "lint": {
+    "errors": 0,
+    "preexisting_warnings": 3
+  },
+  "lp": {
+    "passed": 11,
+    "viewports": [
+      1440,
+      1024,
+      768,
+      430,
+      390
+    ]
+  },
+  "public_navigation_tests": {
+    "passed": 11,
+    "viewports": [
+      1440,
+      390
+    ]
+  },
+  "public_preview_routes": 17,
+  "preview_audit_rows": 34,
+  "standard_basic": "included, no additional charge",
+  "integration_target": [
+    "Standard",
+    "Pro"
+  ],
+  "integration_status": "提供準備中",
+  "unproven_basic_claims": 0,
+  "design_changes_since_accepted": 0,
+  "product_analytics_operations": "reuse prior evidence; dependency SHA256 unchanged",
+  "production_changed": false
+}

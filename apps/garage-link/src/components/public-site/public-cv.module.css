@@ -52,3 +52,20 @@
 .formPage :global([class*="tracking-"]) { letter-spacing:normal; }
 @media(max-width:1023px) { .plan { padding-inline:14px; } .price { font-size:30px; } }
 @media(max-width:767px) { .content { padding:36px 0 48px; } .intro { margin-bottom:32px; } .intro h1 { font-size:30px; line-height:1.45; letter-spacing:-.025em; } .intro p { font-size:14px; } .row { grid-template-columns:1fr; gap:10px; padding:22px 0; } .row h2, .row h3 { font-size:19px; } .section { padding:28px 0; } .section h2 { font-size:23px; } .plans { grid-template-columns:1fr; } .plan,.plan:first-child { padding:24px 0; border-right:0; border-bottom:1px solid #e4e7ec; } .plan:last-child { border-bottom:0; } .plan dl { margin:16px 0; } .price { font-size:38px; } .plan dl > div { max-width:330px; } .faq summary { font-size:15px; line-height:1.7; } .faq p { font-size:14px; } .actions { gap:20px; } .final h2 { font-size:23px; } .formPage > main { padding:32px 5vw; } .industryLinks { gap:12px 18px; } }
+.planList { border-top:1px solid var(--line); }
+.planLine { display:grid; grid-template-columns:1fr 210px 1.5fr; gap:28px; align-items:center; padding:24px 0; border-bottom:1px solid var(--line); }
+.planName h3 { font-size:22px; font-weight:500; margin:0; }
+.planName p { color:var(--muted); font-size:12px; margin:8px 0 0; }
+.planAmount { white-space:nowrap; }
+.planAmount strong { font-size:36px; font-weight:500; letter-spacing:-.045em; }
+.planAmount span { font-size:13px; margin-left:8px; }
+.freePlanLine .planAmount strong { font-size:52px; }
+.planFacts p { margin:5px 0; font-size:13px; color:var(--muted); }
+.planFacts .included { font-size:14px; color:var(--ink); font-weight:600; }
+.valueBand { border-top:1px solid var(--line); padding:32px 0; margin:32px 0 0; }
+.valueBand h2 { font-size:26px; line-height:1.5; margin:0 0 14px; font-weight:500; }
+.valueBand p { max-width:700px; color:var(--muted); line-height:1.8; }
+.benefitSequence { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:20px 0 32px; font-size:14px; }
+.benefitSequence a { color:var(--ink); }
+.benefitSequence span { color:var(--muted); }
+@media(max-width:767px) { .planLine { grid-template-columns:1fr auto; gap:12px; padding:20px 0; } .planName h3 { font-size:21px; } .planName p { font-size:11px; max-width:200px; } .planAmount strong { font-size:30px; } .freePlanLine .planAmount strong { font-size:40px; } .planAmount span { font-size:11px; margin-left:5px; } .planFacts { grid-column:1/-1; } .planFacts p { font-size:12px; } .planFacts .included { font-size:13px; } .valueBand { padding:24px 0; } .valueBand h2 { font-size:23px; } .valueBand p { font-size:14px; } }

@@ -99,7 +99,7 @@ test.describe('GARAGE LINK LP real operations', () => {
   test('homepage embeds the product as interactive DOM, not product screenshots', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: /車両を中心に、\s*仕事をひとつに。/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /車屋の仕事を、\s*1台の車両からひとつに。/ })).toBeVisible();
     await expect(page.getByTestId('garage-scroll-story-demo')).toBeVisible();
     await expect(page.getByTestId('garage-live-demo')).toHaveCount(0);
     await expect(page.locator('img[src*="/product-screens/"]')).toHaveCount(0);
@@ -194,7 +194,7 @@ test.describe('GARAGE LINK LP real operations', () => {
   test('standalone live demo is public and keeps source/lead attribution', async ({ page }) => {
     await page.goto('/demo?source=outbound&lead=shop-demo-001&scenario=maintenance&goal=maintenance');
 
-    await expect(page.getByRole('heading', { name: '登録前に、触って確かめる。' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '自分の店の仕事で、確かめる。' })).toBeVisible();
     await expect(page.getByTestId('garage-live-demo')).toBeVisible();
     await expect(page.locator('img[src*="/product-screens/"]')).toHaveCount(0);
     await expect(page.getByTestId('garage-live-demo').getByText('かんなぎ整備サービス')).toBeVisible();

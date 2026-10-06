@@ -278,7 +278,7 @@ function SignupForm() {
           <p className="mt-4 text-xs font-bold tracking-[0.2em] text-blue-600">無料で始める</p>
           <h1 className="mt-2 text-2xl font-bold">アカウント作成</h1>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            無料プランから始められます。アカウント作成後、店舗名を登録してすぐに1台目を試せます。
+            月額0円・カード登録不要。メール確認後に店舗名を登録して、まず1台から試せます。
           </p>
         </div>
 
@@ -290,7 +290,7 @@ function SignupForm() {
 
         <form onSubmit={handleSignupSubmit} onFocusCapture={() => trackConversionOnce('signup_form_engaged')} className="space-y-5">
           <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm leading-6 text-blue-900">
-            最初はメールアドレスとパスワードだけでアカウントを作成します。店舗名と担当者名はメール確認後に1回だけ入力します。
+            まずはメールアドレスとパスワードで登録。店舗名と担当者名は、メール確認後に入力します。
           </div>
 
           <div>

@@ -1,0 +1,31 @@
+{
+  "keyboard": [
+    {
+      "tag": "DIV",
+      "text": "車両\n保存されないデモデータ\n\n車両一覧\n\n全5台\n\n車両を追加\nトヨタ プリウス\nA-101 / 本店\n展示中\n18日\n2,180,000円\nホンダ N-BOX\nA-102 / 本店\n商談中\n7日\n1,490,000円\nスズキ ジムニー\nA-103 / 第二展示場\n整備中\n42日\n1,980,000円\n日産 セレナ\nA-104 / 本店\n展示中\n96日\n2,390,000円\nマツダ CX-5\nA-105 / 納車準備\n売約済み\n31日\n2,570,000円\n\n選択中の車両\n\nトヨタ プリウス\n\nA-101\n\n状態\n展示中\n在庫日数\n18日\n走行距離\n42,100km\n車検満了\n2027-08-20\nこの車両で商談を作る\n見積を開く",
+      "role": "tabpanel"
+    },
+    {
+      "tag": "INPUT",
+      "text": "",
+      "role": null
+    },
+    {
+      "tag": "BUTTON",
+      "text": "車両を追加",
+      "role": null
+    },
+    {
+      "tag": "BUTTON",
+      "text": "トヨタ プリウス\nA-101 / 本店\n展示中\n18日\n2,180,000円",
+      "role": null
+    },
+    {
+      "tag": "BUTTON",
+      "text": "ホンダ N-BOX\nA-102 / 本店\n商談中\n7日\n1,490,000円",
+      "role": null
+    }
+  ],
+  "demoQuoteVisible": true,
+  "maintenanceScenario": "maintenance"
+}

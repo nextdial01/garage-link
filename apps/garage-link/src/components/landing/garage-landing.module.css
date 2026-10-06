@@ -365,3 +365,98 @@
   .demoSection { padding: 22px 6vw 36px; }
   .demoSection h2 { font-size: 23px; word-break: keep-all; }
 }
+
+/* CV hierarchy: one product theatre, then progressively lighter decisions. */
+.hero { padding:26px 6vw 24px; }
+.hero h1 { font-size:60px; line-height:1.13; }
+.hero h1 span { display:block; }
+.heroLead span { display:block; }
+.connectedSection { padding:36px 6vw 56px; }
+.connectedInner { max-width:1120px; margin:auto; text-align:center; }
+.connectedSection h2 { margin:0; font-size:38px; line-height:1.35; font-weight:500; letter-spacing:-.035em; }
+.connectedSection h2 span { display:block; }
+.connectedSection p { color:var(--muted); margin:14px 0 0; }
+.smallNote { font-size:12px; color:var(--muted); line-height:1.7; }
+.connectedSection .smallNote { font-size:12px; }
+.freeSection { padding:60px 6vw; background:var(--ink); color:white; }
+.freeInner { max-width:1120px; margin:auto; display:flex; align-items:center; justify-content:space-between; gap:48px; }
+.freeStatement p { font-size:14px; color:#c8cbd0; margin:0 0 16px; }
+.freeStatement h2 { font-size:40px; font-weight:500; line-height:1.4; letter-spacing:-.04em; margin:0; }
+.freeNumber { min-width:280px; }
+.freeNumber > span { font-size:16px; }
+.freeNumber > div { display:flex; align-items:baseline; gap:16px; }
+.freeNumber strong { font-size:140px; font-weight:500; line-height:1.05; letter-spacing:-.06em; }
+.freeNumber p { font-size:14px; line-height:1.8; margin:16px 0 0; color:#c8cbd0; }
+.standardSection { padding:72px 6vw 56px; }
+.standardInner { max-width:1120px; margin:auto; }
+.standardLabel { font-size:13px; color:var(--muted); margin:0 0 20px; }
+.standardSection h2 { font-size:44px; line-height:1.35; letter-spacing:-.04em; font-weight:500; margin:0; }
+.standardSection h2 span { display:block; }
+.serviceRoles { display:flex; align-items:center; gap:48px; margin:36px 0 24px; }
+.serviceRoles p { margin:0; }
+.serviceRoles strong { display:block; font-size:24px; font-weight:600; letter-spacing:-.035em; }
+.serviceRoles p span { display:block; font-size:14px; color:var(--muted); margin-top:8px; }
+.servicePlus { font-size:24px; color:#90949c; }
+.basicCopy { font-size:18px; max-width:640px; line-height:1.8; margin:0; }
+.readinessNote { font-size:13px; line-height:1.8; color:var(--muted); margin:12px 0 0; }
+.pricingSection { padding:24px 6vw 64px; background:#fff; color:var(--ink); text-align:left; }
+.pricingInner { max-width:1120px; margin:auto; }
+.pricingTitle { display:flex; align-items:baseline; justify-content:space-between; gap:24px; margin-bottom:24px; }
+.pricingTitle h2 { font-size:28px; font-weight:500; letter-spacing:-.03em; margin:0; }
+.pricingTitle a { font-size:13px; color:var(--muted); white-space:nowrap; }
+.pricingInner > .primaryCta { margin-top:12px; }
+.migrationSection { padding:40px 6vw; text-align:left; background:#fafafb; border-block:1px solid var(--line); }
+.migrationGrid { max-width:1120px; display:flex; align-items:center; gap:48px; }
+.migrationOne { font-size:128px; font-weight:500; line-height:1; color:#cbd0d7; letter-spacing:-.06em; }
+.migrationGrid a { display:inline-block; font-size:13px; color:var(--muted); margin-top:18px; }
+.faqSection { padding:56px 6vw; }
+.faqGrid { max-width:1120px; }
+.faqGrid h2 { font-size:26px; }
+.finalSection { padding:24px 6vw 64px; }
+.finalSection > p { color:var(--muted); font-size:14px; margin:0 0 16px; }
+.finalSection h2 span { display:block; }
+@media(max-width:1023px) { .hero h1 { font-size:48px; } .freeStatement h2 { font-size:32px; } }
+@media(max-width:767px) {
+  .hero { padding:24px 6vw 20px; }
+  .hero h1 { font-size:30px; line-height:1.25; letter-spacing:-.055em; }
+  .heroEyebrow { font-size:11px; }
+  .heroLead { font-size:13px; line-height:1.7; margin-top:14px; }
+  .connectedSection { padding:20px 6vw 36px; }
+  .connectedSection h2 { font-size:25px; line-height:1.5; letter-spacing:-.04em; word-break:keep-all; }
+  .connectedSection p { font-size:13px; }
+  .freeSection { padding:36px 6vw; }
+  .freeInner { display:block; }
+  .freeStatement p { margin-bottom:10px; font-size:12px; }
+  .freeStatement h2 { font-size:28px; }
+  .freeNumber { margin-top:24px; min-width:0; }
+  .freeNumber strong { font-size:104px; }
+  .freeNumber p { font-size:12px; margin-top:12px; }
+  .standardSection { padding:44px 6vw 36px; }
+  .standardLabel { font-size:11px; margin-bottom:16px; }
+  .standardSection h2 { font-size:27px; line-height:1.5; }
+  .serviceRoles { gap:20px; margin:28px 0 22px; justify-content:space-between; }
+  .serviceRoles strong { font-size:18px; white-space:nowrap; }
+  .serviceRoles p span { font-size:11px; margin-top:6px; }
+  .servicePlus { font-size:18px; }
+  .basicCopy { font-size:15px; }
+  .readinessNote { font-size:12px; }
+  .pricingSection { padding:8px 6vw 36px; }
+  .pricingTitle { display:block; margin-bottom:20px; }
+  .pricingTitle h2 { font-size:24px; margin-bottom:12px; }
+  .migrationSection { padding:28px 6vw; }
+  .migrationGrid { gap:24px; }
+  .migrationOne { font-size:88px; }
+  .migrationGrid h2 { font-size:22px; line-height:1.5; }
+  .migrationGrid p { font-size:12px; }
+  .migrationGrid a { font-size:12px; margin-top:12px; }
+  .faqSection { padding:36px 6vw; }
+  .faqGrid h2 { font-size:23px; line-height:1.5; }
+  .finalSection { padding:20px 6vw 44px; }
+  .finalSection h2 { font-size:30px; }
+}
+
+/* Display-only theatre crops operative controls; the dedicated demo retains them. */
+.storyStage :global([data-product-view="vehicles"]) :global(.garage-demo-view-transition) > div > section > div:first-child > div:last-child,
+.storyStage :global(.garage-demo-view-transition) > section > div:first-child > button,
+.storyStage :global([data-product-view="vehicles"]) :global(.garage-demo-view-transition) > div > aside > div:last-child { display:none; }
+.storyHint { font-size:12px; color:var(--muted); text-align:center; margin:8px 0 0; }
