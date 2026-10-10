@@ -30,3 +30,10 @@ export function PublicPlanSummary({ detailed = false }: { detailed?: boolean }) 
     })}
   </div>;
 }
+
+// Addon display only: never enables billing or changes the L-LINK offering.
+export type PublicReleaseStatus=Readonly<{additionalOptions:boolean;standardBasic:boolean;dataIntegration:boolean}>;
+export const CLOSED_PUBLIC_RELEASE_STATUS:PublicReleaseStatus={additionalOptions:false,standardBasic:false,dataIntegration:false};
+export function getPublicReleaseCopy(status:PublicReleaseStatus=CLOSED_PUBLIC_RELEASE_STATUS){return {additionalOptions:status.additionalOptions
+ ? '追加スタッフ・店舗・容量のオプションは、対象プランで購入できます。料金設定からお申し込みください。'
+ : '追加スタッフ・店舗・容量のオプション購入は、現在受け付けていません。まず各プランに含まれる範囲でご利用ください。'};}

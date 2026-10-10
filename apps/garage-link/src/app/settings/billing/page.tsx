@@ -142,6 +142,9 @@ function clearCheckoutRetryKeys() {
 
 export default function BillingSettingsPage() {
   const [role, setRole] = useState('');
+  const [commercialStatus, setCommercialStatus] = useState({additionalOptions:false,standardBasic:false,dataIntegration:false});
+  const [optionAction, setOptionAction] = useState<'add'|'remove'>('add');
+  useEffect(()=>{let active=true;void fetch('/api/billing/commercial-status',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(value=>{if(active&&value)setCommercialStatus({additionalOptions:value.additionalOptions===true,standardBasic:value.standardBasic===true,dataIntegration:value.dataIntegration===true});}).catch(()=>{});return()=>{active=false;};},[]);
   const [store, setStore] = useState<StoreRow | null>(null);
   const [subscription, setSubscription] = useState<CompanySubscriptionRow | null>(null);
   const [usage, setUsage] = useState<GaragePlanUsage | null>(null);
@@ -315,19 +318,27 @@ export default function BillingSettingsPage() {
           setErrorMessage('契約変更には利用規約への同意が必要です。');
           return;
         }
+        if(!commercialStatus.additionalOptions)throw new Error('追加購入は現在受け付けていません。');
+        const assurance=await createClient().auth.mfa.getAuthenticatorAssuranceLevel();
+        if(assurance.error||assurance.data?.currentLevel!=='aal2')throw new Error('認証アプリで本人確認を完了してください。');
         const amount = form.request_type === 'add_staff'
           ? toNonNegativeInt(form.requested_extra_staff_count)
           : form.request_type === 'add_store'
             ? toNonNegativeInt(form.requested_extra_store_count)
             : toNonNegativeInt(form.requested_extra_storage_gb);
+        const keyName=`garage-option:${store.id}:${form.request_type}:${optionAction}:${amount}`;
+        const operationKey=window.sessionStorage.getItem(keyName)??crypto.randomUUID();
+        window.sessionStorage.setItem(keyName,operationKey);
         const response = await fetch('/api/billing/change-options', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: form.request_type, amount, termsAccepted: true }),
+          headers: { 'Content-Type': 'application/json', 'Idempotency-Key':operationKey },
+          body: JSON.stringify({ type: form.request_type, action:optionAction, amount, termsAccepted: true }),
         });
-        const payload = (await response.json()) as { ok?: boolean; error?: string; message?: string };
+        const payload = (await response.json()) as { ok?: boolean; error?: string; pending?:boolean };
+        if(response.status===409&&payload.pending){setSuccessMessage('変更は受付済みで反映待ちです。重複して申し込む必要はありません。');return;}
         if (!response.ok || !payload.ok) throw new Error(payload.error ?? '追加オプションを反映できませんでした。');
-        setSuccessMessage(payload.message ?? '追加オプションを反映しました。');
+        if(!payload.pending)window.sessionStorage.removeItem(keyName);
+        setSuccessMessage(payload.pending?'変更を受け付けました。契約情報への反映をお待ちください。':'契約への反映を確認しました。利用可否はお支払い状況に応じます。');
         window.setTimeout(() => window.location.reload(), 1200);
         return;
       }
@@ -698,12 +709,14 @@ export default function BillingSettingsPage() {
                 </table>
               </div>
 
+              {commercialStatus.additionalOptions && <p className="p-4 text-sm"><Link href="/security/mfa" className="underline">認証アプリで本人確認</Link> · 追加スタッフ1,100円／人、追加店舗5,500円／店舗、追加容量550円／10GB（月額・請求総額）。数量変更に伴う日割り請求はありません。</p>}
               <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
+                {commercialStatus.additionalOptions && <label>数量変更<select aria-label="オプション数量の変更方法" className={inputClass} value={optionAction} onChange={e=>setOptionAction(e.target.value==='remove'?'remove':'add')}><option value="add">追加</option><option value="remove">削減</option></select></label>}
                 <label className="block">
                   <span className="mb-2 block text-sm font-bold text-slate-700">申込種別</span>
                   <select className={inputClass} value={form.request_type} onChange={(event) => setForm((current) => ({ ...current, request_type: event.target.value as RequestType }))}>
                     {Object.entries(requestTypeLabels)
-                      .filter(([value]) => value !== 'add_staff' && value !== 'add_store' && value !== 'add_storage')
+                      .filter(([value]) => !value.startsWith('add_') || (commercialStatus.additionalOptions && currentPlanCode!=='free' && (value!=='add_store'||currentPlanCode==='standard'||currentPlanCode==='pro')))
                       .map(([value, label]) => (
                         <option key={value} value={value}>
                           {label}
@@ -711,7 +724,7 @@ export default function BillingSettingsPage() {
                       ))}
                   </select>
                   <p className="mt-2 text-xs text-slate-500">
-                    スタッフ・店舗・保存容量の追加購入は初回販売の対象外です。準備が整い次第あらためてご案内します。
+                    {commercialStatus.additionalOptions?'対象プランでスタッフ・店舗・容量を追加・削減できます。認証アプリでの本人確認が必要です。':'スタッフ・店舗・保存容量の追加購入は現在受け付けていません。'}
                   </p>
                 </label>
                 <label className="block">
@@ -730,7 +743,7 @@ export default function BillingSettingsPage() {
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-bold text-slate-700">追加するスタッフ数</span>
+                  <span className="mb-2 block text-sm font-bold text-slate-700">変更するスタッフ数</span>
                   <input
                     type="number"
                     min="0"
@@ -741,7 +754,7 @@ export default function BillingSettingsPage() {
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-bold text-slate-700">追加する店舗数</span>
+                  <span className="mb-2 block text-sm font-bold text-slate-700">変更する店舗数</span>
                   <input
                     type="number"
                     min="0"

@@ -1,3 +1,5 @@
+import { getCommercialPresentation } from '@/lib/billing/commercialPresentation';
+import { getPublicReleaseCopy, type PublicReleaseStatus } from './PublicPlanSummary';
 import Link from "next/link";
 import { TrackedSignupLink } from "@/components/landing/TrackedSignupLink";
 import styles from "./route-layouts.module.css";
@@ -19,14 +21,14 @@ const plans = GARAGE_PLAN_ORDER.map((code) => {
   };
 });
 
-const faqGroups = [
+const getFaqGroups = (copy: ReturnType<typeof getPublicReleaseCopy>) => [
   { id: "business", title: "対象業種", items: [
     ["中古車販売店以外でも使えますか？", "はい。バイク販売・修理店、整備工場、車検を扱う店舗でも利用できます。業態に合わせて必要な機能から使い始められます。"],
     ["販売と整備を同じ店舗で行っています。", "販売車両の在庫と、整備・修理の入庫を同じ店舗台帳で管理できます。担当者と期限を分けて確認できます。"],
   ] },
   { id: "price", title: "無料範囲・料金", items: [
     ["無料で試せる範囲を教えてください。", "Freeプランは月額0円で、在庫5台、スタッフ1人、1店舗、見積・請求は月5件まで利用できます。登録時に決済情報の入力はありません。"],
-    ["スタッフや店舗を追加できますか？", "対象プランでは、追加スタッフは月額1,100円／人、追加店舗は月額5,500円／店舗です。表示額は10%相当額を含む請求総額です。"],
+    ["スタッフや店舗を追加できますか？", `対象プランでは、追加スタッフは月額1,100円／人、追加店舗は月額5,500円／店舗です。表示額は10%相当額を含む請求総額です。${copy.additionalOptions}`],
   ] },
   { id: "permission", title: "権限・連携", items: [
     ["スタッフごとに見られる情報を分けられますか？", "はい。店舗内の役割に応じて、閲覧や操作の範囲を分けられます。導入前に現在の担当範囲をご確認ください。"],
@@ -34,7 +36,8 @@ const faqGroups = [
   ] },
 ] as const;
 
-function PricingBody() {
+function PricingBody({ releaseStatus }: { releaseStatus: PublicReleaseStatus }) {
+  const copy = getPublicReleaseCopy(releaseStatus);
   return (
     <div className={styles.routeBody}>
       <section className={styles.pricingHero}>
@@ -57,10 +60,11 @@ function PricingBody() {
       </section>
       <section className={styles.detailSection}><div className={styles.shell}>
         <div className={styles.sectionHeader}><h2>追加が必要になった時の料金</h2><p>契約後の想定差を減らすため、プラン外の追加費用も登録前に確認できます。</p></div>
+        <p>{copy.additionalOptions}</p>
         <div className={styles.costRows}>
-          <div className={styles.costRow}><strong>追加スタッフ</strong><b>月額1,100円／人</b><p>対象プランで、店舗の利用人数に合わせて追加できます。</p></div>
-          <div className={styles.costRow}><strong>追加店舗</strong><b>月額5,500円／店舗</b><p>Standard・Proで、契約に含まれる店舗数を超える場合に追加できます。</p></div>
-          <div className={styles.costRow}><strong>追加ストレージ</strong><b>月額550円／10GB</b><p>Starter・Standard・Proで、必要な保存容量を10GB単位で追加できます。</p></div>
+          <div className={styles.costRow}><strong>追加スタッフ</strong><b>月額1,100円／人</b><p>対象プランでの追加スタッフ料金です。</p></div>
+          <div className={styles.costRow}><strong>追加店舗</strong><b>月額5,500円／店舗</b><p>Standard・Proで、契約に含まれる店舗数を超える場合の料金です。</p></div>
+          <div className={styles.costRow}><strong>追加ストレージ</strong><b>月額550円／10GB</b><p>Starter・Standard・Proで、保存容量10GB単位の料金です。</p></div>
         </div>
       </div></section>
     </div>
@@ -128,7 +132,8 @@ function MaintenanceBody() {
   </div>;
 }
 
-function FaqBody() {
+function FaqBody({ releaseStatus }: { releaseStatus: PublicReleaseStatus }) {
+  const faqGroups = getFaqGroups(getPublicReleaseCopy(releaseStatus));
   return <div className={styles.routeBody}>
     <section className={styles.faqHero}><div className={styles.shell}><p className={styles.eyebrow}>FAQ — 店舗条件から確認</p><h1><span className={styles.headlineLine}>対象業種と無料範囲。</span><span className={styles.headlineLine}>権限と連携条件を、</span><span className={styles.headlineLine}>導入前に確認。</span></h1><p className={styles.heroLead}>機能ページへ戻らず、店舗の業態・台数・人数・連携条件から疑問を解決できます。</p></div></section>
     <section className={styles.faqSection}><div className={`${styles.shell} ${styles.faqLayout}`}>
@@ -138,10 +143,11 @@ function FaqBody() {
   </div>;
 }
 
-export function GarageRouteBody({ pageKey }: { pageKey: RouteKey }) {
-  if (pageKey === "pricing") return <PricingBody />;
+export async function GarageRouteBody({ pageKey }: { pageKey: RouteKey }) {
+  const releaseStatus = await getCommercialPresentation();
+  if (pageKey === "pricing") return <PricingBody releaseStatus={releaseStatus} />;
   if (pageKey === "industries/used-car") return <UsedCarBody />;
   if (pageKey === "industries/motorcycle") return <MotorcycleBody />;
   if (pageKey === "industries/maintenance") return <MaintenanceBody />;
-  return <FaqBody />;
+  return <FaqBody releaseStatus={releaseStatus} />;
 }

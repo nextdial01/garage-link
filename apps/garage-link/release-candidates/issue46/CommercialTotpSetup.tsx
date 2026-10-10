@@ -1,0 +1,10 @@
+'use client';
+import {useState} from 'react';
+import {useRouter} from 'next/navigation';
+import {createClient} from '@/lib/supabase/client';
+export default function CommercialTotpSetup(){
+ const router=useRouter();const [factor,setFactor]=useState<string|null>(null),[seed,setSeed]=useState(''),[code,setCode]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
+ async function enroll(){setBusy(true);setMessage('');try{const client=createClient();const factors=await client.auth.mfa.listFactors();if(factors.error)throw new Error();const existing=factors.data?.totp?.find(f=>f.status==='verified');if(existing){setFactor(existing.id);setSeed('');return;}const {data,error}=await client.auth.mfa.enroll({factorType:'totp',friendlyName:'GARAGE LINK authenticator'});if(error||!data?.totp?.secret)throw new Error();setFactor(data.id);setSeed(data.totp.secret);}catch{setMessage('認証アプリの設定を開始できませんでした。');}finally{setBusy(false);}}
+ async function verify(){if(!factor)return;setBusy(true);setMessage('');try{const client=createClient();const {error}=await client.auth.mfa.challengeAndVerify({factorId:factor,code});if(error){setMessage('認証コードを確認してください。');return;}const assurance=await client.auth.mfa.getAuthenticatorAssuranceLevel();if(assurance.error||assurance.data?.currentLevel!=='aal2')throw new Error();setSeed('');setCode('');router.replace('/settings/billing');}catch{setMessage('認証を完了できませんでした。');}finally{setBusy(false);}}
+ return <main><h1>認証アプリで本人確認</h1><p>設定済みの方は認証アプリの6桁コードを入力してください。初めての方は設定キーを登録してください。</p>{!factor?<button disabled={busy} onClick={()=>void enroll()}>認証アプリを設定する</button>:<>{seed&&<label>設定キー<output id="garage-totp-seed">{seed}</output></label>}<label htmlFor="garage-totp-code">認証コード</label><input id="garage-totp-code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={event=>setCode(event.target.value.replace(/\D/g,''))}/><button disabled={busy||code.length!==6} onClick={()=>void verify()}>確認して設定を続ける</button></>}{message&&<p role="alert">{message}</p>}</main>;
+}

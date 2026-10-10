@@ -1,24 +1,29 @@
+import { getCommercialPresentation } from '@/lib/billing/commercialPresentation';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { AcquisitionPageTracker } from '@/components/analytics/AcquisitionPageTracker';
 import { GARAGE_PLANS } from '@/lib/billing/garagePlans';
 import { PublicActions, PublicSiteFrame } from './PublicSiteChrome';
 import styles from './public-cv.module.css';
-import { PublicPlanSummary, STANDARD_BASIC_COPY, LLINK_CONNECTION_COPY } from './PublicPlanSummary';
+import { PublicPlanSummary, STANDARD_BASIC_COPY, LLINK_CONNECTION_COPY, CLOSED_PUBLIC_RELEASE_STATUS, getPublicReleaseCopy, type PublicReleaseStatus } from './PublicPlanSummary';
 
 export type GaragePublicPageKey = 'features' | 'pricing' | 'faq' | 'industries/used-car' | 'industries/motorcycle' | 'industries/maintenance';
 const free = GARAGE_PLANS.free;
-export const publicFaqs = [
+export function getPublicFaqs(releaseStatus: PublicReleaseStatus = CLOSED_PUBLIC_RELEASE_STATUS) {
+  const copy = getPublicReleaseCopy(releaseStatus);
+  return [
   { question: 'どんな店舗向けですか？', answer: '中古車販売店、バイク販売・修理店、整備工場向けです。車両・顧客・商談・見積・整備をまとめて管理できます。' },
   { question: '無料で使える範囲は？', answer: `Freeは月額0円。在庫${free.inventoryLimit}台、スタッフ${free.includedStaffCount}人、${free.includedStoreCount}店舗、見積・請求は月${free.quoteInvoiceLimit}件まで使えます。` },
   { question: 'カード登録は必要ですか？', answer: '無料登録にカード情報は必要ありません。まず1台から操作を試せます。' },
   { question: 'Excelのデータを移せますか？', answer: '顧客・車両のデータをCSVで移せます。すべてを一度に移さず、まず1台で使い方を確かめられます。' },
   { question: 'デモのデータは保存されますか？', answer: '保存されません。デモは登録前に操作を確かめるためのものです。実際の店舗データは無料登録後に入力してください。' },
-  { question: 'スタッフや店舗を増やせますか？', answer: 'Standardはスタッフ3人、Proはスタッフ10人・3店舗まで含まれます。人数や店舗数に合わせてプランを選べます。追加オプションの購入は現在受け付けていません。' },
+  { question: 'スタッフや店舗を増やせますか？', answer: `Standardはスタッフ3人、Proはスタッフ10人・3店舗まで含まれます。人数や店舗数に合わせてプランを選べます。${copy.additionalOptions}` },
   { question: 'スタッフごとに見られる情報を分けられますか？', answer: '店舗内の役割に応じて、閲覧や操作の範囲を分けられます。' },
   { question: 'L-LINKはどのプランに含まれますか？', answer: `${STANDARD_BASIC_COPY}店舗管理はGARAGE LINK、LINEでの受付・案内はL-LINKという別のサービスです。` },
   { question: 'L-LINKとの連携は使えますか？', answer: `${LLINK_CONNECTION_COPY}利用開始時期は決まり次第ご案内します。Basicの付帯と、店舗データの連携は別の内容です。` },
 ];
+}
+export const publicFaqs = getPublicFaqs();
 const content = {
   features: { title:'車両から、仕事がつながる。', description:'車両・顧客・商談・見積・整備をまとめる、GARAGE LINKの製品と機能。', lead:'車両を開けば、顧客も次の商談も。別の台帳を探し直さず、次の仕事へ進めます。', rows:[['車両','売れる車両と長期在庫を、ひと目で。仕入・原価・販売状態を同じ場所に。'],['顧客','この車両を探している人は誰か。連絡先と希望条件を、商談と一緒に。'],['商談','誰に、いつ連絡するか。対象車両・見積・次回連絡をまとめて確認。'],['見積・請求','車両から見積へ、見積から請求へ。明細を引き継いで作れます。'],['整備','今日の作業と納車予定を共有。担当・部品・次回車検も車両に残せます。']] },
   pricing: {title:'月額0円から。',description:'GARAGE LINKの料金。Freeは月額0円、カード登録不要。在庫台数・人数・店舗数に合わせた4プラン。',lead:'カードなしで、今日使う1台から。台数・人数・LINE対応が必要になったら、店舗に合うプランへ。',rows:[]},
@@ -33,7 +38,10 @@ export function buildGaragePublicMetadata(key: GaragePublicPageKey): Metadata {
   return { title: key === 'features' ? '製品・機能' : key === 'pricing' ? '料金' : key === 'faq' ? 'よくある質問' : page.title, description:page.description, alternates:{canonical:`/${key}`}, openGraph:{title:page.title,description:page.description,url:`/${key}`} };
 }
 
-export function GaragePublicPage({pageKey}:{pageKey:GaragePublicPageKey}) {
+export async function GaragePublicPage({pageKey, releaseStatus}:{pageKey:GaragePublicPageKey; releaseStatus?: PublicReleaseStatus}) {
+  releaseStatus ??= await getCommercialPresentation();
+  const copy = getPublicReleaseCopy(releaseStatus);
+  const faqs = getPublicFaqs(releaseStatus);
   const page=content[pageKey];
   return <PublicSiteFrame source={pageKey}><main className={`${styles.content} ${pageKey==='faq'?styles.narrow:''}`} data-page={pageKey}>
     <AcquisitionPageTracker source={pageKey} placement={`public_${pageKey.replace('/','_')}`} />
@@ -43,10 +51,10 @@ export function GaragePublicPage({pageKey}:{pageKey:GaragePublicPageKey}) {
       <p className={styles.note}>有料プランは、基準料金に10%相当額を加えた請求総額です。お支払いはクレジットカードです。</p>
       <PublicActions source="pricing" placement="pricing_free_plan" />
       <section className={styles.valueBand}><h2>LINE対応まで、まとめたいなら。</h2><p>{STANDARD_BASIC_COPY}</p><p>店舗業務はGARAGE LINK。LINEでの受付・案内はL-LINK。別のサービスとして、必要な段階で広げられます。</p><p className={styles.note}>{LLINK_CONNECTION_COPY}</p></section>
-      <p className={styles.note}>追加スタッフ・店舗・容量のオプション購入は、現在受け付けていません。まず各プランに含まれる範囲でご利用ください。</p>
+      <p className={styles.note}>{copy.additionalOptions}</p>
     </> : pageKey==='faq' ? <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify({'@context':'https://schema.org','@type':'FAQPage',mainEntity:publicFaqs.map(item=>({'@type':'Question',name:item.question,acceptedAnswer:{'@type':'Answer',text:item.answer}}))})}} />
-      <div className={styles.faq}>{publicFaqs.map(item=><details key={item.question}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</div><p className={styles.note}>人数・店舗数とプランの違いは<Link href="/pricing">料金ページ</Link>で確認できます。</p>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify({'@context':'https://schema.org','@type':'FAQPage',mainEntity:faqs.map(item=>({'@type':'Question',name:item.question,acceptedAnswer:{'@type':'Answer',text:item.answer}}))})}} />
+      <div className={styles.faq}>{faqs.map(item=><details key={item.question}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</div><p className={styles.note}>人数・店舗数とプランの違いは<Link href="/pricing">料金ページ</Link>で確認できます。</p>
     </> : <>
       <div className={styles.rows}>{page.rows.map(([title,body])=><section className={styles.row} key={title}><h2>{title}</h2><p>{body}</p></section>)}</div>
       {pageKey==='industries/used-car' && <p className={styles.note}><Link href="/solutions/used-car-inventory-management">Excelからの在庫管理を詳しく見る</Link></p>}
