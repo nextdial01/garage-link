@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import {createOptionPurchaseIntent,type OptionIntent} from '@/lib/billing/optionPurchaseIntent';
 import AppShell from '@/components/AppShell';
 import PermissionDeniedCard from '@/components/PermissionDeniedCard';
 import {
@@ -145,6 +146,9 @@ export default function BillingSettingsPage() {
   const [commercialStatus, setCommercialStatus] = useState({additionalOptions:false,standardBasic:false,dataIntegration:false});
   const [optionAction, setOptionAction] = useState<'add'|'remove'>('add');
   useEffect(()=>{let active=true;void fetch('/api/billing/commercial-status',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(value=>{if(active&&value)setCommercialStatus({additionalOptions:value.additionalOptions===true,standardBasic:value.standardBasic===true,dataIntegration:value.dataIntegration===true});}).catch(()=>{});return()=>{active=false;};},[]);
+  const optionPurchase=useRef<ReturnType<typeof createOptionPurchaseIntent>|null>(null);
+  const [optionIntent,setOptionIntent]=useState<OptionIntent|null>(null);
+  const [isOptionRecovering,setIsOptionRecovering]=useState(false);
   const [store, setStore] = useState<StoreRow | null>(null);
   const [subscription, setSubscription] = useState<CompanySubscriptionRow | null>(null);
   const [usage, setUsage] = useState<GaragePlanUsage | null>(null);
@@ -167,6 +171,17 @@ export default function BillingSettingsPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(()=>{
+    if(!store?.id)return;let active=true;
+    const controller=createOptionPurchaseIntent(window.sessionStorage,store.id,fetch,()=>crypto.randomUUID(),value=>{if(active)setOptionIntent(value);});
+    optionPurchase.current=controller;setOptionIntent(controller.current());setIsOptionRecovering(true);
+    void controller.recover().catch(()=>{if(active)setErrorMessage('前回申込の状態を確認できません。新規申込をせず確認・再試行してください。');}).finally(()=>{if(active)setIsOptionRecovering(false);});
+    return()=>{active=false;optionPurchase.current=null;};
+  },[store?.id]);
+
+  async function recoverOptionIntent(){setIsOptionRecovering(true);try{await optionPurchase.current?.recover();}catch{setErrorMessage('前回申込の状態を確認できません。');}finally{setIsOptionRecovering(false);}}
+  async function retryOptionIntent(){setIsSubmitting(true);try{const result=await optionPurchase.current?.retry();setSuccessMessage(result?.pending?'前回申込は受付済みで反映待ちです。':'前回申込の完了を確認しました。新規申込とは別の操作です。');}catch(error){setErrorMessage(error instanceof Error?error.message:'前回申込を確認してください。');}finally{setIsSubmitting(false);}}
 
   useEffect(() => {
     async function loadBilling() {
@@ -326,20 +341,9 @@ export default function BillingSettingsPage() {
           : form.request_type === 'add_store'
             ? toNonNegativeInt(form.requested_extra_store_count)
             : toNonNegativeInt(form.requested_extra_storage_gb);
-        const keyName=`garage-option:${store.id}:${form.request_type}:${optionAction}:${amount}`;
-        const operationKey=window.sessionStorage.getItem(keyName)??crypto.randomUUID();
-        window.sessionStorage.setItem(keyName,operationKey);
-        const response = await fetch('/api/billing/change-options', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Idempotency-Key':operationKey },
-          body: JSON.stringify({ type: form.request_type, action:optionAction, amount, termsAccepted: true }),
-        });
-        const payload = (await response.json()) as { ok?: boolean; error?: string; pending?:boolean };
-        if(response.status===409&&payload.pending){setSuccessMessage('変更は受付済みで反映待ちです。重複して申し込む必要はありません。');return;}
-        if (!response.ok || !payload.ok) throw new Error(payload.error ?? '追加オプションを反映できませんでした。');
-        if(!payload.pending)window.sessionStorage.removeItem(keyName);
-        setSuccessMessage(payload.pending?'変更を受け付けました。契約情報への反映をお待ちください。':'契約への反映を確認しました。利用可否はお支払い状況に応じます。');
-        window.setTimeout(() => window.location.reload(), 1200);
+        const controller=optionPurchase.current;if(!controller)throw new Error('契約情報を再読み込みしてください。');
+        const result=await controller.start({type:form.request_type,action:optionAction,amount,termsAccepted:true});
+        setSuccessMessage(result.pending?'変更を受け付けました。前回申込の状態を確認してから、新しい申込を行えます。':'契約への反映を確認しました。');
         return;
       }
       const supabase = createClient();
@@ -710,6 +714,11 @@ export default function BillingSettingsPage() {
               </div>
 
               {commercialStatus.additionalOptions && <p className="p-4 text-sm"><Link href="/security/mfa" className="underline">認証アプリで本人確認</Link> · 追加スタッフ1,100円／人、追加店舗5,500円／店舗、追加容量550円／10GB（月額・請求総額）。数量変更に伴う日割り請求はありません。</p>}
+              {commercialStatus.additionalOptions && optionIntent && <div role="status" className="p-4 text-sm">
+                <p>{optionIntent.state==='completed'?'前回申込は完了しました。同じ数量でも、新しい追加購入は別の申込として受け付けます。':'前回申込の結果が未確定です。新しい申込は行わず、状態確認または同じ申込の再試行をしてください。'}</p>
+                <button type="button" disabled={isSubmitting||isOptionRecovering} onClick={()=>void recoverOptionIntent()}>前回申込の状態を確認</button>
+                {optionIntent.state!=='completed' && <button type="button" disabled={isSubmitting||isOptionRecovering} onClick={()=>void retryOptionIntent()}>前回申込を再試行</button>}
+              </div>}
               <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
                 {commercialStatus.additionalOptions && <label>数量変更<select aria-label="オプション数量の変更方法" className={inputClass} value={optionAction} onChange={e=>setOptionAction(e.target.value==='remove'?'remove':'add')}><option value="add">追加</option><option value="remove">削減</option></select></label>}
                 <label className="block">
@@ -812,8 +821,8 @@ export default function BillingSettingsPage() {
                   </label>
                 )}
                 <div className="flex justify-end md:col-span-2">
-                  <button type="submit" disabled={isSubmitting || Boolean(validationMessage) || (form.request_type !== 'support' && !termsAccepted)} className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
-                    {isSubmitting ? '送信中...' : form.request_type === 'support' ? '個別サポートを相談する' : '申し込む'}
+                  <button type="submit" disabled={isSubmitting || (form.request_type.startsWith('add_') && (isOptionRecovering || !!optionIntent && optionIntent.state!=='completed')) || Boolean(validationMessage) || (form.request_type !== 'support' && !termsAccepted)} className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+                    {isSubmitting ? '送信中...' : form.request_type === 'support' ? '個別サポートを相談する' : form.request_type.startsWith('add_') ? '新しい追加購入を申し込む' : '申し込む'}
                   </button>
                 </div>
               </form>

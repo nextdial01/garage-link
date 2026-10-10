@@ -19,14 +19,15 @@ function assertProviderPrice(p:OptionPrice,type:OptionType,id:string,mode:'live'
   ||p.recurring?.interval!=='month'||p.recurring.interval_count!==1||p.recurring.usage_type!=='licensed'
   ||!['inclusive','unspecified'].includes(p.tax_behavior??''))throw Error('commercial_price_contract_mismatch');
 }
-function assertProviderSubscription(s:OptionSubscription,r:Row,price:string,current:number,base:string,mode:'live'|'test'){
+function assertProviderSubscription(s:OptionSubscription,r:Row,price:string,base:string,mode:'live'|'test'){
  const customer=typeof s.customer==='string'?s.customer:s.customer.id;
  if(s.livemode!==(mode==='live')||s.status!=='active'||s.cancel_at_period_end||s.metadata.company_id!==r.company_id
   ||s.metadata.plan_code!==r.plan||(s.metadata.tenant_id&&s.metadata.tenant_id!==r.tenant_id)
   ||s.automatic_tax?.enabled!==false||(s.default_tax_rates?.length??0)>0||s.items.data.some(i=>(i.tax_rates?.length??0)>0)
   ||!r.stripe_customer_id||customer!==r.stripe_customer_id)throw Error('commercial_subscription_scope_mismatch');
  if(!base||s.items.data.filter(i=>i.price.id===base&&i.quantity===1).length!==1)throw Error('commercial_base_plan_mismatch');
- const matches=s.items.data.filter(i=>i.price.id===price);if(matches.length>1||(matches[0]?.quantity??0)!==current)throw Error('commercial_snapshot_drift');return matches[0];
+ const matches=s.items.data.filter(i=>i.price.id===price);
+ if(matches.length>1||!Number.isSafeInteger(matches[0]?.quantity??0)||(matches[0]?.quantity??0)<0||(matches[0]?.quantity??0)>10000)throw Error('commercial_provider_quantity_invalid');return matches[0];
 }
 export async function executeCommercialOptionCandidate(release:AddonRelease,auth:Auth,key:string,payload:unknown,p:OptionPorts){
  requireAddonScope(release,auth.tenantId,auth.storeId);
@@ -47,8 +48,13 @@ export async function executeOptionCommand(auth:Auth,key:string,payload:unknown,
  let operation:string|null=null,attempted=false;
  try{return await p.lease(row.stripe_subscription_id,async()=>{
   const c=optionConfig[input.type],stored=row[c.field];if(!Number.isSafeInteger(stored)||stored<0||stored%c.unit!==0)throw Error('invalid_stored_quantity');
-  const authoritative=await p.subscription(row.stripe_subscription_id),current=stored/c.unit,price=p.priceId(input.type);
-  const item=assertProviderSubscription(authoritative,row,price,current,p.basePriceId(row.plan),boundary.mode);const quantity=nextOptionQuantity(input,current);
+  // Recheck under the lease: a concurrent retry may have completed since the fast path.
+  const existing=await p.previous(auth.tenantId,key);
+  if(existing){if(existing.requested_options.type!==input.type||existing.requested_options.action!==input.action||existing.requested_options.amount!==input.amount)throw Error('idempotency_payload_conflict');return {status:existing.status==='completed'?200:409,duplicate:true,pending:existing.status!=='completed'};}
+  const authoritative=await p.subscription(row.stripe_subscription_id),price=p.priceId(input.type);
+  const item=assertProviderSubscription(authoritative,row,price,p.basePriceId(row.plan),boundary.mode);
+  // DB extra_* are retained entitlements, not billable quantities. Stripe is authoritative.
+  const current=item?.quantity??0,quantity=nextOptionQuantity(input,current);
   operation=await p.begin(row,auth.userId,key,input);if(!operation)throw Error('option_operation_conflict');
   await p.checkpoint(operation,{type:input.type,action:input.action,amount:input.amount,expected_quantity:quantity,price_id:price});
   attempted=true;await p.mutate(row.stripe_subscription_id,item?quantity===0?[{id:item.id,deleted:true}]:[{id:item.id,quantity}]:[{price,quantity}],`garage-option:${auth.tenantId}:${key}`,{...authoritative.metadata,...p.consentMetadata()},{proration_behavior:'none',payment_behavior:'error_if_incomplete'});

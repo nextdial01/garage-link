@@ -1,18 +1,30 @@
 import 'server-only';
 import {createAdminClient} from '../../src/lib/supabase/admin';
 import {createClient} from '../../src/lib/supabase/server';
-import {admittedAddon} from './addonAdmission';
+import {admittedReadyAddon} from './addonAdmission';
 import {requireAddonScope} from './addonContract';
 import {executeCommercialOptionCandidate} from './optionPurchase';
 import {createCommercialOptionPorts} from './optionRuntimeBinding';
 import {assertServiceTenantStoreContext} from '../../src/lib/security/garageTenantContext';
-export async function wiredOption(request:Request,member:{tenant_id:string;store_id:string;role:string|null},userId:string){
- const release=admittedAddon();if(!release)return null;
+type Member={tenant_id:string;store_id:string;role:string|null};
+async function optionActor(member:Member,userId:string){
  const client=await createClient();const assurance=await client.auth.mfa.getAuthenticatorAssuranceLevel();
  if(assurance.error||assurance.data?.currentLevel!=='aal2'||!['owner','admin'].includes(member.role??''))throw Error('commercial_actor_forbidden');
  const admin=createAdminClient();if(!admin)throw Error('commercial_admin_missing');
- requireAddonScope(release,member.tenant_id,member.store_id);
  const context={storeId:member.store_id,tenantId:member.tenant_id,actorUserId:userId,actorRole:member.role as 'owner'|'admin',source:'api' as const,correlationId:crypto.randomUUID()};
  await assertServiceTenantStoreContext(admin,context);
- return executeCommercialOptionCandidate(release,{userId,tenantId:context.tenantId,storeId:member.store_id,role:member.role??'',aal:assurance.data.currentLevel},request.headers.get('idempotency-key')??'',await request.json(),createCommercialOptionPorts());
+ return {userId,tenantId:context.tenantId,storeId:member.store_id,role:member.role??'',aal:assurance.data.currentLevel};
+}
+export async function wiredOption(request:Request,member:Member,userId:string){
+ const release=await admittedReadyAddon();if(!release)return null;
+ requireAddonScope(release,member.tenant_id,member.store_id);
+ return executeCommercialOptionCandidate(release,await optionActor(member,userId),request.headers.get('idempotency-key')??'',await request.json(),createCommercialOptionPorts());
+}
+export async function wiredOptionStatus(request:Request,member:Member,userId:string){
+ const release=await admittedReadyAddon();if(!release)return null;
+ requireAddonScope(release,member.tenant_id,member.store_id);await optionActor(member,userId);
+ const key=request.headers.get('idempotency-key')??'';
+ if(!/^[a-zA-Z0-9_-]{8,100}$/.test(key))throw Error('idempotency_key_required');
+ const operation=await createCommercialOptionPorts().previous(member.tenant_id,key);
+ return operation?{found:true,status:operation.status}:{found:false};
 }

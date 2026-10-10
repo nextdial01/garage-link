@@ -27,3 +27,13 @@ GitHub reference: https://docs.github.com/en/actions/how-tos/manage-workflow-run
 ## Restore
 
 Close GARAGE_ADDON_ENABLED and GARAGE_ADDON_PUBLIC_SHA and redeploy the same SHA closed. Keep existing webhook and GL billing reconciliation running; wait for in-flight requests to finish, then settle existing operations by authoritative Stripe reads. No purchase replay. SQL rollback refuses any non-completed/non-failed change_option operation, operator_action_required (including uncertain failed), or any active subscription lease, using table locks. Resolve dead-letter/uncertain outcomes before down. Set reviewed-SHA marker; apply addon.down.sql; restore baseline GL deployment dpl_2XqMp9r4TARUNeGHdYumdbJSMkQu (main e8f73c...). Preserve invoices/subscriptions/operation history and paid extra quantities. Rollback is not a refund and does not erase service data. No LL operation is necessary.
+
+## Independent audit remediation 6095770301 (unapplied)
+
+Three bounded fixes only: billable extra quantity now comes from the authoritative Stripe item under the existing mutation lease; DB extra fields remain current-cycle retained entitlements. A same-key operation is rechecked inside the lease before any provider mutation. SQL up/down and canonical body hashes are unchanged.
+
+The billing screen stores a per-store explicit intent with payload/key/state. A new purchase gets a new UUID even when its payload matches a prior completed purchase. Pending/uncertain requests use the separately labelled previous-request retry with the original key/payload. The authenticated AAL2-scoped GET change-options endpoint reads only that tenant's change_option status. Reload recovers pending/completed state; completion permits a deliberate new purchase. New purchases remain disabled during uncertain/pending recovery, and synchronous controller locking prevents duplicate-click identity creation.
+
+Purchase, public presentation, status and MFA all use admittedReadyAddon: enabled production Live/correct-DB/manifest/actual deployment identity **and** exact GARAGE_ADDON_PUBLIC_SHA plus real garage_addon_release_ready=true. Missing/mismatched public SHA or RPC failure closes both API and display. No environment setting is changed by this implementation.
+
+Restoration remains closed admission/public SHA -> retain webhook/reconciliation until drain -> guarded SQL down -> previous production baseline. The prior b573476 candidate was never deployed and contains the three audited defects; it is historical evidence, not a rollout or rollback target. Publication still requires new exact-SHA Owner approval.

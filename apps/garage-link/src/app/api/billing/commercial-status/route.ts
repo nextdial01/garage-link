@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getCommercialPresentation } from '@/lib/billing/commercialPresentation';
-import { admittedAddon } from '../../../../../release-candidates/issue46/addonAdmission';
+import { admittedReadyAddon } from '../../../../../release-candidates/issue46/addonAdmission';
 import { requireAddonScope } from '../../../../../release-candidates/issue46/addonContract';
 
 type MemberRow = { tenant_id: string; store_id: string; role: string | null };
@@ -23,7 +23,7 @@ export async function GET() {
       return NextResponse.json(closed, { status: 403, headers });
     }
     const status = await getCommercialPresentation();
-    const release=admittedAddon();if(!release)return NextResponse.json(closed,{headers});
+    const release=await admittedReadyAddon();if(!release)return NextResponse.json(closed,{headers});
     requireAddonScope(release,member.tenant_id,member.store_id);
     return NextResponse.json({...closed,additionalOptions:status.additionalOptions
     }, { headers });
