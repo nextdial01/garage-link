@@ -179,7 +179,13 @@ export async function middleware(request: NextRequest) {
 
   // Vercel production deployment hosts are aliases only. Preview remains
   // unaffected because it has VERCEL_ENV=preview.
-  if (isProductionVercelRequest(request)) return redirectToCanonicalDomain(request);
+  // Vercel Cron calls the Production .vercel.app URL and does not follow 3xx.
+  // Allow only this exact GET to reach its own CRON_SECRET-protected handler.
+  const isBillingReconciliationCronGet =
+    pathname === '/api/jobs/billing-reconciliation' && request.method === 'GET';
+  if (isProductionVercelRequest(request) && !isBillingReconciliationCronGet) {
+    return redirectToCanonicalDomain(request);
+  }
   if (!isKnownApplicationPath(pathname)) return NextResponse.next({ request });
 
   let response = NextResponse.next({ request });
