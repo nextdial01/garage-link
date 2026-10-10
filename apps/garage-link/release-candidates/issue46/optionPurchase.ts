@@ -1,12 +1,13 @@
+import {optionOperationRecovery,type RecoveryOperation} from './optionOperationRecovery';
 // Addon-only command, wired through authenticated addonWiring.
 import {assertOptionPlan,nextOptionQuantity,optionConfig,parseOptionRequest,type OptionPrice,type OptionSubscription,type OptionType} from '../../src/lib/billing/garageOptionChange';
 import {requireAddonScope,type AddonRelease} from './addonContract';
 type Row={company_id:string;tenant_id:string;plan:string;stripe_subscription_id:string;stripe_customer_id:string|null;extra_staff_count:number;extra_store_count:number;extra_storage_gb:number};
 type Auth={userId:string;tenantId:string;storeId:string;role:string;aal:string};
 type Input=ReturnType<typeof parseOptionRequest>;
-type Operation={id:string;status:string;requested_options:{type:string;action:string;amount:number}};
+type Operation=RecoveryOperation&{id:string;requested_options:{type:string;action:string;amount:number}};
 export type OptionPorts={
- schemaReady():Promise<boolean>;row(tenant:string):Promise<Row|null>;price(type:OptionType):Promise<OptionPrice>;
+ recoveryBlock(tenant:string):Promise<RecoveryOperation|null>;schemaReady():Promise<boolean>;row(tenant:string):Promise<Row|null>;price(type:OptionType):Promise<OptionPrice>;
  priceId(type:OptionType):string;basePriceId(plan:string):string;previous(tenant:string,key:string):Promise<Operation|null>;
  lease<T>(subscription:string,run:()=>Promise<T>):Promise<T>;subscription(id:string):Promise<OptionSubscription>;
  begin(row:Row,actor:string,key:string,input:Input):Promise<string>;checkpoint(id:string,target:Record<string,unknown>):Promise<void>;
@@ -44,13 +45,15 @@ export async function executeOptionCommand(auth:Auth,key:string,payload:unknown,
  if(priceIds.some(id=>!/^price_[A-Za-z0-9_]+$/.test(id))||new Set(priceIds).size!==3)throw Error('commercial_catalog_missing');
  for(const type of Object.keys(optionConfig) as OptionType[])assertProviderPrice(await p.price(type),type,p.priceId(type),boundary.mode);
  const prior=await p.previous(auth.tenantId,key);
- if(prior){if(prior.requested_options.type!==input.type||prior.requested_options.action!==input.action||prior.requested_options.amount!==input.amount)throw Error('idempotency_payload_conflict');return{status:prior.status==='completed'?200:409,duplicate:true,pending:prior.status!=='completed'};}
+ if(prior){if(prior.requested_options.type!==input.type||prior.requested_options.action!==input.action||prior.requested_options.amount!==input.amount)throw Error('idempotency_payload_conflict');return{...optionOperationRecovery(prior),status:optionOperationRecovery(prior).status==='completed'?200:409,recovery:optionOperationRecovery(prior).status,duplicate:true};}
  let operation:string|null=null,attempted=false;
  try{return await p.lease(row.stripe_subscription_id,async()=>{
   const c=optionConfig[input.type],stored=row[c.field];if(!Number.isSafeInteger(stored)||stored<0||stored%c.unit!==0)throw Error('invalid_stored_quantity');
   // Recheck under the lease: a concurrent retry may have completed since the fast path.
   const existing=await p.previous(auth.tenantId,key);
-  if(existing){if(existing.requested_options.type!==input.type||existing.requested_options.action!==input.action||existing.requested_options.amount!==input.amount)throw Error('idempotency_payload_conflict');return {status:existing.status==='completed'?200:409,duplicate:true,pending:existing.status!=='completed'};}
+  if(existing){if(existing.requested_options.type!==input.type||existing.requested_options.action!==input.action||existing.requested_options.amount!==input.amount)throw Error('idempotency_payload_conflict');return {...optionOperationRecovery(existing),status:optionOperationRecovery(existing).status==='completed'?200:409,recovery:optionOperationRecovery(existing).status,duplicate:true};}
+  const blocked=await p.recoveryBlock(auth.tenantId);
+  if(blocked){const recovery=optionOperationRecovery(blocked);return {...recovery,status:409,recovery:recovery.status,duplicate:false};}
   const authoritative=await p.subscription(row.stripe_subscription_id),price=p.priceId(input.type);
   const item=assertProviderSubscription(authoritative,row,price,p.basePriceId(row.plan),boundary.mode);
   // DB extra_* are retained entitlements, not billable quantities. Stripe is authoritative.

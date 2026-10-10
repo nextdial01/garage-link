@@ -1,3 +1,4 @@
+import {optionOperationRecovery} from './optionOperationRecovery';
 import 'server-only';
 import {createAdminClient} from '../../src/lib/supabase/admin';
 import {createClient} from '../../src/lib/supabase/server';
@@ -25,6 +26,8 @@ export async function wiredOptionStatus(request:Request,member:Member,userId:str
  requireAddonScope(release,member.tenant_id,member.store_id);await optionActor(member,userId);
  const key=request.headers.get('idempotency-key')??'';
  if(!/^[a-zA-Z0-9_-]{8,100}$/.test(key))throw Error('idempotency_key_required');
- const operation=await createCommercialOptionPorts().previous(member.tenant_id,key);
- return operation?{found:true,status:operation.status}:{found:false};
+ const ports=createCommercialOptionPorts(),operation=await ports.previous(member.tenant_id,key);
+ if(operation)return {found:true,...optionOperationRecovery(operation)};
+ const blocked=await ports.recoveryBlock(member.tenant_id);
+ return blocked?{found:false,...optionOperationRecovery(blocked)}:{found:false};
 }

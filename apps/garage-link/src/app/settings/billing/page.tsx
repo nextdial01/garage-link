@@ -181,7 +181,7 @@ export default function BillingSettingsPage() {
   },[store?.id]);
 
   async function recoverOptionIntent(){setIsOptionRecovering(true);try{await optionPurchase.current?.recover();}catch{setErrorMessage('前回申込の状態を確認できません。');}finally{setIsOptionRecovering(false);}}
-  async function retryOptionIntent(){setIsSubmitting(true);try{const result=await optionPurchase.current?.retry();setSuccessMessage(result?.pending?'前回申込は受付済みで反映待ちです。':'前回申込の完了を確認しました。新規申込とは別の操作です。');}catch(error){setErrorMessage(error instanceof Error?error.message:'前回申込を確認してください。');}finally{setIsSubmitting(false);}}
+  async function retryOptionIntent(){setIsSubmitting(true);try{const result=await optionPurchase.current?.retry();if(result?.recovery==='operator_required'||result?.recovery==='failed'){setErrorMessage(result.recovery==='failed'?'前回申込はStripe変更前に失敗しました。新しい申込が可能です。':'管理者による申込確認が必要です。新しい申込は停止しています。');return;}setSuccessMessage(result?.pending?'前回申込は受付済みで反映待ちです。':'前回申込の完了を確認しました。新規申込とは別の操作です。');}catch(error){setErrorMessage(error instanceof Error?error.message:'前回申込を確認してください。');}finally{setIsSubmitting(false);}}
 
   useEffect(() => {
     async function loadBilling() {
@@ -343,6 +343,7 @@ export default function BillingSettingsPage() {
             : toNonNegativeInt(form.requested_extra_storage_gb);
         const controller=optionPurchase.current;if(!controller)throw new Error('契約情報を再読み込みしてください。');
         const result=await controller.start({type:form.request_type,action:optionAction,amount,termsAccepted:true});
+        if(result.recovery==='operator_required'||result.recovery==='failed'){setErrorMessage(result.recovery==='failed'?'前回申込はStripe変更前に失敗しました。新しい申込が可能です。':'管理者による申込確認が必要です。新しい申込は停止しています。');return;}
         setSuccessMessage(result.pending?'変更を受け付けました。前回申込の状態を確認してから、新しい申込を行えます。':'契約への反映を確認しました。');
         return;
       }
@@ -715,9 +716,9 @@ export default function BillingSettingsPage() {
 
               {commercialStatus.additionalOptions && <p className="p-4 text-sm"><Link href="/security/mfa" className="underline">認証アプリで本人確認</Link> · 追加スタッフ1,100円／人、追加店舗5,500円／店舗、追加容量550円／10GB（月額・請求総額）。数量変更に伴う日割り請求はありません。</p>}
               {commercialStatus.additionalOptions && optionIntent && <div role="status" className="p-4 text-sm">
-                <p>{optionIntent.state==='completed'?'前回申込は完了しました。同じ数量でも、新しい追加購入は別の申込として受け付けます。':'前回申込の結果が未確定です。新しい申込は行わず、状態確認または同じ申込の再試行をしてください。'}</p>
+                <p>{optionIntent.state==='completed'?'前回申込は完了しました。同じ数量でも、新しい追加購入は別の申込として受け付けます。':optionIntent.state==='failed'?'前回申込はStripe変更前に失敗しました。新しい申込が可能です。':optionIntent.state==='operator_required'?'管理者による申込確認が必要です。新しい申込は停止しています。':'前回申込の結果が未確定です。新しい申込は行わず、状態確認または同じ申込の再試行をしてください。'}</p>
                 <button type="button" disabled={isSubmitting||isOptionRecovering} onClick={()=>void recoverOptionIntent()}>前回申込の状態を確認</button>
-                {optionIntent.state!=='completed' && <button type="button" disabled={isSubmitting||isOptionRecovering} onClick={()=>void retryOptionIntent()}>前回申込を再試行</button>}
+                {['uncertain','pending'].includes(optionIntent.state) && <button type="button" disabled={isSubmitting||isOptionRecovering} onClick={()=>void retryOptionIntent()}>前回申込を再試行</button>}
               </div>}
               <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
                 {commercialStatus.additionalOptions && <label>数量変更<select aria-label="オプション数量の変更方法" className={inputClass} value={optionAction} onChange={e=>setOptionAction(e.target.value==='remove'?'remove':'add')}><option value="add">追加</option><option value="remove">削減</option></select></label>}
@@ -821,7 +822,7 @@ export default function BillingSettingsPage() {
                   </label>
                 )}
                 <div className="flex justify-end md:col-span-2">
-                  <button type="submit" disabled={isSubmitting || (form.request_type.startsWith('add_') && (isOptionRecovering || !!optionIntent && optionIntent.state!=='completed')) || Boolean(validationMessage) || (form.request_type !== 'support' && !termsAccepted)} className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
+                  <button type="submit" disabled={isSubmitting || (form.request_type.startsWith('add_') && (isOptionRecovering || !!optionIntent && !['completed','failed'].includes(optionIntent.state))) || Boolean(validationMessage) || (form.request_type !== 'support' && !termsAccepted)} className="rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">
                     {isSubmitting ? '送信中...' : form.request_type === 'support' ? '個別サポートを相談する' : form.request_type.startsWith('add_') ? '新しい追加購入を申し込む' : '申し込む'}
                   </button>
                 </div>
