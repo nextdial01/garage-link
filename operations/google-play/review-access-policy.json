@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "app_name": "GARAGE LINK",
+  "package_name": "com.kannagi.garagelink",
+  "canonical_review_email": "app-review@kannagi-co.com",
+  "forbidden_identifier_fragments": [
+    "@review.invalid"
+  ],
+  "evidence_max_age_hours": 24,
+  "requirements": {
+    "play_console_readback_required": true,
+    "live_production_login_required": true,
+    "english_instructions_required": true,
+    "reusable_credentials_required": true,
+    "otp_required": false,
+    "final_build_login_required": true
+  },
+  "review_workspace": {
+    "tenant_id": "4f2c6f87-524c-4b50-9b22-48928603c24c",
+    "store_id": "45d624bb-37ca-4183-a5c4-8ed932a69616",
+    "name": "GARAGE LINK 審査・販促用店舗",
+    "user_id": "14cbd9ff-779e-4893-8ca8-5a0ce73e66fb"
+  }
+}
