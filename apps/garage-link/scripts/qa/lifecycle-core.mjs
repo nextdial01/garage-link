@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 export const CONTRACT = Object.freeze({
   product: 'garage-link', environment: 'staging', projectRef: 'gaytoojzwqkpuvfofeql',
   supabaseUrl: 'https://gaytoojzwqkpuvfofeql.supabase.co',
-  canonical: 'https://garage-link-staging.vercel.app',
+  canonical: 'https://staging.garage-link.tech',
   vercelProjectId: 'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3',
   vercelProjectName: 'garage-link-staging', vercelTeamId: 'team_lwplVfhiCsDfbabe2YXf71H5',
   keychainService: 'kannagi.garage-link.staging-service-role',
@@ -41,9 +41,31 @@ export function assertRunId(value) {
 }
 export function assertSafeContract(values) {
   const text=JSON.stringify(values).toLowerCase();
-  for(const denied of CONTRACT.productionDenylist) if(text.includes(denied.toLowerCase())) throw coded('SECURITY_BOUNDARY',`PRODUCTION_DENYLIST_MATCH:${denied}`);
+  for(const denied of CONTRACT.productionDenylist) {
+    if(denied==='garage-link.tech') {
+      // Treat the production hostname as a hostname, not as an arbitrary
+      // substring: the approved staging alias is staging.garage-link.tech.
+      if(/(?<![a-z0-9.-])(?:www\.)?garage-link\.tech(?:[/:?#"'\s]|$)/i.test(text)) {
+        throw coded('SECURITY_BOUNDARY','PRODUCTION_DENYLIST_MATCH:garage-link.tech');
+      }
+      continue;
+    }
+    if(text.includes(denied.toLowerCase())) throw coded('SECURITY_BOUNDARY',`PRODUCTION_DENYLIST_MATCH:${denied}`);
+  }
   if(values.projectRef&&values.projectRef!==CONTRACT.projectRef) throw coded('CREDENTIAL','SUPABASE_PROJECT_MISMATCH');
   if(values.canonical&&values.canonical!==CONTRACT.canonical) throw coded('VERCEL_PROTECTION','CANONICAL_HOST_MISMATCH');
+}
+export function assertCanonicalOrigin(candidateUrl) {
+  let candidate;
+  let expected;
+  try {
+    expected=new URL(CONTRACT.canonical);
+    candidate=new URL(candidateUrl,expected);
+  } catch(error) {
+    throw coded('VERCEL_PROTECTION','CANONICAL_ORIGIN_INVALID',error);
+  }
+  if(candidate.origin!==expected.origin) throw coded('VERCEL_PROTECTION','CANONICAL_REDIRECT_ORIGIN_MISMATCH');
+  return candidate.href;
 }
 export function assertProvenance(values) {
   const required=['sourceSha','branch','vercelTeamId','vercelProjectId','deploymentId','deploymentUrl','supabaseProjectRef','runId'];

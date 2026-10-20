@@ -3,11 +3,19 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { assertProvenance,assertRunId,assertSafeContract,classifyFailure,fixtureIdentity,nextAfter,removeCheckpoint,resolveKeychainAccount,transitionAllowed,validateServiceKey,writeCheckpoint } from '../../scripts/qa/lifecycle-core.mjs';
+import { assertCanonicalOrigin,assertProvenance,assertRunId,assertSafeContract,classifyFailure,fixtureIdentity,nextAfter,removeCheckpoint,resolveKeychainAccount,transitionAllowed,validateServiceKey,writeCheckpoint } from '../../scripts/qa/lifecycle-core.mjs';
 
 const runId='11111111-1111-4111-8111-111111111111';
 test('run id is mandatory and UUIDv4',()=>{assert.equal(assertRunId(runId),runId);assert.throws(()=>assertRunId('missing'))});
-test('production project and domain are denied',()=>{assert.throws(()=>assertSafeContract({projectRef:'wmlpuzuskfiwdipluglz'}));assert.throws(()=>assertSafeContract({canonical:'https://garage-link.tech'}))});
+test('production project and domain are denied while the explicit staging alias remains allowed',()=>{
+  assert.throws(()=>assertSafeContract({projectRef:'wmlpuzuskfiwdipluglz'}));
+  assert.throws(()=>assertSafeContract({canonical:'https://garage-link.tech'}));
+  assert.throws(()=>assertSafeContract({canonical:'https://www.garage-link.tech'}));
+  assert.doesNotThrow(()=>assertSafeContract({canonical:'https://staging.garage-link.tech'}));
+  assert.throws(()=>assertSafeContract({canonical:'https://preview.staging.garage-link.tech'}));
+  assert.doesNotThrow(()=>assertCanonicalOrigin('https://staging.garage-link.tech/api/health'));
+  assert.throws(()=>assertCanonicalOrigin('https://garage-link.tech/api/health'),/CANONICAL_REDIRECT_ORIGIN_MISMATCH/);
+});
 test('provenance is mandatory and staging identities are exact',()=>{
   const value={sourceSha:'a'.repeat(40),branch:'codex/qa',vercelTeamId:'team_lwplVfhiCsDfbabe2YXf71H5',vercelProjectId:'prj_Km3mc8IAxkLNDceHMbXEHQx2WmA3',deploymentId:'dpl_abc123',deploymentUrl:'https://garage-link-staging.vercel.app',supabaseProjectRef:'gaytoojzwqkpuvfofeql',runId};
   assert.equal(assertProvenance(value).branch,'codex/qa');

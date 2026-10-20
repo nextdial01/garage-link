@@ -320,7 +320,8 @@ test('remote release-critical preflight is Staging-only and non-billing',async()
   assert.match(expiredFixtureRecovery,/grant execute on function public\.qa_lifecycle_reclaim_expired_release_fixture\(uuid\) to service_role/);
   assert.match(expiredFixtureRecovery,/perform 1 from public\.tenants where id=f\.tenant_id for update/);
   assert.match(expiredFixtureRecovery,/v_service_execute=15/);
-  assert.match(qaLifecycleContract,/service_execute_count===16/);
+  assert.match(qaLifecycleContract,/service_execute_count===21/);
+  assert.match(qaLifecycleContract,/line_link_integration_lifecycle==='service_role_only'/);
   assert.match(qaLifecycleContract,/expired_release_recovery==='service_role_only'/);
   assert.doesNotMatch(expiredFixtureRecovery,/stripe_customer_id\s*:=|stripe_subscription_id\s*:=|api\.line\.me/);
   assert.match(expiredFixtureRecoveryRollback,/create or replace function public\.qa_lifecycle_cleanup_readiness/);
@@ -768,14 +769,14 @@ test('CTA matrix contract requires the one-time external bootstrap when readines
 test('CTA matrix contract is Management-PAT-independent after the external Staging bootstrap',async()=>{
   const result=await ensureReleaseCriticalCtaMatrix({
     supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',
-    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:16,cta_matrix:'registry_bound',expired_release_recovery:'service_role_only',primary_unmarked_actual_email_adoption:'service_role_only'},error:null})}),
+    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:21,cta_matrix:'registry_bound',expired_release_recovery:'service_role_only',primary_unmarked_actual_email_adoption:'service_role_only',line_link_integration_lifecycle:'service_role_only'},error:null})}),
   });
-  assert.deepEqual(result,{state:'RELEASE_CRITICAL_QA_MATRIX_READY',bootstrap:'EXTERNAL_ADMIN_ONETIME',management_pat_required:false,readiness:{ready:true,cta_matrix:'registry_bound',private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:16,expired_release_recovery:'service_role_only',primary_unmarked_actual_email_adoption:'service_role_only'}});
+  assert.deepEqual(result,{state:'RELEASE_CRITICAL_QA_MATRIX_READY',bootstrap:'EXTERNAL_ADMIN_ONETIME',management_pat_required:false,readiness:{ready:true,cta_matrix:'registry_bound',private_schema:true,last_owner_guard_enabled:true,public_execute_count:0,service_execute_count:21,line_link_integration_lifecycle:'service_role_only',expired_release_recovery:'service_role_only',primary_unmarked_actual_email_adoption:'service_role_only'}});
 });
 
 test('CTA matrix contract rejects incomplete service-role security read-back',async()=>{
   await assert.rejects(()=>ensureReleaseCriticalCtaMatrix({
     supabaseUrl:'https://gaytoojzwqkpuvfofeql.supabase.co',serviceRole:'staging-only-service-role',
-    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:1,service_execute_count:16,cta_matrix:'registry_bound',expired_release_recovery:'service_role_only',primary_unmarked_actual_email_adoption:'service_role_only'},error:null})}),
+    createClientImpl:()=>({rpc:async()=>({data:{ready:true,private_schema:true,last_owner_guard_enabled:true,public_execute_count:1,service_execute_count:21,cta_matrix:'registry_bound',expired_release_recovery:'service_role_only',primary_unmarked_actual_email_adoption:'service_role_only',line_link_integration_lifecycle:'service_role_only'},error:null})}),
   }),/CTA_MATRIX_BOOTSTRAP_REQUIRED:READBACK/);
 });

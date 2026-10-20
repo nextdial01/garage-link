@@ -15,7 +15,8 @@ function matrixReady(value){
     &&value?.private_schema===true
     &&value?.last_owner_guard_enabled===true
     &&value?.public_execute_count===0
-    &&value?.service_execute_count===16
+    &&value?.service_execute_count===21
+    &&value?.line_link_integration_lifecycle==='service_role_only'
     &&value?.expired_release_recovery==='service_role_only'
     &&value?.primary_unmarked_actual_email_adoption==='service_role_only';
 }
@@ -28,6 +29,7 @@ function safeReadback(value){
     last_owner_guard_enabled:value?.last_owner_guard_enabled===true,
     public_execute_count:Number.isInteger(value?.public_execute_count)?value.public_execute_count:null,
     service_execute_count:Number.isInteger(value?.service_execute_count)?value.service_execute_count:null,
+    line_link_integration_lifecycle:value?.line_link_integration_lifecycle==='service_role_only'?'service_role_only':'unavailable',
     expired_release_recovery:value?.expired_release_recovery==='service_role_only'?'service_role_only':'unavailable',
     primary_unmarked_actual_email_adoption:value?.primary_unmarked_actual_email_adoption==='service_role_only'?'service_role_only':'unavailable',
   };

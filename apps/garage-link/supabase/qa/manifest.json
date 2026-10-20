@@ -153,9 +153,24 @@
         "20260815100934"
       ],
       "checksum": "22d4d76a061244473699e95d3dcfccb3cdce3b27088a8a3e11e52fcefdeba1fe"
+    },
+    {
+      "version": "20261020150000",
+      "name": "line_link_integration_lifecycle",
+      "kind": "integration-lifecycle",
+      "file": "migrations/20261020150000_line_link_integration_lifecycle.sql",
+      "dependsOn": [
+        "20260815105700"
+      ],
+      "checksum": "298aa912a2ac91be6ecbd2dfd9b60371ae00810f06ef8ea938e77322d40bcb1a"
     }
   ],
   "rollbacks": [
+    {
+      "version": "20261020150000",
+      "file": "rollback/20261020150000_line_link_integration_lifecycle.down.sql",
+      "checksum": "cb5698e8e873dffff92589c603b32e60eeea9fdb78c5230393f2ad7249245252"
+    },
     {
       "version": "20260815105700",
       "file": "rollback/20260815105700_qa_primary_unmarked_callback_regex_repair.down.sql",

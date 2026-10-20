@@ -5,7 +5,7 @@ Staging QAは `scripts/qa/lifecycle.mjs` だけを正規経路とする。手書
 ## 固定境界
 
 - Supabase: `gaytoojzwqkpuvfofeql`
-- Canonical URL: `https://garage-link-staging.vercel.app`
+- Canonical URL: `https://staging.garage-link.tech` (the Vercel alias `garage-link-staging.vercel.app` must not be used; it can redirect outside staging)
 - Vercel project: `garage-link-staging`
 - Production ref/domain、Stripe Live、実LINE、実顧客はdenylistで拒否する
 - service-roleはmacOS Keychain `kannagi.garage-link.staging-service-role`からだけ取得し、出力・checkpoint保存しない
@@ -16,6 +16,7 @@ QA開始前にrun IDと目的を発行し、次をすべて満たす。
 
 - `preflight`が`PREFLIGHT_READY`
 - cleanup readiness PASS
+- Chromium/WebKit probes stay on the exact staging origin; any cross-origin navigation is blocked and fails preflight
 - fixtureを作る前にregistry登録
 - canonical host、Vercel protection/bypass、Chromium/WebKit、Auth Admin API、plan capacity PASS
 
@@ -74,5 +75,11 @@ The four pre-separation QA migrations may already be recorded in staging. Before
 ## Rollback and completion
 
 Apply QA rollbacks in reverse manifest order. The canary rollback restores the seven-function cleanup-readiness definition, including owner, `SECURITY DEFINER`, `search_path`, grants and comments; it must be checked by `to_regprocedure` before and after rollback.
+
+## L-LINK integration acceptance
+
+Use purpose `garage-link-l-link-integration-acceptance` only for the paired GARAGE LINK ↔ L-LINK staging test. The normal canary remains disabled for L-LINK. `provision` creates a run-bound Garage connection, two marker-only reminder events, and temporarily enables the exact canary subscription. Pass the non-secret L-LINK outbound key ID as `--line-link-key-id`; it must match the runtime setting. The paired L-LINK QA lifecycle records that same ID with the reserved Owner QA workspace, imports and broadcast rows, and its disconnected fake LINE account/friend.
+
+After the browser test and ACK, a same-event retry is performed only with `qa_l_link_integration_reset_event(run_id, event_id)`, which accepts an event ID from that registered run after an ACK. `teardown-dry-run` verifies that all rows belong to the run, then removes the run-bound Garage integration rows before the existing generic canary teardown. `verify-clean` requires both sides to report zero residual integration rows. Apply the Garage and L-LINK staging-only QA migrations only through their checked QA manifests after their required Owner Gates; never copy fixture SQL into the production migration lane.
 
 Completion is ordered `DB_CLEANED → AUTH_CLEANED → STORAGE_CLEANED → ARTIFACTS_CLEANED → VERIFIED_CLEAN → COMPLETE`. Each external check must record the current run ID, target identity, timestamp and result. A missing Storage, public-text, local-artifact, provenance or zero-residual proof blocks `COMPLETE`; evidence from another run cannot be reused.
