@@ -152,3 +152,14 @@ export async function removeCheckpoint(root,runId){await rm(checkpointPath(root,
 export function parseArgs(argv){
   const[command,...rest]=argv,args={command}; for(let i=0;i<rest.length;i+=1){if(!rest[i].startsWith('--'))throw coded('EXECUTION_LIFECYCLE',`UNEXPECTED_ARGUMENT:${rest[i]}`);const key=rest[i].slice(2).replaceAll('-','_'),value=rest[i+1];if(!value||value.startsWith('--'))args[key]=true;else{args[key]=value;i+=1}} return args;
 }
+
+// Attach rejection handling when arming: a later await must not leave a timeout unhandled.
+export function armResponseWait(page, pathname, failureCode) {
+  const settled = page.waitForResponse(response => new URL(response.url()).pathname === pathname)
+    .then(response => ({ response }), () => ({ failed: true }));
+  return async () => {
+    const result = await settled;
+    if (result.failed) throw coded('AUTHENTICATION', failureCode);
+    return result.response;
+  };
+}
