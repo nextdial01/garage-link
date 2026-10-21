@@ -65,8 +65,8 @@ test.describe('車検案内: 設定APIのフォールバック安全性', () => 
     );
     expect(source).toContain('設定の取得に失敗しました。データベース設定を確認してください。');
     expect(source).toContain('loadFailed');
-    expect(source).toContain('disabled={isSaving || loadFailed}');
-    expect(source).toContain('disabled={isRunning || loadFailed}');
+    expect(source).toContain('disabled={isSaving || isRunning || loadFailed || !expectedStoreId}');
+    expect(source).toContain('disabled={isRunning || isSaving || loadFailed || hasUnsavedChanges || !expectedStoreId}');
   });
 });
 

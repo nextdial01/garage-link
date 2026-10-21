@@ -2,7 +2,7 @@
 
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { REMINDER_STATUS_LABELS, REMINDER_STATUSES, type ReminderStatus } from '@/lib/inspection-reminders/shared';
 import { CANDIDATE_EVENT_TYPES, CANDIDATE_EVENT_TYPE_LABELS, type CandidateEventType } from '@/lib/line-link/deliveryCandidates';
@@ -43,8 +43,10 @@ export default function DeliveryCandidatesPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const requestVersion = useRef(0);
 
   const load = useCallback(async () => {
+    const version = ++requestVersion.current;
     setIsLoading(true);
     setErrorMessage('');
     try {
@@ -54,21 +56,26 @@ export default function DeliveryCandidatesPage() {
       params.set('page', String(page));
       const res = await fetch(`/api/customer-follow-up/inspection-reminders/events?${params.toString()}`, { cache: 'no-store' });
       const data = (await res.json()) as { ok: boolean; rows?: Row[]; total?: number; error?: string };
+      if (version !== requestVersion.current) return;
       if (!res.ok || !data.ok) throw new Error(data.error ?? '配信候補の取得に失敗しました。');
       setRows(data.rows ?? []);
       setTotal(data.total ?? 0);
     } catch (error) {
+      if (version !== requestVersion.current) return;
       setErrorMessage(toUserErrorMessage(error, '配信候補の取得に失敗しました。'));
       setRows([]);
       setTotal(0);
     } finally {
-      setIsLoading(false);
+      if (version === requestVersion.current) setIsLoading(false);
     }
   }, [typeFilter, statusFilter, page]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      requestVersion.current += 1;
+    };
   }, [load]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total]);

@@ -13,7 +13,6 @@ import {
   formatGarageYen,
   getGaragePlan,
   normalizeGaragePlanCode,
-  canUseLLinkIntegration,
 } from '@/lib/billing/garagePlans';
 import { getActiveCompanySubscription, type CompanySubscriptionRow } from '@/lib/billing/garageSubscription';
 import { getRoleLabel } from '@/lib/auth/permissions';
@@ -80,7 +79,9 @@ export default function LLinkIntegrationPage() {
 
   const currentPlanCode = normalizeGaragePlanCode(subscription?.plan);
   const currentPlan = getGaragePlan(currentPlanCode);
-  const canUseLLink = canUseLLinkIntegration(subscription);
+  // The catalog describes general availability. An explicitly enabled active
+  // contract is the same entitlement used by the scoped S2S endpoint.
+  const canUseLLink = subscription?.status === 'active' && subscription.l_link_integration_enabled === true;
   const planRows = useMemo(
     () => GARAGE_PLAN_ORDER.map((code) => {
       const plan = GARAGE_PLANS[code];
@@ -138,7 +139,7 @@ export default function LLinkIntegrationPage() {
               </div>
               <div className="rounded-2xl bg-slate-50 p-5">
                 <p className="text-sm font-bold text-slate-500">Standard / Pro</p>
-                <p className="mt-2 text-lg font-black text-slate-950">提供準備中</p>
+                <p className="mt-2 text-lg font-black text-slate-950">{canUseLLink ? 'この契約は連携利用可能' : '提供準備中'}</p>
               </div>
             </div>
 
@@ -168,6 +169,9 @@ export default function LLinkIntegrationPage() {
               </div>
 
               <div className="mt-4 flex flex-wrap gap-3">
+                <Link href="/customer-follow-up/delivery-candidates" className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50">
+                  GARAGE LINKの配信候補を確認
+                </Link>
                 <a
                   href={lLinkAppUrl}
                   className={`rounded-xl px-5 py-3 text-sm font-black text-white shadow-sm transition ${canUseLLink ? 'bg-green-600 hover:bg-green-700' : 'pointer-events-none bg-slate-300'}`}

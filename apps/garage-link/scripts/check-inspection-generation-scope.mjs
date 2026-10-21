@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';import ts from 'typescript';
+const root=new URL('../',import.meta.url),store='11111111-1111-4111-8111-111111111111',tenant='22222222-2222-4222-8222-222222222222';
+const compile=p=>ts.transpileModule(readFileSync(new URL(p,root),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const contextExports={};vm.runInNewContext(compile('src/lib/security/garageTenantContext.ts'),{exports:contextExports,require:()=>({})});
+async function run({header=store,role='owner',errors=[],scopeTenant=tenant,scopeStore=store,scopeStatus='active',scopeRows,scopeError=null,method='POST',authorized=true,disabled=false,badStore=null,stores=[{store_id:store,tenant_id:tenant}]}={}){
+ const calls=[],exports={};const service={from(){calls.push('forbidden-stores-select');return{select(){return this},eq(){return this},maybeSingle:async()=>({data:null,error:{code:'42501'}})}},rpc:async(name,args)=>{calls.push(name);if(name==='service_list_eligible_garage_stores')return{data:stores,error:null};if(args?.p_store_id===badStore)return{data:[],error:null};if(name==='service_resolve_garage_store_scope' && method==='GET')return{data:[{store_id:args.p_store_id,tenant_id:tenant,store_status:'active'}],error:null};if(name==='service_resolve_garage_store_scope')return{data:scopeRows===undefined?[{store_id:scopeStore,tenant_id:scopeTenant,store_status:scopeStatus}]:scopeRows,error:scopeError};return{data:errors.includes(name)?null:1,error:errors.includes(name)?{message:'synthetic failure'}:null}}};
+ const userClient={auth:{getUser:async()=>({data:{user:{id:'33333333-3333-4333-8333-333333333333'}},error:null})},from(){return{select(){return this},eq(){return this},single:async()=>({data:{tenant_id:tenant,store_id:store,role},error:null})}}};
+ vm.runInNewContext(compile('src/app/api/jobs/inspection-reminders/route.ts'),{exports,crypto:{randomUUID:()=> 'synthetic-correlation'},process:{env:{NEXT_PUBLIC_SUPABASE_URL:'https://example.test',SUPABASE_SERVICE_ROLE_KEY:'synthetic-test-only',CRON_SECRET:'synthetic-cron'}},require:id=>{if(id==='@supabase/supabase-js')return{createClient:()=>service};if(id==='next/server')return{NextResponse:{json:(body,{status=200}={})=>({body,status})}};if(id==='@/lib/supabase/server')return{createClient:async()=>userClient};if(id==='@/lib/security/garageTenantContext')return contextExports;if(id==='@/lib/security/runtimeSafety')return{isAutomationDisabled:()=>disabled};if(id==='@/lib/observability/logServerError')return{logServerError:()=>{}};throw Error(id)}});
+ const headers=method==='GET'?(authorized?{authorization:'Bearer synthetic-cron'}:{}):(header?{'X-Garage-Store-Id':header}:{});return{result:await exports[method](new Request('https://example.test/job',{method,headers})),calls};
+}
+let r=await run();assert.equal(r.result.status,200,'authorized manual generation must use existing scope RPC, not forbidden service stores SELECT');assert.ok(!r.calls.includes('forbidden-stores-select'));assert.equal(r.result.body.created,2);
+r=await run({header:'other'});assert.equal(r.result.status,409);assert.equal(r.calls.length,0);
+r=await run({role:'staff'});assert.equal(r.result.status,403);assert.equal(r.calls.length,0);
+r=await run({header:null});assert.equal(r.result.status,200);
+r=await run({scopeTenant:'other'});assert.equal(r.result.status,500);assert.ok(!r.calls.includes('generate_inspection_reminder_events'));
+for(const options of [{scopeStore:'other'},{scopeStatus:'inactive'},{scopeRows:[]},{scopeRows:[{},{}]},{scopeRows:null},{scopeError:{code:'42501'}}]){r=await run(options);assert.equal(r.result.status,500);assert.ok(!r.calls.includes('generate_inspection_reminder_events'))}
+r=await run({errors:['generate_inspection_reminder_events']});assert.equal(r.result.status,200);assert.equal(r.result.body.created,1);assert.equal(r.result.body.partial_errors,true);
+r=await run({errors:['generate_inspection_reminder_events','generate_followup_candidate_events']});assert.equal(r.result.status,500);
+console.log('PASS actual manual generation scope RPC, changed-store/staff denial, legacy header compatibility, partial failure and total failure');
+
+r=await run({method:'GET'});assert.equal(r.result.status,200);assert.equal(r.result.body.created,2);
+for(const options of [{authorized:false},{disabled:true}]){r=await run({method:'GET',...options});assert.equal(r.result.status,options.disabled?503:401);assert.equal(r.calls.length,0)}
+const second='44444444-4444-4444-8444-444444444444';r=await run({method:'GET',stores:[{store_id:store,tenant_id:tenant},{store_id:second,tenant_id:tenant}],badStore:second});assert.equal(r.result.status,200,'later bad store must preserve earlier generation');assert.equal(r.result.body.created,2);assert.equal(r.result.body.partial_errors,true);
+r=await run({method:'GET',badStore:store});assert.equal(r.result.status,500);
+r=await run({method:'GET',stores:[]});assert.equal(r.result.status,200);assert.equal(r.result.body.created,0);
+console.log('PASS cron auth, automation stop, scope rejection, partial stores and empty scope');

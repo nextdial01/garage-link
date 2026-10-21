@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { logServerError } from '@/lib/observability/logServerError';
 import {
-  resolveStoreTenantContext,
+  type resolveStoreTenantContext,
   type GarageTenantContext,
   type GarageTenantRole,
 } from '@/lib/security/garageTenantContext';
@@ -40,6 +40,26 @@ function isCronRequest(request: Request) {
   const header = request.headers.get('authorization') ?? '';
   // Vercel Cron は Authorization: Bearer <CRON_SECRET> を付与できる。
   return header === `Bearer ${secret}`;
+}
+
+// This project's service role intentionally cannot SELECT stores. Resolve only
+// the requested store through the existing scoped service RPC; never widen ACLs.
+async function resolveGenerationStoreContext(
+  service: NonNullable<ReturnType<typeof serviceSupabase>>,
+  input: Parameters<typeof resolveStoreTenantContext>[1],
+): Promise<GarageTenantContext> {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuid.test(input.storeId) || !uuid.test(input.expectedTenantId) || !input.correlationId.trim()
+    || (input.source === 'api' && (!input.actorUserId || !input.actorRole))) throw new Error('INVALID_CONTEXT');
+  const { data, error } = await service.rpc('service_resolve_garage_store_scope', { p_store_id: input.storeId });
+  if (error || !Array.isArray(data) || data.length !== 1) throw new Error('STORE_SCOPE_UNAVAILABLE');
+  const scope = data[0] as { store_id?: string; tenant_id?: string; store_status?: string } | null;
+  if (!scope || scope.store_id !== input.storeId || scope.tenant_id !== input.expectedTenantId || scope.store_status !== 'active') throw new Error('STORE_SCOPE_MISMATCH');
+  return Object.freeze({
+    tenantId: input.expectedTenantId, storeId: input.storeId,
+    actorUserId: input.actorUserId, actorRole: input.actorRole,
+    source: input.source, correlationId: input.correlationId,
+  });
 }
 
 // 両方の生成RPCを実行し、件数の内訳を返す。片方が失敗しても他方の結果は失わない
@@ -94,26 +114,31 @@ export async function GET(request: Request) {
 
     const breakdown: JobBreakdown = { inspection_reminder: 0, followup_candidates: 0 };
     const errors: string[] = [];
+    let successfulStores = 0;
     for (const row of ((storeRows ?? []) as Array<{ store_id: string; tenant_id: string }>).map((item) => ({
       id: (item as { store_id: string }).store_id,
       tenant_id: (item as { tenant_id: string }).tenant_id,
     })) as StoreScopeRow[]) {
-      if (!row.tenant_id) continue;
-      const context: GarageTenantContext = await resolveStoreTenantContext(service, {
-        expectedTenantId: row.tenant_id,
-        storeId: row.id,
-        source: 'cron',
-        correlationId: `${crypto.randomUUID()}:${row.id}`,
-      });
-      const result = await runGenerationJobs(service, context);
-      breakdown.inspection_reminder += result.breakdown.inspection_reminder;
-      breakdown.followup_candidates += result.breakdown.followup_candidates;
-      errors.push(...result.errors.map(() => `store:${row.id}:generation_failed`));
+      try {
+        const context: GarageTenantContext = await resolveGenerationStoreContext(service, {
+          expectedTenantId: row.tenant_id,
+          storeId: row.id,
+          source: 'cron',
+          correlationId: `${crypto.randomUUID()}:${row.id}`,
+        });
+        const result = await runGenerationJobs(service, context);
+        breakdown.inspection_reminder += result.breakdown.inspection_reminder;
+        breakdown.followup_candidates += result.breakdown.followup_candidates;
+        errors.push(...result.errors.map(() => `store:${row.id}:generation_failed`));
+        if (result.errors.length < 2) successfulStores += 1;
+      } catch {
+        errors.push(`store:${row.id}:scope_or_generation_failed`);
+      }
     }
     if (errors.length > 0) {
       // 一部のRPCが未適用（例: 040未適用でfunction不在）でも、成功した分の生成結果は握り潰さない。
       logServerError('inspection_job_partial_failure', { route: '/api/jobs/inspection-reminders', method: 'GET', details: { scope: 'all_stores', errors } }, new Error(errors.join(' / ')));
-      if (breakdown.inspection_reminder === 0 && breakdown.followup_candidates === 0 && errors.length === 2) {
+      if (successfulStores === 0) {
         return NextResponse.json({ ok: false, error: 'ジョブ実行に失敗しました。', code: 'inspection_job_failed' }, { status: 500 });
       }
     }
@@ -148,12 +173,16 @@ export async function POST(request: Request) {
   if (memberError || !member?.store_id) {
     return NextResponse.json({ ok: false, error: '所属店舗を取得できませんでした。', code: 'forbidden_no_membership' }, { status: 403 });
   }
+  const expectedStoreId = request.headers.get('x-garage-store-id');
+  if (expectedStoreId && expectedStoreId !== member.store_id) {
+    return NextResponse.json({ ok: false, error: '操作する店舗が変更されています。画面を開き直してください。', code: 'store_context_changed' }, { status: 409 });
+  }
   if (member.role !== 'owner' && member.role !== 'admin') {
     return NextResponse.json({ ok: false, error: '権限がありません。', code: 'forbidden_role' }, { status: 403 });
   }
 
   try {
-    const context: GarageTenantContext = await resolveStoreTenantContext(service, {
+    const context: GarageTenantContext = await resolveGenerationStoreContext(service, {
       expectedTenantId: member.tenant_id,
       storeId: member.store_id,
       actorUserId: userData.user.id,

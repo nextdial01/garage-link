@@ -17,6 +17,8 @@ type StoreMemberRow = {
 };
 
 const settingCards = [
+  { title: 'L-LINK連携', href: '/settings/l-link', description: '現在の契約の連携可否を確認し、L-LINKで配信下書き・送信を管理します。' },
+  { title: 'L-LINK配信候補一覧', href: '/customer-follow-up/delivery-candidates', description: 'GARAGE LINKが作成した配信候補と、L-LINKへの取込状態を確認します。' },
   { title: 'マスター管理・金額表示方式', href: '/settings/masters', description: '車両メーカー、部品カテゴリー、作業分類と税込・税抜表示を管理します。' },
   {
     title: '会社情報・帳票設定',
@@ -111,9 +113,10 @@ export default function SettingsPage() {
       }
 
         const { data: member } = await supabase
-          .from<StoreMemberRow>('memberships')
+          .from<StoreMemberRow>('current_user_active_store_membership')
           .select('role')
           .eq('user_id', userData.user.id)
+          .eq('status', 'active')
           .single();
 
         setRole(member?.role ?? '');

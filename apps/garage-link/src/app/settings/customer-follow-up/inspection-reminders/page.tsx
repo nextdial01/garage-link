@@ -212,6 +212,8 @@ function ToggleRow({
 
 export default function InspectionReminderSettingsPage() {
   const [role, setRole] = useState('');
+  const [expectedStoreId, setExpectedStoreId] = useState('');
+  const [savedSettingsKey, setSavedSettingsKey] = useState('');
   const [settings, setSettings] = useState<ReminderSettings>(emptySettings);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -224,6 +226,7 @@ export default function InspectionReminderSettingsPage() {
   const [eligibilityError, setEligibilityError] = useState('');
 
   const canManage = role === 'owner' || role === 'admin';
+  const hasUnsavedChanges = !savedSettingsKey || JSON.stringify(settings) !== savedSettingsKey;
 
   async function loadEligibility() {
     setEligibilityLoading(true);
@@ -251,14 +254,16 @@ export default function InspectionReminderSettingsPage() {
         const { data: userData } = await supabase.auth.getUser();
         let memberRole: string | null = null;
         if (userData.user?.id) {
-          const { data: member } = await supabase.from<{ role: string | null }>('memberships').select('role').eq('user_id', userData.user.id).single();
+          const { data: member } = await supabase.from<{ role: string | null }>('current_user_active_store_membership').select('role').eq('user_id', userData.user.id).eq('status', 'active').single();
           memberRole = member?.role ?? null;
           setRole(memberRole ?? '');
         }
         const response = await fetch('/api/customer-follow-up/inspection-reminders/settings', { cache: 'no-store' });
-        const data = (await response.json()) as { ok: boolean; settings?: ReminderSettings; error?: string };
+        const data = (await response.json()) as { ok: boolean; settings?: ReminderSettings; store_id?: string; error?: string };
         if (response.ok && data.ok && data.settings) {
           setSettings(data.settings);
+          setSavedSettingsKey(JSON.stringify(data.settings));
+          setExpectedStoreId(data.store_id ?? '');
           setLoadFailed(false);
         } else if (response.status !== 403) {
           // テーブル不在・RLS・接続エラー等の異常。設定済みに見せず、明示エラー＋操作不可にする。
@@ -311,16 +316,17 @@ export default function InspectionReminderSettingsPage() {
       setErrorMessage('車検案内を有効にする場合、少なくとも1つの案内タイミングを有効にしてください。');
       return;
     }
+    if (!expectedStoreId) { setErrorMessage('操作する店舗を確認できません。画面を開き直してください。'); return; }
     setIsSaving(true);
     try {
       const response = await fetch('/api/customer-follow-up/inspection-reminders/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...settings, timings: validation.timings }),
+        body: JSON.stringify({ ...settings, timings: validation.timings, expected_store_id: expectedStoreId }),
       });
       const data = (await response.json()) as { ok: boolean; settings?: ReminderSettings; error?: string };
       if (!response.ok || !data.ok) throw new Error(data.error ?? '保存に失敗しました。');
-      if (data.settings) setSettings(data.settings);
+      if (data.settings) { setSettings(data.settings); setSavedSettingsKey(JSON.stringify(data.settings)); }
       setSuccessMessage('車検案内設定を保存しました。');
     } catch (error) {
       setErrorMessage(toUserErrorMessage(error, '保存に失敗しました。'));
@@ -330,11 +336,12 @@ export default function InspectionReminderSettingsPage() {
   }
 
   async function handleRunNow() {
+    if (hasUnsavedChanges || isSaving || !expectedStoreId) { setErrorMessage('変更した設定を保存してから判定してください。'); return; }
     setErrorMessage('');
     setSuccessMessage('');
     setIsRunning(true);
     try {
-      const response = await fetch('/api/jobs/inspection-reminders', { method: 'POST' });
+      const response = await fetch('/api/jobs/inspection-reminders', { method: 'POST', headers: { 'X-Garage-Store-Id': expectedStoreId } });
       const data = (await response.json()) as {
         ok: boolean;
         created?: number;
@@ -376,6 +383,7 @@ export default function InspectionReminderSettingsPage() {
           {errorMessage && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>}
           {successMessage && <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{successMessage}</p>}
 
+          {hasUnsavedChanges && <p className="text-sm font-bold text-amber-700">設定に未保存の変更があります。保存してから案内対象を判定してください。</p>}
           <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 px-5 py-4">
               <h3 className="text-base font-bold text-slate-950">基本設定</h3>
@@ -447,10 +455,10 @@ export default function InspectionReminderSettingsPage() {
           />
 
           <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <button type="button" onClick={handleRunNow} disabled={isRunning || loadFailed} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60">
+            <button type="button" onClick={handleRunNow} disabled={isRunning || isSaving || loadFailed || hasUnsavedChanges || !expectedStoreId} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60">
               {isRunning ? '判定中...' : '今すぐ案内対象・フォロー候補を判定'}
             </button>
-            <button type="button" onClick={handleSave} disabled={isSaving || loadFailed} className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:bg-slate-300">
+            <button type="button" onClick={handleSave} disabled={isSaving || isRunning || loadFailed || !expectedStoreId} className="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:bg-slate-300">
               {isSaving ? '保存中...' : '保存する'}
             </button>
           </div>

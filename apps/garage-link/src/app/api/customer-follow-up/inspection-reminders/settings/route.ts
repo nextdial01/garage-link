@@ -71,9 +71,9 @@ export async function GET() {
       exclude_scrapped: settingsRow?.exclude_scrapped ?? true,
       exclude_reserved_or_in_service: settingsRow?.exclude_reserved_or_in_service ?? true,
       require_customer_link: settingsRow?.require_customer_link ?? true,
-      timings: (timingRows as ReminderTiming[] | null)?.length ? (timingRows as ReminderTiming[]) : DEFAULT_TIMINGS,
+      timings: settingsRow || (timingRows as ReminderTiming[] | null)?.length ? (timingRows as ReminderTiming[] | null) ?? [] : DEFAULT_TIMINGS,
     };
-    return NextResponse.json({ ok: true, settings });
+    return NextResponse.json({ ok: true, settings, store_id: ctx.storeId });
   } catch (error) {
     logServerError('inspection_settings_read_failed', { route: 'inspection-reminders/settings', method: 'GET', storeId: ctx.storeId }, error);
     return NextResponse.json({ ok: false, error: '設定の取得に失敗しました。', code: 'inspection_settings_read_failed' }, { status: 500 });
@@ -84,11 +84,22 @@ export async function PUT(request: Request) {
   const ctx = await getContext();
   if (!ctx.ok) return ctx.response;
 
-  let body: ReminderSettings;
+  let body: ReminderSettings & { expected_store_id?: string };
   try {
-    body = (await request.json()) as ReminderSettings;
+    body = (await request.json()) as ReminderSettings & { expected_store_id?: string };
   } catch {
     return NextResponse.json({ ok: false, error: 'リクエスト形式が正しくありません。', code: 'invalid_request' }, { status: 400 });
+  }
+
+  if (!body || typeof body !== 'object' || Array.isArray(body)
+    || !Array.isArray(body.timings)
+    || body.timings.some((timing) => !timing || typeof timing !== 'object' || Array.isArray(timing) || typeof timing.enabled !== 'boolean')
+    || [body.enabled, body.exclude_sold, body.exclude_scrapped, body.exclude_reserved_or_in_service, body.require_customer_link].some((value) => typeof value !== 'boolean')) {
+    return NextResponse.json({ ok: false, error: '設定の形式が正しくありません。', code: 'invalid_request' }, { status: 400 });
+  }
+
+  if (body.expected_store_id !== ctx.storeId) {
+    return NextResponse.json({ ok: false, error: '操作する店舗が変更されています。画面を開き直してください。', code: 'store_context_changed' }, { status: 409 });
   }
 
   const timings = Array.isArray(body.timings) ? body.timings : [];
@@ -96,40 +107,22 @@ export async function PUT(request: Request) {
   if (!validation.ok) {
     return NextResponse.json({ ok: false, error: validation.error, code: 'invalid_timings' }, { status: 400 });
   }
+  if (body.enabled && !validation.timings.some((timing) => timing.enabled)) {
+    return NextResponse.json({ ok: false, error: '有効な案内タイミングを1つ以上設定してください。', code: 'invalid_timings' }, { status: 400 });
+  }
 
   try {
-    const { error: upsertError } = await ctx.supabase
-      .from('inspection_reminder_settings')
-      .upsert(
-        {
-          store_id: ctx.storeId,
-          enabled: Boolean(body.enabled),
-          exclude_sold: Boolean(body.exclude_sold),
-          exclude_scrapped: Boolean(body.exclude_scrapped),
-          exclude_reserved_or_in_service: Boolean(body.exclude_reserved_or_in_service),
-          require_customer_link: Boolean(body.require_customer_link),
-          updated_by: ctx.userId,
-        },
-        { onConflict: 'store_id' }
-      );
-    if (upsertError) throw new Error('settings upsert failed');
-
-    // タイミングは全置換で同期（重複・削除・追加・編集をまとめて反映）。
-    const { error: deleteError } = await ctx.supabase
-      .from('inspection_reminder_timings')
-      .delete()
-      .eq('store_id', ctx.storeId);
-    if (deleteError) throw new Error('timings delete failed');
-
-    if (validation.timings.length > 0) {
-      const rows = validation.timings.map((timing) => ({
-        store_id: ctx.storeId,
-        offset_days: timing.offset_days,
-        enabled: Boolean(timing.enabled),
-      }));
-      const { error: insertError } = await ctx.supabase.from('inspection_reminder_timings').insert(rows);
-      if (insertError) throw new Error('timings insert failed');
+    const { error } = await ctx.supabase.rpc('save_inspection_reminder_settings', {
+      p_store_id: ctx.storeId,
+      p_settings: { ...body, timings: validation.timings },
+    });
+    if (error?.code === '22023') {
+      return NextResponse.json({ ok: false, error: '案内設定の形式が正しくありません。', code: 'invalid_timings' }, { status: 400 });
     }
+    if (error?.code === '42501') {
+      return NextResponse.json({ ok: false, error: '権限がありません。', code: 'forbidden_role' }, { status: 403 });
+    }
+    if (error) throw new Error('atomic settings save failed');
 
     return NextResponse.json({ ok: true, settings: { ...body, timings: validation.timings } });
   } catch (error) {
