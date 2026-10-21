@@ -2,10 +2,10 @@
 begin;
 do $guard$
 begin
- if (select md5(prosrc) from pg_proc where oid=to_regprocedure('public.generate_followup_candidate_events_g1b_impl(uuid,date)')) is distinct from 'd3640db1178e89019bffa85a3f98799d' then raise exception 'garage_generator_definition_changed:generate_followup_candidate_events_g1b_impl'; end if;
- if (select md5(prosrc) from pg_proc where oid=to_regprocedure('public.generate_inspection_reminder_events_g1b_impl(uuid,date)')) is distinct from '4a05ce61390a7823fda2c4581ebe74a6' then raise exception 'garage_generator_definition_changed:generate_inspection_reminder_events_g1b_impl'; end if;
- if (select md5(prosrc) from pg_proc where oid=to_regprocedure('public.generate_followup_candidate_events(uuid,date)')) is distinct from '830bdc246e37c17329918e3155aabddc' then raise exception 'garage_generator_definition_changed:generate_followup_candidate_events'; end if;
- if (select md5(prosrc) from pg_proc where oid=to_regprocedure('public.generate_inspection_reminder_events(uuid,date)')) is distinct from '141bb956f7402573a99ffc39e7ec419d' then raise exception 'garage_generator_definition_changed:generate_inspection_reminder_events'; end if;
+ if (select md5(prosrc) from pg_proc where oid=to_regprocedure('public.generate_followup_candidate_events_g1b_impl(uuid,date)')) is distinct from 'e4bf5bc02354595b77a5b7913b9d8aff' then raise exception 'garage_generator_definition_changed:generate_followup_candidate_events_g1b_impl'; end if;
+ if (select md5(prosrc) from pg_proc where oid=to_regprocedure('public.generate_inspection_reminder_events_g1b_impl(uuid,date)')) is distinct from '906f304856d563be0ee133048aeb8542' then raise exception 'garage_generator_definition_changed:generate_inspection_reminder_events_g1b_impl'; end if;
+ if (select md5(prosrc) from pg_proc where oid=to_regprocedure('public.generate_followup_candidate_events(uuid,date)')) is distinct from '9dbe100bcf23c47f64dee419a64a7170' then raise exception 'garage_generator_definition_changed:generate_followup_candidate_events'; end if;
+ if (select md5(prosrc) from pg_proc where oid=to_regprocedure('public.generate_inspection_reminder_events(uuid,date)')) is distinct from '1b53f811d3830b4d2c0e343a0d8de62f' then raise exception 'garage_generator_definition_changed:generate_inspection_reminder_events'; end if;
 end;
 $guard$;
 
