@@ -35,6 +35,15 @@ export function transitionAllowed(from,to){return TRANSITIONS[from]?.includes(to
 export function coded(failureClass, message, cause) {
   const error = new Error(message, cause ? { cause } : undefined); error.failureClass = failureClass; return error;
 }
+export function vercelRequestUrl(path, tokenScope='account') {
+  if(!['account','team','project'].includes(tokenScope)) throw coded('SECURITY_BOUNDARY','VERCEL_TOKEN_SCOPE_INVALID');
+  if(typeof path!=='string'||!/^\/v[0-9]+\//.test(path)||path.includes('://')||path.includes('#')) throw coded('SECURITY_BOUNDARY','VERCEL_API_PATH_INVALID');
+  const url=new URL(path,'https://api.vercel.com');
+  if(url.origin!=='https://api.vercel.com'||url.searchParams.has('teamId')||url.searchParams.has('slug')) throw coded('SECURITY_BOUNDARY','VERCEL_API_SCOPE_OVERRIDE');
+  // Scoped tokens infer their team/project. Full-account tokens need explicit team.
+  if(tokenScope==='account') url.searchParams.set('teamId',CONTRACT.vercelTeamId);
+  return url.href;
+}
 export function assertRunId(value) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value??'')) throw coded('EXECUTION_LIFECYCLE','RUN_ID_REQUIRED_OR_INVALID');
   return value.toLowerCase();

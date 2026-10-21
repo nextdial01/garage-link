@@ -4,6 +4,16 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { assertCanonicalOrigin,assertProvenance,assertRunId,assertSafeContract,classifyFailure,fixtureIdentity,nextAfter,removeCheckpoint,resolveKeychainAccount,transitionAllowed,validateServiceKey,writeCheckpoint } from '../../scripts/qa/lifecycle-core.mjs';
+import {vercelRequestUrl} from '../../scripts/qa/lifecycle-core.mjs';
+
+test('scoped Vercel requests infer scope without expanding project identity',()=>{
+  assert.equal(vercelRequestUrl('/v9/projects/prj_example','project'),'https://api.vercel.com/v9/projects/prj_example');
+  assert.equal(vercelRequestUrl('/v9/projects/prj_example','team'),'https://api.vercel.com/v9/projects/prj_example');
+  assert.match(vercelRequestUrl('/v9/projects/prj_example','account'),/\?teamId=team_lwplVfhiCsDfbabe2YXf71H5$/);
+  assert.throws(()=>vercelRequestUrl('/v9/projects/x?teamId=other','project'),/SCOPE_OVERRIDE/);
+  assert.throws(()=>vercelRequestUrl('//evil.example/v9/projects','project'),/PATH_INVALID/);
+  assert.throws(()=>vercelRequestUrl('/v9/projects/x','all'),/TOKEN_SCOPE_INVALID/);
+});
 
 const runId='11111111-1111-4111-8111-111111111111';
 test('run id is mandatory and UUIDv4',()=>{assert.equal(assertRunId(runId),runId);assert.throws(()=>assertRunId('missing'))});

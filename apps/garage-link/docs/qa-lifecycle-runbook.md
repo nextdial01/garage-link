@@ -68,6 +68,8 @@ QA DDL is never applied through `supabase db push` or the normal baseline manife
 
 The runner requires (without defaults): `--source-sha`, `--branch`, `--vercel-team-id`, `--vercel-project-id`, `--deployment-id`, `--deployment-url`, `--supabase-project-ref`, and `--run-id`. It verifies the ready deployment's SHA, branch and staging project through the Vercel API. Credentials are supplied through the documented environment/Keychain contract only; do not read CLI authentication files or print credentials.
 
+For a project- or team-scoped Vercel API token, pass `--vercel-token-scope project` or `team`. Such tokens infer scope and omit the explicit team query; the project ID/name/account and deployment identity checks still apply. The default `account` retains the explicit team query for existing full-account token operators. This flag does not broaden token permissions or change the target project.
+
 ## Existing staging reconciliation
 
 The four pre-separation QA migrations may already be recorded in staging. Before an isolated-lane apply, the operator must read-only compare each `supabase_migrations.schema_migrations` version and checksum to `supabase/qa/manifest.json`. Matching entries are adopted into the QA ledger without reapplying DDL; missing, partial or mismatched entries stop the run. No Production drop migration is created or executed.
