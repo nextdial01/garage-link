@@ -2,7 +2,7 @@
 
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { createClient } from '@/lib/supabase/client';
 import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
@@ -68,9 +68,12 @@ export default function InspectionReminderHistoryPage() {
   const [keyword, setKeyword] = useState('');
   const [appliedKeyword, setAppliedKeyword] = useState('');
 
+  const requestVersion = useRef(0);
+
   const canManage = role === 'owner' || role === 'admin';
 
   const load = useCallback(async () => {
+    const version = ++requestVersion.current;
     setIsLoading(true);
     setErrorMessage('');
     try {
@@ -90,15 +93,17 @@ export default function InspectionReminderHistoryPage() {
 
       const response = await fetch(`/api/customer-follow-up/inspection-reminders/events?${params.toString()}`, { cache: 'no-store' });
       const data = (await response.json()) as { ok: boolean; rows?: EventRow[]; total?: number; error?: string };
+      if (version !== requestVersion.current) return;
       if (!response.ok || !data.ok) throw new Error(data.error ?? '履歴の取得に失敗しました。');
       setRows(data.rows ?? []);
       setTotal(data.total ?? 0);
     } catch (error) {
+      if (version !== requestVersion.current) return;
       setErrorMessage(toUserErrorMessage(error, '履歴の取得に失敗しました。'));
       setRows([]);
       setTotal(0);
     } finally {
-      setIsLoading(false);
+      if (version === requestVersion.current) setIsLoading(false);
     }
   }, [statusFilter, fromDate, toDate, appliedKeyword, page, role]);
 
@@ -106,7 +111,10 @@ export default function InspectionReminderHistoryPage() {
     const timer = window.setTimeout(() => {
       void load();
     }, 0);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      requestVersion.current += 1;
+    };
   }, [load]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total]);
