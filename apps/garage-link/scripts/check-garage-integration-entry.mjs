@@ -23,5 +23,5 @@ let r=await render('src/app/settings/page.tsx');assert.equal(r.values[0],'owner'
 function allNodes(node,out=[]){if(!node||typeof node!=='object')return out;if(node.props)out.push(node);for(const v of Object.values(node.props??{})){if(Array.isArray(v))v.forEach(x=>allNodes(x,out));else allNodes(v,out)}return out}
 assert.ok(allNodes(r.tree).some(n=>n.props.href==='/settings/l-link'),'settings must expose L-LINK entry');
 r=await render('src/app/settings/l-link/page.tsx');assert.ok(allNodes(r.tree).some(n=>n.props.href==='https://llink.tech'&&!n.props['aria-disabled']),'explicit active review contract should enable link even while global catalog preparing');
-r=await render('src/app/settings/l-link/page.tsx',{contract:false});assert.ok(allNodes(r.tree).some(n=>n.props.href==='https://llink.tech'&&n.props['aria-disabled']===true));
+r=await render('src/app/settings/l-link/page.tsx',{contract:false});assert.ok(allNodes(r.tree).some(n=>n.props.href===undefined&&n.props.tabIndex===-1&&n.props['aria-disabled']===true));
 console.log('PASS Garage active-store role, entry navigation, private contract flag and disabled-contract denial');

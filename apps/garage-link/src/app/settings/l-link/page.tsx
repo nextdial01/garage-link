@@ -156,10 +156,9 @@ export default function LLinkIntegrationPage() {
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-slate-600">
                   <li>車検案内候補</li>
                   <li>点検案内候補</li>
-                  <li>買い替え提案候補</li>
-                  <li>商談フォロー候補</li>
-                  <li>顧客セグメント条件</li>
-                  <li>テンプレート候補</li>
+                  <li>納車後フォロー候補</li>
+                  <li>長期未接触候補</li>
+                  <li>口コミ依頼候補</li>
                 </ul>
                 <p className="mt-3 text-xs leading-5 text-slate-500">
                   ※ GARAGE LINKがL-Linkへ渡すのは「配信候補」または「配信下書きの作成要求」までです。
@@ -173,7 +172,8 @@ export default function LLinkIntegrationPage() {
                   GARAGE LINKの配信候補を確認
                 </Link>
                 <a
-                  href={lLinkAppUrl}
+                  href={canUseLLink ? lLinkAppUrl : undefined}
+                  tabIndex={canUseLLink ? undefined : -1}
                   className={`rounded-xl px-5 py-3 text-sm font-black text-white shadow-sm transition ${canUseLLink ? 'bg-green-600 hover:bg-green-700' : 'pointer-events-none bg-slate-300'}`}
                   aria-disabled={!canUseLLink}
                 >
