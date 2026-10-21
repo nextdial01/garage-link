@@ -3,8 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { chromium, webkit } from '@playwright/test';
 import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { randomBytes } from 'node:crypto';
-import { CONTRACT,assertCanonicalOrigin,assertProvenance,assertRunId,classifyFailure,coded,fixtureIdentity,keychainDelete,keychainRead,keychainWrite,nextAfter,parseArgs,qaEmail,randomPassword,removeCheckpoint,safeError,sha256,validateServiceKey,vercelRequestUrl,writeCheckpoint } from './lifecycle-core.mjs';
+import { CONTRACT,assertBypassAbsent,selectGeneratedBypass,assertCanonicalOrigin,assertProvenance,assertRunId,classifyFailure,coded,fixtureIdentity,keychainDelete,keychainRead,keychainWrite,nextAfter,parseArgs,qaEmail,randomPassword,removeCheckpoint,safeError,sha256,validateServiceKey,vercelRequestUrl,writeCheckpoint } from './lifecycle-core.mjs';
 
 const args=parseArgs(process.argv.slice(2));
 const root=resolve(import.meta.dirname,'../../../..');
@@ -34,8 +33,51 @@ async function cleanupLineLinkIntegration(){if(purpose!==integrationPurpose)retu
 
 async function vercelToken(){const token=process.env.VERCEL_TOKEN;if(!token)throw coded('VERCEL_PROTECTION','VERCEL_TOKEN_REQUIRED');return token}
 async function vercelApi(path,init={}){const response=await fetch(vercelRequestUrl(path,args.vercel_token_scope??'account'),{...init,headers:{authorization:`Bearer ${await vercelToken()}`,'content-type':'application/json',...(init.headers??{})}});const body=await response.json().catch(()=>({}));if(!response.ok)throw coded('VERCEL_PROTECTION',`VERCEL_API_${response.status}:${body.error?.code??'FAILED'}`);return body}
-async function ensureBypass(){try{bypassSecret=keychainRead(bypassService);return{reused:true}}catch{}bypassSecret=randomBytes(32).toString('base64url');await vercelApi(`/v1/projects/${CONTRACT.vercelProjectId}/protection-bypass`,{method:'PATCH',body:JSON.stringify({generate:{secret:bypassSecret,note:`GARAGE LINK QA ${runId.slice(0,8)}`}})});keychainWrite(bypassService,bypassSecret);return{reused:false}}
-async function revokeBypass(){try{if(!bypassSecret)bypassSecret=keychainRead(bypassService)}catch{return{absent:true}}await vercelApi(`/v1/projects/${CONTRACT.vercelProjectId}/protection-bypass`,{method:'PATCH',body:JSON.stringify({revoke:{secret:bypassSecret,regenerate:false}})});keychainDelete(bypassService);bypassSecret='';const current=await vercelApi(`/v1/projects/${CONTRACT.vercelProjectId}/protection-bypass`);if(current?.secret||current?.protectionBypass?.secret||current?.enabled===true)throw coded('VERCEL_PROTECTION','BYPASS_RESIDUAL_AFTER_REVOKE');let keychainResidual=false;try{keychainRead(bypassService);keychainResidual=true}catch{}if(keychainResidual)throw coded('CREDENTIAL','KEYCHAIN_BYPASS_RESIDUAL');return{revoked:true,verified_absent:true}}
+async function ensureBypass(){
+  try{bypassSecret=keychainRead(bypassService);return{reused:true}}catch{}
+  const project=await vercelApi(`/v9/projects/${CONTRACT.vercelProjectId}`);
+  if(project.id!==CONTRACT.vercelProjectId||project.accountId!==CONTRACT.vercelTeamId)throw coded('VERCEL_PROTECTION','BYPASS_PROJECT_IDENTITY_MISMATCH');
+  const beforeKeys=new Set(Object.keys(project.protectionBypass??{}));
+  const note=`GARAGE LINK QA ${runId}`;
+  const recoverable=Object.entries(project.protectionBypass??{}).filter(([,value])=>value?.scope==='automation-bypass'&&value?.note===note);
+  if(recoverable.length){
+    bypassSecret=selectGeneratedBypass(project,new Set(),note);
+    keychainWrite(bypassService,bypassSecret);
+    return{reused:true,recovered_exact_run:true};
+  }
+  const result=await vercelApi(`/v1/projects/${CONTRACT.vercelProjectId}/protection-bypass`,{method:'PATCH',body:JSON.stringify({generate:{note}})});
+  // The API generates a valid secret, including for OAuth/project-scoped tokens.
+  // Only this run's newly created exact-note entry is adopted; other entries stay untouched.
+  const created=Object.entries(result?.protectionBypass??{}).filter(([key,value])=>!beforeKeys.has(key)&&value?.scope==='automation-bypass'&&value?.note===note);
+  try{
+    bypassSecret=selectGeneratedBypass(result,beforeKeys,note);
+    keychainWrite(bypassService,bypassSecret);
+  }catch(error){
+    for(const [owned] of created)await vercelApi(`/v1/projects/${CONTRACT.vercelProjectId}/protection-bypass`,{method:'PATCH',body:JSON.stringify({revoke:{secret:owned,regenerate:false}})});
+    bypassSecret='';
+    throw error;
+  }
+  return{reused:false};
+}
+async function revokeBypass(){
+  try{if(!bypassSecret)bypassSecret=keychainRead(bypassService)}catch{}
+  const project=await vercelApi(`/v9/projects/${CONTRACT.vercelProjectId}`);
+  assertBypassAbsent(project,'');
+  const note=`GARAGE LINK QA ${runId}`;
+  const cached=bypassSecret;
+  const cachedEntry=project.protectionBypass?.[cached];
+  if(cachedEntry&&(cachedEntry.scope!=='automation-bypass'||cachedEntry.note!==note))throw coded('VERCEL_PROTECTION','BYPASS_OWNERSHIP_MISMATCH');
+  const owned=Object.entries(project.protectionBypass??{}).filter(([,value])=>value?.scope==='automation-bypass'&&value?.note===note);
+  for(const [secret] of owned){
+    await vercelApi(`/v1/projects/${CONTRACT.vercelProjectId}/protection-bypass`,{method:'PATCH',body:JSON.stringify({revoke:{secret,regenerate:false}})});
+  }
+  const current=await vercelApi(`/v9/projects/${CONTRACT.vercelProjectId}`);
+  assertBypassAbsent(current,cached,note);
+  keychainDelete(bypassService);bypassSecret='';
+  let keychainResidual=false;try{keychainRead(bypassService);keychainResidual=true}catch{}
+  if(keychainResidual)throw coded('CREDENTIAL','KEYCHAIN_BYPASS_RESIDUAL');
+  return{revoked:owned.length>0,verified_absent:true};
+}
 async function launchProbe(browserType,name){const browser=await browserType.launch({headless:true});try{const context=await browser.newContext({extraHTTPHeaders:{'x-vercel-protection-bypass':bypassSecret,'x-vercel-set-bypass-cookie':'true'}});const page=await context.newPage();let blockedOriginRedirect=false;await page.route('**/*',async route=>{if(route.request().isNavigationRequest()){try{assertCanonicalOrigin(route.request().url())}catch{blockedOriginRedirect=true;await route.abort();return}}await route.continue()});let response;try{response=await page.goto(CONTRACT.canonical,{waitUntil:'domcontentloaded',timeout:30000})}catch(error){if(blockedOriginRedirect)throw coded('VERCEL_PROTECTION','CANONICAL_REDIRECT_ORIGIN_MISMATCH',error);throw error}if(blockedOriginRedirect)throw coded('VERCEL_PROTECTION','CANONICAL_REDIRECT_ORIGIN_MISMATCH');assertCanonicalOrigin(page.url());if(!response||response.status()>=400)throw coded('BROWSER',`${name.toUpperCase()}_CANONICAL_STATUS:${response?.status()??0}`);const result={browser:name,status:response.status(),origin:new URL(page.url()).origin};await context.close();return result}finally{await browser.close()}}
 
 async function preflight(){

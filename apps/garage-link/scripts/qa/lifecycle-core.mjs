@@ -44,6 +44,18 @@ export function vercelRequestUrl(path, tokenScope='account') {
   if(tokenScope==='account') url.searchParams.set('teamId',CONTRACT.vercelTeamId);
   return url.href;
 }
+export function selectGeneratedBypass(body, beforeKeys, note) {
+  const entries=Object.entries(body?.protectionBypass??{}).filter(([key,value])=>
+    !beforeKeys.has(key)&&value?.scope==='automation-bypass'&&value?.note===note);
+  if(entries.length!==1||!/^[a-zA-Z0-9]{32}$/.test(entries[0][0])) throw coded('VERCEL_PROTECTION','GENERATED_BYPASS_READBACK_MISMATCH');
+  return entries[0][0];
+}
+export function assertBypassAbsent(project,ownedSecret,note=null) {
+  if(project?.id!==CONTRACT.vercelProjectId||project?.accountId!==CONTRACT.vercelTeamId) throw coded('VERCEL_PROTECTION','BYPASS_READBACK_PROJECT_MISMATCH');
+  if(Object.hasOwn(project.protectionBypass??{},ownedSecret)) throw coded('VERCEL_PROTECTION','BYPASS_RESIDUAL_AFTER_REVOKE');
+  if(note&&Object.values(project.protectionBypass??{}).some(value=>value?.scope==='automation-bypass'&&value?.note===note)) throw coded('VERCEL_PROTECTION','BYPASS_RUN_RESIDUAL_AFTER_REVOKE');
+  return true;
+}
 export function assertRunId(value) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value??'')) throw coded('EXECUTION_LIFECYCLE','RUN_ID_REQUIRED_OR_INVALID');
   return value.toLowerCase();
