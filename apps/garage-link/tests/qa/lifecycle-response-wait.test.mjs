@@ -1,6 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {armResponseWait} from '../../scripts/qa/lifecycle-core.mjs';
+import {readFileSync} from 'node:fs';
+
+test('lifecycle login matches the retired OTP page and current password-session contract', () => {
+  const runner=readFileSync(new URL('../../scripts/qa/lifecycle.mjs',import.meta.url),'utf8');
+  const auth=runner.slice(runner.indexOf('async function auth(){'),runner.indexOf('async function verifySidebarLayout'));
+  const otpPage=readFileSync(new URL('../../src/app/security/email-otp/page.tsx',import.meta.url),'utf8');
+  assert.match(otpPage,/redirect\('\/dashboard'\)/);
+  assert.doesNotMatch(runner,/admin-email-otp|garage_admin_email_verified|Preview QA/);
+  const stale=runner.slice(runner.indexOf('async function verifyStaleSessionRecovery(){'),runner.indexOf('async function runTests()'));
+  assert.match(stale,/waitForURL\(\/\\\/dashboard/);
+  assert.match(stale,/STALE_SESSION_FRESH_COOKIE_MISSING/);
+  assert.match(auth,/PASSWORD_LOGIN_FAILED/);
+  assert.match(auth,/DASHBOARD_NOT_REACHED/);
+  assert.match(auth,/TRUSTED_SESSION_COOKIE_MISSING/);
+  assert.match(auth,/auth_contract:'password-session-dashboard'/);
+});
 
 test('response timeout is handled immediately even when consumed later', async () => {
   const unhandled=[];
