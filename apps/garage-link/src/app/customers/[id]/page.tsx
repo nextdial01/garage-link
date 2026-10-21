@@ -7,7 +7,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import PostalAddressLookup from '@/components/business/PostalAddressLookup';
-import { validateCustomer } from '@/lib/business/customer';
+import { validateCustomer, normalizeCustomerDeliveryPermission, normalizeCustomerLineFriendStatus, customerDeliveryPermissionLabel, customerLineFriendStatusLabel } from '@/lib/business/customer';
 import SoftDeleteButton from '@/components/SoftDeleteButton';
 import { createClient } from '@/lib/supabase/client';
 import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
@@ -50,8 +50,8 @@ function mapCustomerToForm(customer: CustomerRow): CustomerForm {
   return {
     customer_type: customer.customer_type ?? '個人', name: customer.name ?? '', kana: customer.kana ?? '', phone: customer.phone ?? '', mobile_phone: customer.mobile_phone ?? '',
     email: customer.email ?? '', postal_code: customer.postal_code ?? '', address: customer.address ?? '', gender: customer.gender ?? '', birth_date: customer.birth_date ?? '',
-    line_user_id: customer.line_user_id ?? '', line_display_name: customer.line_display_name ?? '', line_friend_status: customer.line_friend_status ?? '未連携',
-    delivery_permission: customer.delivery_permission === false || customer.delivery_permission === '不許可' ? '不許可' : '許可',
+    line_user_id: customer.line_user_id ?? '', line_display_name: customer.line_display_name ?? '', line_friend_status: customerLineFriendStatusLabel(customer.line_friend_status),
+    delivery_permission: customerDeliveryPermissionLabel(customer.delivery_permission),
     desired_maker: customer.desired_maker ?? '', desired_model: customer.desired_model ?? '', desired_displacement: customer.desired_displacement ?? '',
     budget_min: customer.budget_min === null ? '' : String(customer.budget_min ?? ''), budget_max: customer.budget_max === null ? '' : String(customer.budget_max ?? ''),
     desired_purchase_timing: customer.desired_purchase_timing ?? '', trade_in_status: customer.trade_in_status ?? '', customer_status: customer.customer_status ?? '見込み',
@@ -161,7 +161,7 @@ export default function CustomerDetailPage() {
         customer_type: toNullableText(form.customer_type), name: toNullableText(form.name), kana: toNullableText(form.kana), phone: toNullableText(form.phone),
         mobile_phone: toNullableText(form.mobile_phone), email: toNullableText(form.email), postal_code: toNullableText(form.postal_code), address: toNullableText(form.address),
         gender: toNullableText(form.gender), birth_date: form.birth_date || null, line_user_id: toNullableText(form.line_user_id), line_display_name: toNullableText(form.line_display_name),
-        line_friend_status: toNullableText(form.line_friend_status), delivery_permission: form.delivery_permission, desired_maker: toNullableText(form.desired_maker),
+        line_friend_status: normalizeCustomerLineFriendStatus(form.line_friend_status), delivery_permission: normalizeCustomerDeliveryPermission(form.delivery_permission), desired_maker: toNullableText(form.desired_maker),
         desired_model: toNullableText(form.desired_model), desired_displacement: toNullableText(form.desired_displacement), budget_min: toNullableNumber(form.budget_min),
         budget_max: toNullableNumber(form.budget_max), desired_purchase_timing: toNullableText(form.desired_purchase_timing), trade_in_status: toNullableText(form.trade_in_status),
         customer_status: toNullableText(form.customer_status), assigned_user_name: toNullableText(form.assigned_user_name), next_action_date: form.next_action_date || null, memo: toNullableText(form.memo),

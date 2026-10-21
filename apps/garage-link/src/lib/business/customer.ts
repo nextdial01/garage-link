@@ -19,3 +19,21 @@ export async function lookupPostalAddress(postalCode: string, signal?: AbortSign
   if (result.status !== 200 || !result.results?.length) throw new Error('住所が見つかりませんでした。手入力できます。');
   return [...new Set(result.results.map((row) => `${row.address1 ?? ''}${row.address2 ?? ''}${row.address3 ?? ''}`).filter(Boolean))];
 }
+
+// Storage uses canonical codes; only explicit positive values may grant consent.
+// Japanese labels and booleans are retained as read compatibility for older rows.
+export function normalizeCustomerDeliveryPermission(value: unknown): 'allowed' | 'denied' {
+  return value === 'allowed' || value === '許可' || value === true ? 'allowed' : 'denied';
+}
+export function customerDeliveryPermissionLabel(value: unknown): '許可' | '不許可' {
+  return normalizeCustomerDeliveryPermission(value) === 'allowed' ? '許可' : '不許可';
+}
+export function normalizeCustomerLineFriendStatus(value: unknown): 'linked' | 'unlinked' | 'blocked' {
+  if (value === 'linked' || value === '友だち') return 'linked';
+  if (value === 'blocked' || value === 'ブロック') return 'blocked';
+  return 'unlinked';
+}
+export function customerLineFriendStatusLabel(value: unknown): '友だち' | '未連携' | 'ブロック' {
+  const status = normalizeCustomerLineFriendStatus(value);
+  return status === 'linked' ? '友だち' : status === 'blocked' ? 'ブロック' : '未連携';
+}

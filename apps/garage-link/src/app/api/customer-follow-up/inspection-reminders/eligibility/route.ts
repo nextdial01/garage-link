@@ -42,9 +42,10 @@ export async function GET() {
   }
 
   try {
-    const { data, error } = await supabase.rpc('get_inspection_reminder_eligibility_summary', {
+    const { data, error } = await supabase.rpc('get_inspection_reminder_eligibility_summary_scoped', {
       p_store_id: member.store_id,
     });
+    if (error?.code === '42501') return NextResponse.json({ ok: false, error: '権限がありません。', code: 'forbidden_role' }, { status: 403 });
     if (error) throw new Error(error.message);
     return NextResponse.json({ ok: true, summary: data as EligibilitySummary });
   } catch (error) {

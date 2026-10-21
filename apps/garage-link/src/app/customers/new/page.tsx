@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import PostalAddressLookup from '@/components/business/PostalAddressLookup';
-import { validateCustomer } from '@/lib/business/customer';
+import { validateCustomer, normalizeCustomerDeliveryPermission, normalizeCustomerLineFriendStatus } from '@/lib/business/customer';
 import { createClient } from '@/lib/supabase/client';
 import { requireActiveGarageStore } from '@/lib/store/garageUiContext';
 
@@ -604,8 +604,8 @@ export default function NewCustomerPage() {
         birth_date: toNullableText(formState.birth_date),
         line_user_id: toNullableText(formState.line_user_id),
         line_display_name: toNullableText(formState.line_display_name),
-        line_friend_status: formState.line_friend_status || '未連携',
-        delivery_permission: formState.delivery_permission || '許可',
+        line_friend_status: normalizeCustomerLineFriendStatus(formState.line_friend_status),
+        delivery_permission: normalizeCustomerDeliveryPermission(formState.delivery_permission),
         desired_maker: toNullableText(formState.desired_maker),
         desired_model: toNullableText(formState.desired_model),
         desired_displacement: toNullableText(formState.desired_displacement),

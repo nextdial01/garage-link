@@ -3,6 +3,7 @@
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
+import { normalizeCustomerLineFriendStatus } from '@/lib/business/customer';
 import { useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import ResponsiveDetailPanel from '@/components/ResponsiveDetailPanel';
@@ -83,7 +84,7 @@ export default function CustomersPage() {
 
   const today = new Date().toISOString().slice(0, 10);
   const stats = useMemo(() => {
-    const lineFriends = customers.filter((customer) => customer.line_friend_status === '友だち').length;
+    const lineFriends = customers.filter((customer) => normalizeCustomerLineFriendStatus(customer.line_friend_status) === 'linked').length;
     const deals = customers.filter((customer) => customer.customer_status === '商談中').length;
     const purchased = customers.filter((customer) => customer.customer_status === '購入済み').length;
     return [

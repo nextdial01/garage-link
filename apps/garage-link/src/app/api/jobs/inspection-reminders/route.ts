@@ -69,12 +69,18 @@ async function runGenerationJobs(
   context: GarageTenantContext
 ): Promise<{ breakdown: JobBreakdown; errors: string[] }> {
   if (!context.storeId) throw new Error('STORE_CONTEXT_REQUIRED');
+  // The database authorization wrappers default to UTC CURRENT_DATE. Bind both
+  // calls to one server-calculated JST date, including 00:00–08:59 in Japan.
+  const dateParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const todayJst = ['year', 'month', 'day'].map((type) => dateParts.find((part) => part.type === type)!.value).join('-');
   const errors: string[] = [];
   const breakdown: JobBreakdown = { inspection_reminder: 0, followup_candidates: 0 };
 
   const { data: inspectionData, error: inspectionError } = await service.rpc(
     'generate_inspection_reminder_events',
-    { p_store_id: context.storeId }
+    { p_store_id: context.storeId, p_today: todayJst }
   );
   if (inspectionError) {
     errors.push(inspectionError.message);
@@ -84,7 +90,7 @@ async function runGenerationJobs(
 
   const { data: followupData, error: followupError } = await service.rpc(
     'generate_followup_candidate_events',
-    { p_store_id: context.storeId }
+    { p_store_id: context.storeId, p_today: todayJst }
   );
   if (followupError) {
     errors.push(followupError.message);
