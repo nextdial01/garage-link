@@ -118,27 +118,27 @@ export default function DeliveryCandidatesPage() {
             <p className="px-5 py-12 text-center text-sm text-slate-500">配信候補がありません。各種フォロー条件に合致すると自動で候補が作成されます。</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+              <table className="w-full min-w-[900px] text-sm">
                 <thead className="bg-slate-50 text-left text-xs font-bold text-slate-500">
                   <tr>
-                    <th className="px-4 py-3">種別</th>
-                    <th className="px-4 py-3">対象顧客</th>
-                    <th className="px-4 py-3">対象車両</th>
-                    <th className="px-4 py-3">基準日</th>
-                    <th className="px-4 py-3">タイミング</th>
-                    <th className="px-4 py-3">状態</th>
-                    <th className="px-4 py-3">店舗</th>
+                    <th className="whitespace-nowrap px-4 py-3">種別</th>
+                    <th className="whitespace-nowrap px-4 py-3">対象顧客</th>
+                    <th className="whitespace-nowrap px-4 py-3">対象車両</th>
+                    <th className="whitespace-nowrap px-4 py-3">基準日</th>
+                    <th className="whitespace-nowrap px-4 py-3">タイミング</th>
+                    <th className="whitespace-nowrap px-4 py-3">状態</th>
+                    <th className="whitespace-nowrap px-4 py-3">店舗</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {rows.map((r) => (
                     <tr key={r.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-semibold text-slate-900">{CANDIDATE_EVENT_TYPE_LABELS[r.event_type] ?? r.event_type}</td>
+                      <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-900">{CANDIDATE_EVENT_TYPE_LABELS[r.event_type] ?? r.event_type}</td>
                       <td className="px-4 py-3 text-slate-700">{r.customer_name || '-'}</td>
                       <td className="px-4 py-3 text-slate-700">{r.vehicle_name || '-'}</td>
-                      <td className="px-4 py-3 text-slate-700">{fmt(r.inspection_expiry_date)}</td>
-                      <td className="px-4 py-3 text-slate-700">{r.reminder_offset_days}日</td>
-                      <td className="px-4 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadge(r.status)}`}>{REMINDER_STATUS_LABELS[r.status]}</span></td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">{fmt(r.inspection_expiry_date)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">{r.reminder_offset_days}日</td>
+                      <td className="whitespace-nowrap px-4 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadge(r.status)}`}>{REMINDER_STATUS_LABELS[r.status]}</span></td>
                       <td className="px-4 py-3 text-slate-700">{r.stores?.name || '-'}</td>
                     </tr>
                   ))}
