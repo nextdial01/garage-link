@@ -71,14 +71,17 @@ export async function POST(request: Request) {
       // body は空または無効。フィルタ無しで進む。
     }
   }
+  if (!parsedBody || typeof parsedBody !== 'object' || Array.isArray(parsedBody)) {
+    return NextResponse.json({ ok: false, error: '配信候補の取得条件が不正です。', code: 'invalid_body' }, { status: 400 });
+  }
   const type =
     typeof parsedBody.type === 'string' && (CANDIDATE_EVENT_TYPES as readonly string[]).includes(parsedBody.type)
       ? parsedBody.type
       : null;
-  const limit = Math.min(
+  const limit = Math.floor(Math.min(
     MAX_LIMIT,
     Math.max(1, Number(parsedBody.limit ?? 50) || 50)
-  );
+  ));
 
   const supabase = createServiceClient();
   if (!supabase) {
@@ -98,7 +101,8 @@ export async function POST(request: Request) {
       .eq('store_id', context.storeId!)
       .eq('company_id', context.tenantId)
       .eq('status', 'pending')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
       .range(0, limit - 1);
 
     if (type) {

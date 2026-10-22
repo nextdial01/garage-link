@@ -62,7 +62,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const type = url.searchParams.get('type') ?? '';
-  const limit = Math.min(MAX_LIMIT, Math.max(1, Number(url.searchParams.get('limit') ?? '50') || 50));
+  const limit = Math.floor(Math.min(MAX_LIMIT, Math.max(1, Number(url.searchParams.get('limit') ?? '50') || 50)));
 
   try {
     // RLS に加え member.store_id で明示スコープ（他店舗・他社を跨がない）。pendingのみ。
@@ -71,7 +71,8 @@ export async function GET(request: Request) {
       .select('id, company_id, store_id, customer_id, event_type, reminder_offset_days, inspection_expiry_date, customer_name, vehicle_name, created_at')
       .eq('store_id', member.store_id)
       .eq('status', 'pending')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true });
 
     if (type && (CANDIDATE_EVENT_TYPES as readonly string[]).includes(type)) {
       query = query.eq('event_type', type);

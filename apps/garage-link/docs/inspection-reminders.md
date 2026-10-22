@@ -26,7 +26,8 @@
   `long_no_contact` / `repurchase` / `review_request` を追加許可するようCHECK制約を緩和（`repurchase` は040時点では未生成）。
 - 既存テーブル（vehicles/customers/maintenance_jobs/deals/stores）は変更なし。rollbackは各schemaファイル末尾のコメントを参照。
 
-> 本番適用は既存運用どおり Supabase SQL Editor で実行してください（このリポジトリでは本番DBへ適用しません）。
+> 以下の適用状況は導入時の履歴です。現在の本番適用状況は、この段落から判断せず、対象環境の migration・関数定義と配備版を照合してください。
+> 本番適用は承認された運用手順に従ってください。
 > `037`〜`041` は本レポジトリ作成時点でまだ本番へ未適用です。適用しない限り、車検案内（035）は従来どおり動作しますが、
 > 点検案内・納車後フォロー等の生成はジョブ側で個別にエラーとして記録され、車検案内の生成自体は失敗しません。
 > `supabase/migrations/20260702000000_inspection_reminder_eligibility_scope_event_type.sql` は
@@ -65,8 +66,14 @@
 - 同一条件のイベントが未作成（`generate_inspection_reminder_events` と同じ冪等性の考え方）
 - `repurchase`（買替提案）は判定条件が未確定のため、現時点では生成しない
 
-## 今後の接続範囲（未実装）
+## L-LINK 接続と候補取得
 
-L-LINK APIへの実通信、配信下書き作成、LINE友だち/配信停止状態の判定（`line_friend_status`の正確性はLINE友だち管理側の運用に依存）、
-配信実績による除外、配信文/テンプレート管理、実際のLINE送信、`repurchase`（買替提案）の生成条件。
-`inspection_reminder_events.external_reference_id` / `error_detail` は将来の外部連携用にnullableで用意済み。
+L-LINK が HMAC 認証付きの候補取得 API を呼び、取込下書きを作成します。ACK は取込結果を Garage の候補へ反映する処理で、LINE 配信完了の意味ではありません。候補生成・取得・ACK 自体は LINE 送信を行いません。送信対象の紐付け・友だち状態・送信可否は L-LINK 側で別途確認します。
+
+以下はこのブランチの実装契約です。本番反映済みであることを意味しません。
+
+- session GET と S2S POST は、対象店舗の `pending` を `created_at ASC, id ASC` で取得します。通常時刻の新規候補より既存候補を先に処理し、同時刻でも順序を固定します。任意の過去日時を持つ無制限の追加や、同時更新に対する固定スナップショットは保証しません。
+- limit の既定値は50、上限200です。数値化できる小数は切り捨て、負数は1へ丸めます。0・非数は既定値へ戻します。
+- S2S POST の空 body・解析不能な JSON は、現在は空オプションとして既定の取得になります。JSON の `null`・配列・文字列は400です。この非対称性を、更新 API の入力許可へ流用しないでください。
+- 取得結果の取込後、L-LINK は ACK を送り、成功した候補に外部参照を記録します。失敗・不明な ACK は配信成功と扱いません。
+- `repurchase`（買替提案）の生成条件は引き続き未実装です。

@@ -102,6 +102,13 @@ export default function InspectionReminderHistoryPage() {
       const data = (await response.json()) as { ok: boolean; rows?: EventRow[]; total?: number; error?: string };
       if (version !== requestVersion.current) return;
       if (!response.ok || !data.ok) throw new Error(data.error ?? '履歴の取得に失敗しました。');
+      const lastPage = Math.max(0, Math.ceil((data.total ?? 0) / PAGE_SIZE) - 1);
+      if (page > lastPage) {
+        setRows([]);
+        setTotal(data.total ?? 0);
+        setPage(lastPage);
+        return;
+      }
       setRows(data.rows ?? []);
       setTotal(data.total ?? 0);
     } catch (error) {

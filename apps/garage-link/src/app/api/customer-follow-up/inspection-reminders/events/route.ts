@@ -9,6 +9,12 @@ export const dynamic = 'force-dynamic';
 const PAGE_SIZE = 20;
 type StoreMemberRow = { store_id: string; role: string | null };
 
+function isCalendarDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith('0000-')) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 export async function GET(request: Request) {
   const supabase = await createClient();
   const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -31,7 +37,18 @@ export async function GET(request: Request) {
   const to = url.searchParams.get('to') ?? '';
   const keyword = (url.searchParams.get('keyword') ?? '').replace(/[,%]/g, ' ').trim();
   const eventType = url.searchParams.get('event_type') ?? '';
-  const page = Math.max(0, Number(url.searchParams.get('page') ?? '0') || 0);
+  const requestedPage = Number(url.searchParams.get('page') ?? '0');
+  const page = Math.max(0, requestedPage);
+  const fromRow = page * PAGE_SIZE;
+  if (!Number.isSafeInteger(requestedPage) || !Number.isSafeInteger(fromRow + PAGE_SIZE - 1)) {
+    return NextResponse.json({ ok: false, error: 'ページ番号が不正です。', code: 'invalid_page' }, { status: 400 });
+  }
+  if ((from && !isCalendarDate(from)) || (to && !isCalendarDate(to))) {
+    return NextResponse.json({ ok: false, error: '作成日は実在する日付をYYYY-MM-DD形式で指定してください。', code: 'invalid_date' }, { status: 400 });
+  }
+  if (from && to && from > to) {
+    return NextResponse.json({ ok: false, error: '作成日の開始日は終了日以前にしてください。', code: 'invalid_date_range' }, { status: 400 });
+  }
 
   try {
     // 認証ユーザーのセッション（RLS: 所属店舗のみ参照可）で取得。
@@ -54,9 +71,14 @@ export async function GET(request: Request) {
     }
     if (from) query = query.gte('created_at', `${from}T00:00:00+09:00`);
     if (to) query = query.lte('created_at', `${to}T23:59:59.999999+09:00`);
-    if (keyword) query = query.or(`customer_name.ilike.%${keyword}%,vehicle_name.ilike.%${keyword}%`);
+    if (keyword) {
+      // Escape LIKE's backslash first, then quote the PostgREST filter value.
+      // Parentheses and quotes in a customer's name must remain literal text.
+      const pattern = `%${keyword.replace(/\\/g, '\\\\')}%`;
+      const quotedPattern = `"${pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+      query = query.or(`customer_name.ilike.${quotedPattern},vehicle_name.ilike.${quotedPattern}`);
+    }
 
-    const fromRow = page * PAGE_SIZE;
     const { data, count, error } = await query.range(fromRow, fromRow + PAGE_SIZE - 1);
     if (error) throw new Error(error.message);
 

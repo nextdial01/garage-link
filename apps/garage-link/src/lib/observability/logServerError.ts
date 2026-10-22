@@ -26,11 +26,27 @@ export function logServerError(code: string, context: ApiErrorContext, error?: u
 
   if (context.details) {
     Object.assign(base, context.details);
+    if (Object.prototype.hasOwnProperty.call(base, 'db_error_code')) {
+      const code = base.db_error_code;
+      base.db_error_code = typeof code === 'string' && new Set([
+        '22023', '22P02', '23502', '23503', '23505', '23514',
+        '40001', '40P01', '42501', '42703', '42883', '42P01', '57014', 'PGRST116',
+      ]).has(code) ? code : 'unknown';
+    }
   }
 
   // エラーの種別名のみ（"Error" 等）を残す。message/stackはユーザー入力やSQLを含み得るため出さない。
-  if (error instanceof Error) {
-    base.error_kind = error.name;
+  try {
+    if (error instanceof Error) {
+      const kind = error.name;
+      base.error_kind = typeof kind === 'string' && new Set([
+        'Error', 'TypeError', 'RangeError', 'SyntaxError', 'ReferenceError',
+        'URIError', 'EvalError', 'AggregateError', 'AbortError', 'TimeoutError',
+      ]).has(kind) ? kind : 'Error';
+    }
+  } catch {
+    // Even Error.name can be an untrusted throwing getter.
+    base.error_kind = 'Error';
   }
 
   // stderr に1行JSONで出す。Vercel Functions Logs / supabaseログと突き合わせやすくする。

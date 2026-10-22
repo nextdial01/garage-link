@@ -29,18 +29,25 @@ function createServiceClient() {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
-async function markLLinkConnected(supabase: NonNullable<ReturnType<typeof createServiceClient>>, storeId: string) {
-  const { error } = await supabase
-    .from('stores')
-    .update({ l_link_onboarding_completed_at: new Date().toISOString() })
-    .eq('id', storeId)
-    .is('l_link_onboarding_completed_at', null);
-  if (error) {
+async function markLLinkConnected(
+  supabase: NonNullable<ReturnType<typeof createServiceClient>>,
+  context: GarageTenantContext,
+  keyId: string,
+  inquiryId: string,
+  responseId: string,
+) {
+  const { data, error } = await supabase.rpc('mark_verified_llink_inquiry_connected', {
+    p_tenant_id: context.tenantId,
+    p_store_id: context.storeId,
+    p_key_id: keyId,
+    p_inquiry_id: inquiryId,
+    p_response_id: responseId,
+  });
+  if (error || data !== true) {
     logServerError('l_link_connection_flag_update_failed', {
-      route: 's2s/line-link/inquiries',
-      storeId,
-      details: { db_error_code: error.code ?? 'unknown', db_error_stage: 'mark_connected' },
+      route: 's2s/line-link/inquiries', storeId: context.storeId,
     });
+    throw new Error('l_link_marker_pending');
   }
 }
 
@@ -66,15 +73,21 @@ function parseBody(bodyText: string): InquiryBody | null {
   const source = boundedText(body.source, 80) ?? 'public_form';
   const submittedAt = boundedText(body.submitted_at, 40);
   if (!responseId || !formId || !UUID_RE.test(responseId) || !UUID_RE.test(formId) || !formTitle || !submittedAt) return null;
+  const timestamp = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(?:Z|[+-](\d{2}):(\d{2}))$/.exec(submittedAt);
+  if (!timestamp || timestamp[1].startsWith('0000')
+    || Number(timestamp[2]) > 23 || Number(timestamp[3]) > 59 || Number(timestamp[4]) > 59
+    || Number(timestamp[5] ?? 0) > 23 || Number(timestamp[6] ?? 0) > 59) return null;
+  const calendarDay = new Date(`${timestamp[1]}T00:00:00Z`);
+  if (!Number.isFinite(calendarDay.getTime()) || calendarDay.toISOString().slice(0, 10) !== timestamp[1]) return null;
   const parsedDate = new Date(submittedAt);
   if (!Number.isFinite(parsedDate.getTime())) return null;
   if (!body.answers || typeof body.answers !== 'object' || Array.isArray(body.answers)) return null;
   const entries = Object.entries(body.answers as Record<string, unknown>);
   if (entries.length === 0 || entries.length > MAX_ANSWERS) return null;
-  const answers: Record<string, string | string[]> = {};
+  const answers: Record<string, string | string[]> = Object.create(null);
   for (const [rawLabel, rawAnswer] of entries) {
     const label = boundedText(rawLabel, MAX_LABEL_LENGTH);
-    if (!label) return null;
+    if (!label || Object.prototype.hasOwnProperty.call(answers, label)) return null;
     if (typeof rawAnswer === 'string') {
       if (rawAnswer.length > MAX_VALUE_LENGTH) return null;
       answers[label] = rawAnswer;
@@ -86,8 +99,8 @@ function parseBody(bodyText: string): InquiryBody | null {
     answers[label] = values as string[];
   }
   return {
-    response_id: responseId,
-    form_id: formId,
+    response_id: responseId.toLowerCase(),
+    form_id: formId.toLowerCase(),
     form_title: formTitle,
     submitted_at: parsedDate.toISOString(),
     source,
@@ -128,7 +141,7 @@ export async function POST(request: Request) {
       .select('id')
       .eq('store_id', auth.storeId)
       .eq('external_source', 'l-link')
-      .eq('external_response_id', body.response_id)
+      .ilike('external_response_id', body.response_id)
       .maybeSingle();
     if (existingError) {
       logServerError('l_link_inquiry_lookup_failed', {
@@ -139,7 +152,7 @@ export async function POST(request: Request) {
       throw existingError;
     }
     if (existing?.id) {
-      await markLLinkConnected(supabase, auth.storeId);
+      await markLLinkConnected(supabase, context, auth.keyId, existing.id, body.response_id);
       return NextResponse.json({ ok: true, store_id: auth.storeId, inquiry_id: existing.id, outcome: 'already_exists' });
     }
 
@@ -163,10 +176,10 @@ export async function POST(request: Request) {
           .select('id')
           .eq('store_id', auth.storeId)
           .eq('external_source', 'l-link')
-          .eq('external_response_id', body.response_id)
+          .ilike('external_response_id', body.response_id)
           .maybeSingle();
         if (duplicate?.id) {
-          await markLLinkConnected(supabase, auth.storeId);
+          await markLLinkConnected(supabase, context, auth.keyId, duplicate.id, body.response_id);
           return NextResponse.json({ ok: true, store_id: auth.storeId, inquiry_id: duplicate.id, outcome: 'already_exists' });
         }
       }
@@ -177,9 +190,12 @@ export async function POST(request: Request) {
       });
       throw createError;
     }
-    await markLLinkConnected(supabase, auth.storeId);
+    await markLLinkConnected(supabase, context, auth.keyId, created.id, body.response_id);
     return NextResponse.json({ ok: true, store_id: auth.storeId, inquiry_id: created.id, outcome: 'created' }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message === 'l_link_marker_pending') {
+      return NextResponse.json({ ok: false, code: 'connection_marker_pending', error: '問い合わせは保存済みですが、連携状態の確認に失敗しました。時間をおいて再試行してください。' }, { status: 500 });
+    }
     logServerError('l_link_inquiry_sync_failed', { route: 's2s/line-link/inquiries', storeId: auth.storeId }, error);
     return NextResponse.json({ ok: false, code: 'internal_error', error: '問い合わせの登録に失敗しました。' }, { status: 500 });
   }

@@ -53,6 +53,7 @@ function EligibilitySection({
       <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
         <div>
           <h3 className="text-base font-bold text-slate-950">対象車両の診断</h3>
+          <p className="mt-1 text-xs text-slate-500">診断は保存済みの設定に基づきます。未保存の変更は反映されません。</p>
           <p className="mt-0.5 text-xs text-slate-500">
             候補イベントは「車検満了日 − 今日（JST） = 有効なタイミング日数」に完全一致した日のみ生成されます。
           </p>
@@ -317,6 +318,7 @@ export default function InspectionReminderSettingsPage() {
       return;
     }
     if (!expectedStoreId) { setErrorMessage('操作する店舗を確認できません。画面を開き直してください。'); return; }
+    const submittedSettingsKey = JSON.stringify(settings);
     setIsSaving(true);
     try {
       const response = await fetch('/api/customer-follow-up/inspection-reminders/settings', {
@@ -326,7 +328,11 @@ export default function InspectionReminderSettingsPage() {
       });
       const data = (await response.json()) as { ok: boolean; settings?: ReminderSettings; error?: string };
       if (!response.ok || !data.ok) throw new Error(data.error ?? '保存に失敗しました。');
-      if (data.settings) { setSettings(data.settings); setSavedSettingsKey(JSON.stringify(data.settings)); }
+      if (data.settings) {
+        const savedSettings = data.settings;
+        setSettings((current) => JSON.stringify(current) === submittedSettingsKey ? savedSettings : current);
+        setSavedSettingsKey(JSON.stringify(savedSettings));
+      }
       setSuccessMessage('車検案内設定を保存しました。');
     } catch (error) {
       setErrorMessage(toUserErrorMessage(error, '保存に失敗しました。'));
