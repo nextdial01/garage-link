@@ -25,6 +25,25 @@ const inputClass = 'rounded-lg border border-slate-300 bg-white px-3 py-2 text-s
 function fmt(d: string | null) {
   return d ? d.slice(0, 10) : '-';
 }
+
+// The date is an anchor; the interval direction depends on the candidate type.
+function formatCandidateTiming(eventType: string, offsetDays: number | null | undefined): string {
+  if (offsetDays == null || !Number.isFinite(offsetDays) || !Number.isInteger(offsetDays)) return '-';
+  const days = Math.abs(offsetDays);
+  switch (eventType) {
+    case 'inspection_reminder':
+    case 'periodic_inspection':
+      return `${days}日${offsetDays < 0 ? '後' : '前'}`;
+    case 'post_delivery_follow_up':
+    case 'review_request':
+      return `${days}日後`;
+    case 'long_no_contact':
+      return offsetDays >= 0 ? `${days}日以上経過` : '-';
+    default:
+      return '-';
+  }
+}
+
 function statusBadge(s: ReminderStatus) {
   switch (s) {
     case 'pending': return 'bg-amber-50 text-amber-700';
@@ -137,7 +156,7 @@ export default function DeliveryCandidatesPage() {
                       <td className="px-4 py-3 text-slate-700">{r.customer_name || '-'}</td>
                       <td className="px-4 py-3 text-slate-700">{r.vehicle_name || '-'}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-slate-700">{fmt(r.inspection_expiry_date)}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">{r.reminder_offset_days}日</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-slate-700">{formatCandidateTiming(r.event_type, r.reminder_offset_days)}</td>
                       <td className="whitespace-nowrap px-4 py-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusBadge(r.status)}`}>{REMINDER_STATUS_LABELS[r.status]}</span></td>
                       <td className="px-4 py-3 text-slate-700">{r.stores?.name || '-'}</td>
                     </tr>
