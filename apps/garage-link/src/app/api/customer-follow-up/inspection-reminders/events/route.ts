@@ -43,7 +43,8 @@ export async function GET(request: Request) {
         { count: 'exact' }
       )
       .eq('store_id', member.store_id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false });
 
     if (status && (REMINDER_STATUSES as readonly string[]).includes(status)) {
       query = query.eq('status', status);
@@ -51,8 +52,8 @@ export async function GET(request: Request) {
     if (eventType && (CANDIDATE_EVENT_TYPES as readonly string[]).includes(eventType)) {
       query = query.eq('event_type', eventType);
     }
-    if (from) query = query.gte('created_at', `${from}T00:00:00`);
-    if (to) query = query.lte('created_at', `${to}T23:59:59`);
+    if (from) query = query.gte('created_at', `${from}T00:00:00+09:00`);
+    if (to) query = query.lte('created_at', `${to}T23:59:59.999999+09:00`);
     if (keyword) query = query.or(`customer_name.ilike.%${keyword}%,vehicle_name.ilike.%${keyword}%`);
 
     const fromRow = page * PAGE_SIZE;

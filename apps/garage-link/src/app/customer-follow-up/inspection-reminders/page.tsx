@@ -33,7 +33,14 @@ const inputClass =
   'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100';
 
 function formatDate(value: string | null) {
-  return value ? value.slice(0, 10) : '-';
+  if (!value) return '-';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  const parts = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date);
+  return ['year', 'month', 'day'].map((type) => parts.find((part) => part.type === type)?.value).join('-');
 }
 
 function statusBadgeClass(status: ReminderStatus) {

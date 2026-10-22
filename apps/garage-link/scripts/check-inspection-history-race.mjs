@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';import ts from 'typescript';
 const source=readFileSync(new URL('../src/app/customer-follow-up/inspection-reminders/page.tsx',import.meta.url),'utf8');const code=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+const dates={};vm.runInNewContext(code+';exports.auditFormatDate=formatDate;', {exports:dates,require:()=>({})});
+assert.equal(dates.auditFormatDate('2026-10-21T15:00:00Z'),'2026-10-22');assert.equal(dates.auditFormatDate('2026-10-22T14:59:59.999Z'),'2026-10-22');assert.equal(dates.auditFormatDate('2026-11-21'),'2026-11-21');assert.equal(dates.auditFormatDate('invalid'),'-');
 async function scenario({oldFails=false,newFails=false,unmount=false,pagination=false,skipOutcome=true}={}) {
 const values=[],effects=[],timers=[],pending=[],rpcCalls=[],exports={};let index=0;
 const nodes=(n,o=[])=>{if(!n||typeof n!=='object')return o;if(n.props)o.push(n);for(const v of Object.values(n.props??{})){if(Array.isArray(v))v.forEach(x=>nodes(x,o));else nodes(v,o)}return o};
