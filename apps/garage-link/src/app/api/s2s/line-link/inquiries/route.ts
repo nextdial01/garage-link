@@ -109,7 +109,12 @@ function parseBody(bodyText: string): InquiryBody | null {
 }
 
 export async function POST(request: Request) {
-  const bodyText = await request.text();
+  let bodyText: string;
+  try {
+    bodyText = await request.text();
+  } catch {
+    return NextResponse.json({ ok: false, code: 'invalid_body', error: '問い合わせデータの形式が不正です。' }, { status: 400 });
+  }
   const url = new URL(request.url);
   const auth = await verifyLLinkS2SRequest({
     method: 'POST',
