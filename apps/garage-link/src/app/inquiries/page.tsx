@@ -3,7 +3,7 @@
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import ContextHelp from '@/components/ContextHelp';
 import ResponsiveDetailPanel from '@/components/ResponsiveDetailPanel';
@@ -74,7 +74,25 @@ export default function InquiriesPage() {
   const [editingStatus, setEditingStatus] = useState<Inquiry['response_status']>('unhandled');
   const [editingAssignee, setEditingAssignee] = useState('');
   const [editingNextActionAt, setEditingNextActionAt] = useState('');
-  const [isSavingResponse, setIsSavingResponse] = useState(false);
+  const pendingInquiryIds = useRef(new Set<string>());
+  const [savingInquiries, setSavingInquiries] = useState<Record<string, boolean>>({});
+
+  function beginInquirySave(id: string) {
+    // The ref also blocks events captured before React renders disabled controls.
+    if (pendingInquiryIds.current.has(id)) return false;
+    pendingInquiryIds.current.add(id);
+    setSavingInquiries((items) => ({ ...items, [id]: true }));
+    return true;
+  }
+
+  function finishInquirySave(id: string) {
+    pendingInquiryIds.current.delete(id);
+    setSavingInquiries((items) => {
+      const next = { ...items };
+      delete next[id];
+      return next;
+    });
+  }
 
   async function load() {
     setCanWrite(false);
@@ -139,26 +157,30 @@ export default function InquiriesPage() {
 
   async function updateLink(target: Inquiry, field: 'customer_id' | 'vehicle_id' | 'deal_id', value: string) {
     if (!canWrite || relatedDataError) return;
-    const next = value || null;
-    const supabase = createClient();
-    const { data, error } = await supabase.from<Inquiry>('line_form_responses').update({ [field]: next }).eq('id', target.id).eq('store_id', storeId).eq('updated_at', target.updated_at ?? '').select('id, customer_id, vehicle_id, deal_id, answers, submitted_at, source_route, internal_memo, response_status, assigned_user_name, next_action_at, updated_at').maybeSingle();
-    if (error) {
+    if (!beginInquirySave(target.id)) return;
+    try {
+      const next = value || null;
+      const supabase = createClient();
+      const { data, error } = await supabase.from<Inquiry>('line_form_responses').update({ [field]: next }).eq('id', target.id).eq('store_id', storeId).eq('updated_at', target.updated_at ?? '').select('id, customer_id, vehicle_id, deal_id, answers, submitted_at, source_route, internal_memo, response_status, assigned_user_name, next_action_at, updated_at').maybeSingle();
+      if (error) {
+        setErrorMessage('紐付けを保存できませんでした。');
+        return;
+      }
+      if (!data) {
+        setConflictMessage('ほかの更新が入ったため保存できませんでした。最新データを反映してください。');
+        setPendingRefresh(true);
+        return;
+      }
+      setInquiries((items) => items.map((item) => item.id === target.id ? data : item));
+    } catch {
       setErrorMessage('紐付けを保存できませんでした。');
-      return;
+    } finally {
+      finishInquirySave(target.id);
     }
-    if (!data) {
-      setConflictMessage('ほかの更新が入ったため保存できませんでした。最新データを反映してください。');
-      setPendingRefresh(true);
-      return;
-    }
-    setInquiries((items) => items.map((item) => item.id === target.id ? data : item));
-    setConflictMessage('');
-    setPendingRefresh(false);
   }
 
   async function saveResponseManagement(target: Inquiry) {
-    if (!canWrite) return;
-    setIsSavingResponse(true);
+    if (!canWrite || !beginInquirySave(target.id)) return;
     setErrorMessage('');
     try {
       const nextActionAt = editingNextActionAt ? new Date(`${editingNextActionAt}+09:00`).toISOString() : null;
@@ -178,12 +200,10 @@ export default function InquiriesPage() {
         return;
       }
       setInquiries((items) => items.map((item) => item.id === target.id ? data : item));
-      setConflictMessage('');
-      setPendingRefresh(false);
     } catch (error) {
       setErrorMessage(toUserErrorMessage(error, '対応状況を保存できませんでした。'));
     } finally {
-      setIsSavingResponse(false);
+      finishInquirySave(target.id);
     }
   }
 
@@ -210,9 +230,9 @@ export default function InquiriesPage() {
                       <p className="mt-1 text-xs text-slate-400">流入元: {item.source_route ?? '-'}</p>
                     </button>
                     <div className="grid gap-2 sm:grid-cols-3">
-                      <select disabled={!canWrite || relatedDataError} aria-label={`${item.id}の顧客`} className={inputClass} value={item.customer_id ?? ''} onChange={(event) => void updateLink(item, 'customer_id', event.target.value)}><option value="">顧客未設定</option>{item.customer_id && !customers.some((entry) => entry.id === item.customer_id) && <option value={item.customer_id}>現在の顧客（候補に表示されません）</option>}{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name ?? '顧客'}</option>)}</select>
-                      <select disabled={!canWrite || relatedDataError} aria-label={`${item.id}の車両`} className={inputClass} value={item.vehicle_id ?? ''} onChange={(event) => void updateLink(item, 'vehicle_id', event.target.value)}><option value="">車両未設定</option>{item.vehicle_id && !vehicles.some((entry) => entry.id === item.vehicle_id) && <option value={item.vehicle_id}>現在の車両（候補に表示されません）</option>}{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}</select>
-                      <select disabled={!canWrite || relatedDataError} aria-label={`${item.id}の商談`} className={inputClass} value={item.deal_id ?? ''} onChange={(event) => void updateLink(item, 'deal_id', event.target.value)}><option value="">商談未設定</option>{item.deal_id && !deals.some((entry) => entry.id === item.deal_id) && <option value={item.deal_id}>現在の商談（候補に表示されません）</option>}{deals.map((deal) => <option key={deal.id} value={deal.id}>{deal.title ?? deal.deal_no ?? '商談'}</option>)}</select>
+                      <select disabled={!canWrite || relatedDataError || savingInquiries[item.id]} aria-label={`${item.id}の顧客`} className={inputClass} value={item.customer_id ?? ''} onChange={(event) => void updateLink(item, 'customer_id', event.target.value)}><option value="">顧客未設定</option>{item.customer_id && !customers.some((entry) => entry.id === item.customer_id) && <option value={item.customer_id}>現在の顧客（候補に表示されません）</option>}{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name ?? '顧客'}</option>)}</select>
+                      <select disabled={!canWrite || relatedDataError || savingInquiries[item.id]} aria-label={`${item.id}の車両`} className={inputClass} value={item.vehicle_id ?? ''} onChange={(event) => void updateLink(item, 'vehicle_id', event.target.value)}><option value="">車両未設定</option>{item.vehicle_id && !vehicles.some((entry) => entry.id === item.vehicle_id) && <option value={item.vehicle_id}>現在の車両（候補に表示されません）</option>}{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}</select>
+                      <select disabled={!canWrite || relatedDataError || savingInquiries[item.id]} aria-label={`${item.id}の商談`} className={inputClass} value={item.deal_id ?? ''} onChange={(event) => void updateLink(item, 'deal_id', event.target.value)}><option value="">商談未設定</option>{item.deal_id && !deals.some((entry) => entry.id === item.deal_id) && <option value={item.deal_id}>現在の商談（候補に表示されません）</option>}{deals.map((deal) => <option key={deal.id} value={deal.id}>{deal.title ?? deal.deal_no ?? '商談'}</option>)}</select>
                     </div>
                   </div>
                 </div>
@@ -234,16 +254,16 @@ export default function InquiriesPage() {
               </div>
               <div className="space-y-3 rounded-2xl border border-slate-200 p-4">
                 <div><p className="text-sm font-black text-slate-900">対応管理</p><p className="mt-1 text-xs text-slate-500">状態・担当・次回対応をまとめて保存します。</p></div>
-                <label className="block space-y-1 text-xs font-bold text-slate-600">対応状況<select disabled={!canWrite} aria-label="選択中の問い合わせの対応状況" className={`${inputClass} w-full`} value={editingStatus} onChange={(event) => setEditingStatus(event.target.value as Inquiry['response_status'])}><option value="unhandled">未対応</option><option value="in_progress">対応中</option><option value="completed">完了</option></select></label>
-                <label className="block space-y-1 text-xs font-bold text-slate-600">担当者<input disabled={!canWrite} aria-label="選択中の問い合わせの担当者" className={`${inputClass} w-full`} value={editingAssignee} onChange={(event) => setEditingAssignee(event.target.value)} placeholder="例: 田中" /></label>
-                <label className="block space-y-1 text-xs font-bold text-slate-600">次回対応日時（日本時間）<input disabled={!canWrite} aria-label="選択中の問い合わせの次回対応日時" type="datetime-local" className={`${inputClass} w-full`} value={editingNextActionAt} onInput={(event) => setEditingNextActionAt(event.currentTarget.value)} /></label>
-                <button type="button" onClick={() => void saveResponseManagement(selectedInquiry)} disabled={!canWrite || isSavingResponse} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{isSavingResponse ? '保存中...' : '対応状況を保存'}</button>
+                <label className="block space-y-1 text-xs font-bold text-slate-600">対応状況<select disabled={!canWrite || savingInquiries[selectedInquiry.id]} aria-label="選択中の問い合わせの対応状況" className={`${inputClass} w-full`} value={editingStatus} onChange={(event) => setEditingStatus(event.target.value as Inquiry['response_status'])}><option value="unhandled">未対応</option><option value="in_progress">対応中</option><option value="completed">完了</option></select></label>
+                <label className="block space-y-1 text-xs font-bold text-slate-600">担当者<input disabled={!canWrite || savingInquiries[selectedInquiry.id]} aria-label="選択中の問い合わせの担当者" className={`${inputClass} w-full`} value={editingAssignee} onChange={(event) => setEditingAssignee(event.target.value)} placeholder="例: 田中" /></label>
+                <label className="block space-y-1 text-xs font-bold text-slate-600">次回対応日時（日本時間）<input disabled={!canWrite || savingInquiries[selectedInquiry.id]} aria-label="選択中の問い合わせの次回対応日時" type="datetime-local" className={`${inputClass} w-full`} value={editingNextActionAt} onInput={(event) => setEditingNextActionAt(event.currentTarget.value)} /></label>
+                <button type="button" onClick={() => void saveResponseManagement(selectedInquiry)} disabled={!canWrite || savingInquiries[selectedInquiry.id]} className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{savingInquiries[selectedInquiry.id] ? '保存中...' : '対応状況を保存'}</button>
               </div>
               <div className="space-y-2">
                 <p className="text-xs font-bold text-slate-400">紐付け</p>
-                <label className="block space-y-1 text-xs font-bold text-slate-600">顧客<select disabled={!canWrite || relatedDataError} aria-label="選択中の問い合わせの顧客" className={`${inputClass} w-full`} value={selectedInquiry.customer_id ?? ''} onChange={(event) => void updateLink(selectedInquiry, 'customer_id', event.target.value)}><option value="">顧客未設定</option>{selectedInquiry.customer_id && !customers.some((entry) => entry.id === selectedInquiry.customer_id) && <option value={selectedInquiry.customer_id}>現在の顧客（候補に表示されません）</option>}{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name ?? '顧客'}</option>)}</select></label>
-                <label className="block space-y-1 text-xs font-bold text-slate-600">車両<select disabled={!canWrite || relatedDataError} aria-label="選択中の問い合わせの車両" className={`${inputClass} w-full`} value={selectedInquiry.vehicle_id ?? ''} onChange={(event) => void updateLink(selectedInquiry, 'vehicle_id', event.target.value)}><option value="">車両未設定</option>{selectedInquiry.vehicle_id && !vehicles.some((entry) => entry.id === selectedInquiry.vehicle_id) && <option value={selectedInquiry.vehicle_id}>現在の車両（候補に表示されません）</option>}{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}</select></label>
-                <label className="block space-y-1 text-xs font-bold text-slate-600">商談<select disabled={!canWrite || relatedDataError} aria-label="選択中の問い合わせの商談" className={`${inputClass} w-full`} value={selectedInquiry.deal_id ?? ''} onChange={(event) => void updateLink(selectedInquiry, 'deal_id', event.target.value)}><option value="">商談未設定</option>{selectedInquiry.deal_id && !deals.some((entry) => entry.id === selectedInquiry.deal_id) && <option value={selectedInquiry.deal_id}>現在の商談（候補に表示されません）</option>}{deals.map((deal) => <option key={deal.id} value={deal.id}>{deal.title ?? deal.deal_no ?? '商談'}</option>)}</select></label>
+                <label className="block space-y-1 text-xs font-bold text-slate-600">顧客<select disabled={!canWrite || relatedDataError || savingInquiries[selectedInquiry.id]} aria-label="選択中の問い合わせの顧客" className={`${inputClass} w-full`} value={selectedInquiry.customer_id ?? ''} onChange={(event) => void updateLink(selectedInquiry, 'customer_id', event.target.value)}><option value="">顧客未設定</option>{selectedInquiry.customer_id && !customers.some((entry) => entry.id === selectedInquiry.customer_id) && <option value={selectedInquiry.customer_id}>現在の顧客（候補に表示されません）</option>}{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name ?? '顧客'}</option>)}</select></label>
+                <label className="block space-y-1 text-xs font-bold text-slate-600">車両<select disabled={!canWrite || relatedDataError || savingInquiries[selectedInquiry.id]} aria-label="選択中の問い合わせの車両" className={`${inputClass} w-full`} value={selectedInquiry.vehicle_id ?? ''} onChange={(event) => void updateLink(selectedInquiry, 'vehicle_id', event.target.value)}><option value="">車両未設定</option>{selectedInquiry.vehicle_id && !vehicles.some((entry) => entry.id === selectedInquiry.vehicle_id) && <option value={selectedInquiry.vehicle_id}>現在の車両（候補に表示されません）</option>}{vehicles.map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicleLabel(vehicle)}</option>)}</select></label>
+                <label className="block space-y-1 text-xs font-bold text-slate-600">商談<select disabled={!canWrite || relatedDataError || savingInquiries[selectedInquiry.id]} aria-label="選択中の問い合わせの商談" className={`${inputClass} w-full`} value={selectedInquiry.deal_id ?? ''} onChange={(event) => void updateLink(selectedInquiry, 'deal_id', event.target.value)}><option value="">商談未設定</option>{selectedInquiry.deal_id && !deals.some((entry) => entry.id === selectedInquiry.deal_id) && <option value={selectedInquiry.deal_id}>現在の商談（候補に表示されません）</option>}{deals.map((deal) => <option key={deal.id} value={deal.id}>{deal.title ?? deal.deal_no ?? '商談'}</option>)}</select></label>
               </div>
               <dl className="space-y-3 text-sm">
                 <div className="flex items-center justify-between gap-4"><dt className="text-slate-500">流入元</dt><dd className="font-bold text-slate-900">{selectedInquiry.source_route ?? '-'}</dd></div>

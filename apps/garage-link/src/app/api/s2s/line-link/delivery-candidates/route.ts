@@ -44,7 +44,12 @@ function createServiceClient() {
 
 export async function POST(request: Request) {
   // body は HMAC 検証対象なので必ず先に読み切る。空 body 想定だが、将来の filter 追加に備えて保持。
-  const bodyText = await request.text();
+  let bodyText: string;
+  try {
+    bodyText = await request.text();
+  } catch {
+    return NextResponse.json({ ok: false, error: 'リクエスト内容が不正です。', code: 'invalid_body' }, { status: 400 });
+  }
   const headers = request.headers;
   const url = new URL(request.url);
 

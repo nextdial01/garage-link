@@ -63,7 +63,12 @@ function parseAcknowledgements(bodyText: string): AcknowledgementInput[] | null 
 
 export async function POST(request: Request) {
   // body は HMAC 検証対象なので必ず先に読み切る。
-  const bodyText = await request.text();
+  let bodyText: string;
+  try {
+    bodyText = await request.text();
+  } catch {
+    return NextResponse.json({ ok: false, error: safeMessages.invalid_body, code: 'invalid_body' }, { status: 400 });
+  }
   const headers = request.headers;
   const url = new URL(request.url);
 
