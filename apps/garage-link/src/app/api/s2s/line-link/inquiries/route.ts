@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { createInquiryMarkerFault } from '@/lib/qa/inquiryMarkerFault.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { verifyLLinkS2SRequest } from '@/lib/line-link/s2sAuth';
 import { logServerError } from '@/lib/observability/logServerError';
@@ -35,8 +36,10 @@ async function markLLinkConnected(
   keyId: string,
   inquiryId: string,
   responseId: string,
+  markerFault: ReturnType<typeof createInquiryMarkerFault> = null,
 ) {
-  const { data, error } = await supabase.rpc('mark_verified_llink_inquiry_connected', {
+  const markerClient = markerFault ? markerFault.decorate(supabase, inquiryId) : supabase;
+  const { data, error } = await markerClient.rpc('mark_verified_llink_inquiry_connected', {
     p_tenant_id: context.tenantId,
     p_store_id: context.storeId,
     p_key_id: keyId,
@@ -139,8 +142,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, code: 'server_misconfigured', error: '問い合わせ連携のサーバー設定が不足しています。' }, { status: 500 });
   }
 
+  let markerFault: ReturnType<typeof createInquiryMarkerFault> = null;
   try {
     await assertServiceTenantStoreContext(supabase, context);
+    // Normal HMAC/context/contract/body/service scope gates have all succeeded.
+    markerFault = createInquiryMarkerFault({bodyText,validatedBody:body,context,keyId:auth.keyId,
+      enabled:process.env.GARAGE_QA_INQUIRY_MARKER_FAULT_ENABLED??'0',
+      expiresAt:Number(process.env.GARAGE_QA_INQUIRY_MARKER_FAULT_EXPIRES_AT??'0')});
     const { data: existing, error: existingError } = await supabase
       .from('line_form_responses')
       .select('id')
@@ -157,7 +165,7 @@ export async function POST(request: Request) {
       throw existingError;
     }
     if (existing?.id) {
-      await markLLinkConnected(supabase, context, auth.keyId, existing.id, body.response_id);
+      await markLLinkConnected(supabase, context, auth.keyId, existing.id, body.response_id, markerFault);
       return NextResponse.json({ ok: true, store_id: auth.storeId, inquiry_id: existing.id, outcome: 'already_exists' });
     }
 
@@ -184,7 +192,7 @@ export async function POST(request: Request) {
           .ilike('external_response_id', body.response_id)
           .maybeSingle();
         if (duplicate?.id) {
-          await markLLinkConnected(supabase, context, auth.keyId, duplicate.id, body.response_id);
+          await markLLinkConnected(supabase, context, auth.keyId, duplicate.id, body.response_id, markerFault);
           return NextResponse.json({ ok: true, store_id: auth.storeId, inquiry_id: duplicate.id, outcome: 'already_exists' });
         }
       }
@@ -195,11 +203,11 @@ export async function POST(request: Request) {
       });
       throw createError;
     }
-    await markLLinkConnected(supabase, context, auth.keyId, created.id, body.response_id);
+    await markLLinkConnected(supabase, context, auth.keyId, created.id, body.response_id, markerFault);
     return NextResponse.json({ ok: true, store_id: auth.storeId, inquiry_id: created.id, outcome: 'created' }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'l_link_marker_pending') {
-      return NextResponse.json({ ok: false, code: 'connection_marker_pending', error: '問い合わせは保存済みですが、連携状態の確認に失敗しました。時間をおいて再試行してください。' }, { status: 500 });
+      return NextResponse.json({ ok: false, code: 'connection_marker_pending', error: '問い合わせは保存済みですが、連携状態の確認に失敗しました。時間をおいて再試行してください。', ...(markerFault?.observed ? { qa_marker_fault_observed: true } : {}) }, { status: 500 });
     }
     logServerError('l_link_inquiry_sync_failed', { route: 's2s/line-link/inquiries', storeId: auth.storeId }, error);
     return NextResponse.json({ ok: false, code: 'internal_error', error: '問い合わせの登録に失敗しました。' }, { status: 500 });
