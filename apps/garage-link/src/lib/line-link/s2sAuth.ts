@@ -100,7 +100,7 @@ export type VerifyOptions = {
   body: Buffer | string;
 };
 
-export async function verifyLLinkS2SRequest(opts: VerifyOptions): Promise<S2SAuthResult> {
+export async function verifyLLinkS2SRequest(opts: VerifyOptions, clock: () => number = Date.now): Promise<S2SAuthResult> {
   const keyId = opts.headers.get('x-ll-key-id') ?? '';
   const timestampRaw = opts.headers.get('x-ll-timestamp') ?? '';
   const nonce = opts.headers.get('x-ll-nonce') ?? '';
@@ -112,7 +112,8 @@ export async function verifyLLinkS2SRequest(opts: VerifyOptions): Promise<S2SAut
   const timestamp = Number(timestampRaw);
   if (!Number.isFinite(timestamp) || !Number.isInteger(timestamp)) return fail('invalid_timestamp');
 
-  const now = Math.floor(Date.now() / 1000);
+  const nowMs = clock();
+  const now = Math.floor(nowMs / 1000);
   if (Math.abs(now - timestamp) > TIMESTAMP_TOLERANCE_SEC) return fail('expired_timestamp');
 
   if (!isValidUuid(storeId)) return fail('invalid_store_id');
