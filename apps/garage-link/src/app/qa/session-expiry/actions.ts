@@ -10,10 +10,20 @@ const STORE = '45d624bb-37ca-4183-a5c4-8ed932a69616';
 const TENANT = '4f2c6f87-524c-4b50-9b22-48928603c24c';
 const CUSTOMER = '41551ac2-6a9a-4863-8fb0-4db9c746633f';
 const BUSINESS_URL = `https://garage-link.tech/api/mobile/v2/customers/${CUSTOMER}`;
-const PURPOSE = 'KANNAGI/QA/G/XQ01/held-access-token/v1';
-type Receipt = { v: 1; purpose: string; subject: string; tenant: string; store: string; tokenHash: string; issued: number; exp: number };
+const PURPOSE = 'KANNAGI/QA/G/XQ01/held-access-token/current-alias-v2';
+type RuntimeIdentity = {deployment_id:string;release_sha:string};
+function runtimeIdentity():RuntimeIdentity|null {
+ const deployment_id=process.env.VERCEL_DEPLOYMENT_ID??'';
+ const git=process.env.VERCEL_GIT_COMMIT_SHA??'';
+ const release_sha=process.env.KANNAGI_RELEASE_SHA??git;
+ if(!/^dpl_[A-Za-z0-9]+$/.test(deployment_id)||!/^[0-9a-f]{40}$/.test(release_sha)||(git!==''&&git!==release_sha))return null;
+ return {deployment_id,release_sha};
+}
+export async function sessionExpiryReadiness(){return runtimeIdentity();}
+
+type Receipt = { v: 1; releaseSha:string; purpose: string; subject: string; tenant: string; store: string; tokenHash: string; issued: number; exp: number };
 const hash = (value: string) => crypto.createHash('sha256').update(value).digest('hex');
-const safe = (code: string, seconds: number | null = null, receipt: string | null = null, validGetStatus: number | null = null) => ({ code, seconds_until_expiry: seconds, receipt, valid_get_status: validGetStatus });
+const safe = (code: string, seconds: number | null = null, receipt: string | null = null, validGetStatus: number | null = null, runtime: RuntimeIdentity|null = null) => ({ code, seconds_until_expiry: seconds, receipt, valid_get_status: validGetStatus, capture_runtime:runtime });
 const result = (code: string, getStatus: number | null = null, patchStatus: number | null = null) => ({ code, get_status: getStatus, patch_status: patchStatus, evidence_class: 'real_expired_token_normal_Garage_mobile_business_routes' });
 
 async function admit() {
@@ -41,14 +51,15 @@ function sign(payload: Receipt, key: Buffer) {
 function validReceipt(receipt: string, token: string, now: number) {
   try {
     const key = receiptKey();
-    if (!key || receipt.length > 2048) return false;
+    const runtime=runtimeIdentity();
+    if (!key || !runtime || receipt.length > 2048) return false;
     const parts = receipt.split('.');
     if (parts.length !== 2 || !parts.every((part) => /^[A-Za-z0-9_-]+$/.test(part))) return false;
     const payload: unknown = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
     const value = payload as Record<string, unknown>;
-    if (Object.keys(value).sort().join(',') !== 'exp,issued,purpose,store,subject,tenant,tokenHash,v'
-      || value.v !== 1 || value.purpose !== PURPOSE || value.subject !== OWNER || value.tenant !== TENANT || value.store !== STORE
+    if (Object.keys(value).sort().join(',') !== 'exp,issued,purpose,releaseSha,store,subject,tenant,tokenHash,v'
+      || value.v !== 1 || value.releaseSha !== runtime.release_sha || value.purpose !== PURPOSE || value.subject !== OWNER || value.tenant !== TENANT || value.store !== STORE
       || value.tokenHash !== hash(token) || typeof value.issued !== 'number' || typeof value.exp !== 'number'
       || !Number.isSafeInteger(value.issued) || !Number.isSafeInteger(value.exp)
       || value.exp <= value.issued || value.exp > value.issued + 86_400
@@ -63,6 +74,8 @@ let captureAttempted = false;
 export async function captureGarageExpiry(token: string) {
   try {
     if (typeof token !== 'string' || !token || token.length > 16384 || !await admit()) return safe('DENIED');
+    const runtime=runtimeIdentity();
+    if(!runtime)return safe('DEPENDENCY_RUNTIME_IDENTITY');
     const auth = createBearerAuthClient();
     if (!auth) return safe('DEPENDENCY_AUTH_CONFIG');
     const verified = await auth.auth.getUser(token);
@@ -78,7 +91,7 @@ export async function captureGarageExpiry(token: string) {
     const validGetStatus = positive.status;
     await positive.body?.cancel().catch(() => undefined);
     if (validGetStatus !== 200) return safe('STOP_UNEXPECTED_BUSINESS_VALID_READ_STATUS', exp - issued, null, validGetStatus);
-    return safe('VALID_TOKEN_CAPTURED', exp - issued, sign({ v: 1, purpose: PURPOSE, subject: OWNER, tenant: TENANT, store: STORE, tokenHash: hash(token), issued, exp }, key), validGetStatus);
+    return safe('VALID_TOKEN_CAPTURED', exp - issued, sign({ v: 1, releaseSha:runtime.release_sha, purpose: PURPOSE, subject: OWNER, tenant: TENANT, store: STORE, tokenHash: hash(token), issued, exp }, key), validGetStatus, runtime);
   } catch { return safe('UNKNOWN_CAPTURE'); }
 }
 

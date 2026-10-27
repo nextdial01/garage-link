@@ -186,6 +186,12 @@ export async function middleware(request: NextRequest) {
   if (isProductionVercelRequest(request) && !isBillingReconciliationCronGet) {
     return redirectToCanonicalDomain(request);
   }
+  // Public readiness exposes only deployment ID/release SHA. Keep POST and
+  // every other method/path on the unchanged session authorization path.
+  if (pathname === '/api/qa/session-expiry' && request.method === 'GET') {
+    return NextResponse.next({ request });
+  }
+
   if (!isKnownApplicationPath(pathname)) return NextResponse.next({ request });
 
   let response = NextResponse.next({ request });
