@@ -16,7 +16,7 @@ async function probeCurrentExpiryDeployment(held:HeldExpiryCapture,fetcher:typeo
   const r=identity as Record<string,unknown>;
   if(r.kind!=='QA_SESSION_EXPIRY_READINESS'||typeof r.deployment_id!=='string'||!/^dpl_[A-Za-z0-9]+$/.test(r.deployment_id)||r.release_sha!==held.releaseSha)return {code:'STOP_READINESS_IDENTITY_NO_RETRY',probe_request_started:false};
   postAttempted=true;
-  const response=await fetcher('/api/qa/session-expiry',{method:'POST',credentials:'same-origin',cache:'no-store',redirect:'error',referrerPolicy:'no-referrer',headers:{Accept:'application/json','Content-Type':'application/json','x-deployment-id':r.deployment_id,'x-qa-expiry-release-sha':held.releaseSha},body:JSON.stringify({token:held.token,receipt:held.receipt}),signal:AbortSignal.timeout(45000)});
+  const response=await fetcher('/api/qa/session-expiry',{method:'POST',credentials:'same-origin',cache:'no-store',redirect:'error',referrerPolicy:'no-referrer',headers:{Accept:'application/json','Content-Type':'application/json','x-deployment-id':r.deployment_id,'x-qa-expiry-expected-deployment-id':r.deployment_id,'x-qa-expiry-release-sha':held.releaseSha},body:JSON.stringify({token:held.token,receipt:held.receipt}),signal:AbortSignal.timeout(45000)});
   if(response.headers.get('x-qa-expiry-deployment-id')!==r.deployment_id||response.headers.get('x-qa-expiry-release-sha')!==held.releaseSha)return {code:'STOP_DEPLOYMENT_RESPONSE_MISMATCH_NO_RETRY',probe_request_started:true};
   if(response.status!==200)return {code:'STOP_QA_PROBE_HTTP_STATUS_NO_RETRY',status:response.status,probe_request_started:true};
   const value:unknown=await response.json();

@@ -20,7 +20,7 @@ export async function POST(request:Request){
  if(!identity)return fail('DEPENDENCY_RUNTIME_IDENTITY',503);
  // Public version headers only: no token is used as routing or URL metadata.
  if(request.headers.get('origin')!==ORIGIN||request.headers.get('sec-fetch-site')!=='same-origin')return fail('DENIED',403);
- if(request.headers.get('x-deployment-id')!==identity.deployment_id||request.headers.get('x-qa-expiry-release-sha')!==identity.release_sha)return fail('DEPLOYMENT_MISMATCH_NO_CASE',409);
+ if(request.headers.get('x-qa-expiry-expected-deployment-id')!==identity.deployment_id||request.headers.get('x-qa-expiry-release-sha')!==identity.release_sha)return fail('DEPLOYMENT_MISMATCH_NO_CASE',409);
  if((request.headers.get('content-type')??'').split(';')[0].trim().toLowerCase()!=='application/json')return fail('INVALID_MEDIA_TYPE',415);
  const declared=request.headers.get('content-length');
  if(declared!==null&&(!/^\d+$/.test(declared)||Number(declared)>MAX_BYTES))return fail('INVALID_BODY_SIZE',413);
