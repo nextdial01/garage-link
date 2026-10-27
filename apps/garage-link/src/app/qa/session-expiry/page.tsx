@@ -29,12 +29,39 @@ async function probeCurrentExpiryDeployment(held:HeldExpiryCapture,fetcher:typeo
  }catch{return {code:'UNKNOWN_QA_PROBE_TRANSPORT_NO_RETRY',probe_request_started:postAttempted};}
 }
 
+async function probeTokenlessExpiryTransport(fetcher:typeof fetch=fetch){
+ let started=false;
+ try{
+  const ready=await fetcher(`/api/qa/session-expiry?_qa_transport=${Date.now().toString(36)}`,{method:'GET',credentials:'same-origin',cache:'no-store',redirect:'error',referrerPolicy:'no-referrer',headers:{Accept:'application/json'},signal:AbortSignal.timeout(10000)});
+  if(ready.status!==200)return {code:'STOP_TRANSPORT_READINESS_NO_RETRY',status:ready.status};
+  const identity:unknown=await ready.json();
+  if(!identity||typeof identity!=='object'||Array.isArray(identity)||Object.keys(identity).sort().join(',')!=='deployment_id,kind,release_sha')return {code:'STOP_TRANSPORT_IDENTITY_NO_RETRY'};
+  const r=identity as Record<string,unknown>;
+  if(r.kind!=='QA_SESSION_EXPIRY_READINESS'||typeof r.deployment_id!=='string'||!/^dpl_[A-Za-z0-9]+$/.test(r.deployment_id)||typeof r.release_sha!=='string'||!/^[0-9a-f]{40}$/.test(r.release_sha))return {code:'STOP_TRANSPORT_IDENTITY_NO_RETRY'};
+  started=true;
+  const response=await fetcher('/api/qa/session-expiry',{method:'POST',credentials:'same-origin',cache:'no-store',redirect:'error',referrerPolicy:'no-referrer',headers:{Accept:'application/json','Content-Type':'application/json','x-deployment-id':r.deployment_id,'x-qa-expiry-expected-deployment-id':r.deployment_id,'x-qa-expiry-release-sha':r.release_sha},body:'{}',signal:AbortSignal.timeout(10000)});
+  if(response.headers.get('x-qa-expiry-deployment-id')!==r.deployment_id||response.headers.get('x-qa-expiry-release-sha')!==r.release_sha)return {code:'STOP_TRANSPORT_RESPONSE_IDENTITY_NO_RETRY',status:response.status};
+  if(response.status!==400)return {code:'STOP_TRANSPORT_STATUS_NO_RETRY',status:response.status};
+  const value:unknown=await response.json();
+  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).join(',')!=='code'||(value as Record<string,unknown>).code!=='INVALID_BODY')return {code:'STOP_TRANSPORT_BODY_NO_RETRY',status:400};
+  return {code:'TOKENLESS_TRANSPORT_INVALID_BODY_CONFIRMED',status:400};
+ }catch{return {code:started?'UNKNOWN_TRANSPORT_POST_NO_RETRY':'UNKNOWN_TRANSPORT_READINESS_NO_RETRY'};}
+}
+
 export default function GarageSessionExpiryPage(){
+ const transportAttempted=useRef(false);
+ const [transportConsumed,setTransportConsumed]=useState(false);
  const held=useRef<HeldExpiryCapture|null>(null),captureAttempted=useRef(false),businessAttempted=useRef(false);
  const [message,setMessage]=useState(''),[busy,setBusy]=useState(false),[captureConsumed,setCaptureConsumed]=useState(false),[businessConsumed,setBusinessConsumed]=useState(false);
  useEffect(()=>()=>{held.current=null;},[]);
  return <main className="mx-auto max-w-2xl space-y-4 p-6">
   <h1>QA genuine GARAGE session expiry</h1>
+  <button disabled={busy||!!held.current||captureConsumed||transportConsumed} onClick={async()=>{
+   if(transportAttempted.current||captureAttempted.current||held.current)return;
+   transportAttempted.current=true;setTransportConsumed(true);setBusy(true);
+   try{setMessage(JSON.stringify(await probeTokenlessExpiryTransport()));}finally{setBusy(false);}
+  }}>Before capture: tokenless transport preflight once</button>
+  <p>Parent must reserve this product's one transport attempt in the durable ledger before clicking. No reload or retry. This preflight sends only an empty object and does not capture or test an access token.</p>
   <button disabled={busy||!!held.current||captureConsumed} onClick={async()=>{
    if(captureAttempted.current)return;captureAttempted.current=true;setCaptureConsumed(true);setBusy(true);
    try{
