@@ -136,7 +136,7 @@ export default function DeliveryCandidatesPage() {
           {isLoading ? (
             <p className="px-5 py-10 text-center text-sm text-slate-500">読み込み中...</p>
           ) : rows.length === 0 ? (
-            <p className="px-5 py-12 text-center text-sm text-slate-500">配信候補がありません。各種フォロー条件に合致すると自動で候補が作成されます。</p>
+            <p className="px-5 py-12 text-center text-sm text-slate-500">{errorMessage ? '配信候補を取得できませんでした。再読み込みして確認してください。' : typeFilter || statusFilter ? '絞り込み条件に一致する配信候補がありません。種別・状態を「すべて」に戻して確認してください。' : '配信候補がありません。各種フォロー条件に合致すると自動で候補が作成されます。'}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] text-sm">
