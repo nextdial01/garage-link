@@ -10,6 +10,9 @@ import ResponsiveDetailPanel from '@/components/ResponsiveDetailPanel';
 import { getGarageUiContext } from '@/lib/store/garageUiContext';
 import { createClient } from '@/lib/supabase/client';
 
+const WRITE_CONTEXT_CHANGED_MESSAGE = '店舗または操作権限が変わりました。再読み込みして確認してください。';
+class InquiryWriteContextChangedError extends Error {}
+
 type Inquiry = {
   id: string;
   customer_id: string | null;
@@ -159,7 +162,7 @@ export default function InquiriesPage() {
     const context = await getGarageUiContext({ force: true });
     if (context.state !== 'active' || context.storeId !== storeId || !['owner', 'admin', 'staff'].includes(context.role)) {
       setCanWrite(false);
-      throw new Error('店舗または操作権限が変わりました。再読み込みして確認してください。');
+      throw new InquiryWriteContextChangedError(WRITE_CONTEXT_CHANGED_MESSAGE);
     }
   }
 
@@ -191,7 +194,7 @@ export default function InquiriesPage() {
       }
       setInquiries((items) => items.map((item) => item.id === target.id ? data : item));
     } catch (error) {
-      setErrorMessage(toUserErrorMessage(error, '紐付けを保存できませんでした。'));
+      setErrorMessage(error instanceof InquiryWriteContextChangedError ? WRITE_CONTEXT_CHANGED_MESSAGE : toUserErrorMessage(error, '紐付けを保存できませんでした。'));
     } finally {
       finishInquirySave(target.id);
     }
@@ -221,7 +224,7 @@ export default function InquiriesPage() {
       }
       setInquiries((items) => items.map((item) => item.id === target.id ? data : item));
     } catch (error) {
-      setErrorMessage(toUserErrorMessage(error, '対応状況を保存できませんでした。'));
+      setErrorMessage(error instanceof InquiryWriteContextChangedError ? WRITE_CONTEXT_CHANGED_MESSAGE : toUserErrorMessage(error, '対応状況を保存できませんでした。'));
     } finally {
       finishInquirySave(target.id);
     }
