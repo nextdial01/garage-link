@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { subtractCalendarMonths, defaultNoticeSettings, renderNoticeTemplate, type NoticeType, type MergeField } from './noticeRules';
+import { buildGarageDocumentSnapshot } from './documentSnapshot';
 type SourceGuard = { table: string; id: string; updatedAt?: string; values?: Record<string, string | number | boolean | null> };
 const guardFields = ['id', 'store_id', 'quote_id', 'invoice_id', 'name', 'description', 'quantity', 'unit_price', 'amount', 'tax_rate', 'tax_category', 'line_discount_input_amount', 'unit', 'item_order'] as const;
 function addGuard(guards: SourceGuard[], table: string, row: Record<string, unknown>, id = row.id) {
@@ -53,7 +54,7 @@ export async function prepareHandoffSnapshots(client: unknown, store: string, in
  let vehicleId: string | null = null, customerIds: string[] = [];
  if (input.kind === 'quote_notice' || input.kind === 'invoice_notice') {
   const table = input.kind === 'quote_notice' ? 'quotes' : 'invoices';
-  doc = await one(db, table, `id,deal_id,customer_id,vehicle_id,updated_at,issue_status,deleted_at,is_archived,${table === 'quotes' ? 'quote_no,expiry_date' : 'invoice_no,payment_due_date'},issue_date,customer_name,vehicle_label,subtotal_amount,tax_amount,discount_amount,trade_in_amount,total_amount`, store, input.source_id, guards);
+  doc = await one(db, table, `id,deal_id,customer_id,vehicle_id,updated_at,issue_status,deleted_at,is_archived,${table === 'quotes' ? 'quote_no,expiry_date,title,customer_email,vehicle_year,vehicle_mileage_km,vehicle_vin,vehicle_inspection_expiry_date' : 'invoice_no,payment_due_date,paid_amount,unpaid_amount'},issue_date,customer_name,customer_phone,customer_address,customer_honorific,vehicle_label,vehicle_maker,vehicle_model_name,tax_display_mode,subtotal_amount,tax_amount,discount_amount,trade_in_amount,total_amount,customer_note,internal_memo`, store, input.source_id, guards);
   if (doc.deleted_at || doc.is_archived || doc.issue_status !== 'issued') throw new Error('発行済みの書類のみ案内できます。');
   if (doc.deal_id !== null) {
    if (!isUuid(doc.deal_id)) throw new Error('書類の商談情報を確認できません。');
@@ -87,7 +88,7 @@ export async function prepareHandoffSnapshots(client: unknown, store: string, in
   if (!customerIds.length || customerIds.length > 100 || customerIds.some(id => !eligible.includes(id))) throw new Error('進行中の商談に紐づく顧客を指定してください。');
   }
  }
- const vehicle = vehicleId ? await one(db, 'vehicles', 'id,maker,model_name,status,deleted_at,is_archived,updated_at,base_price,total_price,inspection_expiry_date', store, vehicleId, guards) : null;
+ const vehicle = vehicleId ? await one(db, 'vehicles', `id,maker,model_name,status,deleted_at,is_archived,updated_at,base_price,total_price,inspection_expiry_date${doc ? ',management_no,registration_no,grade,model_year,mileage_km,vin' : ''}`, store, vehicleId, guards) : null;
  if (vehicle && (vehicle.deleted_at || vehicle.is_archived || (input.kind === 'price_reduction' ? ['売約済', '売約', '廃車', 'sold', 'scrapped'] : ['廃車', 'scrapped']).includes(text(vehicle.status)))) throw new Error('この車両は案内できません。');
  if (price && (!vehicle || price.vehicle_version !== vehicle.updated_at || price.new_base_price !== vehicle.base_price || price.new_total_price !== vehicle.total_price)) throw new Error('値下げ後の車両情報が変わりました。');
  const { data: settings, error: settingsError } = await db.from('garage_link_notice_settings').select('templates,repurchase_enabled,repurchase_before_months,updated_at').eq('store_id', store).maybeSingle();
@@ -98,15 +99,19 @@ export async function prepareHandoffSnapshots(client: unknown, store: string, in
   const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date());
   if (today < due || today > text(vehicle.inspection_expiry_date)) throw new Error('買替提案の期間外です。');
  }
- const { data: storeRow, error: storeError } = await db.from('stores').select('name').eq('id', store).single();
+ const { data: storeRow, error: storeError } = await db.from('stores').select(doc ? 'id,updated_at,name,company_name,representative_name,invoice_registration_number,postal_code,address,building,phone,fax,email,bank_name,bank_branch_name,bank_account_type,bank_account_number,bank_account_holder,quote_note,invoice_note,document_footer_text' : 'name').eq('id', store).single();
  if (storeError || !storeRow) throw new Error('店舗情報を確認できません。');
- let document: Record<string, unknown> | undefined;
+ let documentItems: Row[] = [];
  if (doc) {
+  // The narrow SQL guard checks this exact store's real timestamp without
+  // granting cross-service clients direct access to company or bank details.
+  if (storeRow.id !== store || typeof storeRow.updated_at !== 'string' || !Number.isFinite(Date.parse(storeRow.updated_at))) throw new Error('帳票の店舗情報の版を確認できません。');
+  addGuard(guards, 'stores', storeRow);
   const quote = input.kind === 'quote_notice';
-  const { data: items, error } = await db.from(quote ? 'quote_items' : 'invoice_items').select(`id,${quote ? 'quote_id' : 'invoice_id'},item_order,name,quantity,unit_price,amount`).eq(quote ? 'quote_id' : 'invoice_id', input.source_id).order('item_order', { ascending: true });
+  const { data: items, error } = await db.from(quote ? 'quote_items' : 'invoice_items').select(`id,${quote ? 'quote_id,description,tax_amount' : 'invoice_id'},updated_at,item_order,name,quantity,unit_price,amount,tax_category,tax_rate,unit,note,line_discount_input_amount`).eq(quote ? 'quote_id' : 'invoice_id', input.source_id).order('item_order', { ascending: true });
   if (error || !items?.length) throw new Error('書類明細を確認できません。');
   for (const item of items) addGuard(guards, quote ? 'quote_items' : 'invoice_items', item);
-  document = { kind: quote ? 'quote' : 'invoice', title: quote ? '御見積書' : '御請求書', documentNumber: text(doc.quote_no ?? doc.invoice_no), issuedAtLabel: text(doc.issue_date), dueAtLabel: text(doc.expiry_date ?? doc.payment_due_date), issuerLines: [text(storeRow.name)], recipientLines: [text(doc.customer_name)], items: items.map(i => ({ description: text(i.name), quantityLabel: String(i.quantity ?? ''), unitPriceLabel: money(i.unit_price), lineTotalLabel: money(i.amount) })), summary: [{ label: '小計', value: money(doc.subtotal_amount) }, { label: '税額', value: money(doc.tax_amount) }, { label: '値引き', value: money(doc.discount_amount) }, { label: '下取額', value: money(doc.trade_in_amount) }, { label: '合計', value: money(doc.total_amount) }] };
+  documentItems = items;
  }
  const reducedTotal = price && typeof price.old_total_price === 'number' && typeof price.new_total_price === 'number' && price.new_total_price < price.old_total_price;
  const reducedBase = price && typeof price.old_base_price === 'number' && typeof price.new_base_price === 'number' && price.new_base_price < price.old_base_price;
@@ -115,10 +120,11 @@ export async function prepareHandoffSnapshots(client: unknown, store: string, in
  if (doc && !deal && template.includes('{{deal_title}}')) throw new Error('商談のない書類では商談名の差し込みを使用できません。案内本文設定を確認してください。');
  const results = [];
  for (const customerId of customerIds) {
-  const customer = await one(db, 'customers', 'id,name,deleted_at,is_archived,delivery_permission,customer_status,line_friend_status,updated_at', store, customerId);
+  const customer = await one(db, 'customers', `id,name,deleted_at,is_archived,delivery_permission,customer_status,line_friend_status,updated_at${doc ? ',phone,email,address,customer_type' : ''}`, store, customerId);
   if (customer.deleted_at || customer.is_archived || !['allowed', '許可'].includes(text(customer.delivery_permission)) || (['blocked', '配信停止'].includes(text(customer.customer_status)) || ['blocked', 'ブロック'].includes(text(customer.line_friend_status)))) throw new Error('案内を許可されていない顧客が含まれます。');
   const sourceGuards = [...guards]; addGuard(sourceGuards, 'customers', customer);
   sourceGuards.sort((a, b) => (a.table + a.id).localeCompare(b.table + b.id));
+  const document = doc && (input.kind === 'quote_notice' || input.kind === 'invoice_notice') ? buildGarageDocumentSnapshot(input.kind, doc, documentItems, storeRow, vehicle, customer) : undefined;
   const vehicleName = vehicle ? [vehicle.maker, vehicle.model_name].filter(Boolean).join(' ') : '';
   const values: Partial<Record<MergeField, string>> = { customer_name: text(customer.name), vehicle_name: vehicleName, deal_title: text(deal?.title), inspection_expiry_date: text(vehicle?.inspection_expiry_date), document_url: '{{document_url}}', document_number: text(doc?.quote_no ?? doc?.invoice_no), total_amount: money(doc?.total_amount), store_name: text(storeRow.name), old_price: money(reducedTotal ? price?.old_total_price : price?.old_base_price), new_price: money(reducedTotal ? price?.new_total_price : price?.new_base_price) };
   const payload: Record<string, unknown> = { version: 1, bodyText: renderNoticeTemplate(template, values), customerName: text(customer.name), vehicleName, sourceGuards };
