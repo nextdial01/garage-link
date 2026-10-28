@@ -3,7 +3,7 @@
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import ContextHelp from '@/components/ContextHelp';
 import ResponsiveDetailPanel from '@/components/ResponsiveDetailPanel';
@@ -146,6 +146,21 @@ export default function InquiriesPage() {
     setEditingNextActionAt(toDateTimeLocal(inquiry.next_action_at));
     setConflictMessage('');
     setPendingRefresh(false);
+    setErrorMessage('');
+  }
+
+  const closeInquiryDetail = useCallback(() => {
+    setSelectedInquiryId(null);
+    setConflictMessage('');
+    setPendingRefresh(false);
+  }, []);
+
+  async function verifyCurrentWriteContext() {
+    const context = await getGarageUiContext({ force: true });
+    if (context.state !== 'active' || context.storeId !== storeId || !['owner', 'admin', 'staff'].includes(context.role)) {
+      setCanWrite(false);
+      throw new Error('店舗または操作権限が変わりました。再読み込みして確認してください。');
+    }
   }
 
   async function applyRefresh() {
@@ -158,7 +173,9 @@ export default function InquiriesPage() {
   async function updateLink(target: Inquiry, field: 'customer_id' | 'vehicle_id' | 'deal_id', value: string) {
     if (!canWrite || relatedDataError) return;
     if (!beginInquirySave(target.id)) return;
+    setErrorMessage('');
     try {
+      await verifyCurrentWriteContext();
       const next = value || null;
       const supabase = createClient();
       const { data, error } = await supabase.from<Inquiry>('line_form_responses').update({ [field]: next }).eq('id', target.id).eq('store_id', storeId).eq('updated_at', target.updated_at ?? '').select('id, customer_id, vehicle_id, deal_id, answers, submitted_at, source_route, internal_memo, response_status, assigned_user_name, next_action_at, updated_at').maybeSingle();
@@ -167,13 +184,14 @@ export default function InquiriesPage() {
         return;
       }
       if (!data) {
-        setConflictMessage('ほかの更新が入ったため保存できませんでした。最新データを反映してください。');
+        await verifyCurrentWriteContext();
+        setConflictMessage('保存対象を確認できませんでした。更新・削除・権限変更の可能性があります。最新データを反映してください。');
         setPendingRefresh(true);
         return;
       }
       setInquiries((items) => items.map((item) => item.id === target.id ? data : item));
-    } catch {
-      setErrorMessage('紐付けを保存できませんでした。');
+    } catch (error) {
+      setErrorMessage(toUserErrorMessage(error, '紐付けを保存できませんでした。'));
     } finally {
       finishInquirySave(target.id);
     }
@@ -183,6 +201,7 @@ export default function InquiriesPage() {
     if (!canWrite || !beginInquirySave(target.id)) return;
     setErrorMessage('');
     try {
+      await verifyCurrentWriteContext();
       const nextActionAt = editingNextActionAt ? new Date(`${editingNextActionAt}+09:00`).toISOString() : null;
       const supabase = createClient();
       const { data, error } = await supabase
@@ -195,7 +214,8 @@ export default function InquiriesPage() {
         .maybeSingle();
       if (error) throw new Error('対応状況を保存できませんでした。');
       if (!data) {
-        setConflictMessage('ほかの更新が入ったため保存できませんでした。最新データを反映してください。');
+        await verifyCurrentWriteContext();
+        setConflictMessage('保存対象を確認できませんでした。更新・削除・権限変更の可能性があります。最新データを反映してください。');
         setPendingRefresh(true);
         return;
       }
@@ -241,10 +261,11 @@ export default function InquiriesPage() {
           )}
         </div>
 
-        <ResponsiveDetailPanel open={Boolean(selectedInquiry)} title="問い合わせ概要" subtitle={selectedInquiry?.submitted_at ? new Date(selectedInquiry.submitted_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : undefined} onClose={() => { setSelectedInquiryId(null); setConflictMessage(''); setPendingRefresh(false); }}>
+        <ResponsiveDetailPanel open={Boolean(selectedInquiry)} title="問い合わせ概要" subtitle={selectedInquiry?.submitted_at ? new Date(selectedInquiry.submitted_at).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : undefined} onClose={closeInquiryDetail}>
           {selectedInquiry && (
             <div className="space-y-5">
-              {pendingRefresh && <button type="button" onClick={() => void applyRefresh()} className="w-full rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700">新しい更新があります。反映する</button>}
+              {errorMessage && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{errorMessage}</p>}
+              {pendingRefresh && <button type="button" onClick={() => void applyRefresh()} className="w-full rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700">最新の状態を確認する</button>}
               {conflictMessage && <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">{conflictMessage}</p>}
               <div className="rounded-2xl bg-slate-50 p-4">
                 <p className="text-xs font-bold text-slate-400">受付内容</p>

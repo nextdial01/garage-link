@@ -3,6 +3,7 @@
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
+import GarageLinkNoticeButton from '@/components/GarageLinkNoticeButton';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -670,12 +671,7 @@ export default function DealDetailPage() {
           >
             {isSavingDeal ? '保存中...' : '保存する'}
           </button>
-          <Link
-            href="/settings/l-link"
-            className="rounded-xl bg-green-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-green-700"
-          >
-            L-LINKで案内
-          </Link>
+          <GarageLinkNoticeButton kind="deal_notice" sourceId={dealId} />
           <SoftDeleteButton
             tableName="deals"
             rowId={dealId}
@@ -985,12 +981,7 @@ export default function DealDetailPage() {
                 >
                   請求書を作成
                 </Link>
-                <Link
-                  href="/settings/l-link"
-                  className="inline-flex items-center justify-center rounded-xl bg-green-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-green-700"
-                >
-                  L-LINKで案内
-                </Link>
+                <GarageLinkNoticeButton kind="deal_notice" sourceId={dealId} />
                 <button
                   type="button"
                   onClick={() => setShowVehicleSearch((current) => !current)}
@@ -1008,12 +999,7 @@ export default function DealDetailPage() {
                 >
                   下取り車両を登録
                 </button>
-                <Link
-                  href="/settings/l-link"
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
-                >
-                  L-LINKで案内
-                </Link>
+                <GarageLinkNoticeButton kind="deal_notice" sourceId={dealId} />
                 <Link
                   href="/deals"
                   className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"

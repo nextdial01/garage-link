@@ -8,6 +8,7 @@ import MasterSelect from '@/components/business/MasterSelect';
 
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import Link from 'next/link';
+import GarageLinkNoticeButton from '@/components/GarageLinkNoticeButton';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -306,7 +307,7 @@ export default function VehicleDetailPage() {
   }
 
   return (
-    <AppShell activeLabel="車両管理" title="車両詳細" description="車両台帳・価格・関連情報を確認、編集します" actionButton={<div className="flex flex-wrap gap-2"><button type="button" onClick={() => void handleSave()} disabled={isSaving} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60">{isSaving ? '保存中...' : '保存する'}</button><SoftDeleteButton tableName="vehicles" rowId={vehicleId} storeId={storeId} targetType="vehicle" targetLabel={form.management_no || `${form.maker} ${form.model_name}`.trim() || '車両'} redirectHref="/vehicles" /><Link href="/vehicles" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50">車両一覧に戻る</Link></div>}>
+    <AppShell activeLabel="車両管理" title="車両詳細" description="車両台帳・価格・関連情報を確認、編集します" actionButton={<div className="flex flex-wrap gap-2"><button type="button" onClick={() => void handleSave()} disabled={isSaving} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60">{isSaving ? '保存中...' : '保存する'}</button><GarageLinkNoticeButton kind="price_reduction" sourceId={vehicleId} disabled={isSaving} /><SoftDeleteButton tableName="vehicles" rowId={vehicleId} storeId={storeId} targetType="vehicle" targetLabel={form.management_no || `${form.maker} ${form.model_name}`.trim() || '車両'} redirectHref="/vehicles" /><Link href="/vehicles" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50">車両一覧に戻る</Link></div>}>
       {isLoading ? <p className="rounded-2xl bg-white p-5 text-sm text-slate-500 shadow-sm">読み込み中...</p> : notFound ? <p className="rounded-2xl bg-white p-5 text-sm font-semibold text-slate-500 shadow-sm">車両が見つかりません。</p> : (
         <div className="mx-auto max-w-7xl space-y-6">
           {errorMessage && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</p>}

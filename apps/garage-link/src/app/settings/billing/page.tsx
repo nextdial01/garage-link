@@ -506,7 +506,7 @@ export default function BillingSettingsPage() {
                 <span className="rounded-full bg-white px-3 py-1 shadow-sm">スタッフ {usage?.staff_count ?? 0}/{(subscription?.included_staff_count ?? currentPlan.includedStaffCount) + (subscription?.extra_staff_count ?? 0)}名</span>
                 <span className="rounded-full bg-white px-3 py-1 shadow-sm">店舗 {usage?.store_count ?? 1}/{(subscription?.included_store_count ?? currentPlan.includedStoreCount) + (subscription?.extra_store_count ?? 0)}</span>
                 <span className="rounded-full bg-white px-3 py-1 shadow-sm">保存容量 {formatStorage(Math.ceil((usage?.storage_bytes ?? 0) / 1024 / 1024))}/{formatStorage((subscription?.storage_limit_mb ?? currentPlan.storageLimitMb) + (subscription?.extra_storage_gb ?? 0) * 1024)}</span>
-                <span className="rounded-full bg-white px-3 py-1 shadow-sm">L-LINK {subscription?.l_link_integration_enabled ? '利用可' : '対象外'}</span>
+                <span className="rounded-full bg-white px-3 py-1 shadow-sm">L-LINK {subscription?.status === 'active' && subscription.l_link_integration_enabled ? '利用可' : subscription?.l_link_integration_enabled ? '契約停止中' : '対象外'}</span>
               </div>
             </div>
             {subscription?.pending_plan && subscription.pending_plan_effective_at && (

@@ -17,6 +17,8 @@ type StoreMemberRow = {
 };
 
 const settingCards = [
+  { title: '商談・書類・値下げ・買替案内', href: '/customer-follow-up/line-notices', description: 'GARAGE LINKからL-LINKへ渡した案内を確認し、配信下書きを開きます。' },
+  { title: '連携案内の本文・買替時期', href: '/settings/l-link/notices', description: '案内本文と、車検満了日の何か月前に買替提案を作成するかを設定します。' },
   { title: 'L-LINK連携', href: '/settings/l-link', description: '現在の契約の連携可否を確認し、L-LINKで配信下書き・送信を管理します。' },
   { title: 'L-LINK配信候補一覧', href: '/customer-follow-up/delivery-candidates', description: 'GARAGE LINKが作成した配信候補と、L-LINKへの取込状態を確認します。' },
   { title: 'マスター管理・金額表示方式', href: '/settings/masters', description: '車両メーカー、部品カテゴリー、作業分類と税込・税抜表示を管理します。' },
@@ -135,7 +137,7 @@ export default function SettingsPage() {
     if (card.href === '/settings/import-export') return canImportExportSettings(role);
     if (card.href === '/settings/documents') return role === 'owner' || role === 'admin' || role === 'implementer';
     if (card.href === '/settings/company') return role === 'owner' || role === 'admin';
-    if (card.href === '/settings/store' || card.href === '/settings/stores' || card.href === '/settings/security' || card.href === '/settings/billing' || card.href === '/settings/customer-follow-up/inspection-reminders' || card.href === '/settings/accounting-export') return role === 'owner' || role === 'admin';
+    if (card.href === '/customer-follow-up/line-notices' || card.href === '/settings/l-link/notices' || card.href === '/settings/store' || card.href === '/settings/stores' || card.href === '/settings/security' || card.href === '/settings/billing' || card.href === '/settings/customer-follow-up/inspection-reminders' || card.href === '/settings/accounting-export') return role === 'owner' || role === 'admin';
     if (
       card.href === '/settings/audit-logs' ||
       card.href === '/settings/trash' ||

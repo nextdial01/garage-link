@@ -196,7 +196,7 @@ export default function InspectionReminderHistoryPage() {
           {isLoading ? (
             <p className="px-5 py-10 text-center text-sm text-slate-500">読み込み中...</p>
           ) : rows.length === 0 ? (
-            <p className="px-5 py-12 text-center text-sm text-slate-500">該当する案内対象がありません。設定を有効にし、「今すぐ案内対象を判定」を実行してください。</p>
+            <p className="px-5 py-12 text-center text-sm text-slate-500">{errorMessage ? '履歴を確認できませんでした。再読み込みしてください。' : statusFilter || fromDate || toDate || appliedKeyword ? '指定した条件に一致する案内対象はありません。検索条件を変更してください。' : '車検案内の履歴はまだありません。設定と対象車両を確認してください。'}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">

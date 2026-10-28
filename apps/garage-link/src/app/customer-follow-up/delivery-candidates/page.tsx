@@ -1,6 +1,7 @@
 'use client';
 
 
+import Link from 'next/link';
 import { toUserErrorMessage } from '@/lib/errors/user-error';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AppShell from '@/components/AppShell';
@@ -108,6 +109,7 @@ export default function DeliveryCandidatesPage() {
 
   return (
     <AppShell activeLabel="配信候補一覧" title="L-LINK配信候補一覧" description="車検・点検・納車後フォロー・口コミ・長期未接触などの配信候補を確認します。送信はL-LINKで行います。">
+      <Link href="/customer-follow-up/line-notices" className="mb-4 inline-block rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700">商談・書類・値下げ・買替案内を開く</Link>
       <div className="space-y-4">
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-end gap-3">

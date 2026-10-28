@@ -1,0 +1,46 @@
+{
+  "at_utc": "2026-10-28T12:03:39.011534+00:00",
+  "state": "REVIEWED_LOCAL_CANDIDATE_NOT_PRODUCTION",
+  "approved_baseline": "5651c68693abae21a624d885b935174c11f3b4ed",
+  "branch": "codex/garage-origin-batch-repair",
+  "scope": "Existing G-origin5 defects plus shared L2; three missing G→L integration systems. No standalone L runtime campaign.",
+  "requirements": {
+    "repurchase_anchor": "current inspection expiry date",
+    "timing": "store-configurable0..60calendar months; monthend clamp; default3, disabled until explicitly enabled",
+    "templates": "editable per type, valid available fields only; existing drafts retain original snapshot",
+    "documents": "issued quote/invoice PDF download link, including explicit-customer standalone documents; no name inference"
+  },
+  "parent_adoption": {
+    "child_results_reviewed": true,
+    "Qwen_assigned": 0,
+    "Qwen_seconds": 0,
+    "Qwen_environment_failure": "Current Documents/Codex worktrees outside permitted runner roots; no allowlist weakening/model fallback",
+    "Codex_complement": "source/current guards, DB proposals, generator integration, type-specific templates, static glyf font and actual rendering, built HTTP entry, combined build",
+    "next_Qwen_scope": "bounded ordinary UI/local tests once supported clean worktree/runtime restored",
+    "separate_child_worktrees": "not Orca managed, retained internally for valid unmerged candidates; frozen originals unchanged"
+  },
+  "validation": {
+    "whole_product_typecheck": "PASS",
+    "next_webpack_build": "PASS with preexisting Edge Runtime/middleware warnings",
+    "new_changed_path_local_regressions": "PASS",
+    "SQL": "actual owned disposable PostgreSQL engine contract tests PASS; minimal fixture, not full deployed schema/trigger stack",
+    "Production_runtime": false,
+    "LINE_send": 0,
+    "email_send": 0,
+    "deploy": 0,
+    "push": 0,
+    "new_permissions": 0
+  },
+  "acceptance_limits": [
+    "Exact new SHA and SQL adoption approval required before any Production operation",
+    "Fresh deployed schema/constraint/RPC/ACL preflight required before applying SQL; abort on mismatch",
+    "Existing whole219 historical counters are unchanged",
+    "Source/version checks and full local build are not Production PASS"
+  ],
+  "cleanup": {
+    "owned_test_servers_stopped": true,
+    "owned_postgres_stopped_and_deleted": true,
+    "retained_evidence_not_deleted": true
+  },
+  "live_schema_metadata_preflight": "PASS required columns/types/helper availability and new-object absence, read-only20261028; not applied SQL"
+}

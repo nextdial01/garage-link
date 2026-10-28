@@ -1,4 +1,5 @@
 'use client';
+import GarageLinkNoticeButton from '@/components/GarageLinkNoticeButton';
 import { priceLabel, type TaxDisplayMode, type TaxCategory } from '@/lib/business/money';
 
 import Link from 'next/link';
@@ -227,6 +228,7 @@ export default function StandaloneInvoicePreviewPage() {
           <Link href="/invoices" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">
             一覧に戻る
           </Link>
+          <GarageLinkNoticeButton kind="invoice_notice" sourceId={invoiceId} disabled={!invoice || invoice.issue_status !== 'issued'} />
           <button type="button" onClick={() => window.print()} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100">
             PDFを発行
           </button>

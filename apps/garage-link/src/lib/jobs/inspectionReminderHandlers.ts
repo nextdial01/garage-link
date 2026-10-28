@@ -20,12 +20,12 @@ import { isAutomationDisabled } from '@/lib/security/runtimeSafety';
 // TODO(L-LINK連携): 将来 L-LINK へ配信候補/下書き作成要求を送る際は、送信直前に
 // イベントの inspection_expiry_date と対象車両の現在の inspection_expiry_date を再照合し、
 // 不一致（満了日が訂正された旧満了日向けの pending 等）は送信せず status='skipped' にする。
-// 今回は実通信を実装せず、既存 pending の自動 skip も行わない（設計メモのみ）。
+// 買替案内は別の durable handoff を生成し、L側の下書き作成・送信前に現在値を再検証する。
 // Dynamic route policy remains on the normal route wrapper.
 
 type StoreMemberRow = { tenant_id: string; store_id: string; role: string | null };
 type StoreScopeRow = { id: string; tenant_id: string };
-type JobBreakdown = { inspection_reminder: number; followup_candidates: number };
+type JobBreakdown = { inspection_reminder: number; followup_candidates: number; repurchase: number };
 
 function serviceSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
@@ -64,7 +64,7 @@ async function resolveGenerationStoreContext(
   });
 }
 
-// 両方の生成RPCを実行し、件数の内訳を返す。片方が失敗しても他方の結果は失わない
+// 既存候補と買替案内の生成RPCを実行し、件数の内訳を返す。片方が失敗しても他方の結果は失わない
 // （それぞれ独立したトランザクションのため、部分成功を握り潰さず呼び出し元へ伝える）。
 async function runGenerationJobs(
   service: NonNullable<ReturnType<typeof serviceSupabase>>,
@@ -72,13 +72,13 @@ async function runGenerationJobs(
 ): Promise<{ breakdown: JobBreakdown; errors: string[] }> {
   if (!context.storeId) throw new Error('STORE_CONTEXT_REQUIRED');
   // The database authorization wrappers default to UTC CURRENT_DATE. Bind both
-  // calls to one server-calculated JST date, including 00:00–08:59 in Japan.
+  // legacy calls to one server-calculated JST date, including 00:00–08:59 in Japan.
   const dateParts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit',
   }).formatToParts(new Date());
   const todayJst = ['year', 'month', 'day'].map((type) => dateParts.find((part) => part.type === type)!.value).join('-');
   const errors: string[] = [];
-  const breakdown: JobBreakdown = { inspection_reminder: 0, followup_candidates: 0 };
+  const breakdown: JobBreakdown = { inspection_reminder: 0, followup_candidates: 0, repurchase: 0 };
 
   const { data: inspectionData, error: inspectionError } = await service.rpc(
     'generate_inspection_reminder_events',
@@ -99,6 +99,10 @@ async function runGenerationJobs(
   } else {
     breakdown.followup_candidates = followupData ?? 0;
   }
+
+  const { data: repurchaseData, error: repurchaseError } = await service.rpc('garage_link_generate_repurchase', { p_store_id: context.storeId });
+  if (repurchaseError) errors.push(repurchaseError.message);
+  else breakdown.repurchase = repurchaseData ?? 0;
 
   return { breakdown, errors };
 }
@@ -124,7 +128,7 @@ export async function runInspectionJobGET(request: Request, serviceFactory: Insp
       .rpc('service_list_eligible_garage_stores');
     if (storesError) throw new Error('STORE_SCOPE_ENUMERATION_FAILED');
 
-    const breakdown: JobBreakdown = { inspection_reminder: 0, followup_candidates: 0 };
+    const breakdown: JobBreakdown = { inspection_reminder: 0, followup_candidates: 0, repurchase: 0 };
     const errors: string[] = [];
     let successfulStores = 0;
     for (const row of ((storeRows ?? []) as Array<{ store_id: string; tenant_id: string }>).map((item) => ({
@@ -141,8 +145,9 @@ export async function runInspectionJobGET(request: Request, serviceFactory: Insp
         const result = await runGenerationJobs(service, context);
         breakdown.inspection_reminder += result.breakdown.inspection_reminder;
         breakdown.followup_candidates += result.breakdown.followup_candidates;
+        breakdown.repurchase += result.breakdown.repurchase;
         errors.push(...result.errors.map(() => `store:${row.id}:generation_failed`));
-        if (result.errors.length < 2) successfulStores += 1;
+        if (result.errors.length < 3) successfulStores += 1;
       } catch {
         errors.push(`store:${row.id}:scope_or_generation_failed`);
       }
@@ -154,7 +159,7 @@ export async function runInspectionJobGET(request: Request, serviceFactory: Insp
         return NextResponse.json({ ok: false, error: 'ジョブ実行に失敗しました。', code: 'inspection_job_failed' }, { status: 500 });
       }
     }
-    const created = breakdown.inspection_reminder + breakdown.followup_candidates;
+    const created = breakdown.inspection_reminder + breakdown.followup_candidates + breakdown.repurchase;
     return NextResponse.json({ ok: true, scope: 'all_stores', created, breakdown, partial_errors: errors.length > 0 });
   } catch (error) {
     logServerError('inspection_job_failed', { route: '/api/jobs/inspection-reminders', method: 'GET', details: { scope: 'all_stores' } }, error);
@@ -206,11 +211,11 @@ export async function runInspectionJobPOST(request: Request, serviceFactory: Ins
     const { breakdown, errors } = await runGenerationJobs(service, context);
     if (errors.length > 0) {
       logServerError('inspection_job_partial_failure', { route: '/api/jobs/inspection-reminders', method: 'POST', storeId: member.store_id, details: { errors } }, new Error(errors.join(' / ')));
-      if (breakdown.inspection_reminder === 0 && breakdown.followup_candidates === 0 && errors.length === 2) {
+      if (breakdown.inspection_reminder === 0 && breakdown.followup_candidates === 0 && breakdown.repurchase === 0 && errors.length === 3) {
         return NextResponse.json({ ok: false, error: '実行に失敗しました。', code: 'inspection_job_failed' }, { status: 500 });
       }
     }
-    const created = breakdown.inspection_reminder + breakdown.followup_candidates;
+    const created = breakdown.inspection_reminder + breakdown.followup_candidates + breakdown.repurchase;
     return NextResponse.json({ ok: true, scope: 'own_store', created, breakdown, partial_errors: errors.length > 0 });
   } catch (error) {
     logServerError('inspection_job_failed', { route: '/api/jobs/inspection-reminders', method: 'POST', storeId: member.store_id }, error);

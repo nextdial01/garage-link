@@ -2,6 +2,7 @@
 import { priceLabel, type TaxDisplayMode, type TaxCategory } from '@/lib/business/money';
 
 import Link from 'next/link';
+import GarageLinkNoticeButton from '@/components/GarageLinkNoticeButton';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -384,9 +385,7 @@ export default function QuotePreviewPage() {
           <button type="button" onClick={() => window.print()} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">
             印刷
           </button>
-          <Link href="/settings/l-link" className="rounded-xl bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700">
-            L-LINKで案内
-          </Link>
+          <GarageLinkNoticeButton kind="quote_notice" sourceId={quote?.id ?? ''} />
         </div>
       </div>
 
